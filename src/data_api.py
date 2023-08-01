@@ -658,7 +658,7 @@ def api_sparql(q):
 ############################### PUBLISHING OPERATIONS ############################
 
 @app.route('/api/v1/catalog/publish', methods=['POST'])
-@app.input(schema.Dataset, location='json', example={"basic_metadata":{"title": "Test KLMS API 46", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Bavaria"}]},"custom_metadata":{"INSPIRE theme":"Imagery","Topic": "Landuse", "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]},"startDate":"2023-01-31T11:33:54.132Z", "endDate":"2023-01-31T11:35:48.593Z"},"profile_metadata":{"url":"https://raw.githubusercontent.com/stelar-eu/data-profiler/main/examples/output/timeseries_profile.json", "name": "Time series profile in JSON", "description": "This is the profile of a time series in JSON format", "format": "JSON", "resource_tags": ["Profile", "Computed with STELAR Profiler"]}})
+@app.input(schema.Dataset, location='json', example={"basic_metadata":{"title": "Test Data API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Bavaria"}]},"custom_metadata":{"INSPIRE theme":"Imagery","Topic": "Landuse", "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]},"startDate":"2023-01-31T11:33:54.132Z", "endDate":"2023-01-31T11:35:48.593Z"},"profile_metadata":{"url":"https://raw.githubusercontent.com/stelar-eu/data-profiler/main/examples/output/timeseries_profile.json", "name": "Time series profile in JSON", "description": "This is the profile of a time series in JSON format", "format": "JSON", "resource_tags": ["Profile", "Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'])
 @app.auth_required(auth)
@@ -674,7 +674,7 @@ def api_dataset_publish(json_data):
         A JSON with the CKAN response to the publishing request.
     """
 
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/catalog/publish -d '{"basic_metadata":{"title": "Test KLMS API 46", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Bavaria"}]},"custom_metadata":{"INSPIRE theme":"Imagery","Topic": "Landuse", "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]},"startDate":"2023-01-31T11:33:54.132Z", "endDate":"2023-01-31T11:35:48.593Z"},"profile_metadata":{"file":"/data/examples/timeseries_profile.json", "name": "Time series profile in JSON", "description": "This is the profile of a time series in JSON format", "format": "JSON", "resource_tags": [{"key": "Resource type", "value": "Profile"}, {"key": "Process", "value": "Computed with STELAR Profiler"}]}}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/catalog/publish -d '{"basic_metadata":{"title": "Test Data API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Bavaria"}]},"custom_metadata":{"INSPIRE theme":"Imagery","Topic": "Landuse", "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]},"startDate":"2023-01-31T11:33:54.132Z", "endDate":"2023-01-31T11:35:48.593Z"},"profile_metadata":{"file":"/data/examples/timeseries_profile.json", "name": "Time series profile in JSON", "description": "This is the profile of a time series in JSON format", "format": "JSON", "resource_tags": [{"key": "Resource type", "value": "Profile"}, {"key": "Process", "value": "Computed with STELAR Profiler"}]}}'
 
     config = current_app.config['settings']
 
@@ -784,7 +784,7 @@ def api_dataset_publish(json_data):
 
 
 @app.route('/api/v1/dataset/register', methods=['POST'])
-@app.input(schema.Package, location='json', example={"package_metadata": {"title": "Test KLMS API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Berlin"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}],"name": "test_klms_api_1","private": "false","version": "0.3","owner_org": "athenarc"}})
+@app.input(schema.Package, location='json', example={"package_metadata": {"title": "Test Data API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Berlin"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}],"name": "test_data_api_1","private": "false","version": "0.3","owner_org": "athenarc"}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'])
 @app.auth_required(auth)
@@ -798,7 +798,7 @@ def api_dataset_register(json_data):
         A JSON with the CKAN response to the registration request.
     """
 
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/dataset/register -d '{"package_metadata": {"title": "Test KLMS API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Berlin"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}],"name": "test_klms_api_1","private": "false","version": "0.3","owner_org": "athenarc"}}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/dataset/register -d '{"package_metadata": {"title": "Test Data API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Berlin"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}],"name": "test_data_api_1","private": "false","version": "0.3","owner_org": "athenarc"}}'
 
     config = current_app.config['settings']
 
@@ -830,7 +830,7 @@ def api_dataset_register(json_data):
 
 
 @app.route('/api/v1/dataset/patch', methods=['POST'])
-@app.input(schema.Package, location='json', example={"package_metadata": {"id": "test_klms_api_1", "tags": [{"name": "Patch"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}] }})
+@app.input(schema.Package, location='json', example={"package_metadata": {"id": "test_data_api_1", "tags": [{"name": "Patch"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}] }})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'])
 @app.auth_required(auth)
@@ -844,7 +844,7 @@ def api_dataset_patch(json_data):
         A JSON with the CKAN response to the patch request.
     """
 
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/dataset/patch -d '{"package_metadata": {"id": "test_klms_api_1", "tags": [{"name": "Patch"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}] }}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/dataset/patch -d '{"package_metadata": {"id": "test_data_api_1", "tags": [{"name": "Patch"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}] }}'
 
     config = current_app.config['settings']
 
@@ -876,7 +876,7 @@ def api_dataset_patch(json_data):
 
 
 @app.route('/api/v1/resource/upload', methods=['POST'])
-@app.input(schema.Resource, location='json', example={"resource_metadata": {"package_id": "test_klms_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_tags": [{"key": "Resource type", "value": "Profile"}, {"key": "Process", "value": "Computed with STELAR Profiler"}]}})
+@app.input(schema.Resource, location='json', example={"resource_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_tags": [{"key": "Resource type", "value": "Profile"}, {"key": "Process", "value": "Computed with STELAR Profiler"}]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'])
 @app.auth_required(auth)
@@ -890,7 +890,7 @@ def api_resource_upload(json_data):
         A JSON with the CKAN response to the publishing request.
     """
 
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/resource/upload -d '{"resource_metadata": {"package_id": "test_klms_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_tags": [{"key": "Resource type", "value": "Profile"}, {"key": "Process", "value": "Computed with STELAR Profiler"}]}}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/resource/upload -d '{"resource_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_tags": [{"key": "Resource type", "value": "Profile"}, {"key": "Process", "value": "Computed with STELAR Profiler"}]}}'
 
     config = current_app.config['settings']
 
@@ -931,7 +931,7 @@ def api_resource_upload(json_data):
 
 
 @app.route('/api/v1/resource/link', methods=['POST'])
-@app.input(schema.Resource, location='json', example={"resource_metadata": {"package_id": "test_klms_api_1", "url":"https://data.smartdublin.ie/dataset/09870e46-26a3-4dc2-b632-4d1fba5092f9/resource/40a718a8-cb99-468d-962b-af4fed4b0def/download/bleeperbike_map.geojson", "name": "Test GeoJSON resource", "description": "This is the test resource in GeoJSON format", "format": "GeoJSON", "resource_tags": [{"key": "Resource type", "value": "Link to external resource"}, {"key": "Process", "value": "Found in the Web"}]}})
+@app.input(schema.Resource, location='json', example={"resource_metadata": {"package_id": "test_data_api_1", "url":"https://data.smartdublin.ie/dataset/09870e46-26a3-4dc2-b632-4d1fba5092f9/resource/40a718a8-cb99-468d-962b-af4fed4b0def/download/bleeperbike_map.geojson", "name": "Test GeoJSON resource", "description": "This is the test resource in GeoJSON format", "format": "GeoJSON", "resource_tags": [{"key": "Resource type", "value": "Link to external resource"}, {"key": "Process", "value": "Found in the Web"}]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'])
 @app.auth_required(auth)
@@ -945,7 +945,7 @@ def api_resource_link(json_data):
         A JSON with the CKAN response to the publishing request.
     """
 
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/resource/link -d '{"resource_metadata": {"package_id": "test_klms_api_1", "url":"https://data.smartdublin.ie/dataset/09870e46-26a3-4dc2-b632-4d1fba5092f9/resource/40a718a8-cb99-468d-962b-af4fed4b0def/download/bleeperbike_map.geojson", "name": "Test GeoJSON resource", "description": "This is the test resource in GeoJSON format", "format": "GeoJSON", "resource_tags": [{"key": "Resource type", "value": "Link to external resource"}, {"key": "Process", "value": "Found in the Web"}]}}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/resource/link -d '{"resource_metadata": {"package_id": "test_data_api_1", "url":"https://data.smartdublin.ie/dataset/09870e46-26a3-4dc2-b632-4d1fba5092f9/resource/40a718a8-cb99-468d-962b-af4fed4b0def/download/bleeperbike_map.geojson", "name": "Test GeoJSON resource", "description": "This is the test resource in GeoJSON format", "format": "GeoJSON", "resource_tags": [{"key": "Resource type", "value": "Link to external resource"}, {"key": "Process", "value": "Found in the Web"}]}}'
 
     config = current_app.config['settings']
 
@@ -972,12 +972,22 @@ def api_resource_link(json_data):
 
     # Make a POST request to the CKAN API with the parameters
     response = requests.post(config['CKAN_API']+'resource_create', data=resource_metadata, headers=resource_headers)
+
+    if response.status_code == 200:
+        # Also ingest profile information into PostgreSQL according to KLMS schema
+        resource_id = response.json()['result']['id']
+        # print("RESOURCE ID: ", resource_id)
+        # TODO: Distinguish handling according to Profile type
+        sql_commands = functions.extractResourceProperties(resource_id, resource_metadata)
+        for sql in sql_commands:
+            execSql(sql)
+
     return response.json()
 
 
 
 @app.route('/api/v1/artifact/publish', methods=['POST'])
-@app.input(schema.Artifact, location='json', example={"package_metadata":{"package_id": "test_klms_api_46"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "run_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}})
+@app.input(schema.Artifact, location='json', example={"package_metadata":{"package_id": "test_data_api_1"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "run_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'])
 @app.auth_required(auth)
@@ -994,7 +1004,7 @@ def api_artifact_publish(json_data):
     """
 
     #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/publish -d '{"package_metadata":{"title":"Results of Airflow dag mycalc", "tags":[{"name": "Artifact"}, {"name": "Workflow"}], "extras":[{"key":"dag_id", "value":"mycalc"}, {"key":"run_id", "value":"scheduled__2023-07-11T00:00:00+00:00"}], "notes": "My calculation using AirFlow"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "run_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}}'
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/publish -d '{"package_metadata":{"package_id": "test_klms_api_46"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "run_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/publish -d '{"package_metadata":{"package_id": "test_data_api_1"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "run_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}}'
 
     config = current_app.config['settings']
 
@@ -1131,7 +1141,7 @@ def api_artifact_id(query_data):
 
 
 @app.route('/api/v1/dataset/delete', methods=['POST'])
-@app.input(schema.Identifier, location='json', example={"id":"test_klms_api_46"})
+@app.input(schema.Identifier, location='json', example={"id":"test_data_api_1"})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Catalog Management'])
 @app.auth_required(auth)
@@ -1147,7 +1157,7 @@ def api_dataset_purge(json_data):
         A JSON with the CKAN response to the delete request.
     """
 
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/dataset/delete -d '{"id": "test_klms_api_1"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/dataset/delete -d '{"id": "test_data_api_1"}'
 
     config = current_app.config['settings']
 
@@ -1174,7 +1184,7 @@ def api_dataset_purge(json_data):
 
 
 @app.route('/api/v1/dataset/unpublish', methods=['POST'])
-@app.input(schema.Identifier, location='json', example={"id":"test_klms_api_46"})
+@app.input(schema.Identifier, location='json', example={"id":"test_data_api_1"})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Catalog Management'])
 @app.auth_required(auth)
@@ -1190,7 +1200,7 @@ def api_dataset_unpublish(json_data):
         A JSON with the CKAN response to the unpublish request.
     """
 
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/dataset/unpublish -d '{"id": "test_klms_api_46"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/dataset/unpublish -d '{"id": "test_data_api_1"}'
 
     config = current_app.config['settings']
 
@@ -1359,7 +1369,7 @@ def api_track(json_data):
         # port = request.host.split(':')[1] if ':' in request.host else 80  # Default to port 80 if no port is specified in the request
         # publish_url = f"http://{host}:{port}/api/v1/artifact/publish"
         
-        # url = args['settings']['klms_api']['endpoint_url'] + 'api/v1/artifact/publish'
+        # url = args['settings']['data_api']['endpoint_url'] + 'api/v1/artifact/publish'
         response = requests.post(publish_url, json=d, headers=headers)
         
         resource_id = ""
@@ -1418,7 +1428,7 @@ def yaml_config(config_file):
 # Deploy service at the specific host and port
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print("Usage: python klms_api.py <config_file>")
+        print("Usage: python data_api.py <config_file>")
         sys.exit(1)
 
     # Get configuration settings specified in YAML or JSON

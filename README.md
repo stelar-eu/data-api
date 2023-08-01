@@ -30,10 +30,10 @@ Once the service is launched, requests can be sent to this REST API in order to 
 
 
 # Documentation
-Full documentation about the Data API can be found at: http://data-api.magellan2.imsi.athenarc.gr/docs
+Once the REST API is launched, full documentation about it will be available at: <DATA-API-HOST>/docs
 
 # Specifications
-Data API supports [OpenAPI 3.0](https://spec.openapis.org/oas/v3.0.3) specification. Full specifications are available at: http://data-api.magellan2.imsi.athenarc.gr/specs
+Data API supports [OpenAPI 3.0](https://spec.openapis.org/oas/v3.0.3) specification. Once the REST API is launched, full specifications will be available at: <DATA-API-HOST>/specs
 
 
 # License

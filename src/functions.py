@@ -31,7 +31,7 @@ textual_tags = ['ratio_uppercase','ratio_digits','ratio_special_characters']
 
 tabular_tags = ['num_rows','num_attributes']
 
-raster_tags = ['format','height','width','crs','spatial_coverage','spatial_resolution','temporal_coverage','temporal_resolution','no_data_value']
+raster_tags = ['format','height','width','crs','spatial_coverage','spatial_resolution','start_date','end_date','temporal_resolution','no_data_value']
 
 rdfgraph_tags = ['num_nodes','num_edges','num_namespaces','num_classes','num_object_properties','num_datatype_properties','density','num_connected_components']
 
@@ -228,6 +228,23 @@ def processTabularProfile(resource_id, prof, sql):
     tabular_metadata['num_columns'] = tabular_metadata.pop('num_attributes')
     sql.append(prepareInsertSql(tabular_metadata, 'klms.tabular'))
 
+
+def processRasterResource(resource_id, metadata, sql):
+    """Provides metadata extracted from the profile of a raster dataset.
+
+    Args:
+        resource_id (String) : A unique identifier for this profile.
+        metadata (array): JSON array containing the resource metadata of this raster resource (according to KLMS ontology).
+        sql (array): JSON array collecting the SQL commands from this profile.
+
+    Returns:
+        An updated collection of INSERT SQL statements to be executed for ingesting profile metadata into PostgreSQL according to KLMS schema.
+    """
+
+    # Collect general info about this profile
+    raster_metadata = cleanupDict(copy.deepcopy(metadata), raster_tags)     
+    raster_metadata['resource_id'] = resource_id
+    sql.append(prepareInsertSql(raster_metadata, 'klms.raster'))
 
 
 def processRasterProfile(resource_id, prof, sql):
@@ -531,6 +548,46 @@ def extractProfileProperties(resource_id, profile):
                 geometry_attribute['geom_type_distribution'] = geomtype_uuid
             # Must have included foreign keys to the various distributions
             sql.append(prepareInsertSql(geometry_attribute, 'klms.geometry_attribute'))
+
+    # Return the list of collected SQL commands for execution
+    return sql
+
+
+
+def extractResourceProperties(resource_id, metadata):
+    """Provides metadata extracted from a resource that conform to the KLMS schema.
+
+    Args:
+        resource_id (String) : A unique identifier for this resource.
+        metadata (dict): JSON containing the resource metadata.
+
+    Returns:
+        A collection of INSERT SQL statements to be executed for ingesting resource metadata into PostgreSQL according to KLMS schema.
+    """
+
+    sql = []   		# Collects SQL commands to be executed
+
+    # PHASE #1: Dataset-related information
+    # Handle each resource according to its type
+    if metadata['resource_type'] == 'Tabular':
+        # TODO: processTabularResource(resource_id, metadata, sql)
+        return sql
+    elif metadata['resource_type'] == 'Raster':
+        processRasterResource(resource_id, metadata, sql)
+        return sql
+    elif prof['resource_type'] == 'Hierarchical':
+        #TODO: processHierarchicalResource(resource_id, metadata, sql)
+        return sql
+    elif prof['resource_type'] == 'RDFGraph':
+        # TODO: processRdfGraphResource(resource_id, metadata, sql)
+        return sql
+    elif prof['resource_type'] == 'Textual':
+        # TODO: processTextualResource(resource_id, metadata, sql)
+        return sql
+
+    #TODO: TimeSeries ???
+
+    # PHASE #2: Attribute-related information NOT needed
 
     # Return the list of collected SQL commands for execution
     return sql
