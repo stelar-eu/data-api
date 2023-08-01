@@ -65,6 +65,7 @@ def create_CKAN_headers(API_TOKEN):
     return package_headers, resource_headers
 
 
+
 def validate_spatial(geometry):
     """Prepares the value for spatial extent in GeoJSON as expected by CKAN.
 
@@ -74,9 +75,11 @@ def validate_spatial(geometry):
     Returns:
         A GeoJSON as expected by CKAN for spatial indexing in SOLR.
     """
-    
     try:  # First, consider it as a GeoJSON
-        g = json.loads(geometry)
+        if isinstance(geometry, dict):
+            return json.dumps(geometry)   # dictionary
+        else:
+            g = json.loads(geometry)      # string containing a JSON
     except:   
         try:  # Then, assuming this is WKT
             wkt = shapely.wkt.loads(geometry)
@@ -85,6 +88,7 @@ def validate_spatial(geometry):
             g = {"type":"Polygon","coordinates":[]}  # Empty polygon
     
     return json.dumps(g)
+
 
 
 def calc_bbox(geometry):

@@ -658,7 +658,7 @@ def api_sparql(q):
 ############################### PUBLISHING OPERATIONS ############################
 
 @app.route('/api/v1/catalog/publish', methods=['POST'])
-@app.input(schema.Dataset, location='json', example={"basic_metadata":{"title": "Test KLMS API 46", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Bavaria"}]},"custom_metadata":{"INSPIRE theme":"Imagery","Topic": "Landuse", "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]},"startDate":"2023-01-31T11:33:54.132Z", "endDate":"2023-01-31T11:35:48.593Z"},"profile_metadata":{"url":"https://raw.githubusercontent.com/stelar-eu/data-profiler/main/examples/output/timeseries_profile.json", "name": "Time series profile in JSON", "description": "This is the profile of a time series in JSON format", "format": "JSON", "resource_tags": [{"key": "Resource type", "value": "Profile"}, {"key": "Process", "value": "Computed with STELAR Profiler"}]}})
+@app.input(schema.Dataset, location='json', example={"basic_metadata":{"title": "Test KLMS API 46", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Bavaria"}]},"custom_metadata":{"INSPIRE theme":"Imagery","Topic": "Landuse", "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]},"startDate":"2023-01-31T11:33:54.132Z", "endDate":"2023-01-31T11:35:48.593Z"},"profile_metadata":{"url":"https://raw.githubusercontent.com/stelar-eu/data-profiler/main/examples/output/timeseries_profile.json", "name": "Time series profile in JSON", "description": "This is the profile of a time series in JSON format", "format": "JSON", "resource_tags": ["Profile", "Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'])
 @app.auth_required(auth)
@@ -1213,6 +1213,50 @@ def api_dataset_unpublish(json_data):
 
     # Make a POST request to the CKAN API to unpublish an existing package
     response = requests.post(config['CKAN_API']+'package_delete', json=unpublish_metadata, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
+    return response.json()
+
+
+
+@app.route('/api/v1/resource/delete', methods=['POST'])
+@app.input(schema.Identifier, location='json', example={"id":"aa2992aa-b589-463d-ae1e-8430d91206cb"})
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Catalog Management'])
+@app.auth_required(auth)
+def api_resource_delete(json_data):
+    """Delete an existing resource from the Catalog.
+
+    Completely removes a resource (e.g., profile) associated with an existing dataset from the CKAN database. The user must have admin role or must be the publisher of this resource.
+
+    Args:
+        data: A JSON with the id of an existing resource.
+
+    Returns:
+        A JSON with the CKAN response to the delete request.
+    """
+
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/resource/delete -d '{"id": "aa2992aa-b589-463d-ae1e-8430d91206cb"}'
+
+    config = current_app.config['settings']
+
+    if request.headers:
+        if request.headers.get('Api-Token') != None:
+            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+        else:
+            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+        return jsonify(response)
+
+    if request.data:
+        metadata=request.data
+        delete_metadata = json.loads(metadata.decode("utf-8"))   #json.loads(json.dumps(str(request.data)))
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No metadata provided for deleting a resource from the Catalog. Please specify the id of the resource you wish to permanently delete.']}}
+        return jsonify(response)
+
+    # Make a POST request to the CKAN API to purge an existing dataset
+    response = requests.post(config['CKAN_API']+'resource_delete', json=delete_metadata, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
     return response.json()
 
 
