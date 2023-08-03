@@ -1,7 +1,7 @@
 import json
 
 from apiflask import Schema, abort
-from apiflask.fields import Boolean, Integer, String, Dict, Nested, URL
+from apiflask.fields import Boolean, Integer, String, Dict, Nested, URL, List
 from apiflask.validators import Length, OneOf, NoneOf
 
 
@@ -84,29 +84,21 @@ class ComplexFilter(Schema):
     fq = String(required=False, example="organization:athenarc")        		# facet search only
 
 
-class TrackingParams(Schema):
-    experiment = String(required=True)
-    log = Dict(required=True)
-    path = String(required=True)
-    package_id = String(validate=NoneOf(['']), missing=None)
-    title = String(validate=NoneOf(['']), missing=None)
-
-
-class TrackingSettings(Schema):
+class TrackingTags(Schema):
     dag_id = String(required=True)
     run_id = String(required=True)
-    user = String(required=True)
+    task_id = String(required=True)
 
+class TrackingSettings(Schema):
+    experiment = String(required=True)
+    tags = Nested(TrackingTags, required=True)
 
 class Tracking(Schema):
-    params = Nested(TrackingParams, required=True)
+    input = List(String, required=True)
+    output = List(String, required=True)
+    parameters = Dict(required=True)
+    metrics = Dict(required=True)
     settings = Nested(TrackingSettings, required=True)
-
-# class Tracking(Schema):
-#     params = Dict(required=True)
-#     settings = Dict(required=True)
-
-
 
 # NOT USED EXAMPLES
 

@@ -1272,7 +1272,7 @@ def api_resource_delete(json_data):
 
 
 @app.route('/api/v1/track', methods=['POST'])
-@app.input(schema.Tracking, location='json', example={'params': {'experiment': 'Downloading_GDELT_Demo_download', 'title': 'Workflow for Downloading_GDELT_Demo 20230713', 'path': 's3://gdelt-bucket/download_gdelt_20230713.csv', 'log': {'metrics': {'downloaded_files': 5, 'filtered_no_articles': 20, 'original_files': 5, 'original_no_articles': 9588, 'time': 20.359771966934204}, 'parameters': {'date': '20230713'}}}, 'settings': {'dag_id': 'Downloading_GDELT_Demo', 'run_id': 'scheduled__2023-07-13T00:00:00+00:00', 'user': 'azeakis'}} )
+@app.input(schema.Tracking, location='json', example={'input': [], 'parameters': {'prefix': '20230706'}, 'output': ['57eb3a01-986f-4c5d-8e2b-832596949b2f'], 'metrics': {'downloaded_files': 5, 'filtered_no_articles': 9, 'original_files': 5, 'original_no_articles': 9019, 'time': 14.218100786209106}, 'settings': {'experiment': 'Downloading_GDELT_Demo_download', 'tags': {'dag_id': 'Downloading_GDELT_Demo', 'run_id': 'scheduled__2023-07-06T00:00:00+00:00', 'task_id': 'download'}}} )
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'])
 @app.auth_required(auth)
@@ -1291,9 +1291,7 @@ def api_track(json_data):
     config = current_app.config['settings']
 
     if request.headers:
-        if request.headers.get('Api-Token') != None:
-            headers = request.headers
-        else:
+        if 'Api-Token' not in request.headers:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
     else:
@@ -1302,24 +1300,11 @@ def api_track(json_data):
 
     args = request.json
     
-    log = args['params']['log']
-    input_path = args['params']['path']
-    experiment = args['params']['experiment']
-    package_id = args['params'].get('package_id')
-    title = args['params'].get('title')
-    
-    dag_id = args['settings']['dag_id']
-    run_id = args['settings']['run_id']
-    user = args['settings']['user']
-    
     mfl.set_tracking_uri(config['MLFLOW_ENDPOINT'])
-    if user is not None:
-        mfl.set_tag("user", user)
 
-
-    exp = mfl.get_experiment_by_name(experiment)
+    exp = mfl.get_experiment_by_name(args['settings']['experiment'])
     if exp is None:
-        exp = mfl.create_experiment(experiment)
+        exp = mfl.create_experiment(args['settings']['experiment'])
     else:
         exp = exp.experiment_id
 
@@ -1327,70 +1312,20 @@ def api_track(json_data):
     if mfl.active_run():
         mfl.end_run()
 
+    run_id = None
     with mfl.start_run(experiment_id=exp) as run:
-        for key, val in log['parameters'].items():
-            if key == 'input':
-                val = [v['resource_id'] for v in val]
-                val = ','.join(val)
-            mfl.log_param(key, val)                    
-        mfl.log_param('dag_id', dag_id)
-        mfl.log_param('run_id', run_id)
-        for key, val in log['metrics'].items():
-            mfl.log_metric(key, val)
-            
-            
-        # Inserting to CKAN
-        ftype = input_path.split('/')[-1].split(".")[-1].upper()
-        d = { "artifact_metadata":{
-                    "url":input_path,
-                    "run_uuid": run.info.run_uuid,
-                    # 'host': args['settings']['urls']['minio'],
-                    "name": f"Results of {experiment} task",
-                    "description": f"This is the test artifact uploaded to minio S3 in {ftype} format",
-                    "format": ftype,
-                    "resource_tags":["Artifact","MLFlow"]
-                                }
-            }
-        if package_id is None:
-            d["package_metadata"] = {
-                    "title": title,
-                    "tags":[{"name":"Artifact"},{"name":"Workflow"}],
-                    "extras":[{"key":"dag_id","value": dag_id},
-                              {"key":"run_id","value": run_id,}],
-                    "notes":"This is the test artifact uploaded to minio S3.",}
+        for key, val in args['parameters'].items():
+            mfl.log_param(key, val) 
+        mfl.log_param('input', ','.join(args['input']))    
+        mfl.log_param('output', ','.join(args['output']))    
+        for key, val in args['metrics'].items():
+            mfl.log_metric(key, val)    
+        for key, val in args['settings']['tags'].items():
+            mfl.set_tag(key, val)  
+            run_id = run.info.run_uuid
 
-        else:
-            d["package_metadata"] = {
-               "package_id": package_id
-            }
-
-        host = request.host.split(':')[0]
-        publish_url = f"http://{host}/api/v1/artifact/publish"
-        # port = request.host.split(':')[1] if ':' in request.host else 80  # Default to port 80 if no port is specified in the request
-        # publish_url = f"http://{host}:{port}/api/v1/artifact/publish"
-        
-        # url = args['settings']['data_api']['endpoint_url'] + 'api/v1/artifact/publish'
-        response = requests.post(publish_url, json=d, headers=headers)
-        
-        resource_id = ""
-        package_id = ""
-        
-        if response.status_code == 200:
-            j = response.json()
-            
-            if j['success']:
-                resource_id = j['result']['resource_id']
-                package_id = j['result']['package_id']
-            else:
-                return jsonify({'help': request.url, 'success': False,
-                                'error': 'An error occurred during data processing. Cannot insert file into CKAN'})
-        else:
-            return jsonify({'help': request.url, 'success': False,
-                            'error': 'An error occurred during data processing. Cannot insert file into CKAN'})
-            
-        mfl.log_param('output', resource_id)
     return jsonify({'help': request.url, 'success': True,
-                    'result': {'resource_id': resource_id, 'package_id': package_id}})
+                    'result': {'run_uuid': run_id}})
 
 
 
