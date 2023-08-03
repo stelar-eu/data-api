@@ -1105,7 +1105,7 @@ def api_artifact_publish(json_data):
 def api_artifact_id(query_data):
     """Get the file path of an artifact. 
 
-    Provides the path to the file (URL, S3 bucker or local file) where an artifact (stored as a resource) is available. User may need credentials to access this file.
+    Provides the path to the file (URL, S3 bucket or local file) where an artifact (stored as a resource) is available. User may need credentials to access this file.
 
     Args:
         id: The unique identifier of the resource as listed in CKAN.

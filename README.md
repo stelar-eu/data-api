@@ -33,7 +33,7 @@ Once the service is launched, requests can be sent to this REST API in order to 
 Once the REST API is launched, full documentation about it will be available as an interactive HTML at: `http://<DATA-API-HOST>/docs`
 
 # Specifications
-Data API supports [OpenAPI 3.0](https://spec.openapis.org/oas/v3.0.3) specification. Once the REST API is launched, full specifications will be available as a JSON at: `http://<DATA-API-HOST>/specs`
+Data API supports [OpenAPI 3.0](https://spec.openapis.org/oas/v3.0.3) specification. Once the REST API is launched, full specifications will be readily available as a JSON at: `http://<DATA-API-HOST>/specs`. A copy of these specifications is available [here](specs/OpenAPI_specs.json).
 
 
 # License

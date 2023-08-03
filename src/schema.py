@@ -1,8 +1,12 @@
 import json
 
 from apiflask import Schema, abort
-from apiflask.fields import Boolean, Integer, String, Dict, Nested, URL, List
+from apiflask.fields import Boolean, Integer, String, Dict, List, Nested, URL
 from apiflask.validators import Length, OneOf, NoneOf
+from marshmallow import pre_load, post_dump, ValidationError
+
+
+optional_basic_metadata = ['version', 'url', 'author', 'author_email', 'maintainer', 'maintainer_email', 'license_id', 'type', 'private']
 
 
 class ResponseOK(Schema):
@@ -51,10 +55,49 @@ class NewToken(Schema):
     name = String(required=True, validate=Length(0, 50))
 
 
+class Tag(Schema):
+    name = String(required=True)
+
+
+class BasicMetadata(Schema):
+    title = String(required=True, validate=Length(0, 100))
+    notes = String(required=True, validate=Length(0, 1000))
+    tags = Nested(Tag(many=True), required=True)
+    private = Boolean(required=False, load_default=False)   # By default, dataset metadata will be publicly available
+    extra = Dict(required=False)   # Any other user-specified basic metadata must conform with CKAN
+
+    @pre_load
+    def unwrap_envelope(self, data, **kwargs):
+        extra = {}
+        rest = {}
+        for k, v in data.items():
+          if k in optional_basic_metadata:
+            extra[k] = v
+          else:
+            rest[k] = v
+        return {'extra':extra,**rest}
+
+
+class CustomMetadata(Schema):
+    spatial = String(required=False, validate=Length(0, 1000))
+    startDate = String(required=False, validate=Length(0, 30))
+    endDate = String(required=False, validate=Length(0, 30))
+    topic = String(required=False, validate=Length(0, 50))
+    extra = Dict(required=False)   # Any other user-specified metadata will be accepted as extras
+
+    @pre_load
+    def unwrap_envelope(self, data, **kwargs):
+        extra = {}
+        rest = {}
+        for k, v in data.items():
+            extra[k] = v
+        return {'extra':extra,**rest}
+
+
 class Dataset(Schema):
-    basic_metadata = Dict(required=True)
-    custom_metadata = Dict(required=False)
-    profile_metadata = Dict(required=False)
+    basic_metadata = Nested(BasicMetadata, required=True)
+    custom_metadata = Nested(CustomMetadata, required=False)
+    profile_metadata = Dict(required=False)   # TODO: Validate various types of profiles
 
 
 class Artifact(Schema):

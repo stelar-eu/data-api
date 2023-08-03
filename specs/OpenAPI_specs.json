@@ -1,0 +1,2075 @@
+{
+  "components": {
+    "schemas": {
+      "Artifact": {
+        "properties": {
+          "artifact_metadata": {
+            "type": "object"
+          },
+          "package_metadata": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "artifact_metadata",
+          "package_metadata"
+        ],
+        "type": "object"
+      },
+      "BasicMetadata": {
+        "properties": {
+          "extra": {
+            "type": "object"
+          },
+          "notes": {
+            "maxLength": 1000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "private": {
+            "default": false,
+            "type": "boolean"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/Tag"
+            },
+            "type": "array"
+          },
+          "title": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "notes",
+          "tags",
+          "title"
+        ],
+        "type": "object"
+      },
+      "ChangedUser": {
+        "properties": {
+          "about": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "fullname": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "image_url": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 20,
+            "minLength": 0,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 20,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "CustomMetadata": {
+        "properties": {
+          "endDate": {
+            "maxLength": 30,
+            "minLength": 0,
+            "type": "string"
+          },
+          "extra": {
+            "type": "object"
+          },
+          "spatial": {
+            "maxLength": 1000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "startDate": {
+            "maxLength": 30,
+            "minLength": 0,
+            "type": "string"
+          },
+          "topic": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Dataset": {
+        "properties": {
+          "basic_metadata": {
+            "$ref": "#/components/schemas/BasicMetadata"
+          },
+          "custom_metadata": {
+            "$ref": "#/components/schemas/CustomMetadata"
+          },
+          "profile_metadata": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "basic_metadata"
+        ],
+        "type": "object"
+      },
+      "Filter": {
+        "properties": {
+          "q": {
+            "example": "format:JSON",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "HTTPError": {
+        "properties": {
+          "detail": {
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Identifier": {
+        "properties": {
+          "id": {
+            "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "NewToken": {
+        "properties": {
+          "name": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "user": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "user"
+        ],
+        "type": "object"
+      },
+      "NewUser": {
+        "properties": {
+          "about": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "fullname": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
+          },
+          "image_url": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 20,
+            "minLength": 0,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 20,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "fullname",
+          "name",
+          "password"
+        ],
+        "type": "object"
+      },
+      "Package": {
+        "properties": {
+          "package_metadata": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "package_metadata"
+        ],
+        "type": "object"
+      },
+      "Query": {
+        "properties": {
+          "q": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "q"
+        ],
+        "type": "object"
+      },
+      "Resource": {
+        "properties": {
+          "resource_metadata": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "resource_metadata"
+        ],
+        "type": "object"
+      },
+      "ResponseOK": {
+        "properties": {
+          "help": {
+            "format": "url",
+            "type": "string"
+          },
+          "result": {
+            "type": "object"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "help",
+          "result",
+          "success"
+        ],
+        "type": "object"
+      },
+      "Tag": {
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "Tracking": {
+        "properties": {
+          "input": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "metrics": {
+            "type": "object"
+          },
+          "output": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "parameters": {
+            "type": "object"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/TrackingSettings"
+          }
+        },
+        "required": [
+          "input",
+          "metrics",
+          "output",
+          "parameters",
+          "settings"
+        ],
+        "type": "object"
+      },
+      "TrackingSettings": {
+        "properties": {
+          "experiment": {
+            "type": "string"
+          },
+          "tags": {
+            "$ref": "#/components/schemas/TrackingTags"
+          }
+        },
+        "required": [
+          "experiment",
+          "tags"
+        ],
+        "type": "object"
+      },
+      "TrackingTags": {
+        "properties": {
+          "dag_id": {
+            "type": "string"
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "dag_id",
+          "run_id",
+          "task_id"
+        ],
+        "type": "object"
+      },
+      "UserRole": {
+        "properties": {
+          "id": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "admin",
+              "editor",
+              "member"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "username"
+        ],
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "detail": {
+            "properties": {
+              "<location>": {
+                "properties": {
+                  "<field_name>": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "in": "header",
+        "name": "Api-Token",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "contact": {
+      "email": "info@stelar-project.eu",
+      "name": "API Support",
+      "url": "http://data-api.magellan2.imsi.athenarc.gr/"
+    },
+    "description": "Data API for managing resources in STELAR Knowledge Lake Management System",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "termsOfService": "http://stelar-project.eu/",
+    "title": "KLMS Data API",
+    "version": "0.0.2"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/": {
+      "get": {
+        "description": "Args:\n\nReturns:\nA JSON with basic information about the API.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Entry point to the Data API of Knowledge Lake Management System.",
+        "tags": [
+          "KLMS Data API"
+        ]
+      }
+    },
+    "/api/v1/artifact": {
+      "get": {
+        "description": "Provides the path to the file (URL, S3 bucket or local file) where an artifact (stored as a resource) is available. User may need credentials to access this file.\n\nArgs:\nid: The unique identifier of the resource as listed in CKAN.\n\nReturns:\nA JSON with the file path for the specified resource as maintained in CKAN.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "id",
+            "required": false,
+            "schema": {
+              "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+              "maxLength": 50,
+              "minLength": 0,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Get the file path of an artifact. ",
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    },
+    "/api/v1/artifact/publish": {
+      "post": {
+        "description": "If a package id is provided, associate the artifact (with its URL) to this package in CKAN. Otherwise, create a new package in CKAN to make this association. The user will become the publisher of this resource.\n\nArgs:\ndata: A JSON with all metadata information provided by the publisher about the new artifact.\n\nReturns:\nA JSON with the CKAN response to the publishing request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "artifact_metadata": {
+                  "description": "This is the test artifact uploaded to minio S3 in CSV format",
+                  "format": "CSV",
+                  "name": "Results of deduplication task",
+                  "resource_tags": [
+                    "Artifact",
+                    "MLFlow"
+                  ],
+                  "run_uuid": "d63a2b507bf6b6eadcb2c8de378c0370",
+                  "url": "s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv"
+                },
+                "package_metadata": {
+                  "package_id": "test_data_api_1"
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Artifact"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Publish an artifact created by a workflow execution.",
+        "tags": [
+          "Publishing Operations"
+        ]
+      }
+    },
+    "/api/v1/catalog": {
+      "get": {
+        "description": "Args:\nid: The unique identifier of the dataset as listed in CKAN.\n\nReturns:\nA JSON with all metadata maintained in CKAN for the specified dataset.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "id",
+            "required": false,
+            "schema": {
+              "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+              "maxLength": 50,
+              "minLength": 0,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Get all metadata available for a dataset (i.e., CKAN package) that is accessible by the user.",
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    },
+    "/api/v1/catalog/all": {
+      "get": {
+        "description": "Args:\n\nReturns:\nA JSON with the names of all datasets accessible by the user.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "List the identifiers of all datasets (packages) maintained in CKAN that are accessible by the user.",
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    },
+    "/api/v1/catalog/publish": {
+      "post": {
+        "description": "Registers metadata about a dataset and its associated resources (e.g., a data profile) in CKAN. The actual dataset will not be stored in the Catalog. The user will become the publisher of this dataset.\n\nArgs:\ndata: A JSON with metadata information provided by the publisher about the new dataset.\n\nReturns:\nA JSON with the CKAN response to the publishing request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "basic_metadata": {
+                  "notes": "This dataset contains Points of Interest extracted from OpenStreetMap",
+                  "tags": [
+                    {
+                      "name": "STELAR"
+                    },
+                    {
+                      "name": "OpenStreetMap"
+                    },
+                    {
+                      "name": "Geospatial"
+                    },
+                    {
+                      "name": "Bavaria"
+                    }
+                  ],
+                  "title": "Test Data API 1"
+                },
+                "custom_metadata": {
+                  "INSPIRE theme": "Imagery",
+                  "Topic": "Landuse",
+                  "endDate": "2023-01-31T11:35:48.593Z",
+                  "spatial": {
+                    "coordinates": [
+                      [
+                        [
+                          12.362,
+                          45.39
+                        ],
+                        [
+                          12.485,
+                          45.39
+                        ],
+                        [
+                          12.485,
+                          45.576
+                        ],
+                        [
+                          12.362,
+                          45.576
+                        ],
+                        [
+                          12.362,
+                          45.39
+                        ]
+                      ]
+                    ],
+                    "type": "Polygon"
+                  },
+                  "startDate": "2023-01-31T11:33:54.132Z"
+                },
+                "profile_metadata": {
+                  "description": "This is the profile of a time series in JSON format",
+                  "format": "JSON",
+                  "name": "Time series profile in JSON",
+                  "resource_tags": [
+                    "Profile",
+                    "Computed with STELAR Profiler"
+                  ],
+                  "url": "https://raw.githubusercontent.com/stelar-eu/data-profiler/main/examples/output/timeseries_profile.json"
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Dataset"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Publish a new dataset in the Catalog.",
+        "tags": [
+          "Publishing Operations"
+        ]
+      }
+    },
+    "/api/v1/catalog/search": {
+      "post": {
+        "description": "Args:\nq: A JSON with filtering criteria for searching in the Data Catalog. Keys should match properties specified in the STELAR Ontology.\n\nReturns:\nA JSON with all metadata available in the Catalog for each dataset qualifying to the filtering criteria and accessible by the user.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "q": {
+                  "INSPIRE theme": "Location",
+                  "Topic": "POI",
+                  "spatial": {
+                    "coordinates": [
+                      [
+                        [
+                          12.362,
+                          45.39
+                        ],
+                        [
+                          12.485,
+                          45.39
+                        ],
+                        [
+                          12.485,
+                          45.576
+                        ],
+                        [
+                          12.362,
+                          45.576
+                        ],
+                        [
+                          12.362,
+                          45.39
+                        ]
+                      ]
+                    ],
+                    "type": "Polygon"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Query"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Submit a search request to the Data Catalog.",
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    },
+    "/api/v1/catalog/tags": {
+      "get": {
+        "description": "Args:\n\nReturns:\nA JSON with all available tags.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "List all tags associated with datasets (packages) maintained in CKAN.",
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    },
+    "/api/v1/catalog/user/create": {
+      "post": {
+        "description": "Args:\ndata: A JSON with user metadata.\n\nReturns:\nA JSON with the response to this request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "about": "Testing the CKAN API for creating another new user",
+                "email": "test5@example.com",
+                "fullname": "Jane Doe",
+                "image_url": "https://commons.wikimedia.org/wiki/File:Example.jpg",
+                "name": "test_user5",
+                "password": "test_pass5"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/NewUser"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Create a new user in CKAN. Requires admin role in CKAN to create new users.",
+        "tags": [
+          "User management"
+        ]
+      }
+    },
+    "/api/v1/catalog/user/delete": {
+      "post": {
+        "description": "Args:\ndata: A JSON with user's id or username.\n\nReturns:\nA JSON with the response to this request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "id": "02568a6c-9970-4650-87d7-26d4f7d64fd6"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Identifier"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Delete an existing user from CKAN. Requires admin role in CKAN for performing deletions.",
+        "tags": [
+          "User management"
+        ]
+      }
+    },
+    "/api/v1/catalog/user/organization": {
+      "get": {
+        "description": "Args:\nid (string): The id of the user in CKAN.\n\nReturns:\nThe organization(s) where this user has been assigned a role.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "id",
+            "required": false,
+            "schema": {
+              "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+              "maxLength": 50,
+              "minLength": 0,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Finds the organization(s) where the given user is assigned a role (admin/editor/member) in CKAN.",
+        "tags": [
+          "User management"
+        ]
+      },
+      "post": {
+        "description": "Args:\nNone; it assumes the user corresponding to the specified API Token.\n\nReturns:\nThe organization(s) where this user has been assigned a role.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Finds the organization(s) where the given user is assigned a role (admin/editor/member) in CKAN.",
+        "tags": [
+          "User management"
+        ]
+      }
+    },
+    "/api/v1/catalog/user/role/assign": {
+      "post": {
+        "description": "Args:\ndata: A JSON with user metadata. Must include the id of the organization, the user id, and the role to be assigned (member/editor/admin).\n\nReturns:\nA JSON with the response to this request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "id": "athenarc",
+                "role": "editor",
+                "username": "02568a6c-9970-4650-87d7-26d4f7d64fd6"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/UserRole"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Assign a role for an existing user as a member of an organization in CKAN. Requires admin role in CKAN for such assignments.",
+        "tags": [
+          "User management"
+        ]
+      }
+    },
+    "/api/v1/catalog/user/token/create": {
+      "post": {
+        "description": "Args:\ndata: A JSON with user identifier (or name) and the name to be given to the new token.\n\nReturns:\nA JSON with the response to this request, containing the generated API token.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "name": "test5_API_token",
+                "user": "test_user5"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/NewToken"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Generate an API token for an existing user in CKAN. Requires authentication of the user in CKAN to generate a token.",
+        "tags": [
+          "User management"
+        ]
+      }
+    },
+    "/api/v1/catalog/user/update": {
+      "post": {
+        "description": "Args:\ndata: A JSON specifying changes in user's metadata.\n\nReturns:\nA JSON with the response to this request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "about": "Testing the CKAN API for patching information about an existing user",
+                "id": "02568a6c-9970-4650-87d7-26d4f7d64fd6",
+                "image_url": "https://commons.wikimedia.org/wiki/File:JPEG_example_flower.jpg"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ChangedUser"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Update (patch) information an existing user in CKAN. Requires admin role in CKAN for such updates.",
+        "tags": [
+          "User management"
+        ]
+      }
+    },
+    "/api/v1/catalog/vocabularies": {
+      "get": {
+        "description": "Args:\n\nReturns:\nA JSON with all available vocabularies.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "List all vocabularies employed in metadata for datasets (packages) maintained in CKAN.",
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    },
+    "/api/v1/dataset/delete": {
+      "post": {
+        "description": "Completely removes the metadata and any associated resources (e.g., profiles) of an existing dataset from the CKAN database. The user must have admin role in order to delete datasets.\n\nArgs:\ndata: A JSON with the id of an existing dataset.\n\nReturns:\nA JSON with the CKAN response to the delete request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "id": "test_data_api_1"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Identifier"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Delete an existing dataset from the Catalog.",
+        "tags": [
+          "Catalog Management"
+        ]
+      }
+    },
+    "/api/v1/dataset/patch": {
+      "post": {
+        "description": "Args:\ndata: A JSON with additional metadata information provided by the publisher about the new dataset.\n\nReturns:\nA JSON with the CKAN response to the patch request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "package_metadata": {
+                  "extras": [
+                    {
+                      "key": "custom_tags",
+                      "value": "http://www.w3.org/ns/dcat#Dataset"
+                    },
+                    {
+                      "key": "INSPIRE theme",
+                      "value": "Location"
+                    },
+                    {
+                      "key": "Topic",
+                      "value": "POI"
+                    }
+                  ],
+                  "id": "test_data_api_1",
+                  "tags": [
+                    {
+                      "name": "Patch"
+                    }
+                  ]
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Package"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Patch more metadata to an existing dataset in CKAN. The user will become the publisher of this dataset.",
+        "tags": [
+          "Publishing Operations"
+        ]
+      }
+    },
+    "/api/v1/dataset/register": {
+      "post": {
+        "description": "Args:\ndata: A JSON with basic metadata information provided by the publisher about the new dataset.\n\nReturns:\nA JSON with the CKAN response to the registration request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "package_metadata": {
+                  "extras": [
+                    {
+                      "key": "custom_tags",
+                      "value": "http://www.w3.org/ns/dcat#Dataset"
+                    },
+                    {
+                      "key": "INSPIRE theme",
+                      "value": "Location"
+                    },
+                    {
+                      "key": "Topic",
+                      "value": "POI"
+                    }
+                  ],
+                  "name": "test_data_api_1",
+                  "notes": "This dataset contains Points of Interest extracted from OpenStreetMap",
+                  "owner_org": "athenarc",
+                  "private": "false",
+                  "tags": [
+                    {
+                      "name": "STELAR"
+                    },
+                    {
+                      "name": "OpenStreetMap"
+                    },
+                    {
+                      "name": "Geospatial"
+                    },
+                    {
+                      "name": "Berlin"
+                    }
+                  ],
+                  "title": "Test Data API 1",
+                  "version": "0.3"
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Package"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Register a new dataset in CKAN. The user will become the publisher of this dataset.",
+        "tags": [
+          "Publishing Operations"
+        ]
+      }
+    },
+    "/api/v1/dataset/search": {
+      "get": {
+        "description": "Args:\nq: Filtering criteria for searching in CKAN. Search may concern either metadata values (?q=) or facets (?fc=) or spatial extents (?ext_bbox=) only. One argument (?q= or ?fq= or ?ext_bbox) must be specified per request. Syntax must follow <a href=\"https://docs.ckan.org/en/latest/api/#ckan.logic.action.get.package_search\">SOLR specifications for filtering</a>.\n\nReturns:\nA JSON with all metadata available in CKAN for each dataset qualifying to the filtering criteria and accessible by the user.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "example": "Topic:*Hydrography*&ext_bbox=20,35,30,42",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ext_bbox",
+            "required": false,
+            "schema": {
+              "example": "20,35,30,42",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "fq",
+            "required": false,
+            "schema": {
+              "example": "organization:athenarc",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Submit a search request against CKAN packages (datasets).",
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    },
+    "/api/v1/dataset/unpublish": {
+      "post": {
+        "description": "Marks an existing dataset as inactive in CKAN. The package remains in the CKAN database with \"deleted\" status, but does not appear in the GUI and is not included in search results.\n\nArgs:\ndata: A JSON with the id of an existing dataset.\n\nReturns:\nA JSON with the CKAN response to the unpublish request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "id": "test_data_api_1"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Identifier"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Unpublish an existing dataset from the Catalog.",
+        "tags": [
+          "Catalog Management"
+        ]
+      }
+    },
+    "/api/v1/graph/search": {
+      "post": {
+        "description": "Args:\nq: A JSON with the SELECT query in SPARQL for searching the Knowledge Graph via Ontop. Syntax must follow SPARQL specifications for Ontop.\n\nReturns:\nA JSON with all RDF triples qualifying to the search criteria.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "q": "PREFIX dct: <http://purl.org/dc/terms/> SELECT ?uri ?title ?publisher WHERE { ?uri dct:title ?title . ?uri dct:publisher ?publisher . } LIMIT 5"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Filter"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Submit a search request to the SPARQL endpoint.",
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    },
+    "/api/v1/resource": {
+      "get": {
+        "description": "Args:\nid: The unique identifier of the resource as listed in CKAN.\n\nReturns:\nA JSON with all metadata maintained in CKAN for the specified resource.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "id",
+            "required": false,
+            "schema": {
+              "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+              "maxLength": 50,
+              "minLength": 0,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Get all metadata available for a resource that is accessible by the user.",
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    },
+    "/api/v1/resource/delete": {
+      "post": {
+        "description": "Completely removes a resource (e.g., profile) associated with an existing dataset from the CKAN database. The user must have admin role or must be the publisher of this resource.\n\nArgs:\ndata: A JSON with the id of an existing resource.\n\nReturns:\nA JSON with the CKAN response to the delete request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "id": "aa2992aa-b589-463d-ae1e-8430d91206cb"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Identifier"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Delete an existing resource from the Catalog.",
+        "tags": [
+          "Catalog Management"
+        ]
+      }
+    },
+    "/api/v1/resource/link": {
+      "post": {
+        "description": "Args:\ndata: A JSON with all metadata information provided by the publisher about the new resource.\n\nReturns:\nA JSON with the CKAN response to the publishing request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "resource_metadata": {
+                  "description": "This is the test resource in GeoJSON format",
+                  "format": "GeoJSON",
+                  "name": "Test GeoJSON resource",
+                  "package_id": "test_data_api_1",
+                  "resource_tags": [
+                    {
+                      "key": "Resource type",
+                      "value": "Link to external resource"
+                    },
+                    {
+                      "key": "Process",
+                      "value": "Found in the Web"
+                    }
+                  ],
+                  "url": "https://data.smartdublin.ie/dataset/09870e46-26a3-4dc2-b632-4d1fba5092f9/resource/40a718a8-cb99-468d-962b-af4fed4b0def/download/bleeperbike_map.geojson"
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Resource"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Associate a resource (with its URL) to an existing dataset in CKAN. The user will become the publisher of this resource.",
+        "tags": [
+          "Publishing Operations"
+        ]
+      }
+    },
+    "/api/v1/resource/search": {
+      "get": {
+        "description": "Args:\nq: Filtering criteria for searching in CKAN. Syntax must follow SOLR specifications for filtering. https://docs.ckan.org/en/latest/api/#ckan.logic.action.get.resource_search\n\nReturns:\nA JSON with all metadata available in CKAN for each dataset qualifying to the filtering criteria and accessible by the user.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "example": "format:JSON",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Submit a request to search among the CKAN resources accessible by the user.",
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    },
+    "/api/v1/resource/upload": {
+      "post": {
+        "description": "Args:\ndata: A JSON with all metadata information provided by the publisher about the new resource.\n\nReturns:\nA JSON with the CKAN response to the publishing request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "resource_metadata": {
+                  "description": "This is the profile of the Leaf Area Index in JSON format",
+                  "file": "/data/examples/single_field_LAI-2.json",
+                  "format": "JSON",
+                  "name": "LAI profile in JSON",
+                  "package_id": "test_data_api_1",
+                  "resource_tags": [
+                    {
+                      "key": "Resource type",
+                      "value": "Profile"
+                    },
+                    {
+                      "key": "Process",
+                      "value": "Computed with STELAR Profiler"
+                    }
+                  ]
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Resource"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Upload a resource to an existing dataset in CKAN. The user will become the publisher of this resource.",
+        "tags": [
+          "Publishing Operations"
+        ]
+      }
+    },
+    "/api/v1/track": {
+      "post": {
+        "description": "Logs the parameters and metrics of a specific run in MLFlow and publishes all produced artifacts in the Catalog.\n\nArgs:\ndata: A JSON with the corresponding information to track.\n\nReturns:\nA JSON with the response to the track request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "input": [],
+                "metrics": {
+                  "downloaded_files": 5,
+                  "filtered_no_articles": 9,
+                  "original_files": 5,
+                  "original_no_articles": 9019,
+                  "time": 14.218100786209106
+                },
+                "output": [
+                  "57eb3a01-986f-4c5d-8e2b-832596949b2f"
+                ],
+                "parameters": {
+                  "prefix": "20230706"
+                },
+                "settings": {
+                  "experiment": "Downloading_GDELT_Demo_download",
+                  "tags": {
+                    "dag_id": "Downloading_GDELT_Demo",
+                    "run_id": "scheduled__2023-07-06T00:00:00+00:00",
+                    "task_id": "download"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Tracking"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Keep track of a workflow execution.",
+        "tags": [
+          "Tracking Operations"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Knowledge Lake Management System",
+      "name": "KLMS"
+    },
+    {
+      "description": "Spatio-TEmporal Linked data tools for the AgRi-food data space",
+      "name": "STELAR"
+    }
+  ]
+}
