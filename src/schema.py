@@ -1,7 +1,7 @@
 import json
 
 from apiflask import Schema, abort
-from apiflask.fields import Boolean, Integer, String, Dict, List, Nested, URL
+from apiflask.fields import Boolean, Integer, String, Date, DateTime, Dict, List, Nested, URL
 from apiflask.validators import Length, OneOf, NoneOf
 from marshmallow import pre_load, post_dump, ValidationError
 
@@ -28,9 +28,9 @@ class Identifier(Schema):
 class NewUser(Schema):
     name = String(required=True, validate=Length(0, 20))
     password = String(required=True, validate=Length(0, 20))
-    email = String(required=True, validate=Length(0, 50))
+    email = String(required=True, validate=Length(0, 100))
     fullname = String(required=True, validate=Length(0, 100))
-    about = String(required=False, validate=Length(0, 200))
+    about = String(required=False, validate=Length(0, 1000))
     image_url = String(required=False, validate=Length(0, 200))
 
 
@@ -38,9 +38,9 @@ class ChangedUser(Schema):
     id = String(required=True, validate=Length(0, 50))
     name = String(required=False, validate=Length(0, 20))
     password = String(required=False, validate=Length(0, 20))
-    email = String(required=False, validate=Length(0, 50))
+    email = String(required=False, validate=Length(0, 100))
     fullname = String(required=False, validate=Length(0, 100))
-    about = String(required=False, validate=Length(0, 200))
+    about = String(required=False, validate=Length(0, 1000))
     image_url = String(required=False, validate=Length(0, 200))
 
 
@@ -55,14 +55,16 @@ class NewToken(Schema):
     name = String(required=True, validate=Length(0, 50))
 
 
-class Tag(Schema):
-    name = String(required=True)
+#class Tag(Schema):
+#    name = String(required=True)
 
 
 class BasicMetadata(Schema):
-    title = String(required=True, validate=Length(0, 100))
-    notes = String(required=True, validate=Length(0, 1000))
-    tags = Nested(Tag(many=True), required=True)
+    title = String(required=True, validate=Length(0, 200))
+    notes = String(required=True, validate=Length(0, 10000))
+    url = URL(required=False)
+    tags = List(String, required=True)
+#    tags = Nested(Tag(many=True), required=True)
     private = Boolean(required=False, load_default=False)   # By default, dataset metadata will be publicly available
     extra = Dict(required=False)   # Any other user-specified basic metadata must conform with CKAN
 
@@ -78,11 +80,15 @@ class BasicMetadata(Schema):
         return {'extra':extra,**rest}
 
 
-class CustomMetadata(Schema):
-    spatial = String(required=False, validate=Length(0, 1000))
-    startDate = String(required=False, validate=Length(0, 30))
-    endDate = String(required=False, validate=Length(0, 30))
-    topic = String(required=False, validate=Length(0, 50))
+class ExtraMetadata(Schema):
+    spatial = String(required=False, validate=Length(0, 10000))   # spatial extent
+    spatial_resolution_in_meters = String(required=False, validate=Length(0, 200))    # spatial resolution
+    temporal_start = DateTime(required=False, validate=Length(0, 30))    # start of temporal extent
+    temporal_end = DateTime(required=False, validate=Length(0, 30))      # end of temporal extent
+    frequency = String(required=False, validate=Length(0, 200))    # temporal resolution
+    theme = List(String, required=False)
+    language = List(String, required=False)
+    documentation = String(required=False, validate=Length(0, 10000))
     extra = Dict(required=False)   # Any other user-specified metadata will be accepted as extras
 
     @pre_load
@@ -94,9 +100,13 @@ class CustomMetadata(Schema):
         return {'extra':extra,**rest}
 
 
+class Profile(Schema):
+    profile_metadata = Dict(required=True)
+
+
 class Dataset(Schema):
     basic_metadata = Nested(BasicMetadata, required=True)
-    custom_metadata = Nested(CustomMetadata, required=False)
+    extra_metadata = Nested(ExtraMetadata, required=False)
     profile_metadata = Dict(required=False)   # TODO: Validate various types of profiles
 
 

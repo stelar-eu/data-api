@@ -44,7 +44,7 @@ text_tags = ['language','num_sentences','num_words','num_distinct_words','num_ch
 
 numerical_distribution_tags = ['count','average','stddev','min','max','median','percentile10','percentile25','percentile75','percentile90','kurtosis','skewness','variance']
 
-categorical_distribution_tags = ['type','count','percentage']
+categorical_distribution_tags = ['type','class_name','count','percentage']
 
 language_distribution_tags = ['language','percentage']
 
@@ -109,6 +109,7 @@ def calc_bbox(geometry):
     return str(bbox[0])+","+str(bbox[1])+","+str(bbox[2])+","+str(bbox[3])
 
 
+
 def handle_extras(json_metadata):
     """Convert key value pairs from the input JSON into the format required for extra metadata in CKAN.
 
@@ -125,11 +126,32 @@ def handle_extras(json_metadata):
         item["key"] = key 
         if key=="spatial": # Special handling of GeoJSON or WKT for spatial extent
             item["value"] = validate_spatial(json_metadata['spatial'])   #json.dumps(json_metadata['spatial'])
+        elif isinstance(value, list):  # Convert a list as required for extras in CKAN.
+            item["value"] = json.dumps(value)
         else:
             item["value"] = value
         extras.append(item)
 #    arr_json = json.dumps(extras)
     return extras
+
+
+def handle_keywords(list_tags):
+    """Convert a list of keywords from the input JSON into the format required for keywords (tags) in CKAN.
+
+    Args:
+        A JSON array with string values.
+
+    Returns:
+        A JSON array as required for keywords (tags) in CKAN.
+    """
+
+    tags = []
+    for value in list_tags:
+        item = {}
+        item["name"] = value
+        tags.append(item)
+
+    return tags
 
 
 def format_CKAN_filter(json_metadata):
@@ -209,6 +231,28 @@ def cleanupListDict(mylist, keys):
 
 
 
+def processTabularResource(resource_id, metadata, sql):
+    """Process metadata about a tabular resource in CKAN.
+
+    Args:
+        resource_id (String) : A unique identifier for this resource (assigned by CKAN).
+        metadata (array): JSON array containing the the metadata of this tabular resource (according to KLMS ontology).
+        sql (array): JSON array collecting the SQL commands from this resource.
+
+    Returns:
+        An updated collection of INSERT SQL statements to be executed for ingesting the metadata into PostgreSQL according to KLMS schema.
+    """
+
+    # Collect general info about this resource
+    tabular_metadata = cleanupDict(copy.deepcopy(prof), tabular_tags)         
+    tabular_metadata['resource_id'] = resource_id
+    # Rename property as required by the schema
+    if 'num_columns' in tabular_metadata:
+        tabular_metadata['num_columns'] = tabular_metadata.pop('num_attributes')
+    sql.append(prepareInsertSql(tabular_metadata, 'klms.tabular'))
+
+
+
 def processTabularProfile(resource_id, prof, sql):
     """Provides metadata extracted from the profile of a tabular/vector dataset.
 
@@ -230,18 +274,18 @@ def processTabularProfile(resource_id, prof, sql):
 
 
 def processRasterResource(resource_id, metadata, sql):
-    """Provides metadata extracted from the profile of a raster dataset.
+    """Process metadata regarding a raster resource in CKAN.
 
     Args:
-        resource_id (String) : A unique identifier for this profile.
-        metadata (array): JSON array containing the resource metadata of this raster resource (according to KLMS ontology).
-        sql (array): JSON array collecting the SQL commands from this profile.
+        resource_id (String) : A unique identifier for this resource (assigned by CKAN).
+        metadata (array): JSON array containing the metadata of this raster resource (according to KLMS ontology).
+        sql (array): JSON array collecting the SQL commands from this resource.
 
     Returns:
-        An updated collection of INSERT SQL statements to be executed for ingesting profile metadata into PostgreSQL according to KLMS schema.
+        An updated collection of INSERT SQL statements to be executed for ingesting the metadata into PostgreSQL according to KLMS schema.
     """
 
-    # Collect general info about this profile
+    # Collect general info about this resource
     raster_metadata = cleanupDict(copy.deepcopy(metadata), raster_tags)     
     raster_metadata['resource_id'] = resource_id
     sql.append(prepareInsertSql(raster_metadata, 'klms.raster'))
@@ -285,6 +329,24 @@ def processRasterProfile(resource_id, prof, sql):
         sql.append(prepareInsertSql(band_metadata, 'klms.numerical_attribute'))
 
 
+def processHierarchicalResource(resource_id, metadata, sql):
+    """Process metadata about a hierarchical resource in CKAN.
+
+    Args:
+        resource_id (String) : A unique identifier for this resource (assigned by CKAN).
+        metadata (array): JSON array containing the the metadata of this hierarchical resource (according to KLMS ontology).
+        sql (array): JSON array collecting the SQL commands from this resource.
+
+    Returns:
+        An updated collection of INSERT SQL statements to be executed for ingesting the metadata into PostgreSQL according to KLMS schema.
+    """
+
+    # Collect general info about this resource
+    hierarchical_metadata = cleanupDict(copy.deepcopy(prof), hierarchical_tags)         
+    hierarchical_metadata['resource_id'] = resource_id
+    sql.append(prepareInsertSql(hierarchical_metadata, 'klms.hierarchical'))
+
+
 def processHierarchicalProfile(resource_id, prof, sql):
     """Provides metadata extracted from the profile of a hierarchical dataset.
 
@@ -307,6 +369,24 @@ def processHierarchicalProfile(resource_id, prof, sql):
 #    hierarchical_metadata['num_attributes'] = len(profile['variables'])   # CAUTION! property NOT currently available in the profile
     hierarchical_metadata['depth_distribution'] = depth_distribution['distr_id']
     sql.append(prepareInsertSql(hierarchical_metadata, 'klms.hierarchical'))
+
+
+def processRdfGraphResource(resource_id, metadata, sql):
+    """Process metadata about a RDF graph resource in CKAN.
+
+    Args:
+        resource_id (String) : A unique identifier for this resource (assigned by CKAN).
+        metadata (array): JSON array containing the the metadata of this RDF graph resource (according to KLMS ontology).
+        sql (array): JSON array collecting the SQL commands from this resource.
+
+    Returns:
+        An updated collection of INSERT SQL statements to be executed for ingesting the metadata into PostgreSQL according to KLMS schema.
+    """
+
+    # Collect general info about this resource
+    rdfgraph_metadata = cleanupDict(copy.deepcopy(prof), rdfgraph_tags)         
+    rdfgraph_metadata['resource_id'] = resource_id
+    sql.append(prepareInsertSql(rdfgraph_metadata, 'klms.rdfgraph'))
 
 
 
@@ -348,11 +428,31 @@ def processRdfGraphProfile(resource_id, prof, sql):
         class_distribution = cleanupListDict(copy.deepcopy(prof['class_distribution']), categorical_distribution_tags)
         for item in class_distribution:
             item['distr_id'] = class_uuid
+            # Rename property as required by the schema
+            item['type'] = item.pop('class_name')
             sql.append(prepareInsertSql(item, 'klms.categorical_distribution'))
         rdfgraph_metadata['class_distribution'] = class_uuid
     # Must have included foreign keys to the various distributions
     sql.append(prepareInsertSql(rdfgraph_metadata, 'klms.rdfgraph'))
 
+
+
+def processTextualResource(resource_id, metadata, sql):
+    """Process metadata about a textual resource in CKAN.
+
+    Args:
+        resource_id (String) : A unique identifier for this resource (assigned by CKAN).
+        metadata (array): JSON array containing the the metadata of this textual resource (according to KLMS ontology).
+        sql (array): JSON array collecting the SQL commands from this resource.
+
+    Returns:
+        An updated collection of INSERT SQL statements to be executed for ingesting the metadata into PostgreSQL according to KLMS schema.
+    """
+
+    # Collect general info about this resource
+    text_metadata = cleanupDict(copy.deepcopy(prof), text_tags)         
+    text_metadata['resource_id'] = resource_id
+    sql.append(prepareInsertSql(text_metadata, 'klms.text'))
 
 
 
@@ -570,24 +670,25 @@ def extractResourceProperties(resource_id, metadata):
     # PHASE #1: Dataset-related information
     # Handle each resource according to its type
     if metadata['resource_type'] == 'Tabular':
-        # TODO: processTabularResource(resource_id, metadata, sql)
+        processTabularResource(resource_id, metadata, sql)
         return sql
     elif metadata['resource_type'] == 'Raster':
         processRasterResource(resource_id, metadata, sql)
         return sql
-    elif prof['resource_type'] == 'Hierarchical':
-        #TODO: processHierarchicalResource(resource_id, metadata, sql)
+    elif metadata['resource_type'] == 'Hierarchical':
+        processHierarchicalResource(resource_id, metadata, sql)
         return sql
-    elif prof['resource_type'] == 'RDFGraph':
-        # TODO: processRdfGraphResource(resource_id, metadata, sql)
+    elif metadata['resource_type'] == 'RDFGraph':
+        processRdfGraphResource(resource_id, metadata, sql)
         return sql
-    elif prof['resource_type'] == 'Textual':
-        # TODO: processTextualResource(resource_id, metadata, sql)
+    elif metadata['resource_type'] == 'Textual':
+        processTextualResource(resource_id, metadata, sql)
         return sql
 
+    #TODO: Vector ???
     #TODO: TimeSeries ???
 
-    # PHASE #2: Attribute-related information NOT needed
+    # PHASE #2: Attribute-related information NOT applicable
 
     # Return the list of collected SQL commands for execution
     return sql
@@ -611,5 +712,117 @@ def prepareInsertSql(metadata, table):
     sql = "INSERT INTO " + table + "(" + columns + ")" + " VALUES (" + values + ");"
 
     return sql
+
+
+def prepareZenodoMetadata(dataset, creator, creator_org, doi:None):
+    """Prepares the metadata in JSON about a dataset as expected by Zenodo.
+
+    Args:
+        dataset (JSON): A JSON object representing metadata for a dataset (CKAN packege).
+        creator (String): The name of the creator of the dataset as listed in CKAN.
+        creator_org (String): The name of the owner organization of the dataset as listed in CKAN.
+        doi (String): The Digital Object Identifier of the dataset, if already assigned by the publisher If not, leave the field empty and Zenodo will register a new DOI when the dataset gets published.
+
+    Returns:
+        A JSON as expected by Zenodo for describing a dataset.
+    """
+
+    # Extract specific metadata as required by Zenodo schema 
+    # (schema largely conforms with https://schema.datacite.org/meta/kernel-4.4/metadata.xsd)
+    res_id = dataset['id']
+    
+    # Basic metadata
+    title = dataset['title']
+    description = dataset['notes']
+    tags = [t['name'] for t in dataset['tags']]
+    
+    # List of creators/authors of the Zenodo deposition (dataset)
+    author = dataset['author'] if dataset['author'] else None
+    maintainer = dataset['maintainer'] if dataset['maintainer'] else None
+    organization = dataset['organization']['description']
+    creators = []
+    if creator:
+        creators.append({'name': creator, 'affiliation': creator_org})
+    if author:
+        creators.append({'name': author, 'affiliation': organization})
+    if maintainer:
+        creators.append({'name': maintainer, 'affiliation': organization})
+
+    url = dataset['url'] if dataset['url'] else None
+    version = dataset['version'] if dataset['version'] else None
+    isopen = dataset['isopen']
+    private = dataset['private']
+    license_title = dataset['license_title'] if dataset['license_title'] else None
+
+    # Handle some of the available extra metadata
+    spatial = next((item['value'] for item in dataset['extras'] if item['key'] == 'spatial'), None)
+    spatial_resolution_in_meters = next((item['value'] for item in dataset['extras'] if item['key'] == 'spatial_resolution_in_meters'), None)
+    temporal_start = next((item['value'] for item in dataset['extras'] if item['key'] == 'temporal_start'), None)
+    temporal_end = next((item['value'] for item in dataset['extras'] if item['key'] == 'temporal_end'), None)
+    frequency = next((item['value'] for item in dataset['extras'] if item['key'] == 'frequency'), None)
+    documentation = next((item['value'] for item in dataset['extras'] if item['key'] == 'documentation'), None)
+    language = next((item['value'] for item in dataset['extras'] if item['key'] == 'language'), None)
+    theme = next((item['value'] for item in dataset['extras'] if item['key'] == 'theme'), None)
+    alternate_identifier = next((item['value'] for item in dataset['extras'] if item['key'] == 'alternate_identifier'), None)
+
+    # locations : list of locations -> NOT always the BBOX specified in CKAN
+    # * lat (double): latitude
+    # * lon (double): longitude
+    # * place (string): place’s name (required)
+    # * description (string): place’s description (optional)
+    # Example: [{"lat": 34.02577, "lon": -118.7804, "place": "Los Angeles"}, {"place": "Mt.Fuji, Japan", "description": "Sample found 100ft from the foot of the mountain."}]
+    locations = None
+    if spatial:
+        locations = []
+        loc = {}
+        # Extract the centroid from the spatial extent in CKAN
+        geom = json.loads(spatial) 
+        bbox = shape(geom)
+        loc['lon'] = bbox.centroid.x
+        loc['lat'] = bbox.centroid.y
+        loc['place'] = 'N/A'
+        locations.append(loc)
+
+    # access_right -> Controlled vocabulary in Zenodo:
+    # * open: Open Access
+    # * embargoed: Embargoed Access
+    # * restricted: Restricted Access
+    # * closed: Closed Access
+    if isopen:
+        access_right = "open"
+        license = license_title if license_title else None
+    elif private:
+        access_right = "closed"
+    else:
+        access_right = "restricted"
+
+    # dates -> List of date intervals
+    # * start (ISO date string): start date (*)
+    # * end (ISO date string): end date (*)
+    # * type (Collected, Valid, Withdrawn): The interval’s type (required)
+    # * description (string): The interval’s description (optional)
+    # (*) Note that you have to specify at least a start or end date. For an exact date, use the same value for both start and end.
+    # Example: [{"start": "2018-03-21", "end": "2018-03-25", "type": "Collected", "description": "Specimen A5 collection period."}]
+    dates = None
+    if temporal_start or temporal_end:
+        dates = []
+        timespan = {'type' : 'Valid'}   # Assuming that timespan specified the time period when dataset is valid
+        if temporal_start:
+            timespan['start'] = temporal_start
+        if temporal_end:
+            timespan['end'] = emporal_end
+        dates.append(timespan)
+
+    # language: the main language of the record as ISO 639-2 or 639-3 code
+    lang = None
+    if language:
+        list_lang = language.replace('{','').replace('}','').split(',')  
+        lang = list_lang[0]  # the first language specified in CKAN
+
+    # https://developers.zenodo.org/#representation
+    # IMPORTANT: By default, using EU project grant for STELAR. List of OpenAIRE-supported grants. Example: [{'id':'283595'}] (European Commission grants only) or funder DOI-prefixed: [{'id': '10.13039/501100000780::283595'}] (All grants, recommended)
+    zenodo_metadata = { "upload_type":"dataset", "creators": creators, "title": title, "description": description, "keywords": tags, "access_right": access_right, "language":lang, "locations": locations, "dates" : dates,"license": license,"doi": doi, "grants": [{"id": "10.13039/501100000780::101070122"}] }
+
+    return zenodo_metadata
 
 
