@@ -22,7 +22,7 @@
             "type": "object"
           },
           "notes": {
-            "maxLength": 1000,
+            "maxLength": 10000,
             "minLength": 0,
             "type": "string"
           },
@@ -32,13 +32,17 @@
           },
           "tags": {
             "items": {
-              "$ref": "#/components/schemas/Tag"
+              "type": "string"
             },
             "type": "array"
           },
           "title": {
-            "maxLength": 100,
+            "maxLength": 200,
             "minLength": 0,
+            "type": "string"
+          },
+          "url": {
+            "format": "url",
             "type": "string"
           }
         },
@@ -52,12 +56,12 @@
       "ChangedUser": {
         "properties": {
           "about": {
-            "maxLength": 200,
+            "maxLength": 1000,
             "minLength": 0,
             "type": "string"
           },
           "email": {
-            "maxLength": 50,
+            "maxLength": 100,
             "minLength": 0,
             "type": "string"
           },
@@ -92,41 +96,13 @@
         ],
         "type": "object"
       },
-      "CustomMetadata": {
-        "properties": {
-          "endDate": {
-            "maxLength": 30,
-            "minLength": 0,
-            "type": "string"
-          },
-          "extra": {
-            "type": "object"
-          },
-          "spatial": {
-            "maxLength": 1000,
-            "minLength": 0,
-            "type": "string"
-          },
-          "startDate": {
-            "maxLength": 30,
-            "minLength": 0,
-            "type": "string"
-          },
-          "topic": {
-            "maxLength": 50,
-            "minLength": 0,
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
       "Dataset": {
         "properties": {
           "basic_metadata": {
             "$ref": "#/components/schemas/BasicMetadata"
           },
-          "custom_metadata": {
-            "$ref": "#/components/schemas/CustomMetadata"
+          "extra_metadata": {
+            "$ref": "#/components/schemas/ExtraMetadata"
           },
           "profile_metadata": {
             "type": "object"
@@ -135,6 +111,58 @@
         "required": [
           "basic_metadata"
         ],
+        "type": "object"
+      },
+      "ExtraMetadata": {
+        "properties": {
+          "documentation": {
+            "maxLength": 10000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "extra": {
+            "type": "object"
+          },
+          "frequency": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "language": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "spatial": {
+            "maxLength": 10000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "spatial_resolution_in_meters": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "temporal_end": {
+            "format": "date-time",
+            "maxLength": 30,
+            "minLength": 0,
+            "type": "string"
+          },
+          "temporal_start": {
+            "format": "date-time",
+            "maxLength": 30,
+            "minLength": 0,
+            "type": "string"
+          },
+          "theme": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
         "type": "object"
       },
       "Filter": {
@@ -190,12 +218,12 @@
       "NewUser": {
         "properties": {
           "about": {
-            "maxLength": 200,
+            "maxLength": 1000,
             "minLength": 0,
             "type": "string"
           },
           "email": {
-            "maxLength": 50,
+            "maxLength": 100,
             "minLength": 0,
             "type": "string"
           },
@@ -239,6 +267,17 @@
         ],
         "type": "object"
       },
+      "Profile": {
+        "properties": {
+          "profile_metadata": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "profile_metadata"
+        ],
+        "type": "object"
+      },
       "Query": {
         "properties": {
           "q": {
@@ -278,17 +317,6 @@
           "help",
           "result",
           "success"
-        ],
-        "type": "object"
-      },
-      "Tag": {
-        "properties": {
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "name"
         ],
         "type": "object"
       },
@@ -424,7 +452,7 @@
     "contact": {
       "email": "info@stelar-project.eu",
       "name": "API Support",
-      "url": "http://data-api.magellan2.imsi.athenarc.gr/"
+      "url": "localhost"
     },
     "description": "Data API for managing resources in STELAR Knowledge Lake Management System",
     "license": {
@@ -658,25 +686,20 @@
                 "basic_metadata": {
                   "notes": "This dataset contains Points of Interest extracted from OpenStreetMap",
                   "tags": [
-                    {
-                      "name": "STELAR"
-                    },
-                    {
-                      "name": "OpenStreetMap"
-                    },
-                    {
-                      "name": "Geospatial"
-                    },
-                    {
-                      "name": "Bavaria"
-                    }
+                    "STELAR",
+                    "OpenStreetMap",
+                    "Geospatial",
+                    "Bavaria"
                   ],
                   "title": "Test Data API 1"
                 },
-                "custom_metadata": {
+                "extra_metadata": {
                   "INSPIRE theme": "Imagery",
-                  "Topic": "Landuse",
-                  "endDate": "2023-01-31T11:35:48.593Z",
+                  "language": [
+                    "ca",
+                    "en",
+                    "es"
+                  ],
                   "spatial": {
                     "coordinates": [
                       [
@@ -704,7 +727,13 @@
                     ],
                     "type": "Polygon"
                   },
-                  "startDate": "2023-01-31T11:33:54.132Z"
+                  "temporal_end": "2023-01-31T11:35:48.593Z",
+                  "temporal_start": "2023-01-31T11:33:54.132Z",
+                  "theme": [
+                    "Earth Sciences",
+                    "Landuse",
+                    "http://eurovoc.europa.eu/4630"
+                  ]
                 },
                 "profile_metadata": {
                   "description": "This is the profile of a time series in JSON format",
@@ -714,6 +743,7 @@
                     "Profile",
                     "Computed with STELAR Profiler"
                   ],
+                  "resource_type": "Tabular",
                   "url": "https://raw.githubusercontent.com/stelar-eu/data-profiler/main/examples/output/timeseries_profile.json"
                 }
               },
@@ -768,7 +798,7 @@
     },
     "/api/v1/catalog/search": {
       "post": {
-        "description": "Args:\nq: A JSON with filtering criteria for searching in the Data Catalog. Keys should match properties specified in the STELAR Ontology.\n\nReturns:\nA JSON with all metadata available in the Catalog for each dataset qualifying to the filtering criteria and accessible by the user.",
+        "description": "Args:\njson_data: A JSON with filtering criteria for searching in the Data Catalog. Keys should match properties specified in the STELAR Ontology.\n\nReturns:\nA JSON with all metadata available in the Catalog for each dataset qualifying to the filtering criteria and accessible by the user.",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -850,6 +880,65 @@
           }
         ],
         "summary": "Submit a search request to the Data Catalog.",
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    },
+    "/api/v1/catalog/sql": {
+      "post": {
+        "description": "Args:\njson_data: A JSON specifying the SELECT query in SQL for searching the Data Catalog in PostgreSQL. Syntax must follow SQL specifications for PostgreSQL.\n\nReturns:\nA JSON with all results qualifying to the search criteria.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "q": "SELECT * FROM public.package LIMIT 5"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Filter"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Submit a SELECT SQL command to the PostgreSQL database.",
         "tags": [
           "Search Operations"
         ]
@@ -1334,6 +1423,50 @@
         ]
       }
     },
+    "/api/v1/dataset/export_zenodo": {
+      "get": {
+        "description": "Args:\nid: The unique identifier of the dataset as listed in CKAN.\n\nReturns:\nA JSON with metadata compliant with DataCite's Metadata Schema employed by Zenodo.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "id",
+            "required": false,
+            "schema": {
+              "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+              "maxLength": 50,
+              "minLength": 0,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Export all metadata available for a dataset (i.e., CKAN package) in order to published to Zenodo.",
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    },
     "/api/v1/dataset/patch": {
       "post": {
         "description": "Args:\ndata: A JSON with additional metadata information provided by the publisher about the new dataset.\n\nReturns:\nA JSON with the CKAN response to the patch request.",
@@ -1408,7 +1541,7 @@
             "ApiKeyAuth": []
           }
         ],
-        "summary": "Patch more metadata to an existing dataset in CKAN. The user will become the publisher of this dataset.",
+        "summary": "Patch more metadata to an existing dataset according to CKAN specifications. The user will become the publisher of this dataset.",
         "tags": [
           "Publishing Operations"
         ]
@@ -1416,7 +1549,7 @@
     },
     "/api/v1/dataset/register": {
       "post": {
-        "description": "Args:\ndata: A JSON with basic metadata information provided by the publisher about the new dataset.\n\nReturns:\nA JSON with the CKAN response to the registration request.",
+        "description": "Args:\ndata: A JSON with basic metadata information (as required by CKAN) provided by the publisher about the new dataset.\n\nReturns:\nA JSON with the CKAN response to the registration request.",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -1502,7 +1635,7 @@
             "ApiKeyAuth": []
           }
         ],
-        "summary": "Register a new dataset in CKAN. The user will become the publisher of this dataset.",
+        "summary": "Register a new dataset according to CKAN specifications. The user will become the publisher of this dataset.",
         "tags": [
           "Publishing Operations"
         ]
@@ -1629,7 +1762,7 @@
     },
     "/api/v1/graph/search": {
       "post": {
-        "description": "Args:\nq: A JSON with the SELECT query in SPARQL for searching the Knowledge Graph via Ontop. Syntax must follow SPARQL specifications for Ontop.\n\nReturns:\nA JSON with all RDF triples qualifying to the search criteria.",
+        "description": "Args:\njson_data: A JSON specifying the SELECT query in SPARQL for searching the Knowledge Graph via Ontop. Syntax must follow SPARQL specifications for Ontop.\n\nReturns:\nA JSON with all RDF triples qualifying to the search criteria.",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -1639,6 +1772,74 @@
               },
               "schema": {
                 "$ref": "#/components/schemas/Filter"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Authentication error"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Submit a search request to the SPARQL endpoint.",
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    },
+    "/api/v1/profile/publish": {
+      "post": {
+        "description": "Args:\ndata: A JSON with all metadata information provided by the publisher about the profile.\n\nReturns:\nA JSON with the CKAN response to the publishing request.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "profile_metadata": {
+                  "description": "This is the profile of the Leaf Area Index in JSON format",
+                  "file": "/data/examples/single_field_LAI-2.json",
+                  "format": "JSON",
+                  "name": "LAI profile in JSON",
+                  "package_id": "test_data_api_1",
+                  "resource_tags": [
+                    "Profile",
+                    "Computed with STELAR Profiler"
+                  ],
+                  "resource_type": "Raster"
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/Profile"
               }
             }
           }
@@ -1680,9 +1881,9 @@
             "ApiKeyAuth": []
           }
         ],
-        "summary": "Submit a search request to the SPARQL endpoint.",
+        "summary": "Upload a profile as a resource to an existing dataset in CKAN. The user will become the publisher of this profile.",
         "tags": [
-          "Search Operations"
+          "Publishing Operations"
         ]
       }
     },
@@ -1803,15 +2004,10 @@
                   "name": "Test GeoJSON resource",
                   "package_id": "test_data_api_1",
                   "resource_tags": [
-                    {
-                      "key": "Resource type",
-                      "value": "Link to external resource"
-                    },
-                    {
-                      "key": "Process",
-                      "value": "Found in the Web"
-                    }
+                    "Link to external resource",
+                    "Found in the Web"
                   ],
+                  "resource_type": "Tabular",
                   "url": "https://data.smartdublin.ie/dataset/09870e46-26a3-4dc2-b632-4d1fba5092f9/resource/40a718a8-cb99-468d-962b-af4fed4b0def/download/bleeperbike_map.geojson"
                 }
               },
@@ -1921,14 +2117,8 @@
                   "name": "LAI profile in JSON",
                   "package_id": "test_data_api_1",
                   "resource_tags": [
-                    {
-                      "key": "Resource type",
-                      "value": "Profile"
-                    },
-                    {
-                      "key": "Process",
-                      "value": "Computed with STELAR Profiler"
-                    }
+                    "Profile",
+                    "Computed with STELAR Profiler"
                   ]
                 }
               },
@@ -1975,7 +2165,7 @@
             "ApiKeyAuth": []
           }
         ],
-        "summary": "Upload a resource to an existing dataset in CKAN. The user will become the publisher of this resource.",
+        "summary": "Upload a resource to an existing dataset according to CKAN specifications. The user will become the publisher of this resource.",
         "tags": [
           "Publishing Operations"
         ]
@@ -2058,6 +2248,50 @@
         "summary": "Keep track of a workflow execution.",
         "tags": [
           "Tracking Operations"
+        ]
+      }
+    },
+    "/api/v1/user": {
+      "get": {
+        "description": "Args:\nid: The unique identifier or account name of the user as listed in CKAN.\n\nReturns:\nA JSON with metadata maintained in CKAN for the specified user.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "id",
+            "required": false,
+            "schema": {
+              "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+              "maxLength": 50,
+              "minLength": 0,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Get all metadata publicly available for the user (excluding password and tokens).",
+        "tags": [
+          "User Management"
         ]
       }
     }
