@@ -1,3 +1,4 @@
+import pandas as pd
 import flask
 import requests
 import json
@@ -5,14 +6,18 @@ import re
 import psycopg2
 import uuid
 import copy
+import random
+from datetime import datetime
 
 from flask import request, jsonify
 from requests.auth import HTTPBasicAuth
 import urllib.parse
 from shapely.geometry import shape, GeometryCollection
+from shapely.geometry.polygon import Polygon
+from shapely.geometry.point import Point
 import shapely.wkt
 
-
+#########################################################
 
 # Properties regarding the various types of attributes to be extracted from profiles 
 
@@ -31,23 +36,74 @@ textual_tags = ['ratio_uppercase','ratio_digits','ratio_special_characters']
 
 tabular_tags = ['num_rows','num_attributes']
 
-raster_tags = ['format','height','width','crs','spatial_coverage','spatial_resolution','start_date','end_date','temporal_resolution','no_data_value']
+raster_tags = ['name','format','height','width','crs','spatial_coverage','spatial_resolution','start_date','end_date','temporal_resolution','no_data_value']
 
 rdfgraph_tags = ['num_nodes','num_edges','num_namespaces','num_classes','num_object_properties','num_datatype_properties','density','num_connected_components']
 
 hierarchical_tags = ['num_records', 'num_attributes']
 
-text_tags = ['language','num_sentences','num_words','num_distinct_words','num_characters','ratio_uppercase','ratio_digits','ratio_special_characters']
+text_tags = ['name','language','num_sentences','num_words','num_distinct_words','num_characters','ratio_uppercase','ratio_digits','ratio_special_characters']
 
 
 # Properties regarding the various types of distributions
 
 numerical_distribution_tags = ['count','average','stddev','min','max','median','percentile10','percentile25','percentile75','percentile90','kurtosis','skewness','variance']
 
-categorical_distribution_tags = ['type','class_name','count','percentage']
+categorical_distribution_tags = ['type','class_name','value','count','percentage']
 
 language_distribution_tags = ['language','percentage']
 
+
+#########################################################
+
+# Templates of SQL SELECT queries for various types of metadata attributes (facets)
+# FIXME: Distinguish facets used for filtering only (e.g., license, dataset_type) ?
+
+# NUMERICAL: 
+numerical_facets = ['num_rows', 'days_active', 'velocity']
+# For RANKING, SQL argument accepts a numerical (integer or real) value, e.g., 24700 expressing the dataset size in bytes or 0.67 for cloud coverage
+numerical_sql_rank_template = 'SELECT id, exp(-0.001 * abs(value::numeric - _ARGS))::float AS score FROM _VIEW WHERE value IS NOT NULL _IDS ORDER BY score DESC LIMIT _TOPK'
+# For RANGE FILERING, SQL argument accepts an array of two numerical (integer or real) values representing the range of values, e.g., [1000, 2000] for size
+numerical_sql_range_template = 'WITH vars AS (SELECT q_numeric[1]::numeric AS q_start, q_numeric[2]::numeric AS q_end FROM (SELECT _ARGS AS q_numeric) n ) SELECT id, value::numeric FROM _VIEW, vars WHERE value::numeric BETWEEN q_start AND q_end _IDS'
+
+# CATEGORICAL: SQL argument accepts arrays of strings, e.g., ['Imagery','POI'] or ['en','fr','de']
+categorical_facets = ['tags', 'theme', 'language', 'license', 'dataset_type', 'format', 'provider_name', 'organization']
+categorical_sql_rank_template = 'SELECT id, jaccard_similarity(arr_values, _ARGS) AS score FROM _VIEW WHERE jaccard_similarity(arr_values, _ARGS) > 0 _IDS ORDER BY score DESC LIMIT _TOPK'
+
+# TEMPORAL: SQL argument accepts date/time intervals, e.g., ['2018-08-15 14:25:36','2018-10-31 08:42:25'] ; 
+# FIXME: either the start of the end bound could be NULL
+temporal_facets = ['temporal_extent']
+temporal_sql_rank_template = 'WITH vars AS (SELECT q_temporal[1]::timestamp AS q_start, q_temporal[2]::timestamp AS q_end FROM (SELECT _ARGS AS q_temporal) t ), filled_temporal_bounds AS (SELECT id, COALESCE(temporal_start,LEAST(temporal_end,vars.q_start)) AS temporal_start, COALESCE(temporal_end,now()) AS temporal_end, vars.q_start, vars.q_end FROM _VIEW, vars), epoch_bounds AS (SELECT id, EXTRACT(epoch FROM temporal_start) AS temporal_start, EXTRACT(epoch FROM temporal_end) AS temporal_end, EXTRACT(epoch FROM q_start) AS q_start, EXTRACT(epoch FROM q_end) AS q_end, EXTRACT(epoch FROM GREATEST(temporal_start,q_start)) AS overlap_start, EXTRACT(epoch FROM LEAST(temporal_end,q_end)) AS overlap_end FROM filled_temporal_bounds WHERE (temporal_start, temporal_end) OVERLAPS (q_start, q_end) _IDS) SELECT id, 1- ((overlap_end-overlap_start)/LEAST((q_end-temporal_start), (temporal_end-q_start))) AS score FROM epoch_bounds ORDER BY score DESC LIMIT _TOPK'
+
+# SPATIAL: concerns either spatial extent or location
+spatial_facets = ['spatial']
+# SPATIAL EXTENT: SQL argument accepts WKT polygons in WGS84 (EPSG:4326), e.g., 'POLYGON((25.705543 35.034625, 25.861189 41.402938, 20.644119 41.369031, 20.924371 35.007623, 25.705543 35.034625 ))'
+spatial_sql_rank_template = 'WITH vars AS (SELECT _ARGS AS qbox) SELECT p.id, ST_area(ST_Intersection(the_geom, vars.qbox))/ST_area(ST_Union(the_geom, vars.qbox)) AS score FROM public.package p, _VIEW e, vars WHERE e.package_id = p.id AND ST_Intersects(the_geom, vars.qbox) AND p.state = \'active\' _IDS ORDER BY score DESC LIMIT _TOPK'
+
+# LOCATION: SQL argument accepts WKT poin locations in WGS84 (EPSG:4326), e.g., 'POINT(5.861189 41.402938)'
+# FIXME: Expose lambda as a config parameter, instead of a fixed value like '0.001'
+location_sql_rank_template = 'SELECT p.id, exp(-0.001 * ST_Distance(ST_centroid(the_geom), _ARGS)) AS score FROM public.package p, _VIEW e WHERE e.package_id = p.id AND NOT ST_IsEmpty(the_geom) AND p.state = \'active\' _IDS ORDER BY score DESC LIMIT _TOPK'
+
+
+# SQL views existing in PostgreSQL database and corresponding to facets: 
+sql_views = {'tags':'package_tag_array', 'language':'package_language_array', 'theme':'package_theme_array', 'license':'package_license_array', 'dataset_type':'package_dataset_type_array', 'format':'package_format_array', 'provider_name':'package_provider_array', 'organization':'package_organization_array', 'spatial':'package_extent', 'temporal_extent':'package_temporal_extent', 'num_rows':'package_num_rows', 'days_active':'package_days_active', 'velocity':'package_velocity'}
+
+#########################################################
+
+# Templates of SPARQL SELECT queries against the Knowledge Graph
+
+sparql_templates = {
+    'workflow_input_dataset_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?dataset ?resource ?workflow ?workflow_name ?workflow_desc ?workflowExec ?start_date ?end_date WHERE { ?dataset dct:identifier _ID . ?dataset dcat:distribution ?resource . ?taskExec klms:hasInput ?resource . ?taskExec klms:instantiates ?task . ?taskExec dct:isPartOf ?workflowExec . ?workflowExec klms:instantiates ?workflow . ?workflowExec dcat:startDate ?start_date . ?workflowExec dcat:endDate ?end_date . ?workflow dct:title ?workflow_name . ?workflow dct:description ?workflow_desc }',
+    'workflow_output_dataset_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?dataset ?resource ?workflow ?workflow_name ?workflow_desc ?workflowExec ?start_date ?end_date WHERE { ?dataset dct:identifier _ID . ?dataset dcat:distribution ?resource . ?taskExec klms:hasOutput ?resource . ?taskExec klms:instantiates ?task . ?taskExec dct:isPartOf ?workflowExec . ?workflowExec klms:instantiates ?workflow . ?workflowExec dcat:startDate ?start_date . ?workflowExec dcat:endDate ?end_date . ?workflow dct:title ?workflow_name . ?workflow dct:description ?workflow_desc }',
+    'workflow_input_resource_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?resource ?workflow ?workflow_name ?workflow_desc ?start_date ?end_date WHERE { ?taskExec klms:hasInput ?resource . ?resource dct:identifier _ID . ?taskExec dct:isPartOf ?workflowExec . ?workflow dct:title ?workflow_name . ?workflow dct:description ?workflow_desc . ?workflowExec klms:instantiates ?workflow . ?workflowExec dcat:startDate ?start_date . ?workflowExec dcat:endDate ?end_date }',
+    'workflow_output_resource_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?resource ?workflow ?workflow_name ?workflow_desc ?start_date ?end_date WHERE { ?taskExec klms:hasOutput ?resource . ?resource dct:identifier _ID . ?taskExec dct:isPartOf ?workflowExec . ?workflowExec klms:instantiates ?workflow . ?workflowExec dcat:startDate ?start_date . ?workflowExec dcat:endDate ?end_date . ?workflow dct:title ?workflow_name . ?workflow dct:description ?workflow_desc }',
+    'task_execution_metrics_template': 'PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?metric ?value ?timestamp WHERE { ?taskExec dct:identifier _ID . ?taskExec klms:hasMetrics ?kvpair . ?kvpair  klms:key ?metric. ?kvpair klms:value ?value . ?kvpair dct:issued ?timestamp }',
+    'task_execution_parameters_template': 'PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?parameter ?value WHERE { ?taskExec dct:identifier _ID . ?taskExec klms:hasParameters ?kvpair . ?kvpair  klms:key ?parameter . ?kvpair klms:value ?value }',
+    'workflow_tasks_template': 'PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?workflow_desc ?task_name  WHERE { ?workflow a klms:Workflow . ?workflow dct:title _ID . ?workflow dct:description ?workflow_desc . ?task a klms:Task . ?task dct:isPartOf ?workflow . ?task dct:title ?task_name }',
+    'task_executions_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?taskExec_id ?state ?start_date ?end_date WHERE { ?task a klms:Task . ?task dct:isPartOf ?workflow . ?workflow a klms:Workflow . ?task dct:title "entity_extraction" . ?taskExec klms:instantiates ?task . ?taskExec dct:identifier ?taskExec_id . ?taskExec klms:state ?state . ?taskExec dcat:startDate ?start_date . ?taskExec dcat:endDate ?end_date }'
+}
+
+#########################################################
 
 
 def create_CKAN_headers(API_TOKEN):
@@ -126,6 +182,8 @@ def handle_extras(json_metadata):
         item["key"] = key 
         if key=="spatial": # Special handling of GeoJSON or WKT for spatial extent
             item["value"] = validate_spatial(json_metadata['spatial'])   #json.dumps(json_metadata['spatial'])
+        elif isinstance(value, dict):  # Convert a dictionary as required for extras in CKAN.
+            item["value"] = json.dumps(value)
         elif isinstance(value, list):  # Convert a list as required for extras in CKAN.
             item["value"] = json.dumps(value)
         else:
@@ -194,6 +252,154 @@ def format_CKAN_filter(json_metadata):
     return q   #urllib.parse.quote(q) #.encode('iso-8859-1'))
 
 
+def read_list_json(json_arr, col_id='id', col_score='score'):
+    """Reads ranked items (with an id and a numerical score) from a JSON array.
+
+    Args:
+        json_arr (array): An array with key(id), value(score) pairs.
+        col_id (string): Key containing the unique identifier of each item in the dictionary (default: `id`).      
+        col_score (string): Key containing the score of each item (default: `score`).      
+                
+    Returns:
+        A DataFrame with the given items ordered by descending score.
+    """
+    
+    df = pd.DataFrame(json_arr)
+    # Use the unique identifiers as index in each data frame for fast access
+    df = df.set_index(col_id)
+    # Represent scores as numerical values
+    df = df[pd.to_numeric(df[col_score], errors='coerce').notnull()]
+    # Sort by descending score
+    df = df.sort_values(by=[col_score], ascending=False)
+    
+    return df
+
+
+def assign_scores(response, df_scores, dict_df_facet_scores, facet_specs):
+    """Assign scores to the search results; also include any key-value pairs regarding facet specifications for ranking.
+
+    Args:
+        response (Response): The CKAN response to the search query.
+        df_scores (DataFrame): A data frame containing the aggregated scores per dataset.
+        dict_df_facet_scores (dict) : A dictionary of data frames: each DataFrame holds the partial scores per facet (key).
+        facet_specs (dict): A dictionary of keys (metadata items) and values (user-specified preferences) with the facet specifications for ranking.
+
+    Returns:
+        A JSON with the search results also reporting their ranking scores.
+    """
+
+    json_response = response.json()
+    if response.status_code == 200:
+        if json_response['success']:
+            results = json_response['result']['results']
+            for r in results:
+                partial_scores = {}
+                if not df_scores.empty:
+                    r['score'] = df_scores.loc[r['id']]['score']  # overall score
+                    r['rank'] = df_scores.index.get_loc(df_scores.loc[r['id']].name) + 1 # final rank
+                elif 'score' in r: # Keep the score as obtained from SOLR
+                    continue
+                else:  # FIXME: Artificially add a score to each result, since CKAN does NOT return the score from SOLR
+                    r['score'] = random.randint(1, 100) / 100
+                # Also report the partial scores per facet for this result
+                for key in dict_df_facet_scores.keys():
+                    if r['id'] in dict_df_facet_scores[key].index:
+                        partial_scores[key] = dict_df_facet_scores[key].loc[r['id']]['score']
+                    else:
+                        partial_scores[key] = 0.0
+                r['partial_scores'] = partial_scores
+        # Include the names of facets specified for ranking in the response
+        if facet_specs:
+            json_response['result']['search_facets'] = facet_specs
+
+    return json_response
+
+
+def format_sql_filter(ids):
+    """Formulate a complementary condition in SQL query based on dataset identifiers.
+
+    Args:
+        ids (list): A JSON array with dataset identifiers.
+
+    Returns:
+        sql_id_filter (string): SQL condition concerning dataset identifiers in a specified list.
+        k (int): Number of identifiers in the list.
+
+    """
+
+    sql_id_filter = ' AND id IN (' + ",".join("'{0}'".format(id) for id in ids) + ')'
+    k = len(ids)   
+
+    return sql_id_filter, k
+
+
+def format_sparql_filter(sparql_tmpl, id):
+    """Formulate the SPARQL query using the dataset/resource/workflow/task identifier.
+
+    Args:
+        sparql_tmpl (string): The SPARQL template query to be modified with the given id.
+        id (string): The identifier of a dataset/resource/workflow/task in the Knowledge Graph.
+
+    Returns:
+        sparql (string): The updated SPARQL query to be submitted against the Knowledge Graph.
+    """
+    sparql = ""
+    if sparql_tmpl in sparql_templates:
+        sparql = sparql_templates[sparql_tmpl].replace('_ID', '"'+id +'"')
+
+    return sparql
+
+
+def format_facet_preferences(json_metadata, sql_id_filter, k):
+    """Convert key-value pairs regarding facet specifications from the input JSON into the format required for ranking using query templates against a PostgreSQL database.
+
+    Args:
+        json_metadata (dict): A JSON object with key-value pairs regarding facet preferences.
+        sql_id_filter (string): SQL condition concerning dataset identifiers in a specified list.
+        k (int): Number of values to retrieve having the greatest scores per facet.
+
+    Returns:
+        A dictionary of strings: an SQL query statement per specified facet for submission to PostgreSQL.
+    """
+
+    sql = {}
+
+    for key in json_metadata.keys():
+        if key in numerical_facets:    # NUMERICAL metadata elements
+            if isinstance(json_metadata[key], list):  # RANGE of numerical values acts as FILTER
+                sql[key] = numerical_sql_range_template.replace('_VIEW',sql_views[key]).replace('_ARGS', 'array'+str(json_metadata[key])).replace('_IDS',sql_id_filter) 
+#                print('range', sql[key])
+            else: # SINGLE numerical value used for RANKING
+                sql[key] = numerical_sql_rank_template.replace('_VIEW',sql_views[key]).replace('_TOPK',str(k)).replace('_ARGS', str(json_metadata[key])).replace('_IDS',sql_id_filter) 
+#                print('rank', sql[key])
+        elif key in categorical_facets:    # CATEGORICAL metadata elements
+            sql[key] = categorical_sql_rank_template.replace('_VIEW',sql_views[key]).replace('_TOPK',str(k)).replace('_ARGS', 'array'+str(json_metadata[key])).replace('_IDS',sql_id_filter) 
+        elif key in spatial_facets:      # SPATIAL metadata elements
+            try:  # Examine several specs for geometries 
+                if isinstance(json_metadata[key], dict):  # GeoJSON as dictionary
+                    g = 'ST_GeomFromGeoJSON('+ "'{0}'".format(json.dumps(json_metadata[key])) +')' 
+                    geom = shape(json_metadata[key])
+                else:    # string containing a GeoJSON
+                    g = 'ST_GeomFromGeoJSON('+ "'{0}'".format(json.loads(str(json_metadata[key]))) +')' 
+                    geom = shape(json.loads(str(json_metadata[key])))
+            except:   
+                try:  # Then, assuming this is WKT in WGS84
+                    g = 'ST_GeomFromText(' + "'{0}'".format(shapely.wkt.loads(str(json_metadata[key]))) +', 4326)'
+                    geom = shapely.wkt.loads(str(json_metadata[key]))
+                except:  # Empty polygon
+                    g = 'ST_GeomFromGeoJSON(' + "'{0}'".format('{"type":"Polygon","coordinates":[]}')
+                    geom = GeometryCollection()            
+            if isinstance(geom, Polygon):  # spatial extent
+                sql[key] = spatial_sql_rank_template.replace('_VIEW',sql_views[key]).replace('_TOPK',str(k)).replace('_ARGS', g).replace('_IDS',sql_id_filter) 
+            elif isinstance(geom, Point): # point location
+                sql[key] = location_sql_rank_template.replace('_VIEW',sql_views[key]).replace('_TOPK',str(k)).replace('_ARGS', g).replace('_IDS',sql_id_filter) 
+        elif key == 'temporal_extent':     # TEMPORAL EXTENT metadata elements
+            sql[key] = temporal_sql_rank_template.replace('_VIEW',sql_views[key]).replace('_TOPK',str(k)).replace('_ARGS', 'array'+str(json_metadata[key])).replace('_IDS',sql_id_filter) 
+
+    return sql
+
+
+
 def cleanupDict(mydict, keys):
     """Removes any elements in the given dictionary that are not tagged under the given keys.
 
@@ -244,7 +450,7 @@ def processTabularResource(resource_id, metadata, sql):
     """
 
     # Collect general info about this resource
-    tabular_metadata = cleanupDict(copy.deepcopy(prof), tabular_tags)         
+    tabular_metadata = cleanupDict(copy.deepcopy(metadata), tabular_tags)         
     tabular_metadata['resource_id'] = resource_id
     # Rename property as required by the schema
     if 'num_columns' in tabular_metadata:
@@ -292,41 +498,62 @@ def processRasterResource(resource_id, metadata, sql):
 
 
 def processRasterProfile(resource_id, prof, sql):
-    """Provides metadata extracted from the profile of a raster dataset.
+    """Provides metadata extracted from the profile of a raster collection.
 
     Args:
         resource_id (String) : A unique identifier for this profile.
-        prof (array): JSON array containing the profile information.
+        prof (array): JSON array containing the profile information of the raster collection.
         sql (array): JSON array collecting the SQL commands from this profile.
 
     Returns:
         An updated collection of INSERT SQL statements to be executed for ingesting profile metadata into PostgreSQL according to KLMS schema.
     """
 
-    # Collect general info about this profile
-    raster_metadata = cleanupDict(copy.deepcopy(prof), raster_tags)   
-    # CAUTION! Currently, a raster profile indicates spatial resolution per axis; KLMS schema assumes a common resolution
-    raster_metadata['spatial_resolution'] = raster_metadata['spatial_resolution']['pixel_size_x']      
-    raster_metadata['resource_id'] = resource_id
-    sql.append(prepareInsertSql(raster_metadata, 'klms.raster'))
+    for var in prof: #['variables']:
+        # Collect general info about this profile
+        ext_raster_tags = raster_tags.copy()
+        ext_raster_tags.append('date')  # Include original 'date' temporarily in order to convert it to an interval
+        raster_metadata = cleanupDict(copy.deepcopy(var), ext_raster_tags)  
+        # CAUTION! Currently, a raster profile indicates spatial resolution per axis; KLMS schema assumes a common resolution
+        raster_metadata['spatial_resolution'] = raster_metadata['spatial_resolution']['pixel_size_x'] 
+        # If a single date is reported, replace it with a time interval
+        if 'date' in raster_metadata and not 'start_date' in raster_metadata and not 'end_date' in raster_metadata:      
+            raster_metadata['start_date'] = datetime.strptime(raster_metadata['date'], "%d.%m.%Y").strftime("%Y-%m-%d")  
+            raster_metadata['end_date'] = raster_metadata['start_date']
+        raster_metadata.pop('date')
+        raster_metadata['resource_id'] = resource_id 
+        sql.append(prepareInsertSql(raster_metadata, 'klms.raster'))
 
-    # Also ingest information about each of the bands
-    for band in prof['bands']:
-        # Numerical distribution of pixel values 
-        band_distribution = cleanupDict(copy.deepcopy(band), numerical_distribution_tags)   
-        band_distribution['distr_id'] =  str(uuid.uuid1())  # Generate a UUID for this distribution
-        sql.append(prepareInsertSql(band_distribution, 'klms.numerical_distribution'))
-        # Also handle this band as a numerical attribute
-        attr_metadata = {}         
-        attr_metadata['attr_name'] = band['name']
-        attr_metadata['type'] = 'Band'
-        attr_metadata['attr_id'] = band['uuid']  # Reuse the UUID already included in the original profile
-        attr_metadata['resource_id'] = resource_id
-        sql.append(prepareInsertSql(attr_metadata, 'klms.attribute'))
-        band_metadata = {}
-        band_metadata['attr_id'] = band['uuid']  # Reuse the UUID already included in the original profile
-        band_metadata['value_distribution'] = band_distribution['distr_id']
-        sql.append(prepareInsertSql(band_metadata, 'klms.numerical_attribute'))
+        # Also ingest information about each of the bands
+        for band in var['bands']:
+            # Numerical distribution of pixel values 
+            band_distribution = cleanupDict(copy.deepcopy(band), numerical_distribution_tags)   
+            band_distribution['distr_id'] =  str(uuid.uuid1())  # Generate a UUID for this distribution
+            sql.append(prepareInsertSql(band_distribution, 'klms.numerical_distribution'))
+            # FIXME: This band will be associated with the resource (i.e., the raster collection, NOT the specific raster)
+            attr_metadata = {}         
+            attr_metadata['attr_name'] = band['name']
+            attr_metadata['type'] = 'Band'
+            attr_metadata['attr_id'] = band['uuid']  # Reuse the UUID already included in the original profile
+            attr_metadata['resource_id'] = resource_id
+            sql.append(prepareInsertSql(attr_metadata, 'klms.attribute'))
+            # CAUTION! Also handle this band as a SPECIAL CASE (NOT as numerical attribute); but associated with the specific raster
+            band_metadata = {}
+            band_metadata['raster_name'] = raster_metadata['name']  # Name of the raster as included in the original profile
+            band_metadata['attr_id'] = band['uuid']  # Reuse the UUID already included in the original profile
+            band_metadata['value_distribution'] = band_distribution['distr_id']
+            # CAUTION! If applicable, also include categorical distribution for NO DATA values in this band  
+            if 'no_data_distribution' in band:
+                class_uuid =  str(uuid.uuid1())  # Generate a UUID for this distribution
+                class_distribution = cleanupListDict(copy.deepcopy(band['no_data_distribution']), categorical_distribution_tags)
+                for item in class_distribution:
+                    item['distr_id'] = class_uuid
+                    # Rename property as required by the schema
+                    item['type'] = item.pop('value')
+                    sql.append(prepareInsertSql(item, 'klms.categorical_distribution'))
+                band_metadata['no_data_distribution'] = class_uuid
+            # Create the band as a numerical attribute
+            sql.append(prepareInsertSql(band_metadata, 'klms.band_attribute'))
 
 
 def processHierarchicalResource(resource_id, metadata, sql):
@@ -457,49 +684,50 @@ def processTextualResource(resource_id, metadata, sql):
 
 
 def processTextualProfile(resource_id, prof, sql):
-    """Provides metadata extracted from the profile of a text.
+    """Provides metadata extracted from the profile of a text collection.
 
     Args:
         resource_id (String) : A unique identifier for this profile.
-        prof (array): JSON array containing the profile information.
+        prof (array): JSON array containing the profile information about all text documents in the collection.
         sql (array): JSON array collecting the SQL commands from this profile.
 
     Returns:
         An updated collection of INSERT SQL statements to be executed for ingesting profile metadata into PostgreSQL according to KLMS schema.
     """
 
-    # Collect general info about this profile
-    text_metadata = cleanupDict(copy.deepcopy(prof), text_tags)         
-    text_metadata['resource_id'] = resource_id
-    # Get all values concerning its various distributions
-    if 'sentence_length_distribution' in prof:
-        sentence_length_distribution = cleanupDict(copy.deepcopy(prof['sentence_length_distribution']), numerical_distribution_tags)   
-        sentence_length_distribution['distr_id'] =  str(uuid.uuid1())  # Generate a UUID for this distribution
-        sql.append(prepareInsertSql(sentence_length_distribution, 'klms.numerical_distribution'))
-        text_metadata['sentence_length_distribution'] = sentence_length_distribution['distr_id']
-    if 'word_length_distribution' in prof:
-        word_length_distribution = cleanupDict(copy.deepcopy(prof['word_length_distribution']), numerical_distribution_tags)   
-        word_length_distribution['distr_id'] =  str(uuid.uuid1())  # Generate a UUID for this distribution
-        sql.append(prepareInsertSql(word_length_distribution, 'klms.numerical_distribution'))
-        text_metadata['word_length_distribution'] = word_length_distribution['distr_id']
-    if 'language_distribution' in prof:
-        lang_uuid = str(uuid.uuid1())  # Generate a UUID for this distribution
-        lang_distribution = cleanupListDict(copy.deepcopy(prof['language_distribution']), language_distribution_tags)
-        for item in lang_distribution:
-            item['distr_id'] = lang_uuid
-            # Rename property as required by the schema
-            item['type'] = item.pop('language')
-            sql.append(prepareInsertSql(item, 'klms.categorical_distribution'))
-        text_metadata['language_distribution'] = lang_uuid
-    if 'special_characters_distribution' in prof:
-        chars_uuid = str(uuid.uuid1())  # Generate a UUID for this distribution
-        chars_distribution = cleanupListDict(copy.deepcopy(prof['special_characters_distribution']), categorical_distribution_tags)
-        for item in chars_distribution:
-            item['distr_id'] = chars_uuid
-            sql.append(prepareInsertSql(item, 'klms.categorical_distribution'))
-        text_metadata['special_characters_distribution'] = chars_uuid
-    # Must have included foreign keys to the various distributions
-    sql.append(prepareInsertSql(text_metadata, 'klms.text'))
+    # Collect info about the profile of each text document
+    for var in prof: #['variables']:
+        text_metadata = cleanupDict(copy.deepcopy(var), text_tags)         
+        text_metadata['resource_id'] = resource_id
+        # Get all values concerning its various distributions
+        if 'sentence_length_distribution' in var:
+            sentence_length_distribution = cleanupDict(copy.deepcopy(var['sentence_length_distribution']), numerical_distribution_tags)   
+            sentence_length_distribution['distr_id'] =  str(uuid.uuid1())  # Generate a UUID for this distribution
+            sql.append(prepareInsertSql(sentence_length_distribution, 'klms.numerical_distribution'))
+            text_metadata['sentence_length_distribution'] = sentence_length_distribution['distr_id']
+        if 'word_length_distribution' in var:
+            word_length_distribution = cleanupDict(copy.deepcopy(var['word_length_distribution']), numerical_distribution_tags)   
+            word_length_distribution['distr_id'] =  str(uuid.uuid1())  # Generate a UUID for this distribution
+            sql.append(prepareInsertSql(word_length_distribution, 'klms.numerical_distribution'))
+            text_metadata['word_length_distribution'] = word_length_distribution['distr_id']
+        if 'language_distribution' in var:
+            lang_uuid = str(uuid.uuid1())  # Generate a UUID for this distribution
+            lang_distribution = cleanupListDict(copy.deepcopy(var['language_distribution']), language_distribution_tags)
+            for item in lang_distribution:
+                item['distr_id'] = lang_uuid
+                # Rename property as required by the schema
+                item['type'] = item.pop('language')
+                sql.append(prepareInsertSql(item, 'klms.categorical_distribution'))
+            text_metadata['language_distribution'] = lang_uuid
+        if 'special_characters_distribution' in var:
+            chars_uuid = str(uuid.uuid1())  # Generate a UUID for this distribution
+            chars_distribution = cleanupListDict(copy.deepcopy(var['special_characters_distribution']), categorical_distribution_tags)
+            for item in chars_distribution:
+                item['distr_id'] = chars_uuid
+                sql.append(prepareInsertSql(item, 'klms.categorical_distribution'))
+            text_metadata['special_characters_distribution'] = chars_uuid
+        # Must have included foreign keys to the various distributions
+        sql.append(prepareInsertSql(text_metadata, 'klms.text'))
 
 
 def extractProfileProperties(resource_id, profile):
@@ -518,12 +746,13 @@ def extractProfileProperties(resource_id, profile):
     # PHASE #1: Dataset-related information
     prof = profile['table']  # No need to generate a UUID for this dataset; it has already obtained one as a CKAN resource
     # Handle each profile according to its type
-    if prof['profiler_type'] == 'Tabular':
+    # Common handling of profiles for Tabular and TimeSeries data
+    if prof['profiler_type'] == 'Tabular' or prof['profiler_type'] == 'TimeSeries':
         processTabularProfile(resource_id, prof, sql)
-    elif prof['profiler_type'] == 'Raster':
-        # IMPORTANT! Extract information about the first raster in the collection (the only one allowed in CKAN)
+    elif prof['profiler_type'] == 'Raster' or prof['profiler_type'] == 'Vista_Raster':
+        # IMPORTANT! Extract information about all raster images in the collection (all under a single resource in CKAN)
         if len(profile['variables']) > 0:
-            processRasterProfile(resource_id, profile['variables'][0], sql)
+            processRasterProfile(resource_id, profile['variables'], sql)
             # IMPORTANT! Return the list of collected SQL commands for execution
             return sql
     elif prof['profiler_type'] == 'Hierarchical':
@@ -533,14 +762,13 @@ def extractProfileProperties(resource_id, profile):
         # IMPORTANT! Return the list of collected SQL commands for execution
         return sql
     elif prof['profiler_type'] == 'Textual':
-        # TODO: Textual profiling is applicable on text collections; but CKAN accepts each text file as a separate resource
-        # OPTION #1: Extract information about the corpus
-        #processTextualProfile(resource_id, prof, sql)
-        # OPTION #2: Extract information about the first text in the corpus (the only one allowed in CKAN)
+        # IMPORTANT! Extract information about all text documents in the collection (all under a single resource in CKAN)
         if len(profile['variables']) > 0:
-            processTextualProfile(resource_id, profile['variables'][0], sql)
+            processTextualProfile(resource_id, profile['variables'], sql)
             # IMPORTANT! Return the list of collected SQL commands for execution
             return sql
+        # OPTION #2: Extract information about the collection (corpus) only
+        #processTextualProfile(resource_id, prof, sql)
 
     # PHASE #2: Attribute-related information, value distributions
     for var in profile['variables']:
@@ -669,7 +897,8 @@ def extractResourceProperties(resource_id, metadata):
 
     # PHASE #1: Dataset-related information
     # Handle each resource according to its type
-    if metadata['resource_type'] == 'Tabular':
+    # Common handling of profiles for Tabular and TimeSeries data
+    if metadata['resource_type'] == 'Tabular' or metadata['resource_type'] == 'TimeSeries':
         processTabularResource(resource_id, metadata, sql)
         return sql
     elif metadata['resource_type'] == 'Raster':
@@ -684,9 +913,6 @@ def extractResourceProperties(resource_id, metadata):
     elif metadata['resource_type'] == 'Textual':
         processTextualResource(resource_id, metadata, sql)
         return sql
-
-    #TODO: Vector ???
-    #TODO: TimeSeries ???
 
     # PHASE #2: Attribute-related information NOT applicable
 
@@ -708,7 +934,8 @@ def prepareInsertSql(metadata, table):
     """
 
     columns = ", ".join(list(metadata.keys()))
-    values = ", ".join("'{0}'".format(item) for item in metadata.values())
+    # Special handling of strings containing single quotes for PostgreSQL
+    values = ", ".join("'{0}'".format(str(item).replace("'", r"''")) for item in metadata.values())
     sql = "INSERT INTO " + table + "(" + columns + ")" + " VALUES (" + values + ");"
 
     return sql

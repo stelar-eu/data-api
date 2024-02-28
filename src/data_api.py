@@ -6,20 +6,40 @@ import sys
 import psycopg2
 import yaml
 import mlflow as mfl
+import pandas as pd
 
 from psycopg2.extras import RealDictCursor
 from flask import request, jsonify, current_app, redirect, url_for
 from apiflask import APIFlask, HTTPTokenAuth
 
+from flask.json import JSONEncoder
+from datetime import date
 
-# Auxiliary custom functions
-import functions
+
+# Auxiliary custom functions & SQL query templates for ranking
+import utils
 
 # Input schemata for validating several API requests
 import schema
 
+
+# Custom class to retain original ISO format like 'yyyy-mm-dd hh:mm:ss.m' in date/time/timestamp values
+class CustomJSONEncoder(JSONEncoder):
+    def default(self, obj):
+        try:
+            if isinstance(obj, date):
+                return obj.isoformat()
+            iterable = iter(obj)
+        except TypeError:
+            pass
+        else:
+            return list(iterable)
+        return JSONEncoder.default(self, obj)
+
+
 # Create an instance of this API; by default, its OpenAPI-compliant specification will be generated under folder /specs
 app = APIFlask(__name__, spec_path='/specs', docs_path ='/docs')
+app.json_encoder = CustomJSONEncoder
 
 
 ################################## AUTHENTICATION ########################################
@@ -61,6 +81,7 @@ def execSql(sql):
         sql (String): The SQL command to be executed in the database.
 
     Returns:
+        A JSON with the retrieved query results for SELECT commands; None for any other other of query.
     """
 
     config = current_app.config['settings']
@@ -68,9 +89,17 @@ def execSql(sql):
     conn = psycopg2.connect(dbname=config['dbname'], user=config['dbuser'], password=config['dbpass'], host=config['dbhost'], port=config['dbport']) #, sslmode=config['sslmode'])
     cur = conn.cursor()
     cur.execute(sql)
+
+    desc = cur.description
+    data = None
+    if desc:
+        column_names = [col[0] for col in desc]
+        data = [dict(zip(column_names, row))  
+                for row in cur.fetchall()]
+
     conn.commit()
 
-
+    return data
 
 ################################## ENTRY POINT ########################################
 
@@ -121,7 +150,7 @@ def api_user_create(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -162,7 +191,7 @@ def api_user_update(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -203,7 +232,7 @@ def api_user_delete(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -244,7 +273,7 @@ def api_user_role(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -285,7 +314,7 @@ def api_token_create(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -355,7 +384,7 @@ def api_user_editor():
 
     if request.method == 'POST' and request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
             # Make a POST request to the CKAN API using this API token for user identification
             response = requests.post(config['CKAN_API']+'organization_list_for_user', headers=resource_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
             return response.json()
@@ -557,7 +586,7 @@ def api_export_zenodo_dataset_id(query_data):
 
         if json_org['success']:
             # Formulate metadata according to Zenodo specifications; no DOI specified
-            zenodo_metadata = functions.prepareZenodoMetadata(dataset, json_creator['result']['display_name'], json_org['result'][0]['title'], None)
+            zenodo_metadata = utils.prepareZenodoMetadata(dataset, json_creator['result']['display_name'], json_org['result'][0]['title'], None)
 
     return jsonify(zenodo_metadata)
 
@@ -582,11 +611,21 @@ def api_catalog_search(json_data):
 
     config = current_app.config['settings']
 
+    if request.headers:
+        if request.headers.get('Api-Token') != None:
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        else:
+            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+        return jsonify(response)
+
     if request.data:
         filter = request.data
         specs = json.loads(filter.decode("utf-8"))
         if 'q' in specs:
-            q = functions.format_CKAN_filter(specs['q'])
+            q = utils.format_CKAN_filter(specs['q'])
 #            print(q)
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Incorrect specifications','name':['Incorrect or no filters provided to search in the Data Catalog. Please specify at least one filtering criterion in a dictionary.']}}
@@ -596,8 +635,8 @@ def api_catalog_search(json_data):
         return jsonify(response)
 
     # Make a GET request to the CKAN API with the parameters
-    # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(config['CKAN_API']+'package_search'+q) #, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
+    # IMPORTANT! Although CKAN generally requires NO authentication for GET requests, it is important in order to also retrieve private datasets of the user's organization
+    response = requests.get(config['CKAN_API']+'package_search'+q+'&include_private=True&fl=*,score', headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
 
     return response.json()
 
@@ -622,6 +661,16 @@ def api_package_search(query_data):
 
     config = current_app.config['settings']
 
+    if request.headers:
+        if request.headers.get('Api-Token') != None:
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        else:
+            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+        return jsonify(response)
+
     # Multiple criteria can be correctly passed with argument ?q 
     if 'q' in request.args:      	# Search on various metadata
         q = '?q=' + request.args['q']
@@ -634,10 +683,13 @@ def api_package_search(query_data):
         return jsonify(response)
 
     # Make a GET request to the CKAN API with the parameters
-    # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(config['CKAN_API']+'package_search'+q) #, headers=config.package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
+    # IMPORTANT! Although CKAN generally requires NO authentication for GET requests, it is important in order to also retrieve private datasets of the user's organization
+    # IMPORTANT! To return all available results, must specify the max number of rows
+    response = requests.get(config['CKAN_API']+'package_search'+q+'&include_private=True&fl=*,score&rows='+str(config['RANK_MAX_TOPK'])+'&start=0', headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
 
-    return response.json()
+    # Pass an empty data frame to report the original SOLR scores; no facet specs need be added
+    return utils.assign_scores(response, pd.DataFrame(), {}, {})  
+
 
 
 @app.route('/api/v1/resource', methods=['GET'])
@@ -704,6 +756,291 @@ def api_resource_search(query_data):
     return response.json()
 
 
+@app.route('/api/v1/workflow/input/dataset', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="id=82aaa2df-be92-46ee-a36b-cc59122a5d5b")
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Search Operations'])
+def api_workflow_input_dataset(query_data):
+    """Submit a request to identify in which workflow(s) a dataset (CKAN package) has been given as input to any of the involved tasks.
+
+    Args:
+        id: The identifier (UUID) assigned to the dataset by the Catalog (CKAN).
+
+    Returns:
+        A JSON with metadata about the workflow(s) where this dataset has been given as input.
+    """
+
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/input/dataset?id=82aaa2df-be92-46ee-a36b-cc59122a5d5b
+
+    config = current_app.config['settings']
+
+    if 'id' in request.args:
+        id = request.args['id']
+    else:
+        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No dataset identifier provided to search in the Catalog. Please specify a valid identifier for the dataset.']}}
+        return jsonify(response)
+
+    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    # Formulate the SPARQL query with the given identifier
+    sparql = utils.format_sparql_filter('workflow_input_dataset_template', id)
+#    print(sparql)
+    # Make a POST request to the Ontop API with the given query
+    # IMPORTANT! NO authentication required by public SPARQL endpoints
+    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+
+    return jsonify(json.loads(response.text))
+
+
+@app.route('/api/v1/workflow/output/dataset', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="id=9232eef6-5acf-4280-b3e9-38d6c8935d7d")
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Search Operations'])
+def api_workflow_output_dataset(query_data):
+    """Submit a request to identify in which workflow(s) the given dataset (CKAN package) has been issued as output in any of the involved tasks.
+
+    Args:
+        id: The identifier (UUID) assigned to the dataset by the Catalog (CKAN).
+
+    Returns:
+        A JSON with metadata about the workflow(s) where this dataset has been issued as output.
+    """
+
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/output/dataset?id=9232eef6-5acf-4280-b3e9-38d6c8935d7d
+
+    config = current_app.config['settings']
+
+    if 'id' in request.args:
+        id = request.args['id']
+    else:
+        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No dataset identifier provided to search in the Catalog. Please specify a valid identifier for the dataset.']}}
+        return jsonify(response)
+
+    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    # Formulate the SPARQL query with the given identifier
+    sparql = utils.format_sparql_filter('workflow_output_dataset_template', id)
+#    print(sparql)
+    # Make a POST request to the Ontop API with the given query
+    # IMPORTANT! NO authentication required by public SPARQL endpoints
+    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+
+    return jsonify(json.loads(response.text))
+
+
+
+@app.route('/api/v1/workflow/input/resource', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="id=6b077882-bd24-480b-896b-d7e8431338e5")
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Search Operations'])
+def api_workflow_input_resource(query_data):
+    """Submit a request to identify in which workflow(s) a file (CKAN resource) has been given as input to any of the involved tasks.
+
+    Args:
+        id: The identifier (UUID) assigned to the resource by the Catalog (CKAN).
+
+    Returns:
+        A JSON with metadata about the workflow(s) where this file has been given as input.
+    """
+
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/input/resource?id=6b077882-bd24-480b-896b-d7e8431338e5
+
+    config = current_app.config['settings']
+
+    if 'id' in request.args:
+        id = request.args['id']
+    else:
+        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No resource identifier provided to search in the Catalog. Please specify a valid identifier for the resource.']}}
+        return jsonify(response)
+
+    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    # Formulate the SPARQL query with the given identifier
+    sparql = utils.format_sparql_filter('workflow_input_resource_template', id)
+#    print(sparql)
+    # Make a POST request to the Ontop API with the given query
+    # IMPORTANT! NO authentication required by public SPARQL endpoints
+    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+
+    return jsonify(json.loads(response.text))
+
+
+
+@app.route('/api/v1/workflow/output/resource', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="id=50156c05-6150-494d-b372-77d859f768d2")
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Search Operations'])
+def api_workflow_output_resource(query_data):
+    """Submit a request to identify in which workflow(s) the given file (CKAN resource) has been issued as output in any of the involved tasks.
+
+    Args:
+        id: The identifier (UUID) assigned to the resource by the Catalog (CKAN).
+
+    Returns:
+        A JSON with metadata about the workflow(s) where this file has been issued as output.
+    """
+
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/output/resource?id=50156c05-6150-494d-b372-77d859f768d2
+
+    config = current_app.config['settings']
+
+    if 'id' in request.args:
+        id = request.args['id']
+    else:
+        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No resource identifier provided to search in the Catalog. Please specify a valid identifier for the resource.']}}
+        return jsonify(response)
+
+    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    # Formulate the SPARQL query with the given identifier
+    sparql = utils.format_sparql_filter('workflow_output_resource_template', id)
+#    print(sparql)
+    # Make a POST request to the Ontop API with the given query
+    # IMPORTANT! NO authentication required by public SPARQL endpoints
+    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+
+    return jsonify(json.loads(response.text))
+
+
+
+@app.route('/api/v1/workflow/tasks', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="id=UC_A3")
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Search Operations'])
+def api_workflow_tasks(query_data):
+    """Submit a request to the Knowledge Graph to retrieve the tasks defined in a workflow.
+
+    Args:
+        id: The identifier assigned to the workflow.
+
+    Returns:
+        A JSON with the list of tasks included in the given workflow.
+    """
+
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/tasks?id=UC_A3
+
+    config = current_app.config['settings']
+
+    if 'id' in request.args:
+        id = request.args['id']
+    else:
+        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the workflow in the Knowledge Graph. Please specify a valid identifier for the workflow.']}}
+        return jsonify(response)
+
+    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    # Formulate the SPARQL query with the given identifier
+    sparql = utils.format_sparql_filter('workflow_tasks_template', id)
+#    print(sparql)
+    # Make a POST request to the Ontop API with the given query
+    # IMPORTANT! NO authentication required by public SPARQL endpoints
+    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+
+    return jsonify(json.loads(response.text))
+
+
+
+@app.route('/api/v1/task/executions', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="id=entity_extraction")
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Search Operations'])
+def api_task_executions(query_data):
+    """Submit a request to the Knowledge Graph to retrieve the executions performed for the given task.
+
+    Args:
+        id: The identifier assigned to the task in MLFlow.
+
+    Returns:
+        A JSON with the details of the task executions.
+    """
+
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/executions?id=entity_extraction
+
+    config = current_app.config['settings']
+
+    if 'id' in request.args:
+        id = request.args['id']
+    else:
+        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the task execution in the Knowledge Graph. Please specify a valid identifier for the task execution.']}}
+        return jsonify(response)
+
+    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    # Formulate the SPARQL query with the given identifier
+    sparql = utils.format_sparql_filter('task_executions_template', id)
+#    print(sparql)
+    # Make a POST request to the Ontop API with the given query
+    # IMPORTANT! NO authentication required by public SPARQL endpoints
+    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+
+    return jsonify(json.loads(response.text))
+
+
+
+
+
+@app.route('/api/v1/task/execution/metrics', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="id=0075f24c7b654246a65c12739e96b867")
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Search Operations'])
+def api_task_metrics(query_data):
+    """Submit a request to the Knowledge Graph retrieve the metrics issued for the specified task execution.
+
+    Args:
+        id: The identifier (UUID) assigned to the task execution in MLFlow.
+
+    Returns:
+        A JSON with the metrics collected in MLFlow for the specified task execution.
+    """
+
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/execution/metrics?id=0075f24c7b654246a65c12739e96b867
+
+    config = current_app.config['settings']
+
+    if 'id' in request.args:
+        id = request.args['id']
+    else:
+        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the task execution in the Knowledge Graph. Please specify a valid identifier for the task execution.']}}
+        return jsonify(response)
+
+    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    # Formulate the SPARQL query with the given identifier
+    sparql = utils.format_sparql_filter('task_execution_metrics_template', id)
+#    print(sparql)
+    # Make a POST request to the Ontop API with the given query
+    # IMPORTANT! NO authentication required by public SPARQL endpoints
+    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+
+    return jsonify(json.loads(response.text))
+
+
+@app.route('/api/v1/task/execution/parameters', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="id=0075f24c7b654246a65c12739e96b867")
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Search Operations'])
+def api_task_parameters(query_data):
+    """Submit a request to the Knowledge Graph retrieve the parameters specified for the task execution.
+
+    Args:
+        id: The identifier (UUID) assigned to the task execution in MLFlow.
+
+    Returns:
+        A JSON with the parameters specified in MLFlow for the specified task execution.
+    """
+
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/execution/parameters?id=0075f24c7b654246a65c12739e96b867
+
+    config = current_app.config['settings']
+
+    if 'id' in request.args:
+        id = request.args['id']
+    else:
+        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the task execution in the Knowledge Graph. Please specify a valid identifier for the task execution.']}}
+        return jsonify(response)
+
+    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    # Formulate the SPARQL query with the given identifier
+    sparql = utils.format_sparql_filter('task_execution_parameters_template', id)
+#    print(sparql)
+    # Make a POST request to the Ontop API with the given query
+    # IMPORTANT! NO authentication required by public SPARQL endpoints
+    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+
+    return jsonify(json.loads(response.text))
 
 
 
@@ -790,6 +1127,198 @@ def api_sql(json_data):
     return jsonify(results)
 
 
+@app.route('/api/v1/catalog/facet/values', methods=['POST'])
+@app.input(schema.Filter, location='json', example={"q": "format"})
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Search Operations'])
+@app.auth_required(auth)
+def api_facet_values(json_data):
+    """Submit a SELECT SQL command to the PostgreSQL database.
+
+    Args:
+        json_data: A JSON specifying the facet name (corresponding to an SQL view or table) to query in the PostgreSQL database of the Data Catalog.
+
+    Returns:
+        A JSON with all values available for the specified facet.
+    """
+
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/text' http://127.0.0.1:9055/api/v1/catalog/facet/values -d '{"q":"format"}' 
+
+    config = current_app.config['settings']
+
+    if request.data:
+        specs = json.loads(request.data.decode("utf-8"))
+        # Identify the SQL view that corresponds to the specified facet
+        if 'q' in specs and utils.sql_views.get(specs['q']):
+            view_name = str(utils.sql_views.get(specs['q']))
+            sql = 'SELECT * FROM ' + view_name
+#            print(sql)
+        else:
+            response = {'success':False, 'help': request.url, 'error':{'__type':'Incorrect specifications','name':['Incorrect or no filters provided to fetch facet values from the Data Catalog. Please specify a valid name for SQL view.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No valid facet specified to fetch its values from the Data Catalog. Please specify a valid name for SQL view.']}}
+        return jsonify(response)
+
+    # Execute the SQL view to fetch the values
+    #sql_headers = {'Content-Type':'application/sql-query', 'Accept':'application/json'}
+    conn = psycopg2.connect(dbname=config['dbname'], user=config['dbuser'], password=config['dbpass'], host=config['dbhost'], port=config['dbport']) #, sslmode=config['sslmode'])
+    cur = conn.cursor(cursor_factory=RealDictCursor) 
+    cur.execute(sql)
+    results = cur.fetchall()
+    conn.commit()
+
+    # Exclude identifiers from the returned results
+    for res in results:
+        if 'id' in res:
+            del res['id']
+        elif 'package_id' in res:
+            del res['package_id']
+
+    return jsonify(results)
+
+
+
+################################## RANKING OPERATIONS ########################################
+
+@app.route('/api/v1/catalog/rank', methods=['POST'])
+@app.input(schema.Ranking, location='json', example={"rank_preferences":{"tags": ["Geospatial","POI"], "theme":["Land Use","Land Cover","Imagery"], "language":["en","el","fr"], "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]}}, "settings":{"k": 10, "algorithm": "threshold", "weights": [0.3,0.5,0.4] }})
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Ranking Operations'])
+@app.auth_required(auth)
+def api_catalog_rank(json_data):
+    """Submit a rank request regarding specific metadata attributes (facets) to the Data Catalog.
+
+    Args:
+        json_data: A JSON with facet preferences for searching in the Data Catalog. Facet name should match a property specified in the STELAR Ontology.
+
+    Returns:
+        A JSON with datasets ranked by the specified facet(s). The matching score per facet criterion is also listed per returned dataset.
+    """
+
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' http://127.0.0.1:9055/api/v1/catalog/rank -d '{"q":{"theme":"POI"}}'
+
+    config = current_app.config['settings']
+
+    if request.headers:
+        if request.headers.get('Api-Token') != None:
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        else:
+            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+        return jsonify(response)
+
+    sql = ''
+    sql_id_filter = ''
+    ids = []
+    dict_df_facet_scores = {}   # dictionary with the returned input ranked lists per facet (key -> dataframe)
+    k = config['RANK_MAX_TOPK']  # default top-k value (if not user-specified)
+    if request.data:
+        specs = json.loads(request.data.decode("utf-8"))
+
+        # STAGE #1: text-based keyword search targets SOLR (search engine for CKAN)
+        if 'keywords' in specs:   # CASE #1(a): new keyword search
+            q = '?q=' + ",".join("'{0}'".format(kw) for kw in specs['keywords'])   
+            # Submit a preliminary search request to CKAN to find packages qualifying to the specified keywords
+            # Also include private datasets of the user's organization in the results
+            resp_basic = requests.get(config['CKAN_API']+'package_search'+q+'&include_private=True&fl=*,score&rows='+str(config['RANK_MAX_TOPK'])+'&start=0', headers=package_headers)
+            if resp_basic.status_code == 200:
+                json_resp_basic = resp_basic.json()
+                if json_resp_basic['success']:  # Results from keyword-based search only
+                    results = json_resp_basic['result']['results']
+                    ids = [res['id'] for res in results if 'id' in res]
+#                    print('keyword results:',len(ids))
+        elif 'ids' in specs:  # CASE #1(b): Identifiers of datasets already qualifying keyword search criteria
+            if len(specs['ids']) > 0:
+                ids = specs['ids']
+        if len(ids) > 0:   # Specify the previously filtered items to be sent for ranking
+            sql_id_filter, k = utils.format_sql_filter(ids)  
+        else:   # No results from filtering, no sense to continue with further filtering
+            response = {'help': request.url, 'result': {'count': 0, 'facets': {}, 'results': [],'sort': 'score desc, metadata_modified desc'}, 'success': True}
+            return jsonify(response)
+
+        # STAGE #2: Apply any filtering criteria (NOT participating in the ranking)
+        if 'filter_preferences' in specs:
+            filter_sql_commands = utils.format_facet_preferences(specs['filter_preferences'], sql_id_filter, config['RANK_MAX_TOPK'])
+            # Submit each SELECT query to the PostgreSQL database with the respective parameters
+            # IMPORTANT! PostgreSQL credentials are required to complete this request
+            for key in filter_sql_commands.keys():
+                sql = filter_sql_commands[key]
+                results = execSql(sql)
+#                print(len(results), sql)
+                filter_ids = [res['id'] for res in results if 'id' in res]
+                if sql_id_filter == '':  # No keywords specified in search bar
+                    ids = filter_ids
+                else:  # Keep only matching id's
+                    ids = [id for id in ids if id in filter_ids]
+#                print(key, len(ids))
+        if len(ids) > 0:   # Specify the previously filtered items to be sent for ranking
+            sql_id_filter, k = utils.format_sql_filter(ids) 
+        else:   # No results from filtering, no sense to apply ranking
+            response = {'help': request.url, 'result': {'count': 0, 'facets': {}, 'results': [],'sort': 'score desc, metadata_modified desc'}, 'success': True}
+            return jsonify(response)
+
+        # STAGE #3: Prepare SQL queries for each of the ranking preferences 
+        if 'rank_preferences' in specs:
+            rank_sql_commands = utils.format_facet_preferences(specs['rank_preferences'], sql_id_filter, config['RANK_MAX_TOPK'])
+            # FIXME: REMOVE IF HANDLED BY THE FRONT-END
+            # Examine settings for ranking
+#            if 'settings' in specs:
+#                if not 'algorithm' in specs['settings']: # Apply default algorithm for rank aggregation
+#                    specs['settings']['algorithm'] = config['RANK_AGG_ALGORITHM']
+#                if 'k' in specs['settings']:
+#                    k = specs['settings']['k']
+#                else:
+#                    specs['settings']['k'] = k    # Rank aggregation library requires the total number of items
+#                    print(specs['settings']['k'])
+#            else:  # Specify default values for rank aggregation
+#                specs['settings'] = {}
+#                specs['settings']['algorithm'] = config['RANK_AGG_ALGORITHM']
+#                specs['settings']['k'] = k 
+
+            # Submit each SELECT query to the PostgreSQL database with the respective parameters
+            # IMPORTANT! PostgreSQL credentials are required to complete this request
+            input_lists = []
+            for key in rank_sql_commands.keys():
+                sql = rank_sql_commands[key]
+#                print(key, '->', sql)
+                results = execSql(sql)
+#                print(len(results), len(ids))
+                # Fill any missing scores in the partial list for this facet
+                for id in ids:
+                    if not id in [d['id'] for d in results if 'id' in d]:
+                        results.append({'id':id, 'score':0.0})
+                dict_df_facet_scores[key] = utils.read_list_json(results)
+                input_lists.append(dict_df_facet_scores[key])
+
+            # FIXME: REMOVE IF HANDLED BY THE FRONT-END    
+            agg_scores = pd.DataFrame()   # No aggregated scores, report the original SOLR scores
+    
+            # Compute the final ranked list of all items applying the specified rank aggregation method (e.g., threshold)
+#            agg_scores = ranking.combined_ranking(input_lists, specs['settings'])
+#            ids = agg_scores.index.values  # In case no keywords and no filter criteria have been spcified; only rank preferences
+#            print(agg_scores.index.values)
+        elif 'settings' in specs:  # Settings for rank aggregation assume at least once facet specification
+            response = {'success':False, 'help': request.url, 'error':{'__type':'Incorrect specifications','name':['Incorrect or no facet preferences provided to rank items in the Data Catalog. Please specify at least one facet preference in a dictionary.']}}
+            return jsonify(response)
+        else:   # No ranking to be applied; only search filters
+            specs['rank_preferences'] = {}  # Facets for ranking not specified
+            agg_scores = pd.DataFrame()   # No aggregated scores, report the original SOLR scores
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No facet preferences provided to rank items in the Data Catalog. Please specify at least one facet preference in a dictionary.']}}
+        return jsonify(response)
+
+    # Retrieve from CKAN all metadata for the datasets in the final (aggregated ranked) list
+    # Also include private datasets of the user's organization in the results
+    q='?q=' + ' OR '.join(['id:'+id for id in ids])
+    response = requests.get(config['CKAN_API']+'package_search'+q+'&rows='+str(config['RANK_MAX_TOPK'])+'&start=0&include_private=True', headers=package_headers) 
+
+    # Return the final list of results (the top-k ranked ones in case that ranking preferences are specified)
+    return utils.assign_scores(response, agg_scores, dict_df_facet_scores, specs['rank_preferences'])
+
+
 ############################### PUBLISHING OPERATIONS ############################
 
 @app.route('/api/v1/catalog/publish', methods=['POST'])
@@ -815,7 +1344,7 @@ def api_dataset_publish(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -838,7 +1367,7 @@ def api_dataset_publish(json_data):
         # Also create the name of the new CKAN package from its title (assuming that this is unique)
         basic_metadata['name'] = re.sub(r'[\W_]+','_', basic_metadata['title']).lower()
         # Convert the tags into the format required by CKAN 
-        basic_metadata['tags'] = functions.handle_keywords(basic_metadata['tags'])
+        basic_metadata['tags'] = utils.handle_keywords(basic_metadata['tags'])
         # Internal call to find the organization where the user belongs to (derived from API token)
         resp_org = api_user_editor()
         if resp_org['success']:
@@ -870,7 +1399,7 @@ def api_dataset_publish(json_data):
         # Convert this metadata to a JSON array with {"key":"...", "value":"..."} pairs as required to be stored as extras in CKAN
         extra_metadata = {}
         extra_metadata['id'] = package_id   # Must specify the id of the newly created package
-        extra_metadata['extras'] = functions.handle_extras(specs['extra_metadata'])
+        extra_metadata['extras'] = utils.handle_extras(specs['extra_metadata'])
         # Make a POST request to the CKAN API to patch the newly created package with the extra metadata
         resp_extras = requests.post(config['CKAN_API']+'package_patch', json=extra_metadata, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
         arr_resp.append(resp_extras.json())
@@ -895,8 +1424,9 @@ def api_dataset_publish(json_data):
                 f1 = open(resource_metadata['file'])
                 profile = json.load(f1)
                 # Distinguish handling according to Profile type
-                sql_commands = functions.extractProfileProperties(resource_id, profile)
+                sql_commands = utils.extractProfileProperties(resource_id, profile)
                 for sql in sql_commands:
+#                    print(sql)
                     execSql(sql)
         elif resource_metadata.get('url') != None:
             # Make a POST request to the CKAN API to link the file from the specified URL
@@ -942,7 +1472,7 @@ def api_dataset_register(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -988,7 +1518,7 @@ def api_dataset_patch(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -1033,7 +1563,7 @@ def api_profile_publish(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -1063,8 +1593,9 @@ def api_profile_publish(json_data):
             f1 = open(resource_metadata['file'])
             profile = json.load(f1)
             # Distinguish handling according to Profile type
-            sql_commands = functions.extractProfileProperties(resource_id, profile)
+            sql_commands = utils.extractProfileProperties(resource_id, profile)
             for sql in sql_commands:
+#                print(sql)
                 execSql(sql)
             return response.json()
     elif resource_metadata.get('url') != None:
@@ -1097,7 +1628,7 @@ def api_resource_upload(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -1152,7 +1683,7 @@ def api_resource_link(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -1179,7 +1710,7 @@ def api_resource_link(json_data):
         resource_id = response.json()['result']['id']
         # print("RESOURCE ID: ", resource_id)
         # Distinguish handling according to Profile type
-        sql_commands = functions.extractResourceProperties(resource_id, resource_metadata)
+        sql_commands = utils.extractResourceProperties(resource_id, resource_metadata)
         for sql in sql_commands:
             execSql(sql)
 
@@ -1211,7 +1742,7 @@ def api_artifact_publish(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -1319,6 +1850,16 @@ def api_artifact_id(query_data):
 
     config = current_app.config['settings']
 
+    if request.headers:
+        if request.headers.get('Api-Token') != None:
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        else:
+            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+        return jsonify(response)
+
     # Check if an ID (name) for a resource was provided in the request
     if 'id' in request.args:
         id = request.args['id']
@@ -1328,7 +1869,7 @@ def api_artifact_id(query_data):
 
     # Make a GET request to the CKAN API with the parameters
     # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(config['CKAN_API']+'resource_show?id='+id) #, headers=config.package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
+    response = requests.get(config['CKAN_API']+'resource_show?id='+id, headers=package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
 
     # Get the path of this artifact 
     if response.status_code == 200:
@@ -1364,7 +1905,7 @@ def api_dataset_purge(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -1407,7 +1948,7 @@ def api_dataset_unpublish(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -1451,7 +1992,7 @@ def api_resource_delete(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = functions.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -1560,11 +2101,13 @@ def yaml_config(config_file):
 
 
 
+
 # Deploy service at the specific host and port
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("Usage: python data_api.py <config_file>")
         sys.exit(1)
+
 
     # Get configuration settings specified in YAML or JSON
     config_path = sys.argv[1]
@@ -1593,3 +2136,5 @@ if __name__ == '__main__':
     app.run(host=app.config['settings']['FLASK_RUN_HOST'],
             port=app.config['settings']['FLASK_RUN_PORT'],
             debug=app.config['settings']['FLASK_DEBUG'])
+
+

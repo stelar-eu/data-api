@@ -137,6 +137,15 @@ class ComplexFilter(Schema):
     fq = String(required=False, example="organization:athenarc")        		# facet search only
 
 
+class Ranking(Schema):
+    ids = List(String, required=False)
+    keywords = List(String, required=False)
+    filter_preferences = Dict(required=False)
+    rank_preferences = Dict(required=False)
+    settings = Dict(required=False)
+#    top_k = Integer(required=False, load_default=10)
+
+
 class TrackingTags(Schema):
     dag_id = String(required=True)
     run_id = String(required=True)
