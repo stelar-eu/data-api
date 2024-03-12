@@ -5,6 +5,8 @@ This is the Data API for the Knowledge Lake Management System developed in proje
 
 * This REST API assumes that a Data Catalog has been deployed using [CKAN](https://ckan.org/), including a [PostgreSQL](https://www.postgresql.org/)/[PostGIS](http://postgis.net/) database where all metadata about published datasets (i.e., CKAN packages and resources) is maintained.
 
+* A [custom schema](https://github.com/stelar-eu/klms-core-components-setup/tree/main/data-catalog/schema-extension) must have been created in the PostgreSQL database where the Data Catalog holds all metadata. Apart from metadata about published datasets (i.e., CKAN packages and resources), this database also hold metadata about workflow and task executions, as well as data profiling information.
+
 * A Knowledge Graph must have been deployed via [Ontop](https://ontop-vkg.org/), employing mappings from the database to a virtual RDF graph that can be queried in SPARQL.
 
 * An instance of [MLFlow](https://mlflow.org/) must be up-and-running, and metadata regarding all executions is maintained in the same database (the one also used by CKAN).

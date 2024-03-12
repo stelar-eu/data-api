@@ -90,6 +90,31 @@ sql_views = {'tags':'package_tag_array', 'language':'package_language_array', 't
 
 #########################################################
 
+# Templates of SQL queries for workflow management
+
+sql_workflow_execution_templates = {
+    'workflow_create_template': 'INSERT INTO klms.workflow_execution(run_uuid, state, start_date) VALUES (_WORKFLOW_UUID, _STATE, _START_TIMESTAMP)',
+    'workflow_update_template': 'UPDATE klms.workflow_execution SET state = _STATE, end_date = _END_TIMESTAMP WHERE run_uuid = _WORKFLOW_UUID',   
+    'workflow_insert_tags_template': 'INSERT INTO klms.workflow_tag VALUES (_WORKFLOW_UUID, _KEY, _VALUE)',
+    'workflow_state_template': 'SELECT run_uuid AS workflow_exec_id, state FROM klms.workflow_execution WHERE run_uuid = _WORKFLOW_UUID',
+    'workflow_delete_template': 'DELETE FROM klms.workflow_execution WHERE run_uuid = _WORKFLOW_UUID',
+    'workflow_read_template': 'SELECT run_uuid AS workflow_exec_id, state, start_date, end_date FROM klms.workflow_execution WHERE run_uuid = _WORKFLOW_UUID',
+    'workflow_read_tags_template': 'SELECT key, value FROM klms.workflow_tag WHERE run_uuid = _WORKFLOW_UUID',
+    'task_create_template': 'INSERT INTO klms.task_execution(run_uuid, workflow_uuid, state, start_date) VALUES (_TASK_UUID, _WORKFLOW_UUID, _STATE, _START_TIMESTAMP)',
+    'task_update_template': 'UPDATE klms.task_execution SET state = _STATE, end_date = _END_TIMESTAMP WHERE run_uuid = _TASK_UUID',
+    'task_create_connection_template': 'UPDATE klms.task_execution SET next_task_uuid = _NEXT_TASK_UUID WHERE run_uuid = _TASK_UUID',
+    'task_delete_template': 'DELETE FROM klms.task_execution WHERE run_uuid = _TASK_UUID',
+    'task_read_template': 'SELECT run_uuid AS task_exec_id, workflow_uuid AS workflow_exec_id, state, start_date, end_date FROM klms.task_execution WHERE run_uuid = _TASK_UUID',
+    'task_read_tags_template': 'SELECT key, value FROM klms.task_tag WHERE run_uuid = _TASK_UUID',
+    'task_insert_input_dataset_template': 'INSERT INTO klms.task_input VALUES (_TASK_UUID, _RESOURCE_ID)',
+    'task_insert_output_dataset_template': 'INSERT INTO klms.task_output VALUES (_TASK_UUID, _RESOURCE_ID)',
+    'task_insert_tags_template': 'INSERT INTO klms.task_tag VALUES (_TASK_UUID, _KEY, _VALUE)',
+    'task_insert_parameters_template': 'INSERT INTO klms.parameters VALUES (_TASK_UUID, _KEY, _VALUE)',
+    'task_insert_metrics_template': 'INSERT INTO klms.metrics VALUES (_TASK_UUID, _KEY, _VALUE, now())',
+}
+
+#########################################################
+
 # Templates of SPARQL SELECT queries against the Knowledge Graph
 
 sparql_templates = {
@@ -99,6 +124,8 @@ sparql_templates = {
     'workflow_output_resource_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?resource ?workflow ?workflow_name ?workflow_desc ?start_date ?end_date WHERE { ?taskExec klms:hasOutput ?resource . ?resource dct:identifier _ID . ?taskExec dct:isPartOf ?workflowExec . ?workflowExec klms:instantiates ?workflow . ?workflowExec dcat:startDate ?start_date . ?workflowExec dcat:endDate ?end_date . ?workflow dct:title ?workflow_name . ?workflow dct:description ?workflow_desc }',
     'task_execution_metrics_template': 'PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?metric ?value ?timestamp WHERE { ?taskExec dct:identifier _ID . ?taskExec klms:hasMetrics ?kvpair . ?kvpair  klms:key ?metric. ?kvpair klms:value ?value . ?kvpair dct:issued ?timestamp }',
     'task_execution_parameters_template': 'PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?parameter ?value WHERE { ?taskExec dct:identifier _ID . ?taskExec klms:hasParameters ?kvpair . ?kvpair  klms:key ?parameter . ?kvpair klms:value ?value }',
+    'task_execution_input_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT  ?input_uri ?resource_id WHERE { ?taskExec dct:identifier _ID . ?taskExec klms:hasInput ?input_uri . ?input_uri a dcat:Distribution . ?input_uri dct:identifier ?resource_id }',
+    'task_execution_output_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT  ?output_uri ?resource_id WHERE { ?taskExec dct:identifier _ID . ?taskExec klms:hasOutput ?output_uri . ?output_uri a dcat:Distribution . ?output_uri dct:identifier ?resource_id }',
     'workflow_tasks_template': 'PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?workflow_desc ?task_name  WHERE { ?workflow a klms:Workflow . ?workflow dct:title _ID . ?workflow dct:description ?workflow_desc . ?task a klms:Task . ?task dct:isPartOf ?workflow . ?task dct:title ?task_name }',
     'task_executions_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?taskExec_id ?state ?start_date ?end_date WHERE { ?task a klms:Task . ?task dct:isPartOf ?workflow . ?workflow a klms:Workflow . ?task dct:title "entity_extraction" . ?taskExec klms:instantiates ?task . ?taskExec dct:identifier ?taskExec_id . ?taskExec klms:state ?state . ?taskExec dcat:startDate ?start_date . ?taskExec dcat:endDate ?end_date }'
 }

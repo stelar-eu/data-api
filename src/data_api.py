@@ -7,10 +7,13 @@ import psycopg2
 import yaml
 import mlflow as mfl
 import pandas as pd
+import uuid
+import datetime
 
 from psycopg2.extras import RealDictCursor
 from flask import request, jsonify, current_app, redirect, url_for
 from apiflask import APIFlask, HTTPTokenAuth
+from apiflask.fields import Dict, Nested
 
 from flask.json import JSONEncoder
 from datetime import date
@@ -81,25 +84,40 @@ def execSql(sql):
         sql (String): The SQL command to be executed in the database.
 
     Returns:
-        A JSON with the retrieved query results for SELECT commands; None for any other other of query.
+        A JSON with the retrieved query results for SELECT commands; a JSON with the final execution status (True/False) for INSERT/UPDATE commands.
     """
 
     config = current_app.config['settings']
 
-    conn = psycopg2.connect(dbname=config['dbname'], user=config['dbuser'], password=config['dbpass'], host=config['dbhost'], port=config['dbport']) #, sslmode=config['sslmode'])
-    cur = conn.cursor()
-    cur.execute(sql)
-
-    desc = cur.description
     data = None
-    if desc:
-        column_names = [col[0] for col in desc]
-        data = [dict(zip(column_names, row))  
-                for row in cur.fetchall()]
+    try:
+        with psycopg2.connect(dbname=config['dbname'], user=config['dbuser'], password=config['dbpass'], host=config['dbhost'], port=config['dbport']) as conn:
+            with conn.cursor() as cur:
+                # Execute the SQL statement
+                cur.execute(sql)
 
-    conn.commit()
+                # Handle the response                
+                desc = cur.description
 
-    return data
+                if desc:  # SELECT commands
+                    column_names = [col[0] for col in desc]
+                    data = [dict(zip(column_names, row))  
+                            for row in cur.fetchall()]
+                else:     # INSERT, UPDATE commands
+                    data = {}
+                    # obtain the inserted rows
+                    if cur.rowcount > 0:
+                        data['status'] = True
+                    else:
+                        data['status'] = False
+
+                # Commit the changes to the database
+                conn.commit()
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)    
+    finally:
+        return data
+
 
 ################################## ENTRY POINT ########################################
 
@@ -132,7 +150,7 @@ def home():
 @app.route('/api/v1/catalog/user/create', methods=['POST'])
 @app.input(schema.NewUser, location='json', example={"name":"test_user5", "email":"test5@example.com","password":"test_pass5", "fullname":"Jane Doe", "about":"Testing the CKAN API for creating another new user", "image_url":"https://commons.wikimedia.org/wiki/File:Example.jpg"})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['User management'])
+@app.doc(tags=['User Management'])
 @app.auth_required(auth)
 def api_user_create(json_data):
     """Create a new user in CKAN. Requires admin role in CKAN to create new users.
@@ -173,7 +191,7 @@ def api_user_create(json_data):
 @app.route('/api/v1/catalog/user/update', methods=['POST'])
 @app.input(schema.ChangedUser, location='json', example={"id":"02568a6c-9970-4650-87d7-26d4f7d64fd6", "about" : "Testing the CKAN API for patching information about an existing user", "image_url":"https://commons.wikimedia.org/wiki/File:JPEG_example_flower.jpg"})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['User management'])
+@app.doc(tags=['User Management'])
 @app.auth_required(auth)
 def api_user_update(json_data):
     """Update (patch) information an existing user in CKAN. Requires admin role in CKAN for such updates.
@@ -214,7 +232,7 @@ def api_user_update(json_data):
 @app.route('/api/v1/catalog/user/delete', methods=['POST'])
 @app.input(schema.Identifier, location='json', example={"id":"02568a6c-9970-4650-87d7-26d4f7d64fd6"})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['User management'])
+@app.doc(tags=['User Management'])
 @app.auth_required(auth)
 def api_user_delete(json_data):
     """Delete an existing user from CKAN. Requires admin role in CKAN for performing deletions.
@@ -255,7 +273,7 @@ def api_user_delete(json_data):
 @app.route('/api/v1/catalog/user/role/assign', methods=['POST'])
 @app.input(schema.UserRole, location='json', example={"id": "athenarc", "username":"02568a6c-9970-4650-87d7-26d4f7d64fd6", "role":"editor"})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['User management'])
+@app.doc(tags=['User Management'])
 @app.auth_required(auth)
 def api_user_role(json_data):
     """Assign a role for an existing user as a member of an organization in CKAN. Requires admin role in CKAN for such assignments.
@@ -296,7 +314,7 @@ def api_user_role(json_data):
 @app.route('/api/v1/catalog/user/token/create', methods=['POST'])
 @app.input(schema.NewToken, location='json', example={"user": "test_user5", "name": "test5_API_token"})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['User management'])
+@app.doc(tags=['User Management'])
 @app.auth_required(auth)
 def api_token_create(json_data):
     """Generate an API token for an existing user in CKAN. Requires authentication of the user in CKAN to generate a token.
@@ -338,7 +356,7 @@ def api_token_create(json_data):
 @app.route('/api/v1/catalog/user/organization', methods=['GET'])
 @app.input(schema.Identifier, location='query', example="778bc28b-627c-472f-9d78-4d3617733218")
 #@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['User management'])
+@app.doc(tags=['User Management'])
 def api_user_organization(query_data):
     """Finds the organization(s) where the given user is assigned a role (admin/editor/member) in CKAN.
 
@@ -353,9 +371,9 @@ def api_user_organization(query_data):
 
     config = current_app.config['settings']
 
-    if request.method == 'GET' and 'id' in request.args:
-        # Check if a user ID (name) was provided in the request
-        id = request.args['id']
+    if request.method == 'GET' and 'id' in query_data:
+        # Check if a user ID (name) was provided as argument
+        id = query_data['id']
         # Make a GET request to the CKAN API with the parameters
         # IMPORTANT! CKAN requires NO authentication for GET requests
         response = requests.get(config['CKAN_API']+'organization_list_for_user?id='+id) #, headers=config.package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
@@ -367,7 +385,7 @@ def api_user_organization(query_data):
 
 @app.route('/api/v1/catalog/user/organization', methods=['POST'])
 #@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['User management'])
+@app.doc(tags=['User Management'])
 @app.auth_required(auth)
 def api_user_editor():
     """Finds the organization(s) where the given user is assigned a role (admin/editor/member) in CKAN.
@@ -414,9 +432,9 @@ def api_user_id(query_data):
 
     config = current_app.config['settings']
 
-    # Check if an ID (name) for a resource was provided in the request
-    if 'id' in request.args:
-        id = request.args['id']
+    # Check if an ID (name) for a user was provided as argument
+    if 'id' in query_data:
+        id = query_data['id']
     else:
         response = {'success':False, 'help': request.url+'?id=', 'error':{'__type':'No specifications','name':['No identifier provided. Please specify the id or account name of the requested user.']}}
         return jsonify(response)
@@ -522,8 +540,8 @@ def api_dataset_id(query_data):
     config = current_app.config['settings']
 
     # Check if an ID (name) for a dataset was provided in the request
-    if 'id' in request.args:
-        id = request.args['id']
+    if 'id' in query_data:
+        id = query_data['id']
     else:
         response = {'success':False, 'help': request.url+'?id=', 'error':{'__type':'No specifications','name':['No identifier provided. Please specify the id of the requested dataset.']}}
         return jsonify(response)
@@ -552,9 +570,9 @@ def api_export_zenodo_dataset_id(query_data):
 
     config = current_app.config['settings']
 
-    # Check if an ID (name) for a dataset was provided in the request
-    if 'id' in request.args:
-        id = request.args['id']
+    # Check if an ID (name) for a dataset was provided as argument
+    if 'id' in query_data:
+        id = query_data['id']
     else:
         response = {'success':False, 'help': request.url+'?id=', 'error':{'__type':'No specifications','name':['No identifier provided. Please specify the id of the requested dataset.']}}
         return jsonify(response)
@@ -576,10 +594,10 @@ def api_export_zenodo_dataset_id(query_data):
     
         # Internal call to find the organization where the creator of the dataset belongs to
 #        resp_org = requests.get(api_user_organization, params = {'id':creator_id})
-        params = {'id':creator_id}
-        resp_org = redirect(url_for('api_user_organization', query_data=creator_id))
+#        params = {'id':creator_id}
+#        resp_org = redirect(url_for('api_user_organization', query_data=creator_id))
 
-        # Make another GET request to the CKAN API to find the organization where the creator of the dataset belongs to
+        # Make a GET request to the CKAN API to find the organization where the creator of the dataset belongs to
         # IMPORTANT! CKAN requires NO authentication for GET requests
         resp_org = requests.get(config['CKAN_API']+'organization_list_for_user?id='+creator_id) #, headers=config.package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
         json_org = resp_org.json()
@@ -661,23 +679,23 @@ def api_package_search(query_data):
 
     config = current_app.config['settings']
 
-    if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
-        else:
-            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-            return jsonify(response)
-    else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-        return jsonify(response)
+#    if request.headers:
+#        if request.headers.get('Api-Token') != None:
+#            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+#        else:
+#            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+#            return jsonify(response)
+#    else:
+#        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+#        return jsonify(response)
 
     # Multiple criteria can be correctly passed with argument ?q 
-    if 'q' in request.args:      	# Search on various metadata
-        q = '?q=' + request.args['q']
-    elif 'ext_bbox' in request.args:  	# Search on spatial extent only
-        q = '?ext_bbox=' + request.args['ext_bbox']
-    elif 'fq' in request.args:   	# Search on facets only
-        q = '?fq=' + request.args['fq']
+    if 'q' in query_data:      		# Search on various metadata
+        q = '?q=' + query_data['q']
+    elif 'ext_bbox' in query_data:  	# Search on spatial extent only
+        q = '?ext_bbox=' + query_data['ext_bbox']
+    elif 'fq' in query_data:   		# Search on facets only
+        q = '?fq=' + query_data['fq']
     else:
         response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No filtering criteria provided to search for datasets in the Catalog. Please specify at least one filter as argument.']}}
         return jsonify(response)
@@ -685,7 +703,7 @@ def api_package_search(query_data):
     # Make a GET request to the CKAN API with the parameters
     # IMPORTANT! Although CKAN generally requires NO authentication for GET requests, it is important in order to also retrieve private datasets of the user's organization
     # IMPORTANT! To return all available results, must specify the max number of rows
-    response = requests.get(config['CKAN_API']+'package_search'+q+'&include_private=True&fl=*,score&rows='+str(config['RANK_MAX_TOPK'])+'&start=0', headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
+    response = requests.get(config['CKAN_API']+'package_search'+q+'&include_private=True&fl=*,score&rows='+str(config['RANK_MAX_TOPK'])+'&start=0') #, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
 
     # Pass an empty data frame to report the original SOLR scores; no facet specs need be added
     return utils.assign_scores(response, pd.DataFrame(), {}, {})  
@@ -710,9 +728,9 @@ def api_resource_id(query_data):
 
     config = current_app.config['settings']
 
-    # Check if an ID (name) for a resource was provided in the request
-    if 'id' in request.args:
-        id = request.args['id']
+    # Check if an ID (name) for a dataset was provided as argument
+    if 'id' in query_data:
+        id = query_data['id']
     else:
         response = {'success':False, 'help': request.url+'?id=', 'error':{'__type':'No specifications','name':['No identifier provided. Please specify the id of the requested resource.']}}
         return jsonify(response)
@@ -743,8 +761,9 @@ def api_resource_search(query_data):
 
     config = current_app.config['settings']
 
-    if 'q' in request.args:
-        q = request.args['q']
+    # Check if filtering criteria was provided as argument
+    if 'q' in query_data:
+        q = query_data['q']
     else:
         response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No filtering criteria provided to search for resources in the Catalog. Please specify at least one filter as argument.']}}
         return jsonify(response)
@@ -774,8 +793,8 @@ def api_workflow_input_dataset(query_data):
 
     config = current_app.config['settings']
 
-    if 'id' in request.args:
-        id = request.args['id']
+    if 'id' in query_data:
+        id = query_data['id']
     else:
         response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No dataset identifier provided to search in the Catalog. Please specify a valid identifier for the dataset.']}}
         return jsonify(response)
@@ -809,8 +828,8 @@ def api_workflow_output_dataset(query_data):
 
     config = current_app.config['settings']
 
-    if 'id' in request.args:
-        id = request.args['id']
+    if 'id' in query_data:
+        id = query_data['id']
     else:
         response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No dataset identifier provided to search in the Catalog. Please specify a valid identifier for the dataset.']}}
         return jsonify(response)
@@ -845,8 +864,8 @@ def api_workflow_input_resource(query_data):
 
     config = current_app.config['settings']
 
-    if 'id' in request.args:
-        id = request.args['id']
+    if 'id' in query_data:
+        id = query_data['id']
     else:
         response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No resource identifier provided to search in the Catalog. Please specify a valid identifier for the resource.']}}
         return jsonify(response)
@@ -881,8 +900,8 @@ def api_workflow_output_resource(query_data):
 
     config = current_app.config['settings']
 
-    if 'id' in request.args:
-        id = request.args['id']
+    if 'id' in query_data:
+        id = query_data['id']
     else:
         response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No resource identifier provided to search in the Catalog. Please specify a valid identifier for the resource.']}}
         return jsonify(response)
@@ -917,8 +936,8 @@ def api_workflow_tasks(query_data):
 
     config = current_app.config['settings']
 
-    if 'id' in request.args:
-        id = request.args['id']
+    if 'id' in query_data:
+        id = query_data['id']
     else:
         response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the workflow in the Knowledge Graph. Please specify a valid identifier for the workflow.']}}
         return jsonify(response)
@@ -953,8 +972,8 @@ def api_task_executions(query_data):
 
     config = current_app.config['settings']
 
-    if 'id' in request.args:
-        id = request.args['id']
+    if 'id' in query_data:
+        id = query_data['id']
     else:
         response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the task execution in the Knowledge Graph. Please specify a valid identifier for the task execution.']}}
         return jsonify(response)
@@ -969,6 +988,77 @@ def api_task_executions(query_data):
 
     return jsonify(json.loads(response.text))
 
+
+
+@app.route('/api/v1/task/execution/input', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="id=0075f24c7b654246a65c12739e96b867")
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Search Operations'])
+def api_task_execution_input(query_data):
+    """Submit a request to the Knowledge Graph to retrieve the identifiers of dataset(s) given as input to the specified task execution.
+
+    Args:
+        id: The identifier (UUID) assigned to the task execution in MLFlow.
+
+    Returns:
+        A JSON with the list of dataset identifiers (CKAN resources) collected in MLFlow for the specified task execution.
+    """
+
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/execution/input?id=0075f24c7b654246a65c12739e96b867
+
+    config = current_app.config['settings']
+
+    if 'id' in query_data:
+        id = query_data['id']
+    else:
+        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the task execution in the Knowledge Graph. Please specify a valid identifier for the task execution.']}}
+        return jsonify(response)
+
+    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    # Formulate the SPARQL query with the given identifier
+    sparql = utils.format_sparql_filter('task_execution_input_template', id)
+#    print(sparql)
+    # Make a POST request to the Ontop API with the given query
+    # IMPORTANT! NO authentication required by public SPARQL endpoints
+    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+
+    return jsonify(json.loads(response.text))
+
+
+
+@app.route('/api/v1/task/execution/output', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="id=0075f24c7b654246a65c12739e96b867")
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Search Operations'])
+def api_task_execution_output(query_data):
+    """Submit a request to the Knowledge Graph to retrieve the identifiers of dataset(s) issued as output from the specified task execution.
+
+    Args:
+        id: The identifier (UUID) assigned to the task execution in MLFlow.
+
+    Returns:
+        A JSON with the list of dataset identifiers (CKAN resources) collected as output in MLFlow for the specified task execution.
+    """
+
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/execution/output?id=0075f24c7b654246a65c12739e96b867
+
+    config = current_app.config['settings']
+
+    if 'id' in query_data:
+        id = query_data['id']
+    else:
+        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the task execution in the Knowledge Graph. Please specify a valid identifier for the task execution.']}}
+        return jsonify(response)
+
+    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    # Formulate the SPARQL query with the given identifier
+    sparql = utils.format_sparql_filter('task_execution_output_template', id)
+#    print(sparql)
+    # Make a POST request to the Ontop API with the given query
+    # IMPORTANT! NO authentication required by public SPARQL endpoints
+    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+
+    return jsonify(json.loads(response.text))
 
 
 
@@ -991,8 +1081,8 @@ def api_task_metrics(query_data):
 
     config = current_app.config['settings']
 
-    if 'id' in request.args:
-        id = request.args['id']
+    if 'id' in query_data:
+        id = query_data['id']
     else:
         response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the task execution in the Knowledge Graph. Please specify a valid identifier for the task execution.']}}
         return jsonify(response)
@@ -1026,8 +1116,8 @@ def api_task_parameters(query_data):
 
     config = current_app.config['settings']
 
-    if 'id' in request.args:
-        id = request.args['id']
+    if 'id' in query_data:
+        id = query_data['id']
     else:
         response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the task execution in the Knowledge Graph. Please specify a valid identifier for the task execution.']}}
         return jsonify(response)
@@ -1107,7 +1197,7 @@ def api_sql(json_data):
         specs = json.loads(request.data.decode("utf-8"))
         if 'q' in specs:
             sql = specs['q']
-            print(sql)
+#            print(sql)
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Incorrect specifications','name':['Incorrect or no filters provided to search in the Data Catalog. Please specify a valid SELECT query command in SQL.']}}
             return jsonify(response)
@@ -1718,6 +1808,75 @@ def api_resource_link(json_data):
 
 
 
+
+@app.route('/api/v1/workflow/publish', methods=['POST'])
+@app.input(schema.Package, location='json', example={"package_metadata": {"title": "Test workflow", "notes": "This workflow performs entity matching", "tags": ["STELAR", "Entity matching", "Entity resolution"]}})
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Publishing Operations'])
+@app.auth_required(auth)
+def api_workflow_publish(json_data):
+    """Publish a new workflow as a CKAN package. The user will become the publisher of this workflow.
+
+    Args:
+        data: A JSON with basic metadata information (as required by CKAN) provided by the publisher about the new workflow.
+
+    Returns:
+        A JSON with the CKAN response to the publishing request.
+    """
+
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/workflow/publish -d '{"package_metadata": {"title": "Test workflow", "notes": "This workflow performs entity matching", "tags": ["STELAR", "Entity matching", "Entity resolution"]}'
+
+    config = current_app.config['settings']
+
+    if request.headers:
+        if request.headers.get('Api-Token') != None:
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        else:
+            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+        return jsonify(response)
+
+    if request.data:
+        metadata = json.loads(request.data.decode("utf-8"))   #json.loads(json.dumps(str(request.data)))
+        if 'package_metadata' in metadata:
+            package_metadata = metadata['package_metadata']
+            # Also create the name of the new CKAN package from its title (assuming that this is unique)
+            package_metadata['name'] = re.sub(r'[\W_]+','_', package_metadata['title']).lower()
+            # Convert the tags into the format required by CKAN 
+            package_metadata['tags'] = utils.handle_keywords(package_metadata['tags'])
+            package_metadata['type'] = 'workflow'   # Must specify that this is not a dataset, but a workflow
+            # Internal call to find the organization where the user belongs to (derived from API token)
+            resp_org = api_user_editor()
+            if resp_org['success']:
+                org_json = resp_org['result']
+                if len(org_json) > 0:  
+                    for item in org_json: 
+                        if item['type'] == 'organization' and item['state'] == 'active' and item['capacity'] in ('admin','editor'):
+                            package_metadata['owner_org'] = org_json[0]['name']  # CAUTION! Taking the first organization where this user is editor
+                            break
+        else:
+            response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No metadata provided for publishing in the Catalog. Please specify at least some basic metadata (title, notes, tags, etc.) for the workflow you wish to publish.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No metadata provided for publishing in the Catalog. Please specify at least some basic metadata (title, notes, tags, etc.) for the workflow you wish to publish.']}}
+        return jsonify(response)
+
+    # Make a POST request to the CKAN API with the parameters
+    response = requests.post(config['CKAN_API']+'package_create', json=package_metadata, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
+
+    if response.status_code == 200:
+        result = {}
+        package_id = response.json()['result']['id']
+        result['package_id'] = package_id     # Return the package_id only
+        response = {'success':True, 'help': request.url, 'result':result} 
+        return jsonify(response)
+    else:
+        return jsonify(response)
+
+
+
 @app.route('/api/v1/artifact/publish', methods=['POST'])
 @app.input(schema.Artifact, location='json', example={"package_metadata":{"package_id": "test_data_api_1"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "run_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}})
 # @app.output(schema.ResponseOK, status_code=200)
@@ -1850,26 +2009,26 @@ def api_artifact_id(query_data):
 
     config = current_app.config['settings']
 
-    if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
-        else:
-            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-            return jsonify(response)
-    else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-        return jsonify(response)
+#    if request.headers:
+#        if request.headers.get('Api-Token') != None:
+#            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+#        else:
+#            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+#            return jsonify(response)
+#    else:
+#        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+#        return jsonify(response)
 
-    # Check if an ID (name) for a resource was provided in the request
-    if 'id' in request.args:
-        id = request.args['id']
+    # Check if an ID (name) for a resource was provided as argument
+    if 'id' in query_data:
+        id = query_data['id']
     else:
         response = {'success':False, 'help': request.url+'?id=', 'error':{'__type':'No specifications','name':['No identifier provided. Please specify the unique id of the requested artifact.']}}
         return jsonify(response)
 
     # Make a GET request to the CKAN API with the parameters
     # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(config['CKAN_API']+'resource_show?id='+id, headers=package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
+    response = requests.get(config['CKAN_API']+'resource_show?id='+id) #, headers=package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
 
     # Get the path of this artifact 
     if response.status_code == 200:
@@ -2068,6 +2227,484 @@ def api_track(json_data):
     return jsonify({'help': request.url, 'success': True,
                     'result': {'run_uuid': run_id}})
 
+
+##################################################
+
+
+
+def workflow_execution_create(workflow_exec_id, start_date, state, tags=None):
+    """Records metadata for a new workflow execution in the database.
+
+    Args:
+        workflow_exec_id: UUID of the new workflow execution.
+        start_date: Start timestamp of the new workflow execution.
+        state: Initial state of the new workflow execution.
+        tags: A JSON dictionary with workflow execution metadata as (key, value) pairs.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose the SQL command using the template for creating a new workflow execution
+    sql = utils.sql_workflow_execution_templates['workflow_create_template']   
+    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_STATE', '\''+ state +'\'').replace('_START_TIMESTAMP', '\''+ start_date +'\'')
+#    print(sql)
+
+    # Execute the SQL command in the database
+    resp = execSql(sql)
+    if resp and 'status' in resp:
+        if not resp.get('status'):
+            return False
+    else:
+        return False
+
+    # Compose the SQL command using the template for assigning tags to the new workflow execution 
+    if tags:
+        for key, value in tags.items():
+            sql = utils.sql_workflow_execution_templates['workflow_insert_tags_template']   
+            sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
+#            print(sql)
+
+            # Execute the SQL command in the database
+            resp = execSql(sql)
+            if resp and 'status' in resp:
+                if not resp.get('status'):
+                    return False
+            else:
+                return False
+
+    return True
+
+
+def workflow_execution_update(workflow_exec_id, state, end_date=None):
+    """Updates metadata regarding a workflow execution in the database.
+
+    Args:
+        task_exec_id: UUID of a workflow execution.
+        state: Current state of this workflow execution.
+        end_date: Timestamp marking the end of this workflow execution.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose the SQL command using the template for updating a workflow execution
+    sql = utils.sql_workflow_execution_templates['workflow_update_template']   
+    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_STATE', '\''+ state +'\'')
+    if end_date:
+        sql = sql.replace('_END_TIMESTAMP', '\''+ end_date +'\'')
+    else:
+        sql = sql.replace('_END_TIMESTAMP', 'NULL')
+#    print(sql)
+
+    # Execute the SQL command in the database
+    resp = execSql(sql)
+
+    if resp and 'status' in resp:
+        if not resp.get('status'):
+            return False
+    else:
+        return False
+
+    return True
+
+
+def workflow_execution_delete(workflow_exec_id):
+    """Deletes all metadata regarding a workflow execution from the database. CAUTION! This also includes all metadata about task executions associated with this workflow execution.
+
+    Args:
+        workflow_exec_id: UUID of a workflow execution.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose the SQL command using the template for deleting a workflow execution
+    sql = utils.sql_workflow_execution_templates['workflow_delete_template']   
+    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'')
+#    print(sql)
+
+    # Execute the SQL command in the database
+    resp = execSql(sql)
+
+    if resp and 'status' in resp:
+        if not resp.get('status'):
+            return False
+    else:
+        return False
+
+    return True
+
+
+def workflow_execution_read(workflow_exec_id):
+    """Returns metadata recorded in the database about the given workflow execution. User-specified tags are included in the returned response.
+
+    Args:
+        task_exec_id: UUID of the workflow execution.
+
+    Returns:
+        A JSON with the workflow execution metadata.
+    """
+
+    # Compose the SQL command using the template for reading metadata about a workflow execution
+    sql = utils.sql_workflow_execution_templates['workflow_read_template']   
+    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'')
+#    print(sql)
+
+    # Execute the SQL command in the database
+    resp = execSql(sql)
+
+    if resp and len(resp)>0:
+        workflow_specs = resp[0]  # List should contain specification of a single workflow execution (unique UUID)
+        # Also include any user-specified tags in the response
+        workflow_specs['tags'] = workflow_execution_tags_read(workflow_exec_id)
+        return workflow_specs
+    else:
+        return None
+
+
+def workflow_execution_tags_read(workflow_exec_id):
+    """Returns tags recorded as (key, value) pairs in the database about the given workflow execution.
+
+    Args:
+        workflow_exec_id: UUID of the workflow execution.
+
+    Returns:
+        A JSON dictionary with the workflow execution tags.
+    """
+
+    # Compose the SQL command using the template for reading tags about a workflow execution
+    sql = utils.sql_workflow_execution_templates['workflow_read_tags_template']   
+    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'')
+#    print(sql)
+
+    # Execute the SQL command in the database
+    resp = execSql(sql)
+
+    if resp and len(resp)>0:
+        tag_dict = {tag['key']: tag['value'] for tag in resp}
+        return tag_dict
+    else:
+        return None
+
+
+
+def task_execution_create(task_exec_id, workflow_exec_id, start_date, state, tags=None, prev_task_exec_id=None):
+    """Records metadata for a new task execution in the database.
+
+    Args:
+        workflow_exec_id: UUID of an existing workflow execution.
+        task_exec_id: UUID of the new task execution.
+        start_date: Start timestamp of the new task execution.
+        state: Initial state of the new task execution.
+        tags: A JSON dictionary with task execution metadata as (key, value) pairs.
+        prev_task_exec_id: UUID of the exexcution of the previous task in the workflow pipeline.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose the SQL command using the template for creating a new task execution
+    sql = utils.sql_workflow_execution_templates['task_create_template']   
+    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_STATE', '\''+ state +'\'').replace('_START_TIMESTAMP', '\''+ start_date +'\'')
+#    print(sql)
+
+    # Execute the SQL command in the database
+    resp = execSql(sql)
+    if resp and 'status' in resp:
+        if not resp.get('status'):
+            return False
+    else:
+        return False
+
+    # Compose the SQL command using the template for specifying the previously executed task
+    if prev_task_exec_id:
+        sql = utils.sql_workflow_execution_templates['task_create_connection_template']   
+        sql = sql.replace('_NEXT_TASK_UUID', '\''+ task_exec_id +'\'').replace('_TASK_UUID', '\''+ prev_task_exec_id +'\'')
+#        print(sql)
+
+        # Execute the SQL command in the database
+        resp = execSql(sql)
+        if resp and 'status' in resp:
+            if not resp.get('status'):
+                return False
+        else:
+            return False
+
+    # Compose the SQL command using the template for assigning tags to the new task execution 
+    if tags:
+        for key, value in tags.items():
+            sql = utils.sql_workflow_execution_templates['task_insert_tags_template']   
+            sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
+#            print(sql)
+
+            # Execute the SQL command in the database
+            resp = execSql(sql)
+            if resp and 'status' in resp:
+                if not resp.get('status'):
+                    return False
+            else:
+                return False
+
+    return True
+
+
+def task_execution_update(task_exec_id, state, end_date=None):
+    """Updates metadata regarding a task execution in the database.
+
+    Args:
+        task_exec_id: UUID of a task execution.
+        state: Current state of this task execution.
+        end_date: Timestamp marking the end of this task execution.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose the SQL command using the template for updating a task execution
+    sql = utils.sql_workflow_execution_templates['task_update_template']   
+    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_STATE', '\''+ state +'\'')
+    if end_date:
+        sql = sql.replace('_END_TIMESTAMP', '\''+ end_date +'\'')
+    else:
+        sql = sql.replace('_END_TIMESTAMP', 'NULL')
+#    print(sql)
+
+    # Execute the SQL command in the database
+    resp = execSql(sql)
+
+    if resp and 'status' in resp:
+        if not resp.get('status'):
+            return False
+    else:
+        return False
+
+    return True
+
+
+def task_execution_delete(task_exec_id):
+    """Deletes all metadata regarding a task execution from the database. CAUTION! This also includes all tags, parameters, and metrics associated with this task execution.
+
+    Args:
+        task_exec_id: UUID of a task execution.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose the SQL command using the template for deleting a task execution
+    sql = utils.sql_workflow_execution_templates['task_delete_template']   
+    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'')
+#    print(sql)
+
+    # Execute the SQL command in the database
+    resp = execSql(sql)
+
+    if resp and 'status' in resp:
+        if not resp.get('status'):
+            return False
+    else:
+        return False
+
+    return True
+
+
+
+def task_execution_insert_log(task_exec_id, log):
+    """Records the log of a task execution in the database.
+
+    Args:
+        task_exec_id: UUID of the task execution.
+        log: Text with the compiled logs.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose the SQL command using the template for inserting the log under tag "log" for this task execution 
+    sql = utils.sql_workflow_execution_templates['task_insert_tags_template']   
+    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\'log\'').replace('_VALUE', '\''+  log +'\'')
+#    print(sql)
+
+    # Execute the SQL command in the database
+    resp = execSql(sql)
+    if resp and 'status' in resp:
+        if not resp.get('status'):
+            return False
+    else:
+        return False
+
+    return True
+
+
+
+def task_execution_insert_input(task_exec_id, resource_ids):
+    """Records in the database that the given dataset id was used as input in the given task execution.
+
+    Args:
+        task_exec_id: UUID of the task execution.
+        resource_ids: Array of UUIDs of the dataset(s) (CKAN resources) used as input in this task execution.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose the SQL command using the template for recording input datasets
+    for res_id in resource_ids:
+        sql = utils.sql_workflow_execution_templates['task_insert_input_dataset_template']   
+        sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_RESOURCE_ID', '\''+ res_id +'\'')
+#        print(sql)
+
+        # Execute the SQL command in the database
+        resp = execSql(sql)
+        if resp and 'status' in resp:
+            if not resp.get('status'):
+                return False
+        else:
+            return False
+
+    return True
+
+
+def task_execution_insert_output(task_exec_id, resource_ids):
+    """Records in the database that the given dataset id was issued as output from the given task execution.
+
+    Args:
+        task_exec_id: UUID of the task execution.
+        resource_ids: Array of UUIDs of the dataset(s) (i.e.,CKAN resources) issued as output from this task execution.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose the SQL command using the template for recording output datasets
+    for res_id in resource_ids:
+        sql = utils.sql_workflow_execution_templates['task_insert_output_dataset_template']   
+        sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_RESOURCE_ID', '\''+ res_id +'\'')
+#        print(sql)
+
+        # Execute the SQL command in the database
+        resp = execSql(sql)
+        if resp and 'status' in resp:
+            if not resp.get('status'):
+                return False
+        else:
+            return False
+
+    return True
+
+
+def task_execution_insert_parameters(task_exec_id, parameters):
+    """Records in the database that the user-specified parameters for the given task execution.
+
+    Args:
+        task_exec_id: UUID of the task execution.
+        parameters: A JSON dictionary with the task execution parametrization as (key, value) pairs.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose the SQL command using the template for recording parameters of a task execution 
+    if parameters:
+        for key, value in parameters.items():
+            sql = utils.sql_workflow_execution_templates['task_insert_parameters_template']   
+            sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
+#            print(sql)
+
+            # Execute the SQL command in the database
+            resp = execSql(sql)
+            if 'status' in resp:
+                if not resp.get('status'):
+                    return False
+            else:
+                return False
+
+    return True
+
+
+def task_execution_insert_metrics(task_exec_id, metrics):
+    """Records in the database that the metrics collected for the given task execution.
+
+    Args:
+        task_exec_id: UUID of the task execution.
+        metrics: A JSON dictionary with the task execution metrics as (key, value) pairs.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose the SQL command using the template for recording metrics about a task execution 
+    if metrics:
+        for key, value in metrics.items():
+            sql = utils.sql_workflow_execution_templates['task_insert_metrics_template']   
+            sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
+#            print(sql)
+
+            # Execute the SQL command in the database
+            resp = execSql(sql)
+            if 'status' in resp:
+                if not resp.get('status'):
+                    return False
+            else:
+                return False
+
+    return True
+
+
+
+def task_execution_read(task_exec_id):
+    """Returns metadata recorded in the database about the given task execution. User-specified tags are included in the returned response.
+
+    Args:
+        task_exec_id: UUID of the task execution.
+
+    Returns:
+        A JSON with the task execution metadata.
+    """
+
+    # Compose the SQL command using the template for reading metadata about a task execution
+    sql = utils.sql_workflow_execution_templates['task_read_template']   
+    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'')
+#    print(sql)
+
+    # Execute the SQL command in the database
+    resp = execSql(sql)
+
+    if resp and len(resp)>0:
+        task_specs = resp[0]  # List should contain specification of a single task execution (unique UUID)
+        # Also include any user-specified tags in the response
+        task_specs['tags'] = task_execution_tags_read(task_exec_id)
+        return task_specs
+    else:
+        return None
+
+
+def task_execution_tags_read(task_exec_id):
+    """Returns tags recorded as (key, value) pairs in the database about the given task execution.
+
+    Args:
+        task_exec_id: UUID of the task execution.
+
+    Returns:
+        A JSON dictionary with the task execution tags.
+    """
+
+    # Compose the SQL command using the template for reading tags about a task execution
+    sql = utils.sql_workflow_execution_templates['task_read_tags_template']   
+    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'')
+#    print(sql)
+
+    # Execute the SQL command in the database
+    resp = execSql(sql)
+
+    if resp and len(resp)>0:
+        return resp[0]
+    else:
+        return None
+
+
+###########################################################
 
 
 def json_config(config_file):

@@ -189,7 +189,7 @@
         "properties": {
           "id": {
             "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-            "maxLength": 50, 
+            "maxLength": 64, 
             "minLength": 0, 
             "type": "string"
           }
@@ -533,7 +533,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }
@@ -647,7 +647,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }
@@ -1219,7 +1219,7 @@
         ], 
         "summary": "Create a new user in CKAN. Requires admin role in CKAN to create new users.", 
         "tags": [
-          "User management"
+          "User Management"
         ]
       }
     }, 
@@ -1278,7 +1278,7 @@
         ], 
         "summary": "Delete an existing user from CKAN. Requires admin role in CKAN for performing deletions.", 
         "tags": [
-          "User management"
+          "User Management"
         ]
       }
     }, 
@@ -1292,7 +1292,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }
@@ -1320,7 +1320,7 @@
         }, 
         "summary": "Finds the organization(s) where the given user is assigned a role (admin/editor/member) in CKAN.", 
         "tags": [
-          "User management"
+          "User Management"
         ]
       }, 
       "post": {
@@ -1353,7 +1353,7 @@
         ], 
         "summary": "Finds the organization(s) where the given user is assigned a role (admin/editor/member) in CKAN.", 
         "tags": [
-          "User management"
+          "User Management"
         ]
       }
     }, 
@@ -1414,7 +1414,7 @@
         ], 
         "summary": "Assign a role for an existing user as a member of an organization in CKAN. Requires admin role in CKAN for such assignments.", 
         "tags": [
-          "User management"
+          "User Management"
         ]
       }
     }, 
@@ -1474,7 +1474,7 @@
         ], 
         "summary": "Generate an API token for an existing user in CKAN. Requires authentication of the user in CKAN to generate a token.", 
         "tags": [
-          "User management"
+          "User Management"
         ]
       }
     }, 
@@ -1535,7 +1535,7 @@
         ], 
         "summary": "Update (patch) information an existing user in CKAN. Requires admin role in CKAN for such updates.", 
         "tags": [
-          "User management"
+          "User Management"
         ]
       }
     }, 
@@ -1628,7 +1628,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }
@@ -2092,7 +2092,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }
@@ -2366,6 +2366,50 @@
         ]
       }
     }, 
+    "/api/v1/task/execution/input": {
+      "get": {
+        "description": "Args:\nid: The identifier (UUID) assigned to the task execution in MLFlow.\n\nReturns:\nA JSON with the list of dataset identifiers (CKAN resources) collected in MLFlow for the specified task execution.", 
+        "parameters": [
+          {
+            "in": "query", 
+            "name": "id", 
+            "required": false, 
+            "schema": {
+              "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
+              "maxLength": 64, 
+              "minLength": 0, 
+              "type": "string"
+            }
+          }
+        ], 
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            }, 
+            "description": "Successful response"
+          }, 
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }, 
+            "description": "Validation error"
+          }
+        }, 
+        "summary": "Submit a request to the Knowledge Graph to retrieve the identifiers of dataset(s) given as input to the specified task execution.", 
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    }, 
     "/api/v1/task/execution/metrics": {
       "get": {
         "description": "Args:\nid: The identifier (UUID) assigned to the task execution in MLFlow.\n\nReturns:\nA JSON with the metrics collected in MLFlow for the specified task execution.", 
@@ -2376,7 +2420,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }
@@ -2410,6 +2454,50 @@
         ]
       }
     }, 
+    "/api/v1/task/execution/output": {
+      "get": {
+        "description": "Args:\nid: The identifier (UUID) assigned to the task execution in MLFlow.\n\nReturns:\nA JSON with the list of dataset identifiers (CKAN resources) collected as output in MLFlow for the specified task execution.", 
+        "parameters": [
+          {
+            "in": "query", 
+            "name": "id", 
+            "required": false, 
+            "schema": {
+              "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
+              "maxLength": 64, 
+              "minLength": 0, 
+              "type": "string"
+            }
+          }
+        ], 
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            }, 
+            "description": "Successful response"
+          }, 
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }, 
+            "description": "Validation error"
+          }
+        }, 
+        "summary": "Submit a request to the Knowledge Graph to retrieve the identifiers of dataset(s) issued as output from the specified task execution.", 
+        "tags": [
+          "Search Operations"
+        ]
+      }
+    }, 
     "/api/v1/task/execution/parameters": {
       "get": {
         "description": "Args:\nid: The identifier (UUID) assigned to the task execution in MLFlow.\n\nReturns:\nA JSON with the parameters specified in MLFlow for the specified task execution.", 
@@ -2420,7 +2508,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }
@@ -2464,7 +2552,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }
@@ -2588,7 +2676,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }
@@ -2632,7 +2720,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }
@@ -2676,7 +2764,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }
@@ -2720,7 +2808,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }
@@ -2764,7 +2852,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }
@@ -2798,6 +2886,73 @@
         ]
       }
     }, 
+    "/api/v1/workflow/publish": {
+      "post": {
+        "description": "Args:\ndata: A JSON with basic metadata information (as required by CKAN) provided by the publisher about the new workflow.\n\nReturns:\nA JSON with the CKAN response to the publishing request.", 
+        "parameters": [], 
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "package_metadata": {
+                  "notes": "This workflow performs entity matching", 
+                  "tags": [
+                    "STELAR", 
+                    "Entity matching", 
+                    "Entity resolution"
+                  ], 
+                  "title": "Test workflow"
+                }
+              }, 
+              "schema": {
+                "$ref": "#/components/schemas/Package"
+              }
+            }
+          }
+        }, 
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOK"
+                }
+              }
+            }, 
+            "description": "Successful response"
+          }, 
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }, 
+            "description": "Authentication error"
+          }, 
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }, 
+            "description": "Validation error"
+          }
+        }, 
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ], 
+        "summary": "Publish a new workflow as a CKAN package. The user will become the publisher of this workflow.", 
+        "tags": [
+          "Publishing Operations"
+        ]
+      }
+    }, 
     "/api/v1/workflow/tasks": {
       "get": {
         "description": "Args:\nid: The identifier assigned to the workflow.\n\nReturns:\nA JSON with the list of tasks included in the given workflow.", 
@@ -2808,7 +2963,7 @@
             "required": false, 
             "schema": {
               "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
-              "maxLength": 50, 
+              "maxLength": 64, 
               "minLength": 0, 
               "type": "string"
             }

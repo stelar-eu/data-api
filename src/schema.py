@@ -22,7 +22,7 @@ class ResponseError(Schema):
 
 
 class Identifier(Schema):
-    id = String(required=False, validate=Length(0, 50), example="6dc36257-abb6-45b5-b3bb-5f94160fc2ee")
+    id = String(required=False, validate=Length(0, 64), example="6dc36257-abb6-45b5-b3bb-5f94160fc2ee")
 
 
 class NewUser(Schema):
@@ -114,6 +114,8 @@ class Artifact(Schema):
     package_metadata = Dict(required=True)
     artifact_metadata = Dict(required=True)
 
+class Track(Schema):
+    tracking_metadata = Dict(required=True)
 
 class Package(Schema):
     package_metadata = Dict(required=True)

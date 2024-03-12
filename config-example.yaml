@@ -37,3 +37,10 @@ SPARQL_ENDPOINT: 'http://<ONTOP-HOST>/sparql'
 
 ############################## MLFLOW ##################################
 MLFLOW_ENDPOINT: 'http://<MLFLOW-HOST>'
+
+################################ RANKING ###################################
+# Default ranking preferences
+RANK_DEFAULT_TOPK: 10
+RANK_MAX_TOPK: 10000
+RANK_AGG_ALGORITHM: 'Bordacount'
+
