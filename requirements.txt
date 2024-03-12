@@ -1,5 +1,5 @@
-mlflow
 psycopg2
 flask
 apiflask
 shapely
+docker

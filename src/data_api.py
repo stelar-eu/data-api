@@ -9,6 +9,9 @@ import mlflow as mfl
 import pandas as pd
 import uuid
 import datetime
+import os
+import subprocess
+import docker
 
 from psycopg2.extras import RealDictCursor
 from flask import request, jsonify, current_app, redirect, url_for
@@ -16,7 +19,7 @@ from apiflask import APIFlask, HTTPTokenAuth
 from apiflask.fields import Dict, Nested
 
 from flask.json import JSONEncoder
-from datetime import date
+from datetime import date, datetime
 
 
 # Auxiliary custom functions & SQL query templates for ranking
@@ -1989,6 +1992,55 @@ def api_artifact_publish(json_data):
 
 
 
+# @app.route('/api/v1/artifact', methods=['GET'])
+# @app.input(schema.Identifier, location='query', example="6dc36257-abb6-45b5-b3bb-5f94160fc2ee")
+# @app.output(schema.ResponseOK, status_code=200)
+# @app.doc(tags=['Search Operations'])
+# def api_artifact_id(query_data):
+#     """Get the file path of an artifact. 
+
+#     Provides the path to the file (URL, S3 bucket or local file) where an artifact (stored as a resource) is available. User may need credentials to access this file.
+
+#     Args:
+#         id: The unique identifier of the resource as listed in CKAN.
+
+#     Returns:
+#         A JSON with the file path for the specified resource as maintained in CKAN.
+#     """
+
+#     #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/artifact?id=6dc36257-abb6-45b5-b3bb-5f94160fc2ee
+
+#     config = current_app.config['settings']
+
+# #    if request.headers:
+# #        if request.headers.get('Api-Token') != None:
+# #            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+# #        else:
+# #            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+# #            return jsonify(response)
+# #    else:
+# #        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+# #        return jsonify(response)
+
+#     # Check if an ID (name) for a resource was provided as argument
+#     if 'id' in query_data:
+#         id = query_data['id']
+#     else:
+#         response = {'success':False, 'help': request.url+'?id=', 'error':{'__type':'No specifications','name':['No identifier provided. Please specify the unique id of the requested artifact.']}}
+#         return jsonify(response)
+
+#     # Make a GET request to the CKAN API with the parameters
+#     # IMPORTANT! CKAN requires NO authentication for GET requests
+#     response = requests.get(config['CKAN_API']+'resource_show?id='+id) #, headers=package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
+
+#     # Get the path of this artifact 
+#     if response.status_code == 200:
+#         path = response.json()['result']['url']
+#         response = {'success':True, 'help': request.url, 'result':{'path':path}}
+#         return jsonify(response)
+#     else:
+#         return response.json()
+
 @app.route('/api/v1/artifact', methods=['GET'])
 @app.input(schema.Identifier, location='query', example="6dc36257-abb6-45b5-b3bb-5f94160fc2ee")
 @app.output(schema.ResponseOK, status_code=200)
@@ -2009,26 +2061,26 @@ def api_artifact_id(query_data):
 
     config = current_app.config['settings']
 
-#    if request.headers:
-#        if request.headers.get('Api-Token') != None:
-#            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
-#        else:
-#            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-#            return jsonify(response)
-#    else:
-#        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-#        return jsonify(response)
+    if request.headers:
+        if request.headers.get('Api-Token') != None:
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        else:
+            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+        return jsonify(response)
 
-    # Check if an ID (name) for a resource was provided as argument
-    if 'id' in query_data:
-        id = query_data['id']
+    # Check if an ID (name) for a resource was provided in the request
+    if 'id' in request.args:
+        id = request.args['id']
     else:
         response = {'success':False, 'help': request.url+'?id=', 'error':{'__type':'No specifications','name':['No identifier provided. Please specify the unique id of the requested artifact.']}}
         return jsonify(response)
 
     # Make a GET request to the CKAN API with the parameters
     # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(config['CKAN_API']+'resource_show?id='+id) #, headers=package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
+    response = requests.get(config['CKAN_API']+'resource_show?id='+id, headers=package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
 
     # Get the path of this artifact 
     if response.status_code == 200:
@@ -2037,8 +2089,6 @@ def api_artifact_id(query_data):
         return jsonify(response)
     else:
         return response.json()
-
-
 
 
 @app.route('/api/v1/dataset/delete', methods=['POST'])
@@ -2169,63 +2219,6 @@ def api_resource_delete(json_data):
     # Make a POST request to the CKAN API to purge an existing dataset
     response = requests.post(config['CKAN_API']+'resource_delete', json=delete_metadata, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
     return response.json()
-
-
-
-@app.route('/api/v1/track', methods=['POST'])
-@app.input(schema.Tracking, location='json', example={'input': [], 'parameters': {'prefix': '20230706'}, 'output': ['57eb3a01-986f-4c5d-8e2b-832596949b2f'], 'metrics': {'downloaded_files': 5, 'filtered_no_articles': 9, 'original_files': 5, 'original_no_articles': 9019, 'time': 14.218100786209106}, 'settings': {'experiment': 'Downloading_GDELT_Demo_download', 'tags': {'dag_id': 'Downloading_GDELT_Demo', 'run_id': 'scheduled__2023-07-06T00:00:00+00:00', 'task_id': 'download'}}} )
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Tracking Operations'])
-@app.auth_required(auth)
-def api_track(json_data):
-    """Keep track of a workflow execution.
-
-    Logs the parameters and metrics of a specific run in MLFlow and publishes all produced artifacts in the Catalog.
-
-    Args:
-        data: A JSON with the corresponding information to track.
-
-    Returns:
-        A JSON with the response to the track request.
-    """
-    
-    config = current_app.config['settings']
-
-    if request.headers:
-        if 'Api-Token' not in request.headers:
-            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-            return jsonify(response)
-    else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-        return jsonify(response)
-
-    args = request.json
-    
-    mfl.set_tracking_uri(config['MLFLOW_ENDPOINT'])
-
-    exp = mfl.get_experiment_by_name(args['settings']['experiment'])
-    if exp is None:
-        exp = mfl.create_experiment(args['settings']['experiment'])
-    else:
-        exp = exp.experiment_id
-
-    if mfl.active_run():
-        mfl.end_run()
-
-    run_id = None
-    with mfl.start_run(experiment_id=exp) as run:
-        for key, val in args['parameters'].items():
-            mfl.log_param(key, val) 
-        mfl.log_param('input', ','.join(args['input']))    
-        mfl.log_param('output', ','.join(args['output']))    
-        for key, val in args['metrics'].items():
-            mfl.log_metric(key, val)    
-        for key, val in args['settings']['tags'].items():
-            mfl.set_tag(key, val)  
-            run_id = run.info.run_uuid
-
-    return jsonify({'help': request.url, 'success': True,
-                    'result': {'run_uuid': run_id}})
 
 
 ##################################################
@@ -2699,9 +2692,432 @@ def task_execution_tags_read(task_exec_id):
     resp = execSql(sql)
 
     if resp and len(resp)>0:
-        return resp[0]
+        # return resp[0]
+        tag_dict = {tag['key']: tag['value'] for tag in resp}
+        return tag_dict
     else:
         return None
+
+
+############################## TASK OPERATIONS ################################
+
+@app.route('/api/v1/task/execution/create', methods=['POST'])
+@app.input(schema.Task_Input, location='json', example={"workflow_exec_id": "workflow_id",
+                                                        "docker_image": "entity_linking",
+                                                        # "input_json": {},
+                                                        'input': [],
+                                                        'parameters': {},
+                                                        "tags": {}})
+# @app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Tracking Operations'])
+@app.auth_required(auth)
+def api_task_execution_create(json_data):
+    """Create a Task Execution that will run a docker image with the provided
+    parameters.
+
+    Args:
+        data: A JSON with the ID of the Workflow Execution, the docker image to run
+        and the corresponding input to the tool.
+
+    Returns:
+        A JSON with the Minio response to the uploading request.
+    """
+    
+    #TODO: Update these examples
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+
+    config = current_app.config['settings']
+    workflow_exec_id = json_data['workflow_exec_id']
+    docker_image = json_data['docker_image']
+    # input_json = json_data['input_json']
+    input = json_data['input']
+    parameters = json_data['parameters']
+    tags = json_data['tags']
+
+    try :
+        #### CHECK WORKFLOW EXECUTION STATE
+        # status = check_workflow_status(workflow_exec_id)
+        state = workflow_execution_read(workflow_exec_id)['state']
+        if state != 'running':
+            return jsonify({'success': False, 'message': 'This workflow no longer accepts tasks'}), 500 
+        
+        #### GET FILE PATHS
+        #TODO: REMOVE FUNCTION
+        input_paths = []
+        
+        # url = request.base_url + 'api/v1/artifact'
+        url = request.base_url.replace('task/execution/create', 'artifact')
+        # res_ids = input_json.get('input', [])
+        res_ids = input
+        for res_id in res_ids:
+            response = requests.get(url, params= {'id': res_id}, headers=request.headers)
+            if response.status_code == 200:
+                j = response.json()
+                print(j)
+                if j['success']: 
+                    input_paths.append(j['result']['path'])
+                else:
+                    return jsonify({'success': False, 'message': f'This resource {res_id} cannot be fetched by CKAN'}), 500 
+            else:
+                return jsonify({'success': False, 'message': f'This resource {res_id} cannot be fetched by CKAN'}), 500 
+        
+        #### TOOL INVOKATION
+        task_exec_id = str(uuid.uuid4())
+        logdir = os.getcwd()+"/logs/"
+        in_file, out_file = task_exec_id+"_input.json", task_exec_id+"_output.json"
+        with open(logdir+in_file, "w") as o:
+            input_json = {'input': input_paths,
+                          'parameters': parameters,
+                          "minio": {
+                              "endpoint_url": config['MINIO_ENDPOINT'],
+                              "id": config['MINIO_ACCESS_KEY'],
+                              "key": config['MINIO_SECRET_KEY'],
+                              "bucket": config['MINIO_BUCKET']
+                              }   
+                }
+            o.write(json.dumps(input_json, indent=4))
+            
+        client = docker.from_env()
+        container = client.containers.run(
+            docker_image,  # Image name
+            [in_file, out_file],        # Command and arguments
+            volumes={logdir: {'bind': '/app/logs/', 'mode': 'rw'}},
+            detach=True
+        )
+        # Store the container ID into a variable
+        # task_exec_id = container.id
+        tags['container_id'] = container.id
+        print(tags)
+        
+        #### UPDATE KG
+        start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        state = 'running'
+        
+        response = task_execution_create(task_exec_id, workflow_exec_id, start_date, state, tags)
+        if not response:
+            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
+        # response = task_execution_insert_input(task_exec_id, input_json.get('input', []))
+        response = task_execution_insert_input(task_exec_id, input)
+        if not response:
+            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500        
+        # response = task_execution_insert_parameters(task_exec_id, input_json.get('parameters', {}))
+        parameters = {k: str(v) for k, v in parameters.items()}
+        response = task_execution_insert_parameters(task_exec_id, parameters)
+        if not response:
+            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
+
+        
+        return jsonify({'success': True, 'task_exec_id': task_exec_id}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+
+@app.route('/api/v1/task/execution/track', methods=['POST'])
+@app.input(schema.Task_Track, location='json', example={"task_exec_id": "workflow_id",
+                                                        'package_id': ''})
+# @app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Tracking Operations'])
+@app.auth_required(auth)
+def api_task_execution_track(json_data):
+    """Track the execution of a specific task and if it is done, it returns
+    the metrics and output files in the Data Catalog.
+
+    Args:
+        id: The unique identifier of the Task Exection.
+        package_id: The unique identifier of the Package ID in the Data Catalog,
+        under which it will store the output files.
+
+    Returns:
+        A JSON with the task execution metadata, the metrics and the ids of the 
+        outputfiles in the Data Catalog.
+    """
+    
+    #TODO: Update these examples
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+
+    task_exec_id = json_data['task_exec_id']
+    package_id = json_data['package_id']
+    
+    try :
+        #### GET METADATA FROM KG
+        metadata = task_execution_read(task_exec_id)
+        container_id = metadata['tags']['container_id']
+        
+        #### GET STATUS FROM DOCKER
+        client = docker.from_env()
+        try:
+            container = client.containers.get(container_id)
+            state = container.status
+        except docker.errors.NotFound:
+            return jsonify({'success': False, 'message': "Container not found"}), 500
+
+        if state == 'exited':
+            exit_code = container.attrs['State']['ExitCode']
+            if exit_code == 0:
+                state = 'succeeded'
+            else:
+                state = 'failed'
+        
+        metadata['state'] = state
+
+        output_json = {}
+        if state == 'failed' or state == 'succeeded':
+            logdir = os.getcwd()+"/logs/"
+            out_file = logdir+task_exec_id+"_output.json"
+            with open(out_file) as o:
+                output_json = json.load(o)
+    
+            #### UPDATE TASK EXECUTION
+            end_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            response = task_execution_update(task_exec_id, state, end_date)
+            if not response:
+                return jsonify({'success': False, 'message': 'Task 1 Execution could not be commited.'}), 500
+            
+            #### INSERT METRICS
+            metrics = output_json.get('metrics', {})
+            metrics = {k: str(v) for k, v in metrics.items()}
+            response = task_execution_insert_metrics(task_exec_id, metrics)
+            if not response:
+                return jsonify({'success': False, 'message': 'Task 2 Execution could not be created.'}), 500
+            print("test2")
+            
+            #### INSERT LOG
+            response = task_execution_insert_log(task_exec_id, output_json.get('message', ""))
+            if not response:
+                return jsonify({'success': False, 'message': 'Task 4 Execution could not be created.'}), 500
+            print("test4")
+            
+            #### INSERT FILES TO CATALOG
+            #TODO: Check if this works with package_id
+            if package_id is not None and package_id != '':
+                #TODO: REplace this function
+                output_resource_ids = []
+                url = request.base_url + 'api/v1/artifact/publish'
+                for file in output_json['output']:
+                    # ftype = file.split('/')[-1].split(".")[-1].upper()
+                    # d = { "artifact_metadata":{
+                    #             # "url":file,
+                    #             'name': f"Results of {task_exec_id} task",
+                    #             "description": f"This is the artifact uploaded to minio S3 in {ftype} format",
+                    #             "format": ftype,
+                    #             "resource_tags":["Artifact"]
+                    #             },
+                    #         "package_metadata":  {
+                    #             "package_id": package_id
+                    #             }
+                    #     }
+                    
+                    ftype = file['path'].split('/')[-1].split(".")[-1].upper()
+                    d = { "artifact_metadata":{
+                                "url":file['path'],
+                                'name': file['name'],
+                                "description": file['name'] + f'({ datetime.now().strftime("%Y-%m-%d %H:%M:%S")})',
+                                "format": ftype,
+                                "resource_tags":["Artifact"]
+                                },
+                            "package_metadata":  {
+                                "package_id": package_id
+                                }
+                        }
+            
+                    response = requests.post(url, json=d, headers=request.headers)
+                    if response.status_code == 200:
+                        j = response.json()
+                        if j['success']:
+                            output_resource_ids.append(j['result']['resource_id'])
+                        else:
+                            return jsonify({'success': False, 'message': 'Error in publishing in CKAN'}), 500 
+                    else:
+                        return jsonify({'success': False, 'message': 'Error in publishing in CKAN'}), 500 
+                    
+                #### INSERT OUTPUT FILES
+                output = output_json.get('output', [])
+                output = [o['path'] for o in output]
+                response = task_execution_insert_output(task_exec_id, output)
+                if not response:
+                    return jsonify({'success': False, 'message': 'Task 3 Execution could not be created.'}), 500
+                print("test3")
+                
+                return jsonify({'success': True, 'metadata': metadata,
+                        'resource_ids': output_resource_ids,
+                        'metrics': output_json.get('metrics', {})}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500  
+    
+    return jsonify({'success': True, 'metadata': metadata}), 200
+
+
+@app.route('/api/v1/task/execution/delete', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="")
+# @app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Tracking Operations'])
+@app.auth_required(auth)
+def api_task_execution_delete(query_data):
+    """Delete the given Task Execution id.
+
+    Args:
+        id: The unique identifier of the Task Exection.
+
+    Returns:
+        A JSON with the corresponding message.
+    """
+    
+    #TODO: Update these examples
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+
+    # task_exec_id = request.args.id
+    task_exec_id = query_data['id']
+    try :
+        response = task_execution_delete(task_exec_id)
+        if not response:
+            return jsonify({'success': True, 'message': f'The Task {task_exec_id} could not be deleted.'}), 500
+        return jsonify({'success': True, 'message': f'The Task {task_exec_id} was deleted successfully'}), 200
+    except Exception as e:
+        return jsonify({'success': True, 'message': str(e)}), 500
+
+
+################################ WORKFLOW OPERATIONS ##########################
+
+@app.route('/api/v1/workflow/execution/create', methods=['POST'])
+@app.input(schema.Workflow_Input, location='json', example={
+                                                        #"workflow_id": "workflow_id", 
+                                                        "tags": {}})
+# @app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Tracking Operations'])
+@app.auth_required(auth)
+def api_workflow_execution_create(json_data):
+    """Create a Workflow Execution under a specific defined workflow.
+
+    Args:
+        data: A JSON with the ID of the Workflow and the tags to add.
+
+    Returns:
+        A JSON with the Workflow Execution ID.
+    """
+    
+    #TODO: Update these examples
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+
+    # workflow_id = json_data['workflow_id']
+    tags = json_data['tags']
+
+    try :
+        #### UPDATE KG
+        workflow_exec_id = str(uuid.uuid4())
+        start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        state = 'running'
+        
+        #TODO: Add workflow_id
+        # response = workflow_execution_create(workflow_id, workflow_exec_id, start_date, state, tags)
+        response = workflow_execution_create(workflow_exec_id, start_date, state, tags)
+        if not response:
+            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
+        
+        return jsonify({'success': True, 'workflow_exec_id': workflow_exec_id}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/v1/workflow/execution/read', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="")
+# @app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Tracking Operations'])
+@app.auth_required(auth)
+def api_workflow_execution_read(query_data):
+    """Return the metadata of the given Workflow Execution id.
+
+    Args:
+        id: The unique identifier of the Workflow Exection.
+
+    Returns:
+        A JSON with the required metadata.
+    """
+    
+    #TODO: Update these examples
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+
+    # workflow_exec_id = request.args.id
+    workflow_exec_id = query_data['id']
+
+    try :
+        #### GET METADATA FROM KG
+        metadata = workflow_execution_read(workflow_exec_id)
+        
+        return jsonify({'success': True, 'metadata': metadata}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    
+    
+    
+@app.route('/api/v1/workflow/execution/commit', methods=['POST'])
+@app.input(schema.Workflow_Commit, location='json', example={"workflow_exec_id": "workflow_id",
+                                                        "state": "completed"})
+# @app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Tracking Operations'])
+@app.auth_required(auth)
+def api_workflow_execution_commit(json_data):
+    """Store the results of the Workflow Execution.
+
+    Args:
+        data: A JSON with the id of the Worfklow Execution and the state of the task.
+
+    Returns:
+        A JSON with the result of the update.
+    """
+    
+    #TODO: Update these examples
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+
+    workflow_exec_id = json_data['workflow_exec_id']
+    state = json_data['state']
+
+    try :
+        #### UPDATE TASK EXECUTION
+        end_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        response = workflow_execution_update(workflow_exec_id, state, end_date)
+        if not response:
+            return jsonify({'success': False, 'message': 'Workflow Execution could not be commited.'}), 500
+        
+        return jsonify({'success': True }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500    
+
+
+@app.route('/api/v1/workflow/execution/delete', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="")
+# @app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Tracking Operations'])
+@app.auth_required(auth)
+def api_workflow_execution_delete(query_data):
+    """Delete the given Workflow Execution id.
+
+    Args:
+        id: The unique identifier of the Worfklow Exection.
+
+    Returns:
+        A JSON with the corresponding message.
+    """
+    
+    #TODO: Update these examples
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+
+    # workflow_exec_id = request.args.id
+    workflow_exec_id = query_data['id']
+    try :
+        response = workflow_execution_delete(workflow_exec_id)
+        if not response:
+            return jsonify({'success': True, 'message': f'The Task {workflow_exec_id} could not be deleted.'}), 500
+        return jsonify({'success': True, 'message': f'The Task {workflow_exec_id} was deleted successfully'}), 200            
+    except Exception as e:
+        return jsonify({'success': True, 'message': str(e)}), 500
 
 
 ###########################################################

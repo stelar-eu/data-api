@@ -44,3 +44,8 @@ RANK_DEFAULT_TOPK: 10
 RANK_MAX_TOPK: 10000
 RANK_AGG_ALGORITHM: 'Bordacount'
 
+############################## MINIO ##################################
+MINIO_ENDPOINT: '<MLFLOW-HOST>'
+MINIO_ACCESS_KEY: '<ACCESS_KEY>'
+MINIO_SECRET_KEY: '<SECRET_KEY>'
+MINIO_BUCKET: '<BUCKET>'

@@ -105,7 +105,7 @@ sql_workflow_execution_templates = {
     'task_create_connection_template': 'UPDATE klms.task_execution SET next_task_uuid = _NEXT_TASK_UUID WHERE run_uuid = _TASK_UUID',
     'task_delete_template': 'DELETE FROM klms.task_execution WHERE run_uuid = _TASK_UUID',
     'task_read_template': 'SELECT run_uuid AS task_exec_id, workflow_uuid AS workflow_exec_id, state, start_date, end_date FROM klms.task_execution WHERE run_uuid = _TASK_UUID',
-    'task_read_tags_template': 'SELECT key, value FROM klms.task_tag WHERE run_uuid = _TASK_UUID',
+    'task_read_tags_template': 'SELECT key, value FROM klms.task_tag WHERE task_uuid = _TASK_UUID',
     'task_insert_input_dataset_template': 'INSERT INTO klms.task_input VALUES (_TASK_UUID, _RESOURCE_ID)',
     'task_insert_output_dataset_template': 'INSERT INTO klms.task_output VALUES (_TASK_UUID, _RESOURCE_ID)',
     'task_insert_tags_template': 'INSERT INTO klms.task_tag VALUES (_TASK_UUID, _KEY, _VALUE)',

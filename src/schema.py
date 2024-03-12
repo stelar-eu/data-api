@@ -164,6 +164,31 @@ class Tracking(Schema):
     metrics = Dict(required=True)
     settings = Nested(TrackingSettings, required=True)
 
+
+
+
+
+class Task_Input(Schema):
+    workflow_exec_id = String(required = True)
+    docker_image = String(required = True)
+    input = List(String, required = True)
+    parameters = Dict(required = True)
+    tags = Dict()
+
+
+class Task_Track(Schema):
+    task_exec_id = String(required = True)
+    package_id = String(required = True)
+    
+    
+class Workflow_Input(Schema):
+    # workflow_id = String(required = True)
+    tags = Dict()
+    
+class Workflow_Commit(Schema):
+    workflow_exec_id = String(required = True)
+    state = String(required = True)
+
 # NOT USED EXAMPLES
 
 artifact_examples = {
