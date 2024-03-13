@@ -78,16 +78,18 @@ def api_verify_token(token):
         return False
 
 
+
 ################################## DATABASE CONNECTOR ########################################
 
-def execSql(sql):
+def execSql(sql, vars=None):
     """Opens a connection to a PostgreSQL database and executes the given SQL command.
 
     Args:
-        sql (String): The SQL command to be executed in the database.
+        sql (String): The SQL command with variables to be executed in the database.
+        vars (List): The values to use per variable in the SQL command.
 
     Returns:
-        A JSON with the retrieved query results for SELECT commands; a JSON with the final execution status (True/False) for INSERT/UPDATE commands.
+        A JSON with the retrieved query results for SELECT commands; a JSON with the final execution status (True/False) for INSERT/UPDATE/DELETE commands.
     """
 
     config = current_app.config['settings']
@@ -97,7 +99,7 @@ def execSql(sql):
         with psycopg2.connect(dbname=config['dbname'], user=config['dbuser'], password=config['dbpass'], host=config['dbhost'], port=config['dbport']) as conn:
             with conn.cursor() as cur:
                 # Execute the SQL statement
-                cur.execute(sql)
+                cur.execute(sql, vars)
 
                 # Handle the response                
                 desc = cur.description
@@ -2240,11 +2242,11 @@ def workflow_execution_create(workflow_exec_id, start_date, state, tags=None):
 
     # Compose the SQL command using the template for creating a new workflow execution
     sql = utils.sql_workflow_execution_templates['workflow_create_template']   
-    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_STATE', '\''+ state +'\'').replace('_START_TIMESTAMP', '\''+ start_date +'\'')
+#    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_STATE', '\''+ state +'\'').replace('_START_TIMESTAMP', '\''+ start_date +'\'')
 #    print(sql)
 
     # Execute the SQL command in the database
-    resp = execSql(sql)
+    resp = execSql(sql, (workflow_exec_id, state, start_date))
     if resp and 'status' in resp:
         if not resp.get('status'):
             return False
@@ -2255,11 +2257,11 @@ def workflow_execution_create(workflow_exec_id, start_date, state, tags=None):
     if tags:
         for key, value in tags.items():
             sql = utils.sql_workflow_execution_templates['workflow_insert_tags_template']   
-            sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
+#            sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
 #            print(sql)
 
             # Execute the SQL command in the database
-            resp = execSql(sql)
+            resp = execSql(sql, (workflow_exec_id, key, value))
             if resp and 'status' in resp:
                 if not resp.get('status'):
                     return False
@@ -2281,17 +2283,21 @@ def workflow_execution_update(workflow_exec_id, state, end_date=None):
         A boolean: True, if the statement executed successfully; otherwise, False.
     """
 
-    # Compose the SQL command using the template for updating a workflow execution
-    sql = utils.sql_workflow_execution_templates['workflow_update_template']   
-    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_STATE', '\''+ state +'\'')
-    if end_date:
-        sql = sql.replace('_END_TIMESTAMP', '\''+ end_date +'\'')
-    else:
-        sql = sql.replace('_END_TIMESTAMP', 'NULL')
+    # Compose the SQL command using the template for updating/commiting a workflow execution
+#    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_STATE', '\''+ state +'\'')
+#    if end_date:
+#        sql = sql.replace('_END_TIMESTAMP', '\''+ end_date +'\'')
+#    else:
+#        sql = sql.replace('_END_TIMESTAMP', 'NULL')
 #    print(sql)
 
     # Execute the SQL command in the database
-    resp = execSql(sql)
+    if not end_date is None:
+        sql = utils.sql_workflow_execution_templates['workflow_commit_template']  
+        resp = execSql(sql, (state, end_date, workflow_exec_id))
+    else:
+        sql = utils.sql_workflow_execution_templates['workflow_update_template']  
+        resp = execSql(sql, (state, workflow_exec_id))
 
     if resp and 'status' in resp:
         if not resp.get('status'):
@@ -2314,11 +2320,11 @@ def workflow_execution_delete(workflow_exec_id):
 
     # Compose the SQL command using the template for deleting a workflow execution
     sql = utils.sql_workflow_execution_templates['workflow_delete_template']   
-    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'')
+#    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'')
 #    print(sql)
 
     # Execute the SQL command in the database
-    resp = execSql(sql)
+    resp = execSql(sql, (workflow_exec_id, ))
 
     if resp and 'status' in resp:
         if not resp.get('status'):
@@ -2341,11 +2347,11 @@ def workflow_execution_read(workflow_exec_id):
 
     # Compose the SQL command using the template for reading metadata about a workflow execution
     sql = utils.sql_workflow_execution_templates['workflow_read_template']   
-    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'')
+#    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'')
 #    print(sql)
 
     # Execute the SQL command in the database
-    resp = execSql(sql)
+    resp = execSql(sql, (workflow_exec_id, ))
 
     if resp and len(resp)>0:
         workflow_specs = resp[0]  # List should contain specification of a single workflow execution (unique UUID)
@@ -2368,11 +2374,11 @@ def workflow_execution_tags_read(workflow_exec_id):
 
     # Compose the SQL command using the template for reading tags about a workflow execution
     sql = utils.sql_workflow_execution_templates['workflow_read_tags_template']   
-    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'')
+#    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'')
 #    print(sql)
 
     # Execute the SQL command in the database
-    resp = execSql(sql)
+    resp = execSql(sql, (workflow_exec_id, ))
 
     if resp and len(resp)>0:
         tag_dict = {tag['key']: tag['value'] for tag in resp}
@@ -2399,11 +2405,11 @@ def task_execution_create(task_exec_id, workflow_exec_id, start_date, state, tag
 
     # Compose the SQL command using the template for creating a new task execution
     sql = utils.sql_workflow_execution_templates['task_create_template']   
-    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_STATE', '\''+ state +'\'').replace('_START_TIMESTAMP', '\''+ start_date +'\'')
+#    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_STATE', '\''+ state +'\'').replace('_START_TIMESTAMP', '\''+ start_date +'\'')
 #    print(sql)
 
     # Execute the SQL command in the database
-    resp = execSql(sql)
+    resp = execSql(sql, (task_exec_id, workflow_exec_id, state, start_date))
     if resp and 'status' in resp:
         if not resp.get('status'):
             return False
@@ -2413,11 +2419,11 @@ def task_execution_create(task_exec_id, workflow_exec_id, start_date, state, tag
     # Compose the SQL command using the template for specifying the previously executed task
     if prev_task_exec_id:
         sql = utils.sql_workflow_execution_templates['task_create_connection_template']   
-        sql = sql.replace('_NEXT_TASK_UUID', '\''+ task_exec_id +'\'').replace('_TASK_UUID', '\''+ prev_task_exec_id +'\'')
+#        sql = sql.replace('_NEXT_TASK_UUID', '\''+ task_exec_id +'\'').replace('_TASK_UUID', '\''+ prev_task_exec_id +'\'')
 #        print(sql)
 
         # Execute the SQL command in the database
-        resp = execSql(sql)
+        resp = execSql(sql, (task_exec_id, prev_task_exec_id))
         if resp and 'status' in resp:
             if not resp.get('status'):
                 return False
@@ -2428,11 +2434,11 @@ def task_execution_create(task_exec_id, workflow_exec_id, start_date, state, tag
     if tags:
         for key, value in tags.items():
             sql = utils.sql_workflow_execution_templates['task_insert_tags_template']   
-            sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
+#            sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
 #            print(sql)
 
             # Execute the SQL command in the database
-            resp = execSql(sql)
+            resp = execSql(sql, (task_exec_id, key, value))
             if resp and 'status' in resp:
                 if not resp.get('status'):
                     return False
@@ -2455,16 +2461,21 @@ def task_execution_update(task_exec_id, state, end_date=None):
     """
 
     # Compose the SQL command using the template for updating a task execution
-    sql = utils.sql_workflow_execution_templates['task_update_template']   
-    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_STATE', '\''+ state +'\'')
-    if end_date:
-        sql = sql.replace('_END_TIMESTAMP', '\''+ end_date +'\'')
-    else:
-        sql = sql.replace('_END_TIMESTAMP', 'NULL')
+#    sql = utils.sql_workflow_execution_templates['task_update_template']   
+#    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_STATE', '\''+ state +'\'')
+#    if end_date:
+#        sql = sql.replace('_END_TIMESTAMP', '\''+ end_date +'\'')
+#    else:
+#        sql = sql.replace('_END_TIMESTAMP', 'NULL')
 #    print(sql)
 
     # Execute the SQL command in the database
-    resp = execSql(sql)
+    if not end_date is None:
+        sql = utils.sql_workflow_execution_templates['task_commit_template']  
+        resp = execSql(sql, (state, end_date, task_exec_id))
+    else:
+        sql = utils.sql_workflow_execution_templates['task_update_template']  
+        resp = execSql(sql, (state, task_exec_id))
 
     if resp and 'status' in resp:
         if not resp.get('status'):
@@ -2487,11 +2498,11 @@ def task_execution_delete(task_exec_id):
 
     # Compose the SQL command using the template for deleting a task execution
     sql = utils.sql_workflow_execution_templates['task_delete_template']   
-    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'')
+#    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'')
 #    print(sql)
 
     # Execute the SQL command in the database
-    resp = execSql(sql)
+    resp = execSql(sql, (task_exec_id, ))
 
     if resp and 'status' in resp:
         if not resp.get('status'):
@@ -2516,11 +2527,11 @@ def task_execution_insert_log(task_exec_id, log):
 
     # Compose the SQL command using the template for inserting the log under tag "log" for this task execution 
     sql = utils.sql_workflow_execution_templates['task_insert_tags_template']   
-    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\'log\'').replace('_VALUE', '\''+  log +'\'')
+#    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\'log\'').replace('_VALUE', '\''+  log +'\'')
 #    print(sql)
 
     # Execute the SQL command in the database
-    resp = execSql(sql)
+    resp = execSql(sql, (task_exec_id, 'log', log))
     if resp and 'status' in resp:
         if not resp.get('status'):
             return False
@@ -2545,11 +2556,11 @@ def task_execution_insert_input(task_exec_id, resource_ids):
     # Compose the SQL command using the template for recording input datasets
     for res_id in resource_ids:
         sql = utils.sql_workflow_execution_templates['task_insert_input_dataset_template']   
-        sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_RESOURCE_ID', '\''+ res_id +'\'')
+#        sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_RESOURCE_ID', '\''+ res_id +'\'')
 #        print(sql)
 
         # Execute the SQL command in the database
-        resp = execSql(sql)
+        resp = execSql(sql, (task_exec_id, res_id))
         if resp and 'status' in resp:
             if not resp.get('status'):
                 return False
@@ -2573,11 +2584,11 @@ def task_execution_insert_output(task_exec_id, resource_ids):
     # Compose the SQL command using the template for recording output datasets
     for res_id in resource_ids:
         sql = utils.sql_workflow_execution_templates['task_insert_output_dataset_template']   
-        sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_RESOURCE_ID', '\''+ res_id +'\'')
+#        sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_RESOURCE_ID', '\''+ res_id +'\'')
 #        print(sql)
 
         # Execute the SQL command in the database
-        resp = execSql(sql)
+        resp = execSql(sql, (task_exec_id, res_id))
         if resp and 'status' in resp:
             if not resp.get('status'):
                 return False
@@ -2602,11 +2613,11 @@ def task_execution_insert_parameters(task_exec_id, parameters):
     if parameters:
         for key, value in parameters.items():
             sql = utils.sql_workflow_execution_templates['task_insert_parameters_template']   
-            sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
+#            sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
 #            print(sql)
 
             # Execute the SQL command in the database
-            resp = execSql(sql)
+            resp = execSql(sql, (task_exec_id, key, value))
             if 'status' in resp:
                 if not resp.get('status'):
                     return False
@@ -2631,11 +2642,11 @@ def task_execution_insert_metrics(task_exec_id, metrics):
     if metrics:
         for key, value in metrics.items():
             sql = utils.sql_workflow_execution_templates['task_insert_metrics_template']   
-            sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
+#            sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
 #            print(sql)
 
             # Execute the SQL command in the database
-            resp = execSql(sql)
+            resp = execSql(sql, (task_exec_id, key, value))
             if 'status' in resp:
                 if not resp.get('status'):
                     return False
@@ -2658,11 +2669,11 @@ def task_execution_read(task_exec_id):
 
     # Compose the SQL command using the template for reading metadata about a task execution
     sql = utils.sql_workflow_execution_templates['task_read_template']   
-    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'')
-#    print(sql)
+#    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'')
+    print(sql)
 
     # Execute the SQL command in the database
-    resp = execSql(sql)
+    resp = execSql(sql, (task_exec_id, ))
 
     if resp and len(resp)>0:
         task_specs = resp[0]  # List should contain specification of a single task execution (unique UUID)
@@ -2685,11 +2696,11 @@ def task_execution_tags_read(task_exec_id):
 
     # Compose the SQL command using the template for reading tags about a task execution
     sql = utils.sql_workflow_execution_templates['task_read_tags_template']   
-    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'')
+#    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'')
 #    print(sql)
 
     # Execute the SQL command in the database
-    resp = execSql(sql)
+    resp = execSql(sql, (task_exec_id, ))
 
     if resp and len(resp)>0:
         tag_dict = {tag['key']: tag['value'] for tag in resp}
