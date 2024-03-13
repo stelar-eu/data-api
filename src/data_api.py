@@ -1881,7 +1881,7 @@ def api_workflow_publish(json_data):
 
 
 @app.route('/api/v1/artifact/publish', methods=['POST'])
-@app.input(schema.Artifact, location='json', example={"package_metadata":{"package_id": "test_data_api_1"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "run_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}})
+@app.input(schema.Artifact, location='json', example={"package_metadata":{"package_id": "test_data_api_1"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "task_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'])
 @app.auth_required(auth)
@@ -1897,8 +1897,8 @@ def api_artifact_publish(json_data):
         A JSON with the CKAN response to the publishing request.
     """
 
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/publish -d '{"package_metadata":{"title":"Results of Airflow dag mycalc", "tags":[{"name": "Artifact"}, {"name": "Workflow"}], "extras":[{"key":"dag_id", "value":"mycalc"}, {"key":"run_id", "value":"scheduled__2023-07-11T00:00:00+00:00"}], "notes": "My calculation using AirFlow"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "run_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}}'
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/publish -d '{"package_metadata":{"package_id": "test_data_api_1"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "run_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/publish -d '{"package_metadata":{"title":"Results of Airflow dag mycalc", "tags":[{"name": "Artifact"}, {"name": "Workflow"}], "extras":[{"key":"dag_id", "value":"mycalc"}, {"key":"run_id", "value":"scheduled__2023-07-11T00:00:00+00:00"}], "notes": "My calculation using AirFlow"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "task_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/publish -d '{"package_metadata":{"package_id": "test_data_api_1"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "task_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}}'
 
     config = current_app.config['settings']
 
@@ -2692,7 +2692,6 @@ def task_execution_tags_read(task_exec_id):
     resp = execSql(sql)
 
     if resp and len(resp)>0:
-        # return resp[0]
         tag_dict = {tag['key']: tag['value'] for tag in resp}
         return tag_dict
     else:

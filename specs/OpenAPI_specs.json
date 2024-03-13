@@ -346,18 +346,12 @@
         ], 
         "type": "object"
       }, 
-      "Tracking": {
+      "Task_Input": {
         "properties": {
+          "docker_image": {
+            "type": "string"
+          }, 
           "input": {
-            "items": {
-              "type": "string"
-            }, 
-            "type": "array"
-          }, 
-          "metrics": {
-            "type": "object"
-          }, 
-          "output": {
             "items": {
               "type": "string"
             }, 
@@ -366,50 +360,33 @@
           "parameters": {
             "type": "object"
           }, 
-          "settings": {
-            "$ref": "#/components/schemas/TrackingSettings"
-          }
-        }, 
-        "required": [
-          "input", 
-          "metrics", 
-          "output", 
-          "parameters", 
-          "settings"
-        ], 
-        "type": "object"
-      }, 
-      "TrackingSettings": {
-        "properties": {
-          "experiment": {
-            "type": "string"
-          }, 
           "tags": {
-            "$ref": "#/components/schemas/TrackingTags"
+            "type": "object"
+          }, 
+          "workflow_exec_id": {
+            "type": "string"
           }
         }, 
         "required": [
-          "experiment", 
-          "tags"
+          "docker_image", 
+          "input", 
+          "parameters", 
+          "workflow_exec_id"
         ], 
         "type": "object"
       }, 
-      "TrackingTags": {
+      "Task_Track": {
         "properties": {
-          "dag_id": {
+          "package_id": {
             "type": "string"
           }, 
-          "run_id": {
-            "type": "string"
-          }, 
-          "task_id": {
+          "task_exec_id": {
             "type": "string"
           }
         }, 
         "required": [
-          "dag_id", 
-          "run_id", 
-          "task_id"
+          "package_id", 
+          "task_exec_id"
         ], 
         "type": "object"
       }, 
@@ -461,6 +438,29 @@
           }, 
           "message": {
             "type": "string"
+          }
+        }, 
+        "type": "object"
+      }, 
+      "Workflow_Commit": {
+        "properties": {
+          "state": {
+            "type": "string"
+          }, 
+          "workflow_exec_id": {
+            "type": "string"
+          }
+        }, 
+        "required": [
+          "state", 
+          "workflow_exec_id"
+        ], 
+        "type": "object"
+      }, 
+      "Workflow_Input": {
+        "properties": {
+          "tags": {
+            "type": "object"
           }
         }, 
         "type": "object"
@@ -583,7 +583,7 @@
                     "Artifact", 
                     "MLFlow"
                   ], 
-                  "run_uuid": "d63a2b507bf6b6eadcb2c8de378c0370", 
+                  "task_uuid": "d63a2b507bf6b6eadcb2c8de378c0370", 
                   "url": "s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv"
                 }, 
                 "package_metadata": {
@@ -2366,6 +2366,140 @@
         ]
       }
     }, 
+    "/api/v1/task/execution/create": {
+      "post": {
+        "description": "parameters.\n\nArgs:\ndata: A JSON with the ID of the Workflow Execution, the docker image to run\nand the corresponding input to the tool.\n\nReturns:\nA JSON with the Minio response to the uploading request.", 
+        "parameters": [], 
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "docker_image": "alzeakis/pytokenjoin:v3", 
+                "input": [
+                  "0059004a-67b8-4445-b9d6-5b0475784c49", 
+                  "2350a24b-87af-4505-aafb-72a15e0c118c"
+                ], 
+                "parameters": {
+                  "col_id_left": 1, 
+                  "col_id_right": 0, 
+                  "col_text_left": 2, 
+                  "col_text_right": 1, 
+                  "delta_alg": "1", 
+                  "foreign": "foreign", 
+                  "k": 1, 
+                  "method": "knn", 
+                  "output_file": "out.csv", 
+                  "separator_left": " ", 
+                  "separator_right": " ", 
+                  "similarity": "jaccard"
+                }, 
+                "tags": {}, 
+                "workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41"
+              }, 
+              "schema": {
+                "$ref": "#/components/schemas/Task_Input"
+              }
+            }
+          }
+        }, 
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }, 
+            "description": "Successful response"
+          }, 
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }, 
+            "description": "Authentication error"
+          }, 
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }, 
+            "description": "Validation error"
+          }
+        }, 
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ], 
+        "summary": "Create a Task Execution that will run a docker image with the provided", 
+        "tags": [
+          "Tracking Operations"
+        ]
+      }
+    }, 
+    "/api/v1/task/execution/delete": {
+      "get": {
+        "description": "Args:\nid: The unique identifier of the Task Exection.\n\nReturns:\nA JSON with the corresponding message.", 
+        "parameters": [
+          {
+            "in": "query", 
+            "name": "id", 
+            "required": false, 
+            "schema": {
+              "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
+              "maxLength": 64, 
+              "minLength": 0, 
+              "type": "string"
+            }
+          }
+        ], 
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }, 
+            "description": "Successful response"
+          }, 
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }, 
+            "description": "Authentication error"
+          }, 
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }, 
+            "description": "Validation error"
+          }
+        }, 
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ], 
+        "summary": "Delete the given Task Execution id.", 
+        "tags": [
+          "Tracking Operations"
+        ]
+      }
+    }, 
     "/api/v1/task/execution/input": {
       "get": {
         "description": "Args:\nid: The identifier (UUID) assigned to the task execution in MLFlow.\n\nReturns:\nA JSON with the list of dataset identifiers (CKAN resources) collected in MLFlow for the specified task execution.", 
@@ -2542,6 +2676,64 @@
         ]
       }
     }, 
+    "/api/v1/task/execution/track": {
+      "post": {
+        "description": "the metrics and output files in the Data Catalog.\n\nArgs:\nid: The unique identifier of the Task Exection.\npackage_id: The unique identifier of the Package ID in the Data Catalog,\nunder which it will store the output files.\n\nReturns:\nA JSON with the task execution metadata, the metrics and the ids of the\noutputfiles in the Data Catalog.", 
+        "parameters": [], 
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "package_id": "0f55380a-78ff-413e-9a99-3d214766f563", 
+                "task_exec_id": "4a142419-2342-4495-bfa3-9b4b3c2cad2a"
+              }, 
+              "schema": {
+                "$ref": "#/components/schemas/Task_Track"
+              }
+            }
+          }
+        }, 
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }, 
+            "description": "Successful response"
+          }, 
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }, 
+            "description": "Authentication error"
+          }, 
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }, 
+            "description": "Validation error"
+          }
+        }, 
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ], 
+        "summary": "Track the execution of a specific task and if it is done, it returns", 
+        "tags": [
+          "Tracking Operations"
+        ]
+      }
+    }, 
     "/api/v1/task/executions": {
       "get": {
         "description": "Args:\nid: The identifier assigned to the task in MLFlow.\n\nReturns:\nA JSON with the details of the task executions.", 
@@ -2586,86 +2778,6 @@
         ]
       }
     }, 
-    "/api/v1/track": {
-      "post": {
-        "description": "Logs the parameters and metrics of a specific run in MLFlow and publishes all produced artifacts in the Catalog.\n\nArgs:\ndata: A JSON with the corresponding information to track.\n\nReturns:\nA JSON with the response to the track request.", 
-        "parameters": [], 
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "example": {
-                "input": [], 
-                "metrics": {
-                  "downloaded_files": 5, 
-                  "filtered_no_articles": 9, 
-                  "original_files": 5, 
-                  "original_no_articles": 9019, 
-                  "time": 14.218100786209106
-                }, 
-                "output": [
-                  "57eb3a01-986f-4c5d-8e2b-832596949b2f"
-                ], 
-                "parameters": {
-                  "prefix": "20230706"
-                }, 
-                "settings": {
-                  "experiment": "Downloading_GDELT_Demo_download", 
-                  "tags": {
-                    "dag_id": "Downloading_GDELT_Demo", 
-                    "run_id": "scheduled__2023-07-06T00:00:00+00:00", 
-                    "task_id": "download"
-                  }
-                }
-              }, 
-              "schema": {
-                "$ref": "#/components/schemas/Tracking"
-              }
-            }
-          }
-        }, 
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResponseOK"
-                }
-              }
-            }, 
-            "description": "Successful response"
-          }, 
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPError"
-                }
-              }
-            }, 
-            "description": "Authentication error"
-          }, 
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationError"
-                }
-              }
-            }, 
-            "description": "Validation error"
-          }
-        }, 
-        "security": [
-          {
-            "ApiKeyAuth": []
-          }
-        ], 
-        "summary": "Keep track of a workflow execution.", 
-        "tags": [
-          "Tracking Operations"
-        ]
-      }
-    }, 
     "/api/v1/user": {
       "get": {
         "description": "Args:\nid: The unique identifier or account name of the user as listed in CKAN.\n\nReturns:\nA JSON with metadata maintained in CKAN for the specified user.", 
@@ -2707,6 +2819,235 @@
         "summary": "Get all metadata publicly available for the user (excluding password and tokens).", 
         "tags": [
           "User Management"
+        ]
+      }
+    }, 
+    "/api/v1/workflow/execution/commit": {
+      "post": {
+        "description": "Args:\ndata: A JSON with the id of the Worfklow Execution and the state of the task.\n\nReturns:\nA JSON with the result of the update.", 
+        "parameters": [], 
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "state": "succeeded", 
+                "workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41"
+              }, 
+              "schema": {
+                "$ref": "#/components/schemas/Workflow_Commit"
+              }
+            }
+          }
+        }, 
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }, 
+            "description": "Successful response"
+          }, 
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }, 
+            "description": "Authentication error"
+          }, 
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }, 
+            "description": "Validation error"
+          }
+        }, 
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ], 
+        "summary": "Store the results of the Workflow Execution.", 
+        "tags": [
+          "Tracking Operations"
+        ]
+      }
+    }, 
+    "/api/v1/workflow/execution/create": {
+      "post": {
+        "description": "Args:\ndata: A JSON with the ID of the Workflow and the tags to add.\n\nReturns:\nA JSON with the Workflow Execution ID.", 
+        "parameters": [], 
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "tags": {}
+              }, 
+              "schema": {
+                "$ref": "#/components/schemas/Workflow_Input"
+              }
+            }
+          }
+        }, 
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }, 
+            "description": "Successful response"
+          }, 
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }, 
+            "description": "Authentication error"
+          }, 
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }, 
+            "description": "Validation error"
+          }
+        }, 
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ], 
+        "summary": "Create a Workflow Execution under a specific defined workflow.", 
+        "tags": [
+          "Tracking Operations"
+        ]
+      }
+    }, 
+    "/api/v1/workflow/execution/delete": {
+      "get": {
+        "description": "Args:\nid: The unique identifier of the Worfklow Exection.\n\nReturns:\nA JSON with the corresponding message.", 
+        "parameters": [
+          {
+            "in": "query", 
+            "name": "id", 
+            "required": false, 
+            "schema": {
+              "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
+              "maxLength": 64, 
+              "minLength": 0, 
+              "type": "string"
+            }
+          }
+        ], 
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }, 
+            "description": "Successful response"
+          }, 
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }, 
+            "description": "Authentication error"
+          }, 
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }, 
+            "description": "Validation error"
+          }
+        }, 
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ], 
+        "summary": "Delete the given Workflow Execution id.", 
+        "tags": [
+          "Tracking Operations"
+        ]
+      }
+    }, 
+    "/api/v1/workflow/execution/read": {
+      "get": {
+        "description": "Args:\nid: The unique identifier of the Workflow Exection.\n\nReturns:\nA JSON with the required metadata.", 
+        "parameters": [
+          {
+            "in": "query", 
+            "name": "id", 
+            "required": false, 
+            "schema": {
+              "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee", 
+              "maxLength": 64, 
+              "minLength": 0, 
+              "type": "string"
+            }
+          }
+        ], 
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }, 
+            "description": "Successful response"
+          }, 
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            }, 
+            "description": "Authentication error"
+          }, 
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }, 
+            "description": "Validation error"
+          }
+        }, 
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ], 
+        "summary": "Return the metadata of the given Workflow Execution id.", 
+        "tags": [
+          "Tracking Operations"
         ]
       }
     }, 
