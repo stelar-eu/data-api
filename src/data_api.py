@@ -2702,12 +2702,25 @@ def task_execution_tags_read(task_exec_id):
 ############################## TASK OPERATIONS ################################
 
 @app.route('/api/v1/task/execution/create', methods=['POST'])
-@app.input(schema.Task_Input, location='json', example={"workflow_exec_id": "workflow_id",
-                                                        "docker_image": "entity_linking",
-                                                        # "input_json": {},
-                                                        'input': [],
-                                                        'parameters': {},
-                                                        "tags": {}})
+@app.input(schema.Task_Input, location='json', example={"workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41",
+                                                        "docker_image": "alzeakis/pytokenjoin:v3",
+                                                       "input": [  "0059004a-67b8-4445-b9d6-5b0475784c49",
+                                                                   "2350a24b-87af-4505-aafb-72a15e0c118c"],
+                                                       "parameters": {
+                                                           "col_id_left": 1,
+                                                           "col_text_left": 2,
+                                                           "separator_left": " ",
+                                                           "col_id_right": 0,
+                                                           "col_text_right": 1,
+                                                           "separator_right": " ",
+                                                           "k": 1,
+                                                           "delta_alg": "1",
+                                                           "output_file": "out.csv",
+                                                           "method": "knn",
+                                                           "similarity": "jaccard",
+                                                           "foreign": "foreign"
+                                                       },
+                                                       "tags": {}})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'])
 @app.auth_required(auth)
@@ -2723,9 +2736,7 @@ def api_task_execution_create(json_data):
         A JSON with the Minio response to the uploading request.
     """
     
-    #TODO: Update these examples
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/task/execution/create -d '{"workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41", "docker_image": "alzeakis/pytokenjoin:v3", "input": [  "0059004a-67b8-4445-b9d6-5b0475784c49", "2350a24b-87af-4505-aafb-72a15e0c118c"],"parameters": {"col_id_left": 1, "col_text_left": 2, "separator_left": " ", "col_id_right": 0, "col_text_right": 1, "separator_right": " ", "k": 1, "delta_alg": "1", "output_file": "out.csv", "method": "knn", "similarity": "jaccard", "foreign": "foreign" }, "tags": {}}'
 
     config = current_app.config['settings']
     workflow_exec_id = json_data['workflow_exec_id']
@@ -2815,8 +2826,8 @@ def api_task_execution_create(json_data):
 
 
 @app.route('/api/v1/task/execution/track', methods=['POST'])
-@app.input(schema.Task_Track, location='json', example={"task_exec_id": "workflow_id",
-                                                        'package_id': ''})
+@app.input(schema.Task_Track, location='json', example={"task_exec_id": "4a142419-2342-4495-bfa3-9b4b3c2cad2a",
+                                                        'package_id': '0f55380a-78ff-413e-9a99-3d214766f563'})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'])
 @app.auth_required(auth)
@@ -2834,9 +2845,7 @@ def api_task_execution_track(json_data):
         outputfiles in the Data Catalog.
     """
     
-    #TODO: Update these examples
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/task/execution/track -d '{"task_exec_id": "4a142419-2342-4495-bfa3-9b4b3c2cad2a", 'package_id': '0f55380a-78ff-413e-9a99-3d214766f563'}'
 
     task_exec_id = json_data['task_exec_id']
     package_id = json_data['package_id']
@@ -2882,34 +2891,19 @@ def api_task_execution_track(json_data):
             response = task_execution_insert_metrics(task_exec_id, metrics)
             if not response:
                 return jsonify({'success': False, 'message': 'Task 2 Execution could not be created.'}), 500
-            print("test2")
             
             #### INSERT LOG
             response = task_execution_insert_log(task_exec_id, output_json.get('message', ""))
             if not response:
                 return jsonify({'success': False, 'message': 'Task 4 Execution could not be created.'}), 500
-            print("test4")
             
             #### INSERT FILES TO CATALOG
-            #TODO: Check if this works with package_id
             if package_id is not None and package_id != '':
                 #TODO: REplace this function
                 output_resource_ids = []
-                url = request.base_url + 'api/v1/artifact/publish'
+                url = request.base_url
+                url = url.replace('task/execution/track', 'artifact/publish')
                 for file in output_json['output']:
-                    # ftype = file.split('/')[-1].split(".")[-1].upper()
-                    # d = { "artifact_metadata":{
-                    #             # "url":file,
-                    #             'name': f"Results of {task_exec_id} task",
-                    #             "description": f"This is the artifact uploaded to minio S3 in {ftype} format",
-                    #             "format": ftype,
-                    #             "resource_tags":["Artifact"]
-                    #             },
-                    #         "package_metadata":  {
-                    #             "package_id": package_id
-                    #             }
-                    #     }
-                    
                     ftype = file['path'].split('/')[-1].split(".")[-1].upper()
                     d = { "artifact_metadata":{
                                 "url":file['path'],
@@ -2934,12 +2928,9 @@ def api_task_execution_track(json_data):
                         return jsonify({'success': False, 'message': 'Error in publishing in CKAN'}), 500 
                     
                 #### INSERT OUTPUT FILES
-                output = output_json.get('output', [])
-                output = [o['path'] for o in output]
-                response = task_execution_insert_output(task_exec_id, output)
+                response = task_execution_insert_output(task_exec_id, output_resource_ids)
                 if not response:
                     return jsonify({'success': False, 'message': 'Task 3 Execution could not be created.'}), 500
-                print("test3")
                 
                 return jsonify({'success': True, 'metadata': metadata,
                         'resource_ids': output_resource_ids,
@@ -2951,7 +2942,7 @@ def api_task_execution_track(json_data):
 
 
 @app.route('/api/v1/task/execution/delete', methods=['GET'])
-@app.input(schema.Identifier, location='query', example="")
+@app.input(schema.Identifier, location='query', example="4a142419-2342-4495-bfa3-9b4b3c2cad2a")
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'])
 @app.auth_required(auth)
@@ -2965,9 +2956,7 @@ def api_task_execution_delete(query_data):
         A JSON with the corresponding message.
     """
     
-    #TODO: Update these examples
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/execution/delete?id=4a142419-2342-4495-bfa3-9b4b3c2cad2a
 
     # task_exec_id = request.args.id
     task_exec_id = query_data['id']
@@ -2999,9 +2988,7 @@ def api_workflow_execution_create(json_data):
         A JSON with the Workflow Execution ID.
     """
     
-    #TODO: Update these examples
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/workflow/execution/create -d '{"tags": {}}'
 
     # workflow_id = json_data['workflow_id']
     tags = json_data['tags']
@@ -3024,7 +3011,7 @@ def api_workflow_execution_create(json_data):
 
 
 @app.route('/api/v1/workflow/execution/read', methods=['GET'])
-@app.input(schema.Identifier, location='query', example="")
+@app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'])
 @app.auth_required(auth)
@@ -3037,10 +3024,8 @@ def api_workflow_execution_read(query_data):
     Returns:
         A JSON with the required metadata.
     """
-    
-    #TODO: Update these examples
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/execution/read?id=24a976c4-fd84-47ef-92cc-5d5582bcaf41
 
     # workflow_exec_id = request.args.id
     workflow_exec_id = query_data['id']
@@ -3056,8 +3041,8 @@ def api_workflow_execution_read(query_data):
     
     
 @app.route('/api/v1/workflow/execution/commit', methods=['POST'])
-@app.input(schema.Workflow_Commit, location='json', example={"workflow_exec_id": "workflow_id",
-                                                        "state": "completed"})
+@app.input(schema.Workflow_Commit, location='json', example={"workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41",
+                                                             "state": "succeeded"})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'])
 @app.auth_required(auth)
@@ -3071,9 +3056,7 @@ def api_workflow_execution_commit(json_data):
         A JSON with the result of the update.
     """
     
-    #TODO: Update these examples
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/workflow/execution/commit -d '{"workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41", "state": "succeeded"}'
 
     workflow_exec_id = json_data['workflow_exec_id']
     state = json_data['state']
@@ -3091,7 +3074,7 @@ def api_workflow_execution_commit(json_data):
 
 
 @app.route('/api/v1/workflow/execution/delete', methods=['GET'])
-@app.input(schema.Identifier, location='query', example="")
+@app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'])
 @app.auth_required(auth)
@@ -3105,9 +3088,7 @@ def api_workflow_execution_delete(query_data):
         A JSON with the corresponding message.
     """
     
-    #TODO: Update these examples
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/upload -d '{"path": "local_path.csv", "bucket": "temp_bucket"}'
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/execution/delete?id=24a976c4-fd84-47ef-92cc-5d5582bcaf41
 
     # workflow_exec_id = request.args.id
     workflow_exec_id = query_data['id']
