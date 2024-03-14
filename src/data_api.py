@@ -2908,43 +2908,42 @@ def api_task_execution_track(json_data):
                 return jsonify({'success': False, 'message': 'Task 4 Execution could not be created.'}), 500
             
             #### INSERT FILES TO CATALOG
-            if package_id is not None and package_id != '':
-                #TODO: REplace this function
-                output_resource_ids = []
-                url = request.base_url
-                url = url.replace('task/execution/track', 'artifact/publish')
-                for file in output_json['output']:
-                    ftype = file['path'].split('/')[-1].split(".")[-1].upper()
-                    d = { "artifact_metadata":{
-                                "url":file['path'],
-                                'name': file['name'],
-                                "description": file['name'] + f'({ datetime.now().strftime("%Y-%m-%d %H:%M:%S")})',
-                                "format": ftype,
-                                "resource_tags":["Artifact"]
-                                },
-                            "package_metadata":  {
-                                "package_id": package_id
-                                }
-                        }
-            
-                    response = requests.post(url, json=d, headers=request.headers)
-                    if response.status_code == 200:
-                        j = response.json()
-                        if j['success']:
-                            output_resource_ids.append(j['result']['resource_id'])
-                        else:
-                            return jsonify({'success': False, 'message': 'Error in publishing in CKAN'}), 500 
+            #TODO: REplace this function
+            output_resource_ids = []
+            url = request.base_url
+            url = url.replace('task/execution/track', 'artifact/publish')
+            for file in output_json['output']:
+                ftype = file['path'].split('/')[-1].split(".")[-1].upper()
+                d = { "artifact_metadata":{
+                            "url":file['path'],
+                            'name': file['name'],
+                            "description": file['name'] + f'({ datetime.now().strftime("%Y-%m-%d %H:%M:%S")})',
+                            "format": ftype,
+                            "resource_tags":["Artifact"]
+                            },
+                        "package_metadata":  {
+                            "package_id": package_id
+                            }
+                    }
+        
+                response = requests.post(url, json=d, headers=request.headers)
+                if response.status_code == 200:
+                    j = response.json()
+                    if j['success']:
+                        output_resource_ids.append(j['result']['resource_id'])
                     else:
                         return jsonify({'success': False, 'message': 'Error in publishing in CKAN'}), 500 
-                    
-                #### INSERT OUTPUT FILES
-                response = task_execution_insert_output(task_exec_id, output_resource_ids)
-                if not response:
-                    return jsonify({'success': False, 'message': 'Task 3 Execution could not be created.'}), 500
+                else:
+                    return jsonify({'success': False, 'message': 'Error in publishing in CKAN'}), 500 
                 
-                return jsonify({'success': True, 'metadata': metadata,
-                        'resource_ids': output_resource_ids,
-                        'metrics': output_json.get('metrics', {})}), 200
+            #### INSERT OUTPUT FILES
+            response = task_execution_insert_output(task_exec_id, output_resource_ids)
+            if not response:
+                return jsonify({'success': False, 'message': 'Task 3 Execution could not be created.'}), 500
+            
+            return jsonify({'success': True, 'metadata': metadata,
+                    'resource_ids': output_resource_ids,
+                    'metrics': output_json.get('metrics', {})}), 200
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500  
     
