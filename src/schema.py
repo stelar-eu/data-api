@@ -148,21 +148,21 @@ class Ranking(Schema):
 #    top_k = Integer(required=False, load_default=10)
 
 
-class TrackingTags(Schema):
-    dag_id = String(required=True)
-    run_id = String(required=True)
-    task_id = String(required=True)
+# class TrackingTags(Schema):
+#     dag_id = String(required=True)
+#     run_id = String(required=True)
+#     task_id = String(required=True)
 
-class TrackingSettings(Schema):
-    experiment = String(required=True)
-    tags = Nested(TrackingTags, required=True)
+# class TrackingSettings(Schema):
+#     experiment = String(required=True)
+#     tags = Nested(TrackingTags, required=True)
 
-class Tracking(Schema):
-    input = List(String, required=True)
-    output = List(String, required=True)
-    parameters = Dict(required=True)
-    metrics = Dict(required=True)
-    settings = Nested(TrackingSettings, required=True)
+# class Tracking(Schema):
+#     input = List(String, required=True)
+#     output = List(String, required=True)
+#     parameters = Dict(required=True)
+#     metrics = Dict(required=True)
+#     settings = Nested(TrackingSettings, required=True)
 
 
 
@@ -173,13 +173,13 @@ class Task_Input(Schema):
     docker_image = String(required = True)
     input = List(String, required = True)
     parameters = Dict(required = True)
+    package_id = String(required = True)
     tags = Dict()
 
 
 class Task_Track(Schema):
     task_exec_id = String(required = True)
-    package_id = String(required = True)
-    
+
     
 class Workflow_Input(Schema):
     # workflow_id = String(required = True)

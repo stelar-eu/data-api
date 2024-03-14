@@ -1850,8 +1850,9 @@ def api_workflow_publish(json_data):
             # Also create the name of the new CKAN package from its title (assuming that this is unique)
             package_metadata['name'] = re.sub(r'[\W_]+','_', package_metadata['title']).lower()
             # Convert the tags into the format required by CKAN 
+            package_metadata['tags'] += ['Workflow']
             package_metadata['tags'] = utils.handle_keywords(package_metadata['tags'])
-            package_metadata['type'] = 'workflow'   # Must specify that this is not a dataset, but a workflow
+            # package_metadata['type'] = 'workflow'   # Must specify that this is not a dataset, but a workflow
             # Internal call to find the organization where the user belongs to (derived from API token)
             resp_org = api_user_editor()
             if resp_org['success']:
@@ -2730,6 +2731,7 @@ def task_execution_tags_read(task_exec_id):
                                                            "similarity": "jaccard",
                                                            "foreign": "foreign"
                                                        },
+                                                       'package_id': '0f55380a-78ff-413e-9a99-3d214766f563',
                                                        "tags": {}})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'])
@@ -2746,7 +2748,7 @@ def api_task_execution_create(json_data):
         A JSON with the Minio response to the uploading request.
     """
     
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/task/execution/create -d '{"workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41", "docker_image": "alzeakis/pytokenjoin:v3", "input": [  "0059004a-67b8-4445-b9d6-5b0475784c49", "2350a24b-87af-4505-aafb-72a15e0c118c"],"parameters": {"col_id_left": 1, "col_text_left": 2, "separator_left": " ", "col_id_right": 0, "col_text_right": 1, "separator_right": " ", "k": 1, "delta_alg": "1", "output_file": "out.csv", "method": "knn", "similarity": "jaccard", "foreign": "foreign" }, "tags": {}}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/task/execution/create -d '{"workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41", "docker_image": "alzeakis/pytokenjoin:v3", "input": [  "0059004a-67b8-4445-b9d6-5b0475784c49", "2350a24b-87af-4505-aafb-72a15e0c118c"],"parameters": {"col_id_left": 1, "col_text_left": 2, "separator_left": " ", "col_id_right": 0, "col_text_right": 1, "separator_right": " ", "k": 1, "delta_alg": "1", "output_file": "out.csv", "method": "knn", "similarity": "jaccard", "foreign": "foreign" }, 'package_id': '0f55380a-78ff-413e-9a99-3d214766f563', "tags": {}}'
 
     config = current_app.config['settings']
     workflow_exec_id = json_data['workflow_exec_id']
@@ -2754,6 +2756,7 @@ def api_task_execution_create(json_data):
     # input_json = json_data['input_json']
     input = json_data['input']
     parameters = json_data['parameters']
+    package_id = json_data['package_id']
     tags = json_data['tags']
 
     try :
@@ -2809,6 +2812,7 @@ def api_task_execution_create(json_data):
         # Store the container ID into a variable
         # task_exec_id = container.id
         tags['container_id'] = container.id
+        tags['package_id'] = package_id
         print(tags)
         
         #### UPDATE KG
@@ -2836,8 +2840,7 @@ def api_task_execution_create(json_data):
 
 
 @app.route('/api/v1/task/execution/track', methods=['POST'])
-@app.input(schema.Task_Track, location='json', example={"task_exec_id": "4a142419-2342-4495-bfa3-9b4b3c2cad2a",
-                                                        'package_id': '0f55380a-78ff-413e-9a99-3d214766f563'})
+@app.input(schema.Task_Track, location='json', example={"task_exec_id": "4a142419-2342-4495-bfa3-9b4b3c2cad2a"})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'])
 @app.auth_required(auth)
@@ -2847,23 +2850,21 @@ def api_task_execution_track(json_data):
 
     Args:
         id: The unique identifier of the Task Exection.
-        package_id: The unique identifier of the Package ID in the Data Catalog,
-        under which it will store the output files.
 
     Returns:
         A JSON with the task execution metadata, the metrics and the ids of the 
         outputfiles in the Data Catalog.
     """
     
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/task/execution/track -d '{"task_exec_id": "4a142419-2342-4495-bfa3-9b4b3c2cad2a", 'package_id': '0f55380a-78ff-413e-9a99-3d214766f563'}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/task/execution/track -d '{"task_exec_id": "4a142419-2342-4495-bfa3-9b4b3c2cad2a"}'
 
     task_exec_id = json_data['task_exec_id']
-    package_id = json_data['package_id']
     
     try :
         #### GET METADATA FROM KG
         metadata = task_execution_read(task_exec_id)
         container_id = metadata['tags']['container_id']
+        package_id = metadata['tags']['package_id']
         
         #### GET STATUS FROM DOCKER
         client = docker.from_env()
