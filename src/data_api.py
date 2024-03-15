@@ -12,6 +12,7 @@ import datetime
 import os
 import subprocess
 import docker
+import traceback
 
 from psycopg2.extras import RealDictCursor
 from flask import request, jsonify, current_app, redirect, url_for
@@ -1882,13 +1883,7 @@ def api_workflow_publish(json_data):
         return jsonify(response)
 
 
-
-@app.route('/api/v1/artifact/publish', methods=['POST'])
-@app.input(schema.Artifact, location='json', example={"package_metadata":{"package_id": "test_data_api_1"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "task_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}})
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Publishing Operations'])
-@app.auth_required(auth)
-def api_artifact_publish(json_data):
+def api_artifact_publish(json_data, headers):
     """Publish an artifact created by a workflow execution.
 
     If a package id is provided, associate the artifact (with its URL) to this package in CKAN. Otherwise, create a new package in CKAN to make this association. The user will become the publisher of this resource.
@@ -1900,33 +1895,22 @@ def api_artifact_publish(json_data):
         A JSON with the CKAN response to the publishing request.
     """
 
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/publish -d '{"package_metadata":{"title":"Results of Airflow dag mycalc", "tags":[{"name": "Artifact"}, {"name": "Workflow"}], "extras":[{"key":"dag_id", "value":"mycalc"}, {"key":"run_id", "value":"scheduled__2023-07-11T00:00:00+00:00"}], "notes": "My calculation using AirFlow"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "task_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}}'
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'API_TOKEN: XXXXXXXXX' http://127.0.0.1:9055/api/v1/artifact/publish -d '{"package_metadata":{"package_id": "test_data_api_1"},"artifact_metadata":{"url":"s3://mlflow-bucket/16/041d3882c0814e94968135525cbd5aa7/artifacts/20220805_duplicates.csv", "task_uuid":"d63a2b507bf6b6eadcb2c8de378c0370", "name": "Results of deduplication task", "description": "This is the test artifact uploaded to minio S3 in CSV format", "format": "CSV", "resource_tags": ["Artifact","MLFlow"]}}'
-
     config = current_app.config['settings']
 
-    if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+    if headers:
+        if headers.get('Api-Token') != None:
+            package_headers, resource_headers = utils.create_CKAN_headers(headers['Api-Token'])
         else:
-            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-            return jsonify(response)
+            return {'success':False, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
     else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-        return jsonify(response)
+        return {'success':False,  'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
 
-    if request.data:
-        metadata = request.data
-        specs = json.loads(metadata.decode("utf-8"))
-    else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No metadata provided for publishing this artifact in the Catalog. Please specify metadata for the artifact you wish to publish.']}}
-        return jsonify(response)
+    specs = json_data
 
     if specs.get('artifact_metadata') != None:
         artifact_metadata = specs['artifact_metadata']
     else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No metadata provided for publishing this artifact in the Catalog. Please specify metadata for the artifact you wish to publish.']}}
-        return jsonify(response)
+        return {'success':False, 'error':{'__type':'No specifications','name':['No metadata provided for publishing this artifact in the Catalog. Please specify metadata for the artifact you wish to publish.']}}
 
     # Check if a new package needs to be created with the basic metadata
     if specs.get('package_metadata') != None:
@@ -1942,8 +1926,8 @@ def api_artifact_publish(json_data):
 #                print("resource_id: ", resource_id)
             else:
                 return resp_resource.json()
-            response = {'success':True, 'help': request.url, 'result':result} 
-            return jsonify(response)
+            response = {'success':True,  'result':result} 
+            return response
         else:
         # Register a new package with some basic metadata
             arr_resp = []
@@ -1990,65 +1974,12 @@ def api_artifact_publish(json_data):
                 success &= resp['success']
 #                result.append(resp)
 
-            response = {'success':success, 'help': request.url, 'result':result}     
-            return jsonify(response)
+            response = {'success':success, 'result':result}     
+            return response
 
 
 
-# @app.route('/api/v1/artifact', methods=['GET'])
-# @app.input(schema.Identifier, location='query', example="6dc36257-abb6-45b5-b3bb-5f94160fc2ee")
-# @app.output(schema.ResponseOK, status_code=200)
-# @app.doc(tags=['Search Operations'])
-# def api_artifact_id(query_data):
-#     """Get the file path of an artifact. 
-
-#     Provides the path to the file (URL, S3 bucket or local file) where an artifact (stored as a resource) is available. User may need credentials to access this file.
-
-#     Args:
-#         id: The unique identifier of the resource as listed in CKAN.
-
-#     Returns:
-#         A JSON with the file path for the specified resource as maintained in CKAN.
-#     """
-
-#     #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/artifact?id=6dc36257-abb6-45b5-b3bb-5f94160fc2ee
-
-#     config = current_app.config['settings']
-
-# #    if request.headers:
-# #        if request.headers.get('Api-Token') != None:
-# #            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
-# #        else:
-# #            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-# #            return jsonify(response)
-# #    else:
-# #        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-# #        return jsonify(response)
-
-#     # Check if an ID (name) for a resource was provided as argument
-#     if 'id' in query_data:
-#         id = query_data['id']
-#     else:
-#         response = {'success':False, 'help': request.url+'?id=', 'error':{'__type':'No specifications','name':['No identifier provided. Please specify the unique id of the requested artifact.']}}
-#         return jsonify(response)
-
-#     # Make a GET request to the CKAN API with the parameters
-#     # IMPORTANT! CKAN requires NO authentication for GET requests
-#     response = requests.get(config['CKAN_API']+'resource_show?id='+id) #, headers=package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
-
-#     # Get the path of this artifact 
-#     if response.status_code == 200:
-#         path = response.json()['result']['url']
-#         response = {'success':True, 'help': request.url, 'result':{'path':path}}
-#         return jsonify(response)
-#     else:
-#         return response.json()
-
-@app.route('/api/v1/artifact', methods=['GET'])
-@app.input(schema.Identifier, location='query', example="6dc36257-abb6-45b5-b3bb-5f94160fc2ee")
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Search Operations'])
-def api_artifact_id(query_data):
+def api_artifact_id(resource_id, headers):
     """Get the file path of an artifact. 
 
     Provides the path to the file (URL, S3 bucket or local file) where an artifact (stored as a resource) is available. User may need credentials to access this file.
@@ -2060,38 +1991,22 @@ def api_artifact_id(query_data):
         A JSON with the file path for the specified resource as maintained in CKAN.
     """
 
-    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/artifact?id=6dc36257-abb6-45b5-b3bb-5f94160fc2ee
-
     config = current_app.config['settings']
 
-    if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
-        else:
-            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-            return jsonify(response)
+    if headers and headers.get('Api-Token') != None:
+        package_headers, resource_headers = utils.create_CKAN_headers(headers['Api-Token'])
     else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-        return jsonify(response)
-
-    # Check if an ID (name) for a resource was provided in the request
-    if 'id' in request.args:
-        id = request.args['id']
-    else:
-        response = {'success':False, 'help': request.url+'?id=', 'error':{'__type':'No specifications','name':['No identifier provided. Please specify the unique id of the requested artifact.']}}
-        return jsonify(response)
+        return None
 
     # Make a GET request to the CKAN API with the parameters
     # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(config['CKAN_API']+'resource_show?id='+id, headers=package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
+    response = requests.get(config['CKAN_API']+'resource_show?id='+resource_id, headers=package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
 
     # Get the path of this artifact 
     if response.status_code == 200:
-        path = response.json()['result']['url']
-        response = {'success':True, 'help': request.url, 'result':{'path':path}}
-        return jsonify(response)
+        return response.json()['result']['url']
     else:
-        return response.json()
+        return None
 
 
 @app.route('/api/v1/dataset/delete', methods=['POST'])
@@ -2767,24 +2682,13 @@ def api_task_execution_create(json_data):
             return jsonify({'success': False, 'message': 'This workflow no longer accepts tasks'}), 500 
         
         #### GET FILE PATHS
-        #TODO: REMOVE FUNCTION
         input_paths = []
-        
-        # url = request.base_url + 'api/v1/artifact'
-        url = request.base_url.replace('task/execution/create', 'artifact')
-        # res_ids = input_json.get('input', [])
         res_ids = input
         for res_id in res_ids:
-            response = requests.get(url, params= {'id': res_id}, headers=request.headers)
-            if response.status_code == 200:
-                j = response.json()
-                print(j)
-                if j['success']: 
-                    input_paths.append(j['result']['path'])
-                else:
-                    return jsonify({'success': False, 'message': f'This resource {res_id} cannot be fetched by CKAN'}), 500 
-            else:
+            path = api_artifact_id (res_id, headers=request.headers)
+            if path is None:
                 return jsonify({'success': False, 'message': f'This resource {res_id} cannot be fetched by CKAN'}), 500 
+            input_paths.append(path)
         
         #### TOOL INVOKATION
         task_exec_id = str(uuid.uuid4())
@@ -2911,8 +2815,6 @@ def api_task_execution_track(json_data):
             #### INSERT FILES TO CATALOG
             #TODO: REplace this function
             output_resource_ids = []
-            url = request.base_url
-            url = url.replace('task/execution/track', 'artifact/publish')
             for file in output_json['output']:
                 ftype = file['path'].split('/')[-1].split(".")[-1].upper()
                 d = { "artifact_metadata":{
@@ -2927,13 +2829,10 @@ def api_task_execution_track(json_data):
                             }
                     }
         
-                response = requests.post(url, json=d, headers=request.headers)
-                if response.status_code == 200:
-                    j = response.json()
-                    if j['success']:
-                        output_resource_ids.append(j['result']['resource_id'])
-                    else:
-                        return jsonify({'success': False, 'message': 'Error in publishing in CKAN'}), 500 
+                response = api_artifact_publish(d, headers=request.headers)
+                print(response)
+                if response['success']:
+                    output_resource_ids.append(response['result']['resource_id'])
                 else:
                     return jsonify({'success': False, 'message': 'Error in publishing in CKAN'}), 500 
                 
@@ -2946,7 +2845,7 @@ def api_task_execution_track(json_data):
                     'resource_ids': output_resource_ids,
                     'metrics': output_json.get('metrics', {})}), 200
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500  
+        return jsonify({'success': False, 'message': traceback.format_exc()}), 500  
     
     return jsonify({'success': True, 'metadata': metadata}), 200
 
