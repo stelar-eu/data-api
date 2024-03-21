@@ -35,9 +35,6 @@ dbport: '<DB-PORT>'  # e.g., 5432
 # URL to SPARQL endpoint
 SPARQL_ENDPOINT: 'http://<ONTOP-HOST>/sparql'
 
-############################## MLFLOW ##################################
-MLFLOW_ENDPOINT: 'http://<MLFLOW-HOST>'
-
 ################################ RANKING ###################################
 # Default ranking preferences
 RANK_DEFAULT_TOPK: 10
@@ -49,3 +46,6 @@ MINIO_ENDPOINT: '<MLFLOW-HOST>'
 MINIO_ACCESS_KEY: '<ACCESS_KEY>'
 MINIO_SECRET_KEY: '<SECRET_KEY>'
 MINIO_BUCKET: '<BUCKET>'
+
+############################## CURRENT ##################################
+API_URL: 'http://<API-HOST>/'

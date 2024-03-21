@@ -25,6 +25,8 @@ from datetime import date, datetime
 
 # Auxiliary custom functions & SQL query templates for ranking
 import utils
+import sql_utils
+from container_utils import create_container
 
 # Input schemata for validating several API requests
 import schema
@@ -78,51 +80,6 @@ def api_verify_token(token):
     else:
         return False
 
-
-
-################################## DATABASE CONNECTOR ########################################
-
-def execSql(sql, vars=None):
-    """Opens a connection to a PostgreSQL database and executes the given SQL command.
-
-    Args:
-        sql (String): The SQL command with variables to be executed in the database.
-        vars (List): The values to use per variable in the SQL command.
-
-    Returns:
-        A JSON with the retrieved query results for SELECT commands; a JSON with the final execution status (True/False) for INSERT/UPDATE/DELETE commands.
-    """
-
-    config = current_app.config['settings']
-
-    data = None
-    try:
-        with psycopg2.connect(dbname=config['dbname'], user=config['dbuser'], password=config['dbpass'], host=config['dbhost'], port=config['dbport']) as conn:
-            with conn.cursor() as cur:
-                # Execute the SQL statement
-                cur.execute(sql, vars)
-
-                # Handle the response                
-                desc = cur.description
-
-                if desc:  # SELECT commands
-                    column_names = [col[0] for col in desc]
-                    data = [dict(zip(column_names, row))  
-                            for row in cur.fetchall()]
-                else:     # INSERT, UPDATE commands
-                    data = {}
-                    # obtain the inserted rows
-                    if cur.rowcount > 0:
-                        data['status'] = True
-                    else:
-                        data['status'] = False
-
-                # Commit the changes to the database
-                conn.commit()
-    except (Exception, psycopg2.DatabaseError) as error:
-        print(error)    
-    finally:
-        return data
 
 
 ################################## ENTRY POINT ########################################
@@ -1342,7 +1299,7 @@ def api_catalog_rank(json_data):
             # IMPORTANT! PostgreSQL credentials are required to complete this request
             for key in filter_sql_commands.keys():
                 sql = filter_sql_commands[key]
-                results = execSql(sql)
+                results = sql_utils.execSql(sql)
 #                print(len(results), sql)
                 filter_ids = [res['id'] for res in results if 'id' in res]
                 if sql_id_filter == '':  # No keywords specified in search bar
@@ -1380,7 +1337,7 @@ def api_catalog_rank(json_data):
             for key in rank_sql_commands.keys():
                 sql = rank_sql_commands[key]
 #                print(key, '->', sql)
-                results = execSql(sql)
+                results = utils.execSql(sql)
 #                print(len(results), len(ids))
                 # Fill any missing scores in the partial list for this facet
                 for id in ids:
@@ -1523,7 +1480,7 @@ def api_dataset_publish(json_data):
                 sql_commands = utils.extractProfileProperties(resource_id, profile)
                 for sql in sql_commands:
 #                    print(sql)
-                    execSql(sql)
+                    utils.execSql(sql)
         elif resource_metadata.get('url') != None:
             # Make a POST request to the CKAN API to link the file from the specified URL
             resp_resource = requests.post(config['CKAN_API']+'resource_create', data=resource_metadata, headers=resource_headers)
@@ -1692,7 +1649,7 @@ def api_profile_publish(json_data):
             sql_commands = utils.extractProfileProperties(resource_id, profile)
             for sql in sql_commands:
 #                print(sql)
-                execSql(sql)
+                utils.execSql(sql)
             return response.json()
     elif resource_metadata.get('url') != None:
         # Make a POST request to the CKAN API to link the file from the specified URL
@@ -1808,7 +1765,7 @@ def api_resource_link(json_data):
         # Distinguish handling according to Profile type
         sql_commands = utils.extractResourceProperties(resource_id, resource_metadata)
         for sql in sql_commands:
-            execSql(sql)
+            utils.execSql(sql)
 
     return response.json()
 
@@ -2139,492 +2096,6 @@ def api_resource_delete(json_data):
     return response.json()
 
 
-##################################################
-
-
-
-def workflow_execution_create(workflow_exec_id, start_date, state, tags=None):
-    """Records metadata for a new workflow execution in the database.
-
-    Args:
-        workflow_exec_id: UUID of the new workflow execution.
-        start_date: Start timestamp of the new workflow execution.
-        state: Initial state of the new workflow execution.
-        tags: A JSON dictionary with workflow execution metadata as (key, value) pairs.
-
-    Returns:
-        A boolean: True, if the statement executed successfully; otherwise, False.
-    """
-
-    # Compose the SQL command using the template for creating a new workflow execution
-    sql = utils.sql_workflow_execution_templates['workflow_create_template']   
-#    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_STATE', '\''+ state +'\'').replace('_START_TIMESTAMP', '\''+ start_date +'\'')
-#    print(sql)
-
-    # Execute the SQL command in the database
-    resp = execSql(sql, (workflow_exec_id, state, start_date))
-    if resp and 'status' in resp:
-        if not resp.get('status'):
-            return False
-    else:
-        return False
-
-    # Compose the SQL command using the template for assigning tags to the new workflow execution 
-    if tags:
-        for key, value in tags.items():
-            sql = utils.sql_workflow_execution_templates['workflow_insert_tags_template']   
-#            sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
-#            print(sql)
-
-            # Execute the SQL command in the database
-            resp = execSql(sql, (workflow_exec_id, key, value))
-            if resp and 'status' in resp:
-                if not resp.get('status'):
-                    return False
-            else:
-                return False
-
-    return True
-
-
-def workflow_execution_update(workflow_exec_id, state, end_date=None):
-    """Updates metadata regarding a workflow execution in the database.
-
-    Args:
-        task_exec_id: UUID of a workflow execution.
-        state: Current state of this workflow execution.
-        end_date: Timestamp marking the end of this workflow execution.
-
-    Returns:
-        A boolean: True, if the statement executed successfully; otherwise, False.
-    """
-
-    # Compose the SQL command using the template for updating/commiting a workflow execution
-#    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_STATE', '\''+ state +'\'')
-#    if end_date:
-#        sql = sql.replace('_END_TIMESTAMP', '\''+ end_date +'\'')
-#    else:
-#        sql = sql.replace('_END_TIMESTAMP', 'NULL')
-#    print(sql)
-
-    # Execute the SQL command in the database
-    if not end_date is None:
-        sql = utils.sql_workflow_execution_templates['workflow_commit_template']  
-        resp = execSql(sql, (state, end_date, workflow_exec_id))
-    else:
-        sql = utils.sql_workflow_execution_templates['workflow_update_template']  
-        resp = execSql(sql, (state, workflow_exec_id))
-
-    if resp and 'status' in resp:
-        if not resp.get('status'):
-            return False
-    else:
-        return False
-
-    return True
-
-
-def workflow_execution_delete(workflow_exec_id):
-    """Deletes all metadata regarding a workflow execution from the database. CAUTION! This also includes all metadata about task executions associated with this workflow execution.
-
-    Args:
-        workflow_exec_id: UUID of a workflow execution.
-
-    Returns:
-        A boolean: True, if the statement executed successfully; otherwise, False.
-    """
-
-    # Compose the SQL command using the template for deleting a workflow execution
-    sql = utils.sql_workflow_execution_templates['workflow_delete_template']   
-#    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'')
-#    print(sql)
-
-    # Execute the SQL command in the database
-    resp = execSql(sql, (workflow_exec_id, ))
-
-    if resp and 'status' in resp:
-        if not resp.get('status'):
-            return False
-    else:
-        return False
-
-    return True
-
-
-def workflow_execution_read(workflow_exec_id):
-    """Returns metadata recorded in the database about the given workflow execution. User-specified tags are included in the returned response.
-
-    Args:
-        task_exec_id: UUID of the workflow execution.
-
-    Returns:
-        A JSON with the workflow execution metadata.
-    """
-
-    # Compose the SQL command using the template for reading metadata about a workflow execution
-    sql = utils.sql_workflow_execution_templates['workflow_read_template']   
-#    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'')
-#    print(sql)
-
-    # Execute the SQL command in the database
-    resp = execSql(sql, (workflow_exec_id, ))
-
-    if resp and len(resp)>0:
-        workflow_specs = resp[0]  # List should contain specification of a single workflow execution (unique UUID)
-        # Also include any user-specified tags in the response
-        workflow_specs['tags'] = workflow_execution_tags_read(workflow_exec_id)
-        return workflow_specs
-    else:
-        return None
-
-
-def workflow_execution_tags_read(workflow_exec_id):
-    """Returns tags recorded as (key, value) pairs in the database about the given workflow execution.
-
-    Args:
-        workflow_exec_id: UUID of the workflow execution.
-
-    Returns:
-        A JSON dictionary with the workflow execution tags.
-    """
-
-    # Compose the SQL command using the template for reading tags about a workflow execution
-    sql = utils.sql_workflow_execution_templates['workflow_read_tags_template']   
-#    sql = sql.replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'')
-#    print(sql)
-
-    # Execute the SQL command in the database
-    resp = execSql(sql, (workflow_exec_id, ))
-
-    if resp and len(resp)>0:
-        tag_dict = {tag['key']: tag['value'] for tag in resp}
-        return tag_dict
-    else:
-        return None
-
-
-
-def task_execution_create(task_exec_id, workflow_exec_id, start_date, state, tags=None, prev_task_exec_id=None):
-    """Records metadata for a new task execution in the database.
-
-    Args:
-        workflow_exec_id: UUID of an existing workflow execution.
-        task_exec_id: UUID of the new task execution.
-        start_date: Start timestamp of the new task execution.
-        state: Initial state of the new task execution.
-        tags: A JSON dictionary with task execution metadata as (key, value) pairs.
-        prev_task_exec_id: UUID of the exexcution of the previous task in the workflow pipeline.
-
-    Returns:
-        A boolean: True, if the statement executed successfully; otherwise, False.
-    """
-
-    # Compose the SQL command using the template for creating a new task execution
-    sql = utils.sql_workflow_execution_templates['task_create_template']   
-#    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_WORKFLOW_UUID', '\''+ workflow_exec_id +'\'').replace('_STATE', '\''+ state +'\'').replace('_START_TIMESTAMP', '\''+ start_date +'\'')
-#    print(sql)
-
-    # Execute the SQL command in the database
-    resp = execSql(sql, (task_exec_id, workflow_exec_id, state, start_date))
-    if resp and 'status' in resp:
-        if not resp.get('status'):
-            return False
-    else:
-        return False
-
-    # Compose the SQL command using the template for specifying the previously executed task
-    if prev_task_exec_id:
-        sql = utils.sql_workflow_execution_templates['task_create_connection_template']   
-#        sql = sql.replace('_NEXT_TASK_UUID', '\''+ task_exec_id +'\'').replace('_TASK_UUID', '\''+ prev_task_exec_id +'\'')
-#        print(sql)
-
-        # Execute the SQL command in the database
-        resp = execSql(sql, (task_exec_id, prev_task_exec_id))
-        if resp and 'status' in resp:
-            if not resp.get('status'):
-                return False
-        else:
-            return False
-
-    # Compose the SQL command using the template for assigning tags to the new task execution 
-    if tags:
-        for key, value in tags.items():
-            sql = utils.sql_workflow_execution_templates['task_insert_tags_template']   
-#            sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
-#            print(sql)
-
-            # Execute the SQL command in the database
-            resp = execSql(sql, (task_exec_id, key, value))
-            if resp and 'status' in resp:
-                if not resp.get('status'):
-                    return False
-            else:
-                return False
-
-    return True
-
-
-def task_execution_update(task_exec_id, state, end_date=None):
-    """Updates metadata regarding a task execution in the database.
-
-    Args:
-        task_exec_id: UUID of a task execution.
-        state: Current state of this task execution.
-        end_date: Timestamp marking the end of this task execution.
-
-    Returns:
-        A boolean: True, if the statement executed successfully; otherwise, False.
-    """
-
-    # Compose the SQL command using the template for updating a task execution
-#    sql = utils.sql_workflow_execution_templates['task_update_template']   
-#    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_STATE', '\''+ state +'\'')
-#    if end_date:
-#        sql = sql.replace('_END_TIMESTAMP', '\''+ end_date +'\'')
-#    else:
-#        sql = sql.replace('_END_TIMESTAMP', 'NULL')
-#    print(sql)
-
-    # Execute the SQL command in the database
-    if not end_date is None:
-        sql = utils.sql_workflow_execution_templates['task_commit_template']  
-        resp = execSql(sql, (state, end_date, task_exec_id))
-    else:
-        sql = utils.sql_workflow_execution_templates['task_update_template']  
-        resp = execSql(sql, (state, task_exec_id))
-
-    if resp and 'status' in resp:
-        if not resp.get('status'):
-            return False
-    else:
-        return False
-
-    return True
-
-
-def task_execution_delete(task_exec_id):
-    """Deletes all metadata regarding a task execution from the database. CAUTION! This also includes all tags, parameters, and metrics associated with this task execution.
-
-    Args:
-        task_exec_id: UUID of a task execution.
-
-    Returns:
-        A boolean: True, if the statement executed successfully; otherwise, False.
-    """
-
-    # Compose the SQL command using the template for deleting a task execution
-    sql = utils.sql_workflow_execution_templates['task_delete_template']   
-#    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'')
-#    print(sql)
-
-    # Execute the SQL command in the database
-    resp = execSql(sql, (task_exec_id, ))
-
-    if resp and 'status' in resp:
-        if not resp.get('status'):
-            return False
-    else:
-        return False
-
-    return True
-
-
-
-def task_execution_insert_log(task_exec_id, log):
-    """Records the log of a task execution in the database.
-
-    Args:
-        task_exec_id: UUID of the task execution.
-        log: Text with the compiled logs.
-
-    Returns:
-        A boolean: True, if the statement executed successfully; otherwise, False.
-    """
-
-    # Compose the SQL command using the template for inserting the log under tag "log" for this task execution 
-    sql = utils.sql_workflow_execution_templates['task_insert_tags_template']   
-#    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\'log\'').replace('_VALUE', '\''+  log +'\'')
-#    print(sql)
-
-    # Execute the SQL command in the database
-    resp = execSql(sql, (task_exec_id, 'log', log))
-    if resp and 'status' in resp:
-        if not resp.get('status'):
-            return False
-    else:
-        return False
-
-    return True
-
-
-
-def task_execution_insert_input(task_exec_id, resource_ids):
-    """Records in the database that the given dataset id was used as input in the given task execution.
-
-    Args:
-        task_exec_id: UUID of the task execution.
-        resource_ids: Array of UUIDs of the dataset(s) (CKAN resources) used as input in this task execution.
-
-    Returns:
-        A boolean: True, if the statement executed successfully; otherwise, False.
-    """
-
-    # Compose the SQL command using the template for recording input datasets
-    for res_id in resource_ids:
-        sql = utils.sql_workflow_execution_templates['task_insert_input_dataset_template']   
-#        sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_RESOURCE_ID', '\''+ res_id +'\'')
-#        print(sql)
-
-        # Execute the SQL command in the database
-        resp = execSql(sql, (task_exec_id, res_id))
-        if resp and 'status' in resp:
-            if not resp.get('status'):
-                return False
-        else:
-            return False
-
-    return True
-
-
-def task_execution_insert_output(task_exec_id, resource_ids):
-    """Records in the database that the given dataset id was issued as output from the given task execution.
-
-    Args:
-        task_exec_id: UUID of the task execution.
-        resource_ids: Array of UUIDs of the dataset(s) (i.e.,CKAN resources) issued as output from this task execution.
-
-    Returns:
-        A boolean: True, if the statement executed successfully; otherwise, False.
-    """
-
-    # Compose the SQL command using the template for recording output datasets
-    for res_id in resource_ids:
-        sql = utils.sql_workflow_execution_templates['task_insert_output_dataset_template']   
-#        sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_RESOURCE_ID', '\''+ res_id +'\'')
-#        print(sql)
-
-        # Execute the SQL command in the database
-        resp = execSql(sql, (task_exec_id, res_id))
-        if resp and 'status' in resp:
-            if not resp.get('status'):
-                return False
-        else:
-            return False
-
-    return True
-
-
-def task_execution_insert_parameters(task_exec_id, parameters):
-    """Records in the database that the user-specified parameters for the given task execution.
-
-    Args:
-        task_exec_id: UUID of the task execution.
-        parameters: A JSON dictionary with the task execution parametrization as (key, value) pairs.
-
-    Returns:
-        A boolean: True, if the statement executed successfully; otherwise, False.
-    """
-
-    # Compose the SQL command using the template for recording parameters of a task execution 
-    if parameters:
-        for key, value in parameters.items():
-            sql = utils.sql_workflow_execution_templates['task_insert_parameters_template']   
-#            sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
-#            print(sql)
-
-            # Execute the SQL command in the database
-            resp = execSql(sql, (task_exec_id, key, value))
-            if 'status' in resp:
-                if not resp.get('status'):
-                    return False
-            else:
-                return False
-
-    return True
-
-
-def task_execution_insert_metrics(task_exec_id, metrics):
-    """Records in the database that the metrics collected for the given task execution.
-
-    Args:
-        task_exec_id: UUID of the task execution.
-        metrics: A JSON dictionary with the task execution metrics as (key, value) pairs.
-
-    Returns:
-        A boolean: True, if the statement executed successfully; otherwise, False.
-    """
-
-    # Compose the SQL command using the template for recording metrics about a task execution 
-    if metrics:
-        for key, value in metrics.items():
-            sql = utils.sql_workflow_execution_templates['task_insert_metrics_template']   
-#            sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'').replace('_KEY', '\''+  key +'\'').replace('_VALUE', '\''+  value +'\'')
-#            print(sql)
-
-            # Execute the SQL command in the database
-            resp = execSql(sql, (task_exec_id, key, value))
-            if 'status' in resp:
-                if not resp.get('status'):
-                    return False
-            else:
-                return False
-
-    return True
-
-
-
-def task_execution_read(task_exec_id):
-    """Returns metadata recorded in the database about the given task execution. User-specified tags are included in the returned response.
-
-    Args:
-        task_exec_id: UUID of the task execution.
-
-    Returns:
-        A JSON with the task execution metadata.
-    """
-
-    # Compose the SQL command using the template for reading metadata about a task execution
-    sql = utils.sql_workflow_execution_templates['task_read_template']   
-#    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'')
-    print(sql)
-
-    # Execute the SQL command in the database
-    resp = execSql(sql, (task_exec_id, ))
-
-    if resp and len(resp)>0:
-        task_specs = resp[0]  # List should contain specification of a single task execution (unique UUID)
-        # Also include any user-specified tags in the response
-        task_specs['tags'] = task_execution_tags_read(task_exec_id)
-        return task_specs
-    else:
-        return None
-
-
-def task_execution_tags_read(task_exec_id):
-    """Returns tags recorded as (key, value) pairs in the database about the given task execution.
-
-    Args:
-        task_exec_id: UUID of the task execution.
-
-    Returns:
-        A JSON dictionary with the task execution tags.
-    """
-
-    # Compose the SQL command using the template for reading tags about a task execution
-    sql = utils.sql_workflow_execution_templates['task_read_tags_template']   
-#    sql = sql.replace('_TASK_UUID', '\''+ task_exec_id +'\'')
-#    print(sql)
-
-    # Execute the SQL command in the database
-    resp = execSql(sql, (task_exec_id, ))
-
-    if resp and len(resp)>0:
-        tag_dict = {tag['key']: tag['value'] for tag in resp}
-        return tag_dict
-    else:
-        return None
-
-
 ############################## TASK OPERATIONS ################################
 
 @app.route('/api/v1/task/execution/create', methods=['POST'])
@@ -2677,10 +2148,107 @@ def api_task_execution_create(json_data):
     try :
         #### CHECK WORKFLOW EXECUTION STATE
         # status = check_workflow_status(workflow_exec_id)
-        state = workflow_execution_read(workflow_exec_id)['state']
+        state = sql_utils.workflow_execution_read(workflow_exec_id)['state']
         if state != 'running':
             return jsonify({'success': False, 'message': 'This workflow no longer accepts tasks'}), 500 
         
+        
+        
+        
+        # #### GET FILE PATHS
+        # input_paths = []
+        # res_ids = input
+        # for res_id in res_ids:
+        #     path = api_artifact_id (res_id, headers=request.headers)
+        #     if path is None:
+        #         return jsonify({'success': False, 'message': f'This resource {res_id} cannot be fetched by CKAN'}), 500 
+        #     input_paths.append(path)
+            
+            
+            
+            
+        
+        #### UPDATE KG
+        start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        state = 'running'
+        task_exec_id = str(uuid.uuid4())
+        
+        response = sql_utils.task_execution_create(task_exec_id, workflow_exec_id, start_date, state, tags)
+        if not response:
+            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
+        # response = task_execution_insert_input(task_exec_id, input_json.get('input', []))
+        response = sql_utils.task_execution_insert_input(task_exec_id, input)
+        if not response:
+            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500        
+        # response = task_execution_insert_parameters(task_exec_id, input_json.get('parameters', {}))
+        parameters = {k: str(v) for k, v in parameters.items()}
+        response = sql_utils.task_execution_insert_parameters(task_exec_id, parameters)
+        if not response:
+            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
+        
+        
+        #### TOOL INVOKATION
+        # logdir = os.getcwd()+"/logs/"
+        # in_file, out_file = task_exec_id+"_input.json", task_exec_id+"_output.json"
+        # with open(logdir+in_file, "w") as o:
+        #     input_json = {'input': input_paths,
+        #                   'parameters': parameters,
+        #                   "minio": {
+        #                       "endpoint_url": config['MINIO_ENDPOINT'],
+        #                       "id": config['MINIO_ACCESS_KEY'],
+        #                       "key": config['MINIO_SECRET_KEY'],
+        #                       "bucket": config['MINIO_BUCKET']
+        #                       }   
+        #         }
+        #     o.write(json.dumps(input_json, indent=4))
+            
+
+        
+        #### UPDATE KG
+        
+        # Store the container ID into a variable
+        tags['container_id'] = create_container(docker_image,
+                                                request.headers.get('Api-Token'),
+                                                config['API_URL'], task_exec_id)
+        tags['package_id'] = package_id
+        response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
+        if not response:
+            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
+
+
+        
+        return jsonify({'success': True, 'task_exec_id': task_exec_id}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+
+@app.route('/api/v1/task/execution/input_json', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
+# @app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Tracking Operations'])
+@app.auth_required(auth)
+def api_task_execution_input_json(query_data):
+    """Return the input json of the specific Task Execution.
+
+    Args:
+        id: The unique identifier of the Task Exection.
+
+    Returns:
+        A JSON with the input fields.
+    """
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/execution/input_json?id=24a976c4-fd84-47ef-92cc-5d5582bcaf41
+
+    task_exec_id = query_data['id']
+    
+    config = current_app.config['settings']
+    # input = json_data['input']
+    input = sql_utils.task_execution_input_read(task_exec_id)
+    print(input)
+    # parameters = json_data['parameters']
+    parameters = sql_utils.task_execution_parameters_read(task_exec_id)
+
+    try :
         #### GET FILE PATHS
         input_paths = []
         res_ids = input
@@ -2690,164 +2258,191 @@ def api_task_execution_create(json_data):
                 return jsonify({'success': False, 'message': f'This resource {res_id} cannot be fetched by CKAN'}), 500 
             input_paths.append(path)
         
-        #### TOOL INVOKATION
-        task_exec_id = str(uuid.uuid4())
-        logdir = os.getcwd()+"/logs/"
-        in_file, out_file = task_exec_id+"_input.json", task_exec_id+"_output.json"
-        with open(logdir+in_file, "w") as o:
-            input_json = {'input': input_paths,
-                          'parameters': parameters,
-                          "minio": {
-                              "endpoint_url": config['MINIO_ENDPOINT'],
-                              "id": config['MINIO_ACCESS_KEY'],
-                              "key": config['MINIO_SECRET_KEY'],
-                              "bucket": config['MINIO_BUCKET']
-                              }   
-                }
-            o.write(json.dumps(input_json, indent=4))
-            
-        client = docker.from_env()
-        container = client.containers.run(
-            docker_image,  # Image name
-            [in_file, out_file],        # Command and arguments
-            volumes={logdir: {'bind': '/app/logs/', 'mode': 'rw'}},
-            detach=True
-        )
-        # Store the container ID into a variable
-        # task_exec_id = container.id
-        tags['container_id'] = container.id
-        tags['package_id'] = package_id
-        print(tags)
+        input_json = {'input': input_paths,
+                      'parameters': parameters,
+                      "minio": {
+                          "endpoint_url": config['MINIO_ENDPOINT'],
+                          "id": config['MINIO_ACCESS_KEY'],
+                          "key": config['MINIO_SECRET_KEY'],
+                          "bucket": config['MINIO_BUCKET']
+                          }   
+        }
         
-        #### UPDATE KG
-        start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        state = 'running'
-        
-        response = task_execution_create(task_exec_id, workflow_exec_id, start_date, state, tags)
-        if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
-        # response = task_execution_insert_input(task_exec_id, input_json.get('input', []))
-        response = task_execution_insert_input(task_exec_id, input)
-        if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500        
-        # response = task_execution_insert_parameters(task_exec_id, input_json.get('parameters', {}))
-        parameters = {k: str(v) for k, v in parameters.items()}
-        response = task_execution_insert_parameters(task_exec_id, parameters)
-        if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
 
         
-        return jsonify({'success': True, 'task_exec_id': task_exec_id}), 200
+        return jsonify({'success': True, 'result': input_json}), 200
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
 
-@app.route('/api/v1/task/execution/track', methods=['POST'])
-@app.input(schema.Task_Track, location='json', example={"task_exec_id": "4a142419-2342-4495-bfa3-9b4b3c2cad2a"})
+@app.route('/api/v1/task/execution/output_json', methods=['POST'])
+@app.input(schema.Task_Output, location='json', example={"task_exec_id": "4a142419-2342-4495-bfa3-9b4b3c2cad2a",
+                                                        "output_json": {
+                                                                "message": "Tool executed successfully!",
+                                                                "output": [{
+                                                                    "path": "s3://XXXXXXXXX-bucket/2824af95-1467-4b0b-b12a-21eba4c3ac0f.csv",
+                                                                    "name": "List of joined entities"
+                                                                    }
+                                                                ],
+                                                                "metrics": {
+                                                                    "metric": 0.90,
+                                                                },
+                                                                "status": 200
+                                                            }})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'])
 @app.auth_required(auth)
-def api_task_execution_track(json_data):
-    """Track the execution of a specific task and if it is done, it returns
-    the metrics and output files in the Data Catalog.
+def api_task_execution_output_json(json_data):
+    """Receives the output json of a task execution, it marks it as done, it stores
+    all the information to the KG and it returns the metrics and output files 
+    in the Data Catalog.
 
     Args:
         id: The unique identifier of the Task Exection.
+        output_json: The json that the tool has produced.
 
     Returns:
         A JSON with the task execution metadata, the metrics and the ids of the 
         outputfiles in the Data Catalog.
     """
     
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/task/execution/track -d '{"task_exec_id": "4a142419-2342-4495-bfa3-9b4b3c2cad2a"}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/task/execution/track -d '{"task_exec_id": "4a142419-2342-4495-bfa3-9b4b3c2cad2a", "output_json": {"message": "Tool executed successfully!", "output": [{ "path": "s3://XXXXXXXXX-bucket/2824af95-1467-4b0b-b12a-21eba4c3ac0f.csv","name": "List of joined entities"}], "metrics": {"metric": 0.90},"status": 200}}'
 
     task_exec_id = json_data['task_exec_id']
+    output_json = json_data['output_json']
+    print(output_json)
     
     try :
         #### GET METADATA FROM KG
-        metadata = task_execution_read(task_exec_id)
+        metadata = sql_utils.task_execution_read(task_exec_id)
         container_id = metadata['tags']['container_id']
         package_id = metadata['tags']['package_id']
         
-        #### GET STATUS FROM DOCKER
-        client = docker.from_env()
-        try:
-            container = client.containers.get(container_id)
-            state = container.status
-        except docker.errors.NotFound:
-            return jsonify({'success': False, 'message': "Container not found"}), 500
+        print(task_exec_id)
+        print(container_id)
+        print(metadata)
+        
+        # #### GET STATUS FROM DOCKER
+        # client = docker.from_env()
+        # try:
+        #     container = client.containers.get(container_id)
+        #     state = container.status
+        # except docker.errors.NotFound:
+        #     return jsonify({'success': False, 'message': "Container not found"}), 500
 
-        if state == 'exited':
-            exit_code = container.attrs['State']['ExitCode']
-            if exit_code == 0:
-                state = 'succeeded'
-            else:
-                state = 'failed'
+        # print(state)
+        # if state == 'exited':
+        #     exit_code = container.attrs['State']['ExitCode']
+        #     if exit_code == 0:
+        #         state = 'succeeded'
+        #     else:
+        #         state = 'failed'
+        
+        if output_json['status'] == 200:
+            state = 'succeeded'
+        else:
+            state = 'failed'
         
         metadata['state'] = state
 
-        output_json = {}
-        if state == 'failed' or state == 'succeeded':
-            logdir = os.getcwd()+"/logs/"
-            out_file = logdir+task_exec_id+"_output.json"
-            with open(out_file) as o:
-                output_json = json.load(o)
+        # output_json = {}
+        # if state == 'failed' or state == 'succeeded':
+            # logdir = os.getcwd()+"/logs/"
+            # out_file = logdir+task_exec_id+"_output.json"
+            # with open(out_file) as o:
+            #     output_json = json.load(o)
     
-            #### UPDATE TASK EXECUTION
-            end_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            response = task_execution_update(task_exec_id, state, end_date)
-            if not response:
-                return jsonify({'success': False, 'message': 'Task 1 Execution could not be commited.'}), 500
-            
-            #### INSERT METRICS
-            metrics = output_json.get('metrics', {})
-            metrics = {k: str(v) for k, v in metrics.items()}
-            response = task_execution_insert_metrics(task_exec_id, metrics)
-            if not response:
-                return jsonify({'success': False, 'message': 'Task 2 Execution could not be created.'}), 500
-            
-            #### INSERT LOG
-            response = task_execution_insert_log(task_exec_id, output_json.get('message', ""))
-            if not response:
-                return jsonify({'success': False, 'message': 'Task 4 Execution could not be created.'}), 500
-            
-            #### INSERT FILES TO CATALOG
-            #TODO: REplace this function
-            output_resource_ids = []
-            for file in output_json['output']:
-                ftype = file['path'].split('/')[-1].split(".")[-1].upper()
-                d = { "artifact_metadata":{
-                            "url":file['path'],
-                            'name': file['name'],
-                            "description": file['name'] + f'({ datetime.now().strftime("%Y-%m-%d %H:%M:%S")})',
-                            "format": ftype,
-                            "resource_tags":["Artifact"]
-                            },
-                        "package_metadata":  {
-                            "package_id": package_id
-                            }
-                    }
+        #### UPDATE TASK EXECUTION
+        end_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        response = sql_utils.task_execution_update(task_exec_id, state, end_date)
+        if not response:
+            return jsonify({'success': False, 'message': 'Task Execution could not be commited.'}), 500
         
-                response = api_artifact_publish(d, headers=request.headers)
-                print(response)
-                if response['success']:
-                    output_resource_ids.append(response['result']['resource_id'])
-                else:
-                    return jsonify({'success': False, 'message': 'Error in publishing in CKAN'}), 500 
-                
-            #### INSERT OUTPUT FILES
-            response = task_execution_insert_output(task_exec_id, output_resource_ids)
-            if not response:
-                return jsonify({'success': False, 'message': 'Task 3 Execution could not be created.'}), 500
+        #### INSERT METRICS
+        metrics = output_json.get('metrics', {})
+        metrics = {k: str(v) for k, v in metrics.items()}
+        response = sql_utils.task_execution_insert_metrics(task_exec_id, metrics)
+        if not response:
+            return jsonify({'success': False, 'message': 'Task Execution could not be commited.'}), 500
+        
+        #### INSERT LOG
+        response = sql_utils.task_execution_insert_log(task_exec_id, output_json.get('message', ""))
+        if not response:
+            return jsonify({'success': False, 'message': 'Task Execution could not be commited.'}), 500
+        
+        #### INSERT FILES TO CATALOG
+        output_resource_ids = []
+        for file in output_json['output']:
+            ftype = file['path'].split('/')[-1].split(".")[-1].upper()
+            d = { "artifact_metadata":{
+                        "url":file['path'],
+                        'name': file['name'],
+                        "description": file['name'] + f'({ datetime.now().strftime("%Y-%m-%d %H:%M:%S")})',
+                        "format": ftype,
+                        "resource_tags":["Artifact"]
+                        },
+                    "package_metadata":  {
+                        "package_id": package_id
+                        }
+                }
+    
+            response = api_artifact_publish(d, headers=request.headers)
+            print(response)
+            if response['success']:
+                output_resource_ids.append(response['result']['resource_id'])
+            else:
+                return jsonify({'success': False, 'message': 'Error in publishing in CKAN'}), 500 
             
-            return jsonify({'success': True, 'metadata': metadata,
-                    'resource_ids': output_resource_ids,
-                    'metrics': output_json.get('metrics', {})}), 200
+        #### INSERT OUTPUT FILES
+        response = sql_utils.task_execution_insert_output(task_exec_id, output_resource_ids)
+        if not response:
+            return jsonify({'success': False, 'message': 'Task Execution could not be commited.'}), 500
+        
+        return jsonify({'success': True, 'resource_ids': output_resource_ids,
+                        'metrics': metrics}), 200
     except Exception as e:
         return jsonify({'success': False, 'message': traceback.format_exc()}), 500  
     
-    return jsonify({'success': True, 'metadata': metadata}), 200
+    # return jsonify({'success': True, 'metadata': metadata}), 200
+    return jsonify({'success': True, 'resource_ids': [], 'metrics': {}}), 200
+
+
+
+
+@app.route('/api/v1/task/execution/read', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
+# @app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Tracking Operations'])
+@app.auth_required(auth)
+def api_task_execution_read(query_data):
+    """Return the metadata of the task execution.
+
+    Args:
+        id: The unique identifier of the Task Exection.
+
+    Returns:
+        A JSON with the task execution metadata.
+    """
+    
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/execution/read?id=24a976c4-fd84-47ef-92cc-5d5582bcaf41
+
+    task_exec_id = query_data['id']
+    
+    try :
+        #### GET METADATA FROM KG
+        d = {}
+        d['metadata'] = sql_utils.task_execution_read(task_exec_id)
+        state = d['metadata']['state']
+        if state != 'failed' and state != 'succeeded':
+            return jsonify({'success': True, 'result': d}), 200    
+        d['output'] = sql_utils.task_execution_output_read(task_exec_id)
+        d['metrics'] = sql_utils.task_execution_metrics_read(task_exec_id)
+            
+        return jsonify({'success': True, 'result': d}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': traceback.format_exc()}), 500  
+    
 
 
 @app.route('/api/v1/task/execution/delete', methods=['GET'])
@@ -2870,7 +2465,7 @@ def api_task_execution_delete(query_data):
     # task_exec_id = request.args.id
     task_exec_id = query_data['id']
     try :
-        response = task_execution_delete(task_exec_id)
+        response = sql_utils.task_execution_delete(task_exec_id)
         if not response:
             return jsonify({'success': True, 'message': f'The Task {task_exec_id} could not be deleted.'}), 500
         return jsonify({'success': True, 'message': f'The Task {task_exec_id} was deleted successfully'}), 200
@@ -2910,7 +2505,7 @@ def api_workflow_execution_create(json_data):
         
         #TODO: Add workflow_id
         # response = workflow_execution_create(workflow_id, workflow_exec_id, start_date, state, tags)
-        response = workflow_execution_create(workflow_exec_id, start_date, state, tags)
+        response = sql_utils.workflow_execution_create(workflow_exec_id, start_date, state, tags)
         if not response:
             return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
         
@@ -2941,7 +2536,7 @@ def api_workflow_execution_read(query_data):
 
     try :
         #### GET METADATA FROM KG
-        metadata = workflow_execution_read(workflow_exec_id)
+        metadata = sql_utils.workflow_execution_read(workflow_exec_id)
         
         return jsonify({'success': True, 'metadata': metadata}), 200
     except Exception as e:
@@ -2973,7 +2568,7 @@ def api_workflow_execution_commit(json_data):
     try :
         #### UPDATE TASK EXECUTION
         end_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        response = workflow_execution_update(workflow_exec_id, state, end_date)
+        response = sql_utils.workflow_execution_update(workflow_exec_id, state, end_date)
         if not response:
             return jsonify({'success': False, 'message': 'Workflow Execution could not be commited.'}), 500
         
@@ -3002,7 +2597,7 @@ def api_workflow_execution_delete(query_data):
     # workflow_exec_id = request.args.id
     workflow_exec_id = query_data['id']
     try :
-        response = workflow_execution_delete(workflow_exec_id)
+        response = sql_utils.workflow_execution_delete(workflow_exec_id)
         if not response:
             return jsonify({'success': True, 'message': f'The Task {workflow_exec_id} could not be deleted.'}), 500
         return jsonify({'success': True, 'message': f'The Task {workflow_exec_id} was deleted successfully'}), 200            
@@ -3079,5 +2674,4 @@ if __name__ == '__main__':
     app.run(host=app.config['settings']['FLASK_RUN_HOST'],
             port=app.config['settings']['FLASK_RUN_PORT'],
             debug=app.config['settings']['FLASK_DEBUG'])
-
 

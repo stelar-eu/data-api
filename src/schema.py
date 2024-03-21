@@ -177,8 +177,9 @@ class Task_Input(Schema):
     tags = Dict()
 
 
-class Task_Track(Schema):
+class Task_Output(Schema):
     task_exec_id = String(required = True)
+    output_json = Dict()
 
     
 class Workflow_Input(Schema):
