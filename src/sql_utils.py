@@ -481,29 +481,32 @@ def task_execution_input_read(task_exec_id):
         A JSON with the list of dataset identifiers (CKAN resources) collected in MLFlow for the specified task execution.
     """
 
-    # config = current_app.config['settings']
-#     sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
-#     # Formulate the SPARQL query with the given identifier
-#     sparql = utils.format_sparql_filter('task_execution_input_template', task_exec_id)
-# #    print(sparql)
-#     # Make a POST request to the Ontop API with the given query
-#     # IMPORTANT! NO authentication required by public SPARQL endpoints
-#     response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+    config = current_app.config['settings']
+    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    # Formulate the SPARQL query with the given identifier
+    sparql = utils.format_sparql_filter('task_execution_input_template', task_exec_id)
+#    print(sparql)
+    # Make a POST request to the Ontop API with the given query
+    # IMPORTANT! NO authentication required by public SPARQL endpoints
+    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
 
-#     j = json.loads(response.text)
-#     print(j)
-#     res_ids = [res['resource_id']['value'] for res in j['results']['bindings']]
+    j = json.loads(response.text)
+    print(j)
+    res_ids = [res['resource_id']['value'] for res in j['results']['bindings']]
     
-    # Compose the SQL command using the template for reading tags about a task execution
-    sql = utils.sql_workflow_execution_templates['task_read_input_dataset_template']   
+    # # Compose the SQL command using the template for reading tags about a task execution
+    # sql = utils.sql_workflow_execution_templates['task_read_input_dataset_template']   
 
-    # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id, ))
-    if resp and len(resp)>0:
-        res_ids = [res['dataset_id'] for res in resp]
-        return res_ids
-    else:
-        return None
+    # # Execute the SQL command in the database
+    # resp = utils.execSql(sql, (task_exec_id, ))
+    # print(resp)
+    # if resp and len(resp)>0:
+    #     res_ids = [res['dataset_id'] for res in resp]
+    #     return res_ids
+    # else:
+    #     return None
+    
+    # print(res_ids)
     
     return res_ids
 
@@ -518,28 +521,29 @@ def task_execution_output_read(task_exec_id):
         A JSON with the list of dataset identifiers (CKAN resources) collected as output in MLFlow for the specified task execution.
     """
 
-#     config = current_app.config['settings']
+    config = current_app.config['settings']
 
-#     sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
-#     # Formulate the SPARQL query with the given identifier
-#     sparql = utils.format_sparql_filter('task_execution_output_template', task_exec_id)
-# #    print(sparql)
-#     # Make a POST request to the Ontop API with the given query
-#     # IMPORTANT! NO authentication required by public SPARQL endpoints
-#     response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    # Formulate the SPARQL query with the given identifier
+    sparql = utils.format_sparql_filter('task_execution_output_template', task_exec_id)
+#    print(sparql)
+    # Make a POST request to the Ontop API with the given query
+    # IMPORTANT! NO authentication required by public SPARQL endpoints
+    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
 
-#     j = json.loads(response.text)
-#     res_ids = [res['resource_id']['value'] for res in j['results']['bindings']]
-    # Compose the SQL command using the template for reading tags about a task execution
-    sql = utils.sql_workflow_execution_templates['task_read_output_dataset_template']   
+    j = json.loads(response.text)
+    res_ids = [res['resource_id']['value'] for res in j['results']['bindings']]
 
-    # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id, ))
-    if resp and len(resp)>0:
-        res_ids = [res['dataset_id'] for res in resp]
-        return res_ids
-    else:
-        return None
+    # # Compose the SQL command using the template for reading tags about a task execution
+    # sql = utils.sql_workflow_execution_templates['task_read_output_dataset_template']   
+
+    # # Execute the SQL command in the database
+    # resp = utils.execSql(sql, (task_exec_id, ))
+    # if resp and len(resp)>0:
+    #     res_ids = [res['dataset_id'] for res in resp]
+    #     return res_ids
+    # else:
+    #     return None
     
     return res_ids
 
