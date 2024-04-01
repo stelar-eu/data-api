@@ -4,8 +4,32 @@ import json
 from flask import current_app
 # Auxiliary custom functions & SQL query templates for ranking
 import utils
+import ast
+import pandas as pd
 
 
+def cast_dict(d):
+    d2 = {}
+    for key, value in d.items():
+        try:
+            d2[key] = ast.literal_eval(value)
+        except:
+            d2[key] = value
+    return d2
+
+def convert_datatype(df):
+    df2 = df.copy()
+    for column in df.columns:
+        x = df[column][0]
+        try:
+            dtype = type(ast.literal_eval(x))
+            df2[column] = df[column].astype(dtype)
+        except (ValueError, TypeError):
+            df2[column] = df[column].astype(str)
+                
+    return df2
+
+'''
 def cast_dict(d):
     d2 = {}
     for key, value in d.items():
@@ -21,8 +45,7 @@ def cast_dict(d):
                 d2[key] = value
 
     return d2
-
-
+'''
 
 def workflow_execution_create(workflow_exec_id, start_date, state, tags=None):
     """Records metadata for a new workflow execution in the database.
@@ -47,6 +70,7 @@ def workflow_execution_create(workflow_exec_id, start_date, state, tags=None):
             return False
     else:
         return False
+        
 
     # Compose the SQL command using the template for assigning tags to the new workflow execution 
     if tags:
@@ -601,3 +625,42 @@ def task_execution_metrics_read(task_exec_id):
     metrics = cast_dict(metrics)
 
     return metrics
+
+
+def workflow_statistics(workflow_tags, parameters, metrics):
+    """Fetch statistics for each Worfklow Execution for a specific group of 
+    workflow executions.
+
+    Args:
+        workflow_tags: List of workflow tags
+        parameters: List of parameters
+        metrics: List of metrics
+
+    Returns:
+        A JSON dictionary containing statistics per workflow execution.
+    """
+
+    workflow_tags = ','.join([f"'{x}'" for x in workflow_tags])
+    parameters = ','.join([f"'{x}'" for x in parameters])
+    metrics = ','.join([f"'{x}'" for x in metrics])
+    
+    # Compose the SQL command using the template for reading tags about a task execution
+    sql = utils.sql_workflow_execution_templates['workflow_read_statistics']   
+
+    # Execute the SQL command in the database
+    resp = utils.execSql(sql, (workflow_tags, parameters, metrics, ))
+
+    if resp and len(resp)>0:
+        df = pd.DataFrame(resp)
+        df = df.pivot(index='workflow_uuid', columns='key', values='value')
+        df = convert_datatype(df)
+        df = df.reset_index(drop=False) # avoid casting hash ids
+        # print(df)
+        # print(df.dtypes)
+        # print(df.dtypes)
+        # df = df.T
+        # print(df)
+        resp = df.to_dict(orient='dict')
+        return resp
+    else:
+        return None

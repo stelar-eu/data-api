@@ -2603,6 +2603,39 @@ def api_workflow_execution_delete(query_data):
         return jsonify({'success': True, 'message': f'The Task {workflow_exec_id} was deleted successfully'}), 200            
     except Exception as e:
         return jsonify({'success': True, 'message': str(e)}), 500
+    
+    
+@app.route('/api/v1/workflow/statistics', methods=['POST'])
+@app.input(schema.Workflow_Statistics, location='json', example={"workflow_tags": ["A3-4"],
+                                                                 "metrics": ['food_tags', 'total_tags', 'f1_micro', 'f1_macro', 'f1_weighted'],
+                                                                 "parameters": ['k', 'model']})
+# @app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Tracking Operations'])
+@app.auth_required(auth)
+def api_workflow_statistics(json_data):
+    """Fetch statistics for each Worfklow Execution for a specific group of 
+    workflow executions.
+
+    Args:
+        data: A JSON with the id of the Worfklow Execution and the state of the task.
+
+    Returns:
+        A JSON with the result of the update.
+    """
+    
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/workflow/statistics -d '{"workflow_tags": ["A3-4"], "metrics": ['food_tags', 'total_tags', 'f1_micro', 'f1_macro', 'f1_weighted'], "parameters": ['k', 'model']}'
+
+    workflow_tags = json_data['workflow_tags']
+    parameters = json_data['parameters']
+    metrics = json_data['metrics']
+    
+    try :
+        response = sql_utils.workflow_statistics(workflow_tags, parameters, metrics)
+        if not response:
+            return jsonify({'success': False, 'message': 'Workflow Statistics cannot not be returned.'}), 500
+        return jsonify({'success': True, 'result': response }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500        
 
 
 ###########################################################

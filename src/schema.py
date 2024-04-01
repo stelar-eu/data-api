@@ -189,6 +189,11 @@ class Workflow_Input(Schema):
 class Workflow_Commit(Schema):
     workflow_exec_id = String(required = True)
     state = String(required = True)
+    
+class Workflow_Statistics(Schema):
+    workflow_tags = List(String, required=True)
+    parameters = List(String, required=True)
+    metrics = List(String, required=True)
 
 # NOT USED EXAMPLES
 

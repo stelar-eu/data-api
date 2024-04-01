@@ -159,6 +159,14 @@ sql_workflow_execution_templates = {
     'task_insert_tags_template': 'INSERT INTO klms.task_tag VALUES (%s, %s, %s)',
     'task_insert_parameters_template': 'INSERT INTO klms.parameters VALUES (%s, %s, %s)',
     'task_insert_metrics_template': 'INSERT INTO klms.metrics VALUES (%s, %s, %s, now())',
+    'workflow_read_statistics': """SELECT te.workflow_uuid, te.task_uuid, p.key, p.value
+FROM klms.task_execution te, klms.workflow_tag wt, klms.parameters p
+WHERE te.workflow_uuid = wt.workflow_uuid AND te.task_uuid = p.task_uuid AND wt.value IN ('A3-4') AND p.key in ('k', 'model')
+UNION
+SELECT te.workflow_uuid, te.task_uuid, m.key, m.value
+FROM klms.task_execution te, klms.workflow_tag wt, klms.metrics m
+WHERE te.workflow_uuid = wt.workflow_uuid AND te.task_uuid = m.task_uuid AND wt.value IN ('A3-4') AND m.key in ('food_tags', 'total_tags', 'f1_micro', 'f1_macro', 'f1_weighted')
+"""
 }
 
 #########################################################
@@ -176,8 +184,8 @@ sparql_templates = {
 #    'workflow_output_resource_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?resource ?workflow ?workflow_name ?workflow_desc ?start_date ?end_date WHERE { ?taskExec klms:hasOutput ?resource . ?resource dct:identifier _ID . ?taskExec dct:isPartOf ?workflowExec . ?workflowExec klms:instantiates ?workflow . ?workflowExec dcat:startDate ?start_date . ?workflowExec dcat:endDate ?end_date . ?workflow dct:title ?workflow_name . ?workflow dct:description ?workflow_desc }',
     'task_execution_metrics_template': 'PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?metric ?value ?timestamp WHERE { ?taskExec dct:identifier _ID . ?taskExec klms:hasMetrics ?kvpair . ?kvpair  klms:key ?metric. ?kvpair klms:value ?value . ?kvpair dct:issued ?timestamp }',
     'task_execution_parameters_template': 'PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?parameter ?value WHERE { ?taskExec dct:identifier _ID . ?taskExec klms:hasParameters ?kvpair . ?kvpair  klms:key ?parameter . ?kvpair klms:value ?value }',
-    'task_execution_input_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT  ?input_uri ?order ?resource_id WHERE {?taskExec dct:identifier _ID . ?taskExec klms:hasInput ?input_uri . ?input_uri klms:orderNum ?order . ?input_uri klms:input ?resource . ?resource dct:identifier ?resource_id }',
-    'task_execution_output_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?output_uri ?order ?resource_id WHERE {?taskExec dct:identifier _ID . ?taskExec klms:hasOutput ?output_uri . ?output_uri klms:orderNum ?order . ?output_uri klms:output ?resource . ?resource dct:identifier ?resource_id }',
+    'task_execution_input_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT  ?input_uri ?order ?resource_id WHERE {?taskExec dct:identifier _ID . ?taskExec klms:hasInput ?input_uri . ?input_uri klms:orderNum ?order . ?input_uri klms:input ?resource . ?resource dct:identifier ?resource_id } ORDER BY ?order',
+    'task_execution_output_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?output_uri ?order ?resource_id WHERE {?taskExec dct:identifier _ID . ?taskExec klms:hasOutput ?output_uri . ?output_uri klms:orderNum ?order . ?output_uri klms:output ?resource . ?resource dct:identifier ?resource_id } ORDER BY ?order',
 #    'task_execution_input_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT  ?input_uri ?resource_id WHERE { ?taskExec dct:identifier _ID . ?taskExec klms:hasInput ?input_uri . ?input_uri a dcat:Distribution . ?input_uri dct:identifier ?resource_id } ORDER BY ?order',
 #    'task_execution_output_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT  ?output_uri ?resource_id WHERE { ?taskExec dct:identifier _ID . ?taskExec klms:hasOutput ?output_uri . ?output_uri a dcat:Distribution . ?output_uri dct:identifier ?resource_id } ORDER BY ?order',
     'workflow_tasks_template': 'PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?workflow_desc ?task_name  WHERE { ?workflow a klms:Workflow . ?workflow dct:title _ID . ?workflow dct:description ?workflow_desc . ?task a klms:Task . ?task dct:isPartOf ?workflow . ?task dct:title ?task_name }',
