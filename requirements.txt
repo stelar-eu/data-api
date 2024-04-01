@@ -3,3 +3,4 @@ flask
 apiflask
 shapely
 docker
+kubernetes
