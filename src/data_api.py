@@ -1299,7 +1299,7 @@ def api_catalog_rank(json_data):
             # IMPORTANT! PostgreSQL credentials are required to complete this request
             for key in filter_sql_commands.keys():
                 sql = filter_sql_commands[key]
-                results = sql_utils.execSql(sql)
+                results = utils.execSql(sql)
 #                print(len(results), sql)
                 filter_ids = [res['id'] for res in results if 'id' in res]
                 if sql_id_filter == '':  # No keywords specified in search bar
