@@ -104,10 +104,10 @@ language_distribution_tags = ['language','percentage']
 # FIXME: Distinguish facets used for filtering only (e.g., license, dataset_type) ?
 
 # NUMERICAL: 
-numerical_facets = ['num_rows', 'days_active', 'velocity']
+numerical_facets = ['num_rows', 'days_active', 'velocity', 'cloud_coverage', 'missing', 'lai']
 # For RANKING, SQL argument accepts a numerical (integer or real) value, e.g., 24700 expressing the dataset size in bytes or 0.67 for cloud coverage
 numerical_sql_rank_template = 'SELECT id, exp(-0.001 * abs(value::numeric - _ARGS))::float AS score FROM _VIEW WHERE value IS NOT NULL _IDS ORDER BY score DESC LIMIT _TOPK'
-# For RANGE FILERING, SQL argument accepts an array of two numerical (integer or real) values representing the range of values, e.g., [1000, 2000] for size
+# For RANGE FILTERING, SQL argument accepts an array of two numerical (integer or real) values representing the range of values, e.g., [1000, 2000] for size
 numerical_sql_range_template = 'WITH vars AS (SELECT q_numeric[1]::numeric AS q_start, q_numeric[2]::numeric AS q_end FROM (SELECT _ARGS AS q_numeric) n ) SELECT id, value::numeric FROM _VIEW, vars WHERE value::numeric BETWEEN q_start AND q_end _IDS'
 
 # CATEGORICAL: SQL argument accepts arrays of strings, e.g., ['Imagery','POI'] or ['en','fr','de']
@@ -130,7 +130,7 @@ location_sql_rank_template = 'SELECT p.id, exp(-0.001 * ST_Distance(ST_centroid(
 
 
 # SQL views existing in PostgreSQL database and corresponding to facets: 
-sql_views = {'tags':'package_tag_array', 'language':'package_language_array', 'theme':'package_theme_array', 'license':'package_license_array', 'dataset_type':'package_dataset_type_array', 'format':'package_format_array', 'provider_name':'package_provider_array', 'organization':'package_organization_array', 'spatial':'package_extent', 'temporal_extent':'package_temporal_extent', 'num_rows':'package_num_rows', 'days_active':'package_days_active', 'velocity':'package_velocity'}
+sql_views = {'tags':'package_tag_array', 'language':'package_language_array', 'theme':'package_theme_array', 'license':'package_license_array', 'dataset_type':'package_dataset_type_array', 'format':'package_format_array', 'provider_name':'package_provider_array', 'organization':'package_organization_array', 'spatial':'package_extent', 'temporal_extent':'package_temporal_extent', 'num_rows':'package_num_rows', 'days_active':'package_days_active', 'velocity':'package_velocity', 'cloud_coverage':'profile_vista_min_cloud_coverage', 'missing':'profile_vista_min_missing', 'lai':'profile_vista_max_lai'}
 
 #########################################################
 
