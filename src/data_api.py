@@ -5,7 +5,6 @@ import re
 import sys
 import psycopg2
 import yaml
-import mlflow as mfl
 import pandas as pd
 import uuid
 import datetime
