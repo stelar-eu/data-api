@@ -880,76 +880,76 @@ def api_workflow_output_resource(query_data):
 
 
 
-@app.route('/api/v1/workflow/tasks', methods=['GET'])
-@app.input(schema.Identifier, location='query', example="id=UC_A3")
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Search Operations'])
-def api_workflow_tasks(query_data):
-    """Submit a request to the Knowledge Graph to retrieve the tasks defined in a workflow.
-
-    Args:
-        id: The identifier assigned to the workflow.
-
-    Returns:
-        A JSON with the list of tasks included in the given workflow.
-    """
-
-    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/tasks?id=UC_A3
-
-    config = current_app.config['settings']
-
-    if 'id' in query_data:
-        id = query_data['id']
-    else:
-        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the workflow in the Knowledge Graph. Please specify a valid identifier for the workflow.']}}
-        return jsonify(response)
-
-    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
-    # Formulate the SPARQL query with the given identifier
-    sparql = utils.format_sparql_filter('workflow_tasks_template', id)
+# NO LONGER USED: Mlflow schema deprecated
+#@app.route('/api/v1/workflow/tasks', methods=['GET'])
+#@app.input(schema.Identifier, location='query', example="id=UC_A3")
+#@app.output(schema.ResponseOK, status_code=200)
+#@app.doc(tags=['Search Operations'])
+#def api_workflow_tasks(query_data):
+#    """Submit a request to the Knowledge Graph to retrieve the tasks executed in a workflow.
+#
+#    Args:
+#        id: The tag value under key "name" assigned to workflow executions.
+#
+#    Returns:
+#        A JSON with the list of task executions included in the given workflow name.
+#    """
+#
+#    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/tasks?id=UC_A3
+#
+#    config = current_app.config['settings']
+#
+#    if 'id' in query_data:
+#        id = query_data['id']
+#    else:
+#        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the workflow in the Knowledge Graph. Please specify a valid identifier for the workflow.']}}
+#        return jsonify(response)
+#
+#    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+#    # Formulate the SPARQL query with the given identifier
+#    sparql = utils.format_sparql_filter('workflow_tasks_template', id)
 #    print(sparql)
-    # Make a POST request to the Ontop API with the given query
-    # IMPORTANT! NO authentication required by public SPARQL endpoints
-    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+#    # Make a POST request to the Ontop API with the given query
+#    # IMPORTANT! NO authentication required by public SPARQL endpoints
+#    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+#
+#    return jsonify(json.loads(response.text))
 
-    return jsonify(json.loads(response.text))
 
-
-
-@app.route('/api/v1/task/executions', methods=['GET'])
-@app.input(schema.Identifier, location='query', example="id=entity_extraction")
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Search Operations'])
-def api_task_executions(query_data):
-    """Submit a request to the Knowledge Graph to retrieve the executions performed for the given task.
-
-    Args:
-        id: The identifier assigned to the task in MLFlow.
-
-    Returns:
-        A JSON with the details of the task executions.
-    """
-
-    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/executions?id=entity_extraction
-
-    config = current_app.config['settings']
-
-    if 'id' in query_data:
-        id = query_data['id']
-    else:
-        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the task execution in the Knowledge Graph. Please specify a valid identifier for the task execution.']}}
-        return jsonify(response)
-
-    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
-    # Formulate the SPARQL query with the given identifier
-    sparql = utils.format_sparql_filter('task_executions_template', id)
+# NO LONGER USED: Mlflow schema deprecated
+#@app.route('/api/v1/task/executions', methods=['GET'])
+#@app.input(schema.Identifier, location='query', example="id=entity_extraction")
+#@app.output(schema.ResponseOK, status_code=200)
+#@app.doc(tags=['Search Operations'])
+#def api_task_executions(query_data):
+#    """Submit a request to the Knowledge Graph to retrieve all executions tagged with the name of the given task.
+#
+#    Args:
+#        id: The tag value under key "name" assigned to task executions.
+#
+#    Returns:
+#        A JSON with the details of the task executions.
+#    """
+#
+#    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/executions?id=entity_extraction
+#
+#    config = current_app.config['settings']
+#
+#    if 'id' in query_data:
+#        id = query_data['id']
+#    else:
+#        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the task execution in the Knowledge Graph. Please specify a valid identifier for the task execution.']}}
+#        return jsonify(response)
+#
+#    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+#    # Formulate the SPARQL query with the given identifier
+#    sparql = utils.format_sparql_filter('task_executions_template', id)
 #    print(sparql)
-    # Make a POST request to the Ontop API with the given query
-    # IMPORTANT! NO authentication required by public SPARQL endpoints
-    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
-
-    return jsonify(json.loads(response.text))
-
+#    # Make a POST request to the Ontop API with the given query
+#    # IMPORTANT! NO authentication required by public SPARQL endpoints
+#    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+#
+#    return jsonify(json.loads(response.text))
 
 
 @app.route('/api/v1/task/execution/input', methods=['GET'])
