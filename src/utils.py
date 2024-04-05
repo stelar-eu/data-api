@@ -104,9 +104,10 @@ language_distribution_tags = ['language','percentage']
 # FIXME: Distinguish facets used for filtering only (e.g., license, dataset_type) ?
 
 # NUMERICAL: 
+# CAUTION! Included value in the returned ranked results to cater for profiling information not available in CKAN
 numerical_facets = ['num_rows', 'days_active', 'velocity', 'cloud_coverage', 'missing', 'lai']
 # For RANKING, SQL argument accepts a numerical (integer or real) value, e.g., 24700 expressing the dataset size in bytes or 0.67 for cloud coverage
-numerical_sql_rank_template = 'SELECT id, exp(-0.001 * abs(value::numeric - _ARGS))::float AS score FROM _VIEW WHERE value IS NOT NULL _IDS ORDER BY score DESC LIMIT _TOPK'
+numerical_sql_rank_template = 'SELECT id, value::numeric, exp(-0.001 * abs(value::numeric - _ARGS))::float AS score FROM _VIEW WHERE value IS NOT NULL _IDS ORDER BY score DESC LIMIT _TOPK'
 # For RANGE FILTERING, SQL argument accepts an array of two numerical (integer or real) values representing the range of values, e.g., [1000, 2000] for size
 numerical_sql_range_template = 'WITH vars AS (SELECT q_numeric[1]::numeric AS q_start, q_numeric[2]::numeric AS q_end FROM (SELECT _ARGS AS q_numeric) n ) SELECT id, value::numeric FROM _VIEW, vars WHERE value::numeric BETWEEN q_start AND q_end _IDS'
 
@@ -366,7 +367,7 @@ def read_list_json(json_arr, col_id='id', col_score='score'):
     return df
 
 
-def assign_scores(response, df_scores, dict_df_facet_scores, facet_specs):
+def assign_scores(response, df_scores, dict_df_facet_scores, facet_specs, profile_attributes):
     """Assign scores to the search results; also include any key-value pairs regarding facet specifications for ranking.
 
     Args:
@@ -374,6 +375,7 @@ def assign_scores(response, df_scores, dict_df_facet_scores, facet_specs):
         df_scores (DataFrame): A data frame containing the aggregated scores per dataset.
         dict_df_facet_scores (dict) : A dictionary of data frames: each DataFrame holds the partial scores per facet (key).
         facet_specs (dict): A dictionary of keys (metadata items) and values (user-specified preferences) with the facet specifications for ranking.
+        profile_attributes (List): An array with attribute names in Profiling metadata to include their corresponding values in the results.
 
     Returns:
         A JSON with the search results also reporting their ranking scores.
@@ -384,6 +386,16 @@ def assign_scores(response, df_scores, dict_df_facet_scores, facet_specs):
         if json_response['success']:
             results = json_response['result']['results']
             for r in results:
+                # Append profile values in metadata attributes involved in the search
+                id = r['id']
+                r['profile'] = []
+                for attr in profile_attributes:
+                    if id in dict_df_facet_scores[attr].index:
+                        kv_pair = {}
+                        kv_pair['key'] = attr
+                        kv_pair['value'] = dict_df_facet_scores[attr]['value'].loc[id]
+                        r['profile'].append(kv_pair)
+                # Append partial scores
                 partial_scores = {}
                 if not df_scores.empty:
                     r['score'] = df_scores.loc[r['id']]['score']  # overall score

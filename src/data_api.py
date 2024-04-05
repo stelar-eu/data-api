@@ -13,6 +13,8 @@ import subprocess
 import docker
 import traceback
 
+from requests.models import Response
+
 from psycopg2.extras import RealDictCursor
 from flask import request, jsonify, current_app, redirect, url_for
 from apiflask import APIFlask, HTTPTokenAuth
@@ -667,8 +669,8 @@ def api_package_search(query_data):
     # IMPORTANT! To return all available results, must specify the max number of rows
     response = requests.get(config['CKAN_API']+'package_search'+q+'&include_private=True&fl=*,score&rows='+str(config['RANK_MAX_TOPK'])+'&start=0') #, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
 
-    # Pass an empty data frame to report the original SOLR scores; no facet specs need be added
-    return utils.assign_scores(response, pd.DataFrame(), {}, {})  
+    # Pass an empty data frame to report the original SOLR scores; no facet specs need be added; no profiling attributes involved
+    return utils.assign_scores(response, pd.DataFrame(), {}, {}, [])  
 
 
 
@@ -1333,6 +1335,7 @@ def api_catalog_rank(json_data):
             # Submit each SELECT query to the PostgreSQL database with the respective parameters
             # IMPORTANT! PostgreSQL credentials are required to complete this request
             input_lists = []
+            profile_attributes = []
             for key in rank_sql_commands.keys():
                 sql = rank_sql_commands[key]
 #                print(key, '->', sql)
@@ -1343,6 +1346,11 @@ def api_catalog_rank(json_data):
                     if not id in [d['id'] for d in results if 'id' in d]:
                         results.append({'id':id, 'score':0.0})
                 dict_df_facet_scores[key] = utils.read_list_json(results)
+                # In case a 'value' column (concerning PROFILING) is returned in results, remember to include its values in the final results
+                if 'value' in dict_df_facet_scores[key].columns:
+                    profile_attributes.append(key)
+                    print(key)
+
                 input_lists.append(dict_df_facet_scores[key])
 
             # FIXME: REMOVE IF HANDLED BY THE FRONT-END    
@@ -1368,7 +1376,7 @@ def api_catalog_rank(json_data):
     response = requests.get(config['CKAN_API']+'package_search'+q+'&rows='+str(config['RANK_MAX_TOPK'])+'&start=0&include_private=True', headers=package_headers) 
 
     # Return the final list of results (the top-k ranked ones in case that ranking preferences are specified)
-    return utils.assign_scores(response, agg_scores, dict_df_facet_scores, specs['rank_preferences'])
+    return utils.assign_scores(response, agg_scores, dict_df_facet_scores, specs['rank_preferences'], profile_attributes)
 
 
 ############################### PUBLISHING OPERATIONS ############################
