@@ -1,6 +1,8 @@
-psycopg2
-flask
-apiflask
-shapely
-docker
-kubernetes
+psycopg2==2.9.9
+APIFlask==2.1.0
+Flask==2.2.5
+shapely==2.0.3
+docker==7.0.0
+PyYAML==6.0.1
+pandas==2.0.3
+kubernetes==29.0.0

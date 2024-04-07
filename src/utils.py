@@ -104,10 +104,11 @@ language_distribution_tags = ['language','percentage']
 # FIXME: Distinguish facets used for filtering only (e.g., license, dataset_type) ?
 
 # NUMERICAL: 
-numerical_facets = ['num_rows', 'days_active', 'velocity']
+# CAUTION! Included value in the returned ranked results to cater for profiling information not available in CKAN
+numerical_facets = ['num_rows', 'days_active', 'velocity', 'cloud_coverage', 'missing', 'lai']
 # For RANKING, SQL argument accepts a numerical (integer or real) value, e.g., 24700 expressing the dataset size in bytes or 0.67 for cloud coverage
-numerical_sql_rank_template = 'SELECT id, exp(-0.001 * abs(value::numeric - _ARGS))::float AS score FROM _VIEW WHERE value IS NOT NULL _IDS ORDER BY score DESC LIMIT _TOPK'
-# For RANGE FILERING, SQL argument accepts an array of two numerical (integer or real) values representing the range of values, e.g., [1000, 2000] for size
+numerical_sql_rank_template = 'SELECT id, value::numeric, exp(-0.001 * abs(value::numeric - _ARGS))::float AS score FROM _VIEW WHERE value IS NOT NULL _IDS ORDER BY score DESC LIMIT _TOPK'
+# For RANGE FILTERING, SQL argument accepts an array of two numerical (integer or real) values representing the range of values, e.g., [1000, 2000] for size
 numerical_sql_range_template = 'WITH vars AS (SELECT q_numeric[1]::numeric AS q_start, q_numeric[2]::numeric AS q_end FROM (SELECT _ARGS AS q_numeric) n ) SELECT id, value::numeric FROM _VIEW, vars WHERE value::numeric BETWEEN q_start AND q_end _IDS'
 
 # CATEGORICAL: SQL argument accepts arrays of strings, e.g., ['Imagery','POI'] or ['en','fr','de']
@@ -118,6 +119,8 @@ categorical_sql_rank_template = 'SELECT id, jaccard_similarity(arr_values, _ARGS
 # FIXME: either the start of the end bound could be NULL
 temporal_facets = ['temporal_extent']
 temporal_sql_rank_template = 'WITH vars AS (SELECT q_temporal[1]::timestamp AS q_start, q_temporal[2]::timestamp AS q_end FROM (SELECT _ARGS AS q_temporal) t ), filled_temporal_bounds AS (SELECT id, COALESCE(temporal_start,LEAST(temporal_end,vars.q_start)) AS temporal_start, COALESCE(temporal_end,now()) AS temporal_end, vars.q_start, vars.q_end FROM _VIEW, vars), epoch_bounds AS (SELECT id, EXTRACT(epoch FROM temporal_start) AS temporal_start, EXTRACT(epoch FROM temporal_end) AS temporal_end, EXTRACT(epoch FROM q_start) AS q_start, EXTRACT(epoch FROM q_end) AS q_end, EXTRACT(epoch FROM GREATEST(temporal_start,q_start)) AS overlap_start, EXTRACT(epoch FROM LEAST(temporal_end,q_end)) AS overlap_end FROM filled_temporal_bounds WHERE (temporal_start, temporal_end) OVERLAPS (q_start, q_end) _IDS) SELECT id, 1- ((overlap_end-overlap_start)/LEAST((q_end-temporal_start), (temporal_end-q_start))) AS score FROM epoch_bounds ORDER BY score DESC LIMIT _TOPK'
+
+# TODO: Include facet for single date search ('last_modified')
 
 # SPATIAL: concerns either spatial extent or location
 spatial_facets = ['spatial']
@@ -130,7 +133,7 @@ location_sql_rank_template = 'SELECT p.id, exp(-0.001 * ST_Distance(ST_centroid(
 
 
 # SQL views existing in PostgreSQL database and corresponding to facets: 
-sql_views = {'tags':'package_tag_array', 'language':'package_language_array', 'theme':'package_theme_array', 'license':'package_license_array', 'dataset_type':'package_dataset_type_array', 'format':'package_format_array', 'provider_name':'package_provider_array', 'organization':'package_organization_array', 'spatial':'package_extent', 'temporal_extent':'package_temporal_extent', 'num_rows':'package_num_rows', 'days_active':'package_days_active', 'velocity':'package_velocity'}
+sql_views = {'tags':'package_tag_array', 'language':'package_language_array', 'theme':'package_theme_array', 'license':'package_license_array', 'dataset_type':'package_dataset_type_array', 'format':'package_format_array', 'provider_name':'package_provider_array', 'organization':'package_organization_array', 'spatial':'package_extent', 'temporal_extent':'package_temporal_extent', 'num_rows':'package_num_rows', 'days_active':'package_days_active', 'velocity':'package_velocity', 'cloud_coverage':'profile_vista_min_cloud_coverage', 'missing':'profile_vista_min_missing', 'lai':'profile_vista_max_lai'}
 
 #########################################################
 
@@ -188,8 +191,8 @@ sparql_templates = {
     'task_execution_output_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?output_uri ?order ?resource_id WHERE {?taskExec dct:identifier _ID . ?taskExec klms:hasOutput ?output_uri . ?output_uri klms:orderNum ?order . ?output_uri klms:output ?resource . ?resource dct:identifier ?resource_id } ORDER BY ?order',
 #    'task_execution_input_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT  ?input_uri ?resource_id WHERE { ?taskExec dct:identifier _ID . ?taskExec klms:hasInput ?input_uri . ?input_uri a dcat:Distribution . ?input_uri dct:identifier ?resource_id } ORDER BY ?order',
 #    'task_execution_output_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT  ?output_uri ?resource_id WHERE { ?taskExec dct:identifier _ID . ?taskExec klms:hasOutput ?output_uri . ?output_uri a dcat:Distribution . ?output_uri dct:identifier ?resource_id } ORDER BY ?order',
-    'workflow_tasks_template': 'PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?workflow_desc ?task_name  WHERE { ?workflow a klms:Workflow . ?workflow dct:title _ID . ?workflow dct:description ?workflow_desc . ?task a klms:Task . ?task dct:isPartOf ?workflow . ?task dct:title ?task_name }',
-    'task_executions_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?taskExec_id ?state ?start_date ?end_date WHERE { ?task a klms:Task . ?task dct:isPartOf ?workflow . ?workflow a klms:Workflow . ?task dct:title "entity_extraction" . ?taskExec klms:instantiates ?task . ?taskExec dct:identifier ?taskExec_id . ?taskExec klms:state ?state . ?taskExec dcat:startDate ?start_date . ?taskExec dcat:endDate ?end_date }'
+#    'workflow_tasks_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?task_id ?state ?start_date ?end_date WHERE { ?workflowExec a klms:WorkflowExecution . ?workflowExec dct:identifier _ID . ?taskExec dct:isPartOf ?workflowExec . ?taskExec klms:state ?state . ?taskExec dct:identifier ?task_id . ?taskExec dcat:startDate ?start_date . OPTIONAL { ?taskExec dcat:endDate ?end_date .}}',
+#    'task_executions_template': 'PREFIX dcat: <http://www.w3.org/ns/dcat#> PREFIX dct: <http://purl.org/dc/terms/> PREFIX klms: <http://stelar-project.eu/klms#> SELECT ?task_id ?state ?start_date ?end_date ?tag ?tag_value WHERE { ?taskExec klms:state ?state . ?taskExec dct:identifier _ID . ?taskExec dcat:startDate ?start_date . OPTIONAL { ?taskExec dcat:endDate ?end_date .} OPTIONAL { ?taskExec klms:hasTags ?kvpair . ?kvpair klms:key ?tag . ?kvpair klms:value ?tag_value . }} ORDER BY ?start_date'
 }
 
 #########################################################
@@ -364,7 +367,7 @@ def read_list_json(json_arr, col_id='id', col_score='score'):
     return df
 
 
-def assign_scores(response, df_scores, dict_df_facet_scores, facet_specs):
+def assign_scores(response, df_scores, dict_df_facet_scores, facet_specs, profile_attributes):
     """Assign scores to the search results; also include any key-value pairs regarding facet specifications for ranking.
 
     Args:
@@ -372,6 +375,7 @@ def assign_scores(response, df_scores, dict_df_facet_scores, facet_specs):
         df_scores (DataFrame): A data frame containing the aggregated scores per dataset.
         dict_df_facet_scores (dict) : A dictionary of data frames: each DataFrame holds the partial scores per facet (key).
         facet_specs (dict): A dictionary of keys (metadata items) and values (user-specified preferences) with the facet specifications for ranking.
+        profile_attributes (List): An array with attribute names in Profiling metadata to include their corresponding values in the results.
 
     Returns:
         A JSON with the search results also reporting their ranking scores.
@@ -382,6 +386,16 @@ def assign_scores(response, df_scores, dict_df_facet_scores, facet_specs):
         if json_response['success']:
             results = json_response['result']['results']
             for r in results:
+                # Append profile values in metadata attributes involved in the search
+                id = r['id']
+                r['profile'] = []
+                for attr in profile_attributes:
+                    if id in dict_df_facet_scores[attr].index:
+                        kv_pair = {}
+                        kv_pair['key'] = attr
+                        kv_pair['value'] = dict_df_facet_scores[attr]['value'].loc[id]
+                        r['profile'].append(kv_pair)
+                # Append partial scores
                 partial_scores = {}
                 if not df_scores.empty:
                     r['score'] = df_scores.loc[r['id']]['score']  # overall score

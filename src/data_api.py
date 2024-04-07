@@ -5,7 +5,6 @@ import re
 import sys
 import psycopg2
 import yaml
-import mlflow as mfl
 import pandas as pd
 import uuid
 import datetime
@@ -13,6 +12,8 @@ import os
 import subprocess
 import docker
 import traceback
+
+from requests.models import Response
 
 from psycopg2.extras import RealDictCursor
 from flask import request, jsonify, current_app, redirect, url_for
@@ -668,8 +669,8 @@ def api_package_search(query_data):
     # IMPORTANT! To return all available results, must specify the max number of rows
     response = requests.get(config['CKAN_API']+'package_search'+q+'&include_private=True&fl=*,score&rows='+str(config['RANK_MAX_TOPK'])+'&start=0') #, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
 
-    # Pass an empty data frame to report the original SOLR scores; no facet specs need be added
-    return utils.assign_scores(response, pd.DataFrame(), {}, {})  
+    # Pass an empty data frame to report the original SOLR scores; no facet specs need be added; no profiling attributes involved
+    return utils.assign_scores(response, pd.DataFrame(), {}, {}, [])  
 
 
 
@@ -881,76 +882,76 @@ def api_workflow_output_resource(query_data):
 
 
 
-@app.route('/api/v1/workflow/tasks', methods=['GET'])
-@app.input(schema.Identifier, location='query', example="id=UC_A3")
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Search Operations'])
-def api_workflow_tasks(query_data):
-    """Submit a request to the Knowledge Graph to retrieve the tasks defined in a workflow.
-
-    Args:
-        id: The identifier assigned to the workflow.
-
-    Returns:
-        A JSON with the list of tasks included in the given workflow.
-    """
-
-    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/tasks?id=UC_A3
-
-    config = current_app.config['settings']
-
-    if 'id' in query_data:
-        id = query_data['id']
-    else:
-        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the workflow in the Knowledge Graph. Please specify a valid identifier for the workflow.']}}
-        return jsonify(response)
-
-    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
-    # Formulate the SPARQL query with the given identifier
-    sparql = utils.format_sparql_filter('workflow_tasks_template', id)
+# NO LONGER USED: Mlflow schema deprecated
+#@app.route('/api/v1/workflow/tasks', methods=['GET'])
+#@app.input(schema.Identifier, location='query', example="id=UC_A3")
+#@app.output(schema.ResponseOK, status_code=200)
+#@app.doc(tags=['Search Operations'])
+#def api_workflow_tasks(query_data):
+#    """Submit a request to the Knowledge Graph to retrieve the tasks executed in a workflow.
+#
+#    Args:
+#        id: The tag value under key "name" assigned to workflow executions.
+#
+#    Returns:
+#        A JSON with the list of task executions included in the given workflow name.
+#    """
+#
+#    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/tasks?id=UC_A3
+#
+#    config = current_app.config['settings']
+#
+#    if 'id' in query_data:
+#        id = query_data['id']
+#    else:
+#        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the workflow in the Knowledge Graph. Please specify a valid identifier for the workflow.']}}
+#        return jsonify(response)
+#
+#    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+#    # Formulate the SPARQL query with the given identifier
+#    sparql = utils.format_sparql_filter('workflow_tasks_template', id)
 #    print(sparql)
-    # Make a POST request to the Ontop API with the given query
-    # IMPORTANT! NO authentication required by public SPARQL endpoints
-    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+#    # Make a POST request to the Ontop API with the given query
+#    # IMPORTANT! NO authentication required by public SPARQL endpoints
+#    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+#
+#    return jsonify(json.loads(response.text))
 
-    return jsonify(json.loads(response.text))
 
-
-
-@app.route('/api/v1/task/executions', methods=['GET'])
-@app.input(schema.Identifier, location='query', example="id=entity_extraction")
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Search Operations'])
-def api_task_executions(query_data):
-    """Submit a request to the Knowledge Graph to retrieve the executions performed for the given task.
-
-    Args:
-        id: The identifier assigned to the task in MLFlow.
-
-    Returns:
-        A JSON with the details of the task executions.
-    """
-
-    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/executions?id=entity_extraction
-
-    config = current_app.config['settings']
-
-    if 'id' in query_data:
-        id = query_data['id']
-    else:
-        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the task execution in the Knowledge Graph. Please specify a valid identifier for the task execution.']}}
-        return jsonify(response)
-
-    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
-    # Formulate the SPARQL query with the given identifier
-    sparql = utils.format_sparql_filter('task_executions_template', id)
+# NO LONGER USED: Mlflow schema deprecated
+#@app.route('/api/v1/task/executions', methods=['GET'])
+#@app.input(schema.Identifier, location='query', example="id=entity_extraction")
+#@app.output(schema.ResponseOK, status_code=200)
+#@app.doc(tags=['Search Operations'])
+#def api_task_executions(query_data):
+#    """Submit a request to the Knowledge Graph to retrieve all executions tagged with the name of the given task.
+#
+#    Args:
+#        id: The tag value under key "name" assigned to task executions.
+#
+#    Returns:
+#        A JSON with the details of the task executions.
+#    """
+#
+#    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/executions?id=entity_extraction
+#
+#    config = current_app.config['settings']
+#
+#    if 'id' in query_data:
+#        id = query_data['id']
+#    else:
+#        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the task execution in the Knowledge Graph. Please specify a valid identifier for the task execution.']}}
+#        return jsonify(response)
+#
+#    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+#    # Formulate the SPARQL query with the given identifier
+#    sparql = utils.format_sparql_filter('task_executions_template', id)
 #    print(sparql)
-    # Make a POST request to the Ontop API with the given query
-    # IMPORTANT! NO authentication required by public SPARQL endpoints
-    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
-
-    return jsonify(json.loads(response.text))
-
+#    # Make a POST request to the Ontop API with the given query
+#    # IMPORTANT! NO authentication required by public SPARQL endpoints
+#    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+#
+#    return jsonify(json.loads(response.text))
 
 
 @app.route('/api/v1/task/execution/input', methods=['GET'])
@@ -1299,7 +1300,7 @@ def api_catalog_rank(json_data):
             # IMPORTANT! PostgreSQL credentials are required to complete this request
             for key in filter_sql_commands.keys():
                 sql = filter_sql_commands[key]
-                results = sql_utils.execSql(sql)
+                results = utils.execSql(sql)
 #                print(len(results), sql)
                 filter_ids = [res['id'] for res in results if 'id' in res]
                 if sql_id_filter == '':  # No keywords specified in search bar
@@ -1334,6 +1335,7 @@ def api_catalog_rank(json_data):
             # Submit each SELECT query to the PostgreSQL database with the respective parameters
             # IMPORTANT! PostgreSQL credentials are required to complete this request
             input_lists = []
+            profile_attributes = []
             for key in rank_sql_commands.keys():
                 sql = rank_sql_commands[key]
 #                print(key, '->', sql)
@@ -1344,6 +1346,11 @@ def api_catalog_rank(json_data):
                     if not id in [d['id'] for d in results if 'id' in d]:
                         results.append({'id':id, 'score':0.0})
                 dict_df_facet_scores[key] = utils.read_list_json(results)
+                # In case a 'value' column (concerning PROFILING) is returned in results, remember to include its values in the final results
+                if 'value' in dict_df_facet_scores[key].columns:
+                    profile_attributes.append(key)
+                    print(key)
+
                 input_lists.append(dict_df_facet_scores[key])
 
             # FIXME: REMOVE IF HANDLED BY THE FRONT-END    
@@ -1369,7 +1376,7 @@ def api_catalog_rank(json_data):
     response = requests.get(config['CKAN_API']+'package_search'+q+'&rows='+str(config['RANK_MAX_TOPK'])+'&start=0&include_private=True', headers=package_headers) 
 
     # Return the final list of results (the top-k ranked ones in case that ranking preferences are specified)
-    return utils.assign_scores(response, agg_scores, dict_df_facet_scores, specs['rank_preferences'])
+    return utils.assign_scores(response, agg_scores, dict_df_facet_scores, specs['rank_preferences'], profile_attributes)
 
 
 ############################### PUBLISHING OPERATIONS ############################
