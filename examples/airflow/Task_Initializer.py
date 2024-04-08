@@ -3,6 +3,7 @@ from jinja2 import Template
 from airflow.models import Variable
 import requests
 from time import sleep
+import ast
 
 
 class TaskInitializer(BaseOperator):
@@ -21,6 +22,17 @@ class TaskInitializer(BaseOperator):
         self.token = Template(self.token).render(**context)
         headers = {'Api-Token': self.token}
         print(headers)
+        
+        for k, v in self.parameters.items():
+            if type(v)!=str or not v.startswith('{{'):
+                continue
+            v = Template(v).render(**context)
+            try:
+                v = ast.literal_eval(v)
+            except:
+                v = v
+            self.parameters[k] = v
+        print(self.parameters)
         
         #TODO: Fix input xcom
         new_input = []
