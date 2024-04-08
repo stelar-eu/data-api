@@ -27,7 +27,10 @@ from datetime import date, datetime
 # Auxiliary custom functions & SQL query templates for ranking
 import utils
 import sql_utils
-from container_utils import create_container
+
+#from container_utils import create_container
+import execution
+
 
 # Input schemata for validating several API requests
 import schema
@@ -2214,9 +2217,14 @@ def api_task_execution_create(json_data):
         #### UPDATE KG
         
         # Store the container ID into a variable
-        tags['container_id'] = create_container(docker_image,
-                                                request.headers.get('Api-Token'),
-                                                config['API_URL'], task_exec_id)
+        #tags['container_id'] = create_container(docker_image,
+        #                                        request.headers.get('Api-Token'),
+        #                                        config['API_URL'], 
+        #                                        task_exec_id)
+
+        engine = execution.exec_engine()
+        tags['container_id'] = engine.create_task(docker_image, request.headers.get('Api-Token'), task_exec_id)
+
         tags['package_id'] = package_id
         response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
         if not response:
@@ -2658,7 +2666,7 @@ def json_config(config_file):
         A dictionary with all configuration settings.
     """
 
-    with open(config_path, 'r') as f:
+    with open(config_file, 'r') as f:
         config_data = json.load(f)
     return config_data
 
@@ -2673,7 +2681,7 @@ def yaml_config(config_file):
         A dictionary with all configuration settings.
     """
 
-    with open(config_path, 'r') as f:
+    with open(config_file, 'r') as f:
         config_data = yaml.safe_load(f)
     return config_data
 
@@ -2709,6 +2717,9 @@ if __name__ == '__main__':
     app.config['CONTACT'] = app.config['settings']['API_CONTACT']
     app.config['LICENSE'] = app.config['settings']['API_LICENSE']
     app.config['SECURITY_SCHEMES'] = app.config['settings']['API_SECURITY_SCHEMES']
+
+    # Configure execution
+    execution.configure(app.config["settings"])
 
     # Deploy the API
     app.run(host=app.config['settings']['FLASK_RUN_HOST'],

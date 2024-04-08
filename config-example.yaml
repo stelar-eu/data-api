@@ -49,3 +49,18 @@ MINIO_BUCKET: '<BUCKET>'
 
 ############################## CURRENT ##################################
 API_URL: 'http://<API-HOST>/'
+
+
+#############################  Task Execution  ###########################
+
+#
+# Configure the execution engine. Examples:
+#
+
+#execution:
+#   engine: docker
+
+#execution:
+#    engine: kubernetes
+#    namespace: playground
+
