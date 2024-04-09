@@ -2718,6 +2718,12 @@ if __name__ == '__main__':
     app.config['LICENSE'] = app.config['settings']['API_LICENSE']
     app.config['SECURITY_SCHEMES'] = app.config['settings']['API_SECURITY_SCHEMES']
 
+    if 'execution' not in app.config['settings'] and 'EXECUTION_ENGINE' in os.environ:
+        # Use environment var 'EXECUTION_ENGINE' to add entry to config
+        app.config['settings']['execution'] = {
+            'engine': os.environ['EXECUTION_ENGINE']
+        }
+
     # Configure execution
     execution.configure(app.config["settings"])
 
