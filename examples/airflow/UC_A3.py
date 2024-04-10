@@ -14,16 +14,31 @@ with DAG(dag_id='Demo_for_UC_A3', start_date=datetime(2024, 3, 15),
     
     # Initialize a workflow execution
     workflow_init = WorkflowInitializer(task_id="workflow_init", owner='azeakis',
-                                        package_title= "Test Workflow for UC A3 19",
+                                        package_title= "Test Workflow for UC A3 37",
                                         package_notes= "This workflow performs entity extraction and linking",
                                         package_tags= ["STELAR", "Entity extraction", "Entity linking"],
                                         workflow_tags= {},
+                                        token = "{{ params.token }}",)
+
+    # Initialize an Incident Deduplication task
+    incident_deduplication = TaskInitializer(task_id="incident_deduplication", owner='azeakis',
+                                        docker_image= "pyjedai:latest",
+                                        input= ["42d9de05-530d-4c87-b2a1-f4a661d637f5"],
+                                        parameters= {
+                                            "separator": ",",
+                                            "id_column_name_1" : "Unnamed: 0",
+                                            "vectorizer": "st5",
+                                            "similarity_search": "faiss",
+                                            "top_k": 1,
+                                            "similarity_threshold": 0.9
+                                        },
+                                        tags= {},
                                         token = "{{ params.token }}",)
     
     # Initialize an Entity Extraction task
     entity_extraction = TaskInitializer(task_id="entity_extraction", owner='azeakis',
                                     docker_image= "ner:v3",
-                                    input= ["42d9de05-530d-4c87-b2a1-f4a661d637f5"],
+                                    input=["rsc:incident_deduplication_0"],
                                     parameters= {
                                          "output_file":"test_output",
                                          "text_column":"description",
@@ -54,7 +69,7 @@ with DAG(dag_id='Demo_for_UC_A3', start_date=datetime(2024, 3, 15),
                                             "col_text_right": "2",
                                             "col_separator_right": ";",
                                             "text_separator_right": " ",
-                                            "k": 10,
+                                            "k": "{{ params.k }}",
                                             "delta_alg": "1",
                                             "output_file": "out.csv",
                                             "method": "knn",
@@ -69,4 +84,4 @@ with DAG(dag_id='Demo_for_UC_A3', start_date=datetime(2024, 3, 15),
                                    state = 'succeeded',
                                    token = "{{ params.token }}",)
     
-    workflow_init >> entity_extraction >> entity_linking >> workflow_finalize
+    workflow_init >> incident_deduplication >> entity_extraction >> entity_linking >> workflow_finalize
