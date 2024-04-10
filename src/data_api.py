@@ -704,6 +704,16 @@ def api_resource_id(query_data):
 
     config = current_app.config['settings']
 
+    if request.headers:
+        if request.headers.get('Api-Token') != None:
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        else:
+            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+        return jsonify(response)
+
     # Check if an ID (name) for a dataset was provided as argument
     if 'id' in query_data:
         id = query_data['id']
@@ -713,7 +723,7 @@ def api_resource_id(query_data):
 
     # Make a GET request to the CKAN API with the parameters
     # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(config['CKAN_API']+'resource_show?id='+id) #, headers=config.package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
+    response = requests.get(config['CKAN_API']+'resource_show?id='+id, headers=resource_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
 
     return response.json()
 
@@ -746,9 +756,66 @@ def api_resource_search(query_data):
 
     # Make a GET request to the CKAN API with the parameters
     # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(config['CKAN_API']+'resource_search?query='+q) #, headers=config.package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
+    response = requests.post(config['CKAN_API']+'resource_search?query='+q, headers=config.package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
 
     return response.json()
+
+
+@app.route('/api/v1/resource/profile', methods=['GET'])
+@app.input(schema.Identifier, location='query', example="6dc36257-abb6-45b5-b3bb-5f94160fc2ee")
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Search Operations'])
+def api_resource_profile(query_data):
+    """Get the JSON profile available for a resource that is accessible by the user.
+
+    Args:
+        id: The unique identifier of the resource as listed in CKAN.
+
+    Returns:
+        A JSON object with all profiling information as maintained in CKAN for the specified resource.
+    """
+
+    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/resource/download?id=6dc36257-abb6-45b5-b3bb-5f94160fc2ee
+
+    config = current_app.config['settings']
+
+    if request.headers:
+        if request.headers.get('Api-Token') != None:
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        else:
+            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+        return jsonify(response)
+
+    # Check if an ID (name) for a resource was provided as argument
+    if 'id' in query_data:
+        id = query_data['id']
+    else:
+        response = {'success':False, 'help': request.url+'?id=', 'error':{'__type':'No specifications','name':['No identifier provided. Please specify the id of the requested resource.']}}
+        return jsonify(response)
+
+    # Make a GET request to the CKAN API with the parameters
+    # IMPORTANT! CKAN requires NO authentication for GET requests
+    response = requests.get(config['CKAN_API']+'resource_show?id='+id, headers=resource_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
+
+    if response.status_code == 200:
+        json_response = response.json()
+        if json_response['success']:
+#        # IMPORTANT: If a firewall existing on the API server, the file cannot be downloaded from CKAN
+#            url_profile = json_response['result']['url']
+#            with urllib.request.urlopen(url_profile) as url:
+#                print(url)
+#                data = json.load(url)
+#                return data
+#        # ALTERNATIVE: Get the original path to the file when uploaded to CKAN 
+            path_profile = json_response['result']['file']
+            with open(path_profile) as json_file:
+                data = json.load(json_file)
+                return jsonify(data)
+
+    return None
 
 
 @app.route('/api/v1/workflow/input/dataset', methods=['GET'])
@@ -1347,9 +1414,26 @@ def api_catalog_rank(json_data):
             # Submit each SELECT query to the PostgreSQL database with the respective parameters
             # IMPORTANT! PostgreSQL credentials are required to complete this request
             input_lists = []
-            profile_attributes = []
             for key in rank_sql_commands.keys():
                 sql = rank_sql_commands[key]
+                print(key, '->', sql)
+                results = utils.execSql(sql)
+#                print(len(results), len(ids))
+                # Fill any missing scores in the partial list for this facet
+                for id in ids:
+                    if not id in [d['id'] for d in results if 'id' in d]:
+                        results.append({'id':id, 'score':0.0})
+                dict_df_facet_scores[key] = utils.read_list_json(results)
+#                # In case a 'value' column (concerning PROFILING) is returned in results, remember to include its values in the final results
+#                if 'value' in dict_df_facet_scores[key].columns:
+#                    profile_attributes.append(key)
+#                    print(key)
+
+
+            # Fetch values for all profiling metadata elements by submitting a SELECT query to the PostgreSQL database for the collected ids
+            # IMPORTANT! PostgreSQL credentials are required to complete this request
+            for key in list(set(utils.profile_attributes) - set(rank_sql_commands.keys())):
+                sql = utils.identifiers_sql_filter_template.replace('_VIEW',utils.sql_views[key]).replace('_IDS',sql_id_filter) 
 #                print(key, '->', sql)
                 results = utils.execSql(sql)
 #                print(len(results), len(ids))
@@ -1358,10 +1442,6 @@ def api_catalog_rank(json_data):
                     if not id in [d['id'] for d in results if 'id' in d]:
                         results.append({'id':id, 'score':0.0})
                 dict_df_facet_scores[key] = utils.read_list_json(results)
-                # In case a 'value' column (concerning PROFILING) is returned in results, remember to include its values in the final results
-                if 'value' in dict_df_facet_scores[key].columns:
-                    profile_attributes.append(key)
-                    print(key)
 
                 input_lists.append(dict_df_facet_scores[key])
 
@@ -1388,7 +1468,7 @@ def api_catalog_rank(json_data):
     response = requests.get(config['CKAN_API']+'package_search'+q+'&rows='+str(config['RANK_MAX_TOPK'])+'&start=0&include_private=True', headers=package_headers) 
 
     # Return the final list of results (the top-k ranked ones in case that ranking preferences are specified)
-    return utils.assign_scores(response, agg_scores, dict_df_facet_scores, specs['rank_preferences'], profile_attributes)
+    return utils.assign_scores(response, agg_scores, dict_df_facet_scores, specs['rank_preferences'], utils.profile_attributes)
 
 
 ############################### PUBLISHING OPERATIONS ############################
