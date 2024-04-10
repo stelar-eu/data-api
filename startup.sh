@@ -12,4 +12,8 @@ sed -i "s/^dbport: .*/dbport: ${POSTGRES_PORT}/" config.yaml
 sed -i "s|^SPARQL_ENDPOINT: .*|SPARQL_ENDPOINT: ${SPARQL_ENDPOINT}|" config.yaml
 sed -i "s|^API_URL: .*|API_URL: ${API_URL}|" config.yaml
 
-exec python3 src/data_api.py config.yaml
+#exec python3 src/data_api.py config.yaml
+flask -A data_api:create_app --debug run -h 0.0.0.0 -p 80
+
+# For debugging only
+#sleep 1d

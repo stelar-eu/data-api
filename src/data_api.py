@@ -36,6 +36,11 @@ import execution
 import schema
 
 
+# Create an instance of this API; by default, its OpenAPI-compliant specification will be generated under folder /specs
+app = APIFlask(__name__, spec_path='/specs', docs_path ='/docs')
+app.config.from_prefixed_env()
+
+
 # Custom class to retain original ISO format like 'yyyy-mm-dd hh:mm:ss.m' in date/time/timestamp values
 class CustomJSONEncoder(JSONEncoder):
     def default(self, obj):
@@ -49,11 +54,7 @@ class CustomJSONEncoder(JSONEncoder):
             return list(iterable)
         return JSONEncoder.default(self, obj)
 
-
-# Create an instance of this API; by default, its OpenAPI-compliant specification will be generated under folder /specs
-app = APIFlask(__name__, spec_path='/specs', docs_path ='/docs')
 app.json_encoder = CustomJSONEncoder
-
 
 ################################## AUTHENTICATION ########################################
 
@@ -103,7 +104,15 @@ def home():
 
     #EXAMPLE: curl -X GET http://127.0.0.1:9055/ 
     
-    response = {'help': request.base_url, 'success': True, 'result': {'message':'Prototype Data API for managing resources in STELAR Knowledge Lake Management System.', 'OpenAPI specifications':request.base_url+'specs', 'Swagger UI':request.base_url+'docs'}}
+    response = {
+        'help': app.url_for("/"),  #request.base_url,
+        'success': True,
+        'result': {
+            'message':'Prototype Data API for managing resources in STELAR Knowledge Lake Management System.',
+            'OpenAPI specifications':request.base_url+'specs',
+            'Swagger UI':request.base_url+'docs'
+        }
+    }
 
     return jsonify(response)
 
@@ -2689,16 +2698,11 @@ def yaml_config(config_file):
 
 
 # Deploy service at the specific host and port
-if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print("Usage: python data_api.py <config_file>")
-        sys.exit(1)
-
-
+def main(app, config_path):
     # Get configuration settings specified in YAML or JSON
-    config_path = sys.argv[1]
+    # config_path = 'config.yaml'  #sys.argv[1]
     app.config['settings'] = yaml_config(config_path)
-#    app.config['settings'] = json_config(config_path)
+    # app.config['settings'] = json_config(config_path)
 
     # Apply configuration settings for this API
     app.title = app.config['settings']['API_TITLE']
@@ -2724,9 +2728,41 @@ if __name__ == '__main__':
             'engine': os.environ['EXECUTION_ENGINE']
         }
 
+    # The log level can be changed here
+    # app.logger.setLevel('DEBUG')
+
+    # TODO: This is only needed with Flask's development server, which ignores SCRIPT_NAME
+    # TODO: This should be configurable
+    app.wsgi_app = PrefixMiddleware(app.wsgi_app, '/stelar')
+
     # Configure execution
     execution.configure(app.config["settings"])
 
+
+# WSGI middleware used inside "main()"
+class PrefixMiddleware(object):
+    def __init__(self, app, prefix=''):
+        self.app = app
+        self.prefix = prefix
+    def __call__(self, environ, start_response):
+        environ['SCRIPT_NAME'] = self.prefix
+        return self.app(environ, start_response)
+
+
+# This entry point is used with 'flask run ...'
+def create_app():
+    main(app, 'config.yaml')
+    return app
+    
+# This entry point is for the 'python src/data_api.py' startup
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print("Usage: python data_api.py <config_file>")
+        sys.exit(1)
+
+    # Do initialize the app
+    main(app, sys.argv[1])
+    
     # Deploy the API
     app.run(host=app.config['settings']['FLASK_RUN_HOST'],
             port=app.config['settings']['FLASK_RUN_PORT'],
