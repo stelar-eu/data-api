@@ -103,6 +103,13 @@ language_distribution_tags = ['language','percentage']
 # Templates of SQL SELECT queries for various types of metadata attributes (facets)
 # FIXME: Distinguish facets used for filtering only (e.g., license, dataset_type) ?
 
+# List profile metadata elements that may be involved in search requests 
+profile_attributes = ['cloud_coverage', 'missing', 'lai']
+
+# Template for fetching values in metadata for the given dataset identifiers
+identifiers_sql_filter_template = 'SELECT id, value, 0.0 AS score FROM _VIEW WHERE value IS NOT NULL _IDS'
+
+
 # NUMERICAL: 
 # CAUTION! Included value in the returned ranked results to cater for profiling information not available in CKAN
 numerical_facets = ['num_rows', 'days_active', 'velocity', 'cloud_coverage', 'missing', 'lai']
