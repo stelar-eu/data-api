@@ -1406,7 +1406,7 @@ def api_catalog_rank(json_data):
             input_lists = []
             for key in rank_sql_commands.keys():
                 sql = rank_sql_commands[key]
-                print(key, '->', sql)
+#                print(key, '->', sql)
                 results = utils.execSql(sql)
 #                print(len(results), len(ids))
                 # Fill any missing scores in the partial list for this facet
