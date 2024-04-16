@@ -397,7 +397,7 @@ def assign_scores(response, df_scores, dict_df_facet_scores, facet_specs, profil
                 id = r['id']
                 r['profile'] = []
                 for attr in profile_attributes:
-                    if id in dict_df_facet_scores[attr].index:
+                    if 'value' in dict_df_facet_scores[attr].keys() and id in dict_df_facet_scores[attr].index:
                         kv_pair = {}
                         kv_pair['key'] = attr
                         kv_pair['value'] = dict_df_facet_scores[attr]['value'].loc[id]

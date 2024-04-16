@@ -1342,11 +1342,13 @@ def api_catalog_rank(json_data):
         # STAGE #1: text-based keyword search targets SOLR (search engine for CKAN)
         if 'keywords' in specs:   # CASE #1(a): new keyword search
             q = '?q=' + ",".join("'{0}'".format(kw) for kw in specs['keywords'])   
+#            print(q)
             # Submit a preliminary search request to CKAN to find packages qualifying to the specified keywords
             # Also include private datasets of the user's organization in the results
             resp_basic = requests.get(config['CKAN_API']+'package_search'+q+'&include_private=True&fl=*,score&rows='+str(config['RANK_MAX_TOPK'])+'&start=0', headers=package_headers)
             if resp_basic.status_code == 200:
                 json_resp_basic = resp_basic.json()
+                #FIXME: Handle large number of returned id's -> not efficient when filtering with SQL
                 if json_resp_basic['success']:  # Results from keyword-based search only
                     results = json_resp_basic['result']['results']
                     ids = [res['id'] for res in results if 'id' in res]
