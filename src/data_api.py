@@ -105,7 +105,7 @@ def home():
     #EXAMPLE: curl -X GET http://127.0.0.1:9055/ 
     
     response = {
-        'help': app.url_for("/"),  #request.base_url,
+        'help': app.url_for("home"),  #request.base_url,
         'success': True,
         'result': {
             'message':'Prototype Data API for managing resources in STELAR Knowledge Lake Management System.',
@@ -2811,23 +2811,12 @@ def main(app, config_path):
     # The log level can be changed here
     # app.logger.setLevel('DEBUG')
 
-    # TODO: This is only needed with Flask's development server, which ignores SCRIPT_NAME
-    # TODO: This should be configurable
-    app.wsgi_app = PrefixMiddleware(app.wsgi_app, '/stelar')
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_for=1, x_host=1, x_port=1, x_prefix=1)
 
     # Configure execution
     execution.configure(app.config["settings"])
 
-
-# WSGI middleware used inside "main()"
-class PrefixMiddleware(object):
-    def __init__(self, app, prefix=''):
-        self.app = app
-        self.prefix = prefix
-    def __call__(self, environ, start_response):
-        #print(environ)
-        environ['SCRIPT_NAME'] = self.prefix
-        return self.app(environ, start_response)
 
 
 # This entry point is used with 'flask run ...'
