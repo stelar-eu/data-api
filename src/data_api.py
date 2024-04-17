@@ -105,7 +105,7 @@ def home():
     #EXAMPLE: curl -X GET http://127.0.0.1:9055/ 
     
     response = {
-        'help': app.url_for("home"),  #request.base_url,
+        'help': request.base_url,
         'success': True,
         'result': {
             'message':'Prototype Data API for managing resources in STELAR Knowledge Lake Management System.',
