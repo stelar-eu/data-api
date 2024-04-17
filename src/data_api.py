@@ -1354,11 +1354,13 @@ def api_catalog_rank(json_data):
         # STAGE #1: text-based keyword search targets SOLR (search engine for CKAN)
         if 'keywords' in specs:   # CASE #1(a): new keyword search
             q = '?q=' + ",".join("'{0}'".format(kw) for kw in specs['keywords'])   
+#            print(q)
             # Submit a preliminary search request to CKAN to find packages qualifying to the specified keywords
             # Also include private datasets of the user's organization in the results
             resp_basic = requests.get(config['CKAN_API']+'package_search'+q+'&include_private=True&fl=*,score&rows='+str(config['RANK_MAX_TOPK'])+'&start=0', headers=package_headers)
             if resp_basic.status_code == 200:
                 json_resp_basic = resp_basic.json()
+                #FIXME: Handle large number of returned id's -> not efficient when filtering with SQL
                 if json_resp_basic['success']:  # Results from keyword-based search only
                     results = json_resp_basic['result']['results']
                     ids = [res['id'] for res in results if 'id' in res]
@@ -1416,7 +1418,7 @@ def api_catalog_rank(json_data):
             input_lists = []
             for key in rank_sql_commands.keys():
                 sql = rank_sql_commands[key]
-                print(key, '->', sql)
+#                print(key, '->', sql)
                 results = utils.execSql(sql)
 #                print(len(results), len(ids))
                 # Fill any missing scores in the partial list for this facet
@@ -1694,6 +1696,7 @@ def api_dataset_patch(json_data):
     return response.json()
 
 
+
 @app.route('/api/v1/profile/publish', methods=['POST'])
 @app.input(schema.Profile, location='json', example={"profile_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_type": "Raster", "resource_tags": ["Profile","Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseOK, status_code=200)
@@ -1709,7 +1712,7 @@ def api_profile_publish(json_data):
         A JSON with the CKAN response to the publishing request.
     """
 
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/profile/upload -d '{"profile_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_tags": ["Profile","Computed with STELAR Profiler"]}}'
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/profile/publish -d '{"profile_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_tags": ["Profile","Computed with STELAR Profiler"]}}'
 
     config = current_app.config['settings']
 
@@ -1757,6 +1760,57 @@ def api_profile_publish(json_data):
     else:
         response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No profile metadata were associated with this dataset in the Catalog. Please provide a path or a publicly accessible URL where this file is available.']}}
         return response.json()
+
+
+########### TESTING ONLY #################################
+@app.route('/api/v1/profile/store', methods=['POST'])
+@app.input(schema.Profile, location='json', example={"profile_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_type": "Raster", "resource_tags": ["Profile","Computed with STELAR Profiler"]}})
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Publishing Operations'])
+@app.auth_required(auth)
+def api_profile_store(json_data):
+    """Store profile information directly in the PostgreSQL database. The respective resource must correspond to an existing dataset in CKAN. The user will become the publisher of this profile.
+
+    Args:
+        data: A JSON with all metadata information provided by the publisher about the profile. Must include the profile information in a nested JSON.
+
+    Returns:
+        A JSON with the response to the storage request.
+    """
+
+    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/profile/publish -d '{"profile_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_tags": ["Profile","Computed with STELAR Profiler"]}}'
+
+    config = current_app.config['settings']
+
+    if request.headers:
+        if request.headers.get('Api-Token') != None:
+            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        else:
+            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+        return jsonify(response)
+
+    if request.data:
+        metadata = json.loads(request.data.decode("utf-8"))   #json.loads(json.dumps(str(request.data)))
+        if 'profile_metadata' in metadata:
+            # Extract the profile data and the CKAN resource identifier (will be part of primary keys in the database)
+            profile = metadata['profile_metadata']['profile_data']
+            resource_id = metadata['profile_metadata']['resource_id']
+            # Distinguish handling according to Profile type
+            sql_commands = utils.extractProfileProperties(resource_id, profile)
+            for sql in sql_commands:
+#                print(sql)
+                utils.execSql(sql)
+            response = {'success':True, 'help': request.url, 'result':''}
+            return jsonify(response)
+        else:
+            response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No metadata provided for publishing this profile in the Catalog. Please specify metadata for the profile you wish to upload.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No metadata provided for publishing this profile in the Catalog. Please specify metadata for the profile you wish to upload.']}}
+        return jsonify(response)
 
 
 @app.route('/api/v1/resource/upload', methods=['POST'])
