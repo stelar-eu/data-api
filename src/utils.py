@@ -127,10 +127,12 @@ categorical_sql_rank_template = 'SELECT id, jaccard_similarity(arr_values, _ARGS
 temporal_facets = ['temporal_extent']
 temporal_sql_rank_template = 'WITH vars AS (SELECT q_temporal[1]::timestamp AS q_start, q_temporal[2]::timestamp AS q_end FROM (SELECT _ARGS AS q_temporal) t ), filled_temporal_bounds AS (SELECT id, COALESCE(temporal_start,LEAST(temporal_end,vars.q_start)) AS temporal_start, COALESCE(temporal_end,now()) AS temporal_end, vars.q_start, vars.q_end FROM _VIEW, vars), epoch_bounds AS (SELECT id, EXTRACT(epoch FROM temporal_start) AS temporal_start, EXTRACT(epoch FROM temporal_end) AS temporal_end, EXTRACT(epoch FROM q_start) AS q_start, EXTRACT(epoch FROM q_end) AS q_end, EXTRACT(epoch FROM GREATEST(temporal_start,q_start)) AS overlap_start, EXTRACT(epoch FROM LEAST(temporal_end,q_end)) AS overlap_end FROM filled_temporal_bounds WHERE (temporal_start, temporal_end) OVERLAPS (q_start, q_end) _IDS) SELECT id, 1- ((overlap_end-overlap_start)/LEAST((q_end-temporal_start), (temporal_end-q_start))) AS score FROM epoch_bounds ORDER BY score DESC LIMIT _TOPK'
 
-# RECENCY: Include facet for single date search ('metadata_modified')
-# TODO: SQL argument SHOULD accepts date/time intervals, e.g., ['2018-08-15 14:25:36','2018-10-31 08:42:25'] ; 
-recency_facets = ['last_updated']
+# RECENCY: Include facet for single date search
+recency_facets = ['metadata_modified']
+# For RANKING, SQL argument accepts a single date/time value, e.g., '2018-08-15 14:25:36'
 recency_sql_rank_template = 'SELECT id, value, exp(-0.00001 * abs(extract (epoch FROM age(value)) - extract (epoch FROM age(_ARGS::timestamp))))::float AS score FROM _VIEW WHERE value IS NOT NULL _IDS ORDER BY score DESC LIMIT _TOPK'
+# For RANGE FILTERING, SQL argument accepts date/time intervals, e.g., ['2018-08-15 14:25:36','2018-10-31 08:42:25']
+recency_sql_range_template = 'WITH vars AS (SELECT q_interval[1]::timestamp AS q_start, q_interval[2]::timestamp AS q_end FROM (SELECT _ARGS AS q_interval) t ) SELECT id, value FROM _VIEW, vars WHERE value BETWEEN q_start AND q_end _IDS'
 
 # SPATIAL: concerns either spatial extent or location
 spatial_facets = ['spatial']
@@ -143,7 +145,7 @@ location_sql_rank_template = 'SELECT p.id, exp(-0.001 * ST_Distance(ST_centroid(
 
 
 # SQL views existing in PostgreSQL database and corresponding to facets: 
-sql_views = {'tags':'package_tag_array', 'language':'package_language_array', 'theme':'package_theme_array', 'license':'package_license_array', 'dataset_type':'package_dataset_type_array', 'format':'package_format_array', 'provider_name':'package_provider_array', 'organization':'package_organization_array', 'spatial':'package_extent', 'temporal_extent':'package_temporal_extent', 'last_updated':'package_last_updated', 'num_rows':'package_num_rows', 'days_active':'package_days_active', 'velocity':'package_velocity', 'cloud_coverage':'profile_vista_min_cloud_coverage', 'missing':'profile_vista_min_missing', 'lai':'profile_vista_max_lai'}
+sql_views = {'tags':'package_tag_array', 'language':'package_language_array', 'theme':'package_theme_array', 'license':'package_license_array', 'dataset_type':'package_dataset_type_array', 'format':'package_format_array', 'provider_name':'package_provider_array', 'organization':'package_organization_array', 'spatial':'package_extent', 'temporal_extent':'package_temporal_extent', 'metadata_modified':'package_metadata_modified', 'num_rows':'package_num_rows', 'days_active':'package_days_active', 'velocity':'package_velocity', 'cloud_coverage':'profile_vista_min_cloud_coverage', 'missing':'profile_vista_min_missing', 'lai':'profile_vista_max_lai'}
 
 #########################################################
 
@@ -508,9 +510,13 @@ def format_facet_preferences(json_metadata, sql_id_filter, k):
                 sql[key] = location_sql_rank_template.replace('_VIEW',sql_views[key]).replace('_TOPK',str(k)).replace('_ARGS', g).replace('_IDS',sql_id_filter) 
         elif key == 'temporal_extent':     # TEMPORAL EXTENT metadata elements
             sql[key] = temporal_sql_rank_template.replace('_VIEW',sql_views[key]).replace('_TOPK',str(k)).replace('_ARGS', 'array'+str(json_metadata[key])).replace('_IDS',sql_id_filter) 
-        elif key == 'last_updated':     # RECENCY (last_updated) metadata element
-            sql[key] = recency_sql_rank_template.replace('_VIEW',sql_views[key]).replace('_TOPK',str(k)).replace('_ARGS', 'array'+str(json_metadata[key])).replace('_IDS',sql_id_filter) 
-
+        elif key == 'metadata_modified':     # RECENCY (last_updated) metadata element
+            if isinstance(json_metadata[key], list):  # RANGE of date/time values acts as FILTER
+                sql[key] = recency_sql_range_template.replace('_VIEW',sql_views[key]).replace('_ARGS', 'array'+str(json_metadata[key])).replace('_IDS',sql_id_filter) 
+#                print('range', sql[key])
+            else: # SINGLE date/time value used for RANKING
+                sql[key] = recency_sql_rank_template.replace('_VIEW',sql_views[key]).replace('_TOPK',str(k)).replace('_ARGS', '\''+str(json_metadata[key])+'\'').replace('_IDS',sql_id_filter) 
+#                print('rank', sql[key])          
     return sql
 
 
