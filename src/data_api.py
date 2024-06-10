@@ -12,6 +12,7 @@ import os
 import subprocess
 import docker
 import traceback
+import urllib
 
 from requests.models import Response
 
@@ -793,12 +794,14 @@ def api_resource_profile(query_data):
         if json_response['success']:
 #        # IMPORTANT: If a firewall existing on the API server, the file cannot be downloaded from CKAN
 #            url_profile = json_response['result']['url']
+#            print(url_profile)
 #            with urllib.request.urlopen(url_profile) as url:
 #                print(url)
 #                data = json.load(url)
 #                return data
-#        # ALTERNATIVE: Get the original path to the file when uploaded to CKAN 
+        # ALTERNATIVE: Get the original path to the file when uploaded to CKAN 
             path_profile = json_response['result']['file']
+            print(path_profile)
             with open(path_profile) as json_file:
                 data = json.load(json_file)
                 return jsonify(data)
@@ -1338,6 +1341,8 @@ def api_catalog_rank(json_data):
     k = config['RANK_MAX_TOPK']  # default top-k value (if not user-specified)
     if request.data:
         specs = json.loads(request.data.decode("utf-8"))
+        actual_profile_attributes = set(specs['filter_preferences'].keys()).union(set(specs['rank_preferences'].keys()))
+#        print("INITIAL PROFILE ATTRIBUTES", actual_profile_attributes)
 
         # STAGE #1: text-based keyword search targets SOLR (search engine for CKAN)
         if 'keywords' in specs:   # CASE #1(a): new keyword search
@@ -1408,7 +1413,7 @@ def api_catalog_rank(json_data):
                 sql = rank_sql_commands[key]
 #                print(key, '->', sql)
                 results = utils.execSql(sql)
-#                print(len(results), len(ids))
+#                print("FIELDS", key, len(results), len(ids))
                 # Fill any missing scores in the partial list for this facet
                 for id in ids:
                     if not id in [d['id'] for d in results if 'id' in d]:
@@ -1422,11 +1427,13 @@ def api_catalog_rank(json_data):
 
             # Fetch values for all profiling metadata elements by submitting a SELECT query to the PostgreSQL database for the collected ids
             # IMPORTANT! PostgreSQL credentials are required to complete this request
-            for key in list(set(utils.profile_attributes) - set(rank_sql_commands.keys())):
+            actual_profile_attributes = actual_profile_attributes.intersection(utils.profile_attributes)
+#            print("ACTUAL PROFILE ATTRIBUTES", actual_profile_attributes)
+            for key in list(actual_profile_attributes):  #list(set(utils.profile_attributes) - set(rank_sql_commands.keys())):
                 sql = utils.identifiers_sql_filter_template.replace('_VIEW',utils.sql_views[key]).replace('_IDS',sql_id_filter) 
 #                print(key, '->', sql)
                 results = utils.execSql(sql)
-#                print(len(results), len(ids))
+                print("PROFILING", key, len(results), len(ids))
                 # Fill any missing scores in the partial list for this facet
                 for id in ids:
                     if not id in [d['id'] for d in results if 'id' in d]:
@@ -1458,7 +1465,7 @@ def api_catalog_rank(json_data):
     response = requests.get(config['CKAN_API']+'package_search'+q+'&rows='+str(config['RANK_MAX_TOPK'])+'&start=0&include_private=True', headers=package_headers) 
 
     # Return the final list of results (the top-k ranked ones in case that ranking preferences are specified)
-    return utils.assign_scores(response, agg_scores, dict_df_facet_scores, specs['rank_preferences'], utils.profile_attributes)
+    return utils.assign_scores(response, agg_scores, dict_df_facet_scores, specs['rank_preferences'], list(actual_profile_attributes))
 
 
 ############################### PUBLISHING OPERATIONS ############################
