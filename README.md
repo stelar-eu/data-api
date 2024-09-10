@@ -9,8 +9,6 @@ This is the Data API for the Knowledge Lake Management System developed in proje
 
 * A Knowledge Graph must have been deployed via [Ontop](https://ontop-vkg.org/), employing mappings from the database to a virtual RDF graph that can be queried in SPARQL.
 
-* An instance of [MLFlow](https://mlflow.org/) must be up-and-running, and metadata regarding all executions is maintained in the same database (the one also used by CKAN).
-
 
 # Creating and launching a Docker image 
 
