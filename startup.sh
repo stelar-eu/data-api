@@ -15,6 +15,6 @@ sed -i "s|^MINIO_SECRET_KEY: .*|MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}|" config.y
 sed -i "s|^MINIO_ACCESS_KEY: .*|MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}|" config.yaml
 #exec python3 src/data_api.py config.yaml
 # flask -A data_api:create_app --debug run -h 0.0.0.0 -p 80
-gunicorn -w 4 -b 0.0.0.0:80 src.wsgi:app
+gunicorn -w 4 -b 0.0.0.0:80 src.data_api:app
 # For debugging only
 sleep 1d
