@@ -42,6 +42,8 @@ import schema
 
 #### USERS BP ####
 from routes.users import users_bp
+from routes.users import api_user_editor
+
 
 #### CKAN BP ####
 
@@ -1778,7 +1780,7 @@ def api_artifact_publish(json_data, headers):
             # Also create the name of the new CKAN package from its title (assuming that this is unique)
             package_metadata['name'] = re.sub(r'[\W_]+','_',package_metadata['title']).lower()
             # Internal call to find the organization where the user belongs to (derived from API token)
-            resp_org = api_user_editor()
+            resp_org = users_bp.api_user_editor()
             if resp_org['success']:
                 org_json = resp_org['result']
                 if len(org_json) > 0:  
