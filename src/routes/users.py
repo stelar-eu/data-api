@@ -1,5 +1,5 @@
-from flask import Blueprint, request, jsonify, current_app
-from auth import auth
+from flask import request, jsonify, current_app
+from apiflask import APIBlueprint, HTTPTokenAuth
 import requests
 import utils
 import json
@@ -11,6 +11,9 @@ import utils
 import schema
 
 
+auth = HTTPTokenAuth(scheme='ApiKey', header='Api-Token')
+
+
 """
     This .py file contains the endpoints attached to the blueprint
     responsible for all operations related to the lifecycle of
@@ -20,8 +23,7 @@ import schema
 
 # The users operations blueprint for all operations related to the lifecycle of a user
 # The blueprint preempts the 
-users_bp = Blueprint('users_blueprint', __name__)
-
+users_bp = APIBlueprint('users_blueprint', __name__)
 
 @users_bp.route('/user/create', methods=['POST'])
 @users_bp.input(schema.NewUser, location='json', example={"name":"test_user5", "email":"test5@example.com","password":"test_pass5", "fullname":"Jane Doe", "about":"Testing the CKAN API for creating another new user", "image_url":"https://commons.wikimedia.org/wiki/File:Example.jpg"})
