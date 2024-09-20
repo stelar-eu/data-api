@@ -1,7 +1,7 @@
 FROM python:3.11
 
-# First copy the requirements, which will not change too often
 WORKDIR /app
+# First copy the requirements, which will not change too often
 COPY ./requirements.txt /app
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -10,4 +10,5 @@ COPY . /app/
 
 # This will change after refactoring
 ENV PYTHONPATH=/app/src
-ENTRYPOINT ["/app/startup.sh"]
+WORKDIR /app/
+ENTRYPOINT ["sh","startup.sh"]
