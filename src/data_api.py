@@ -55,8 +55,9 @@ from routes.users import api_user_editor
 
 # Create an instance of this API; by default, its OpenAPI-compliant specification will be generated under folder /specs
 app = APIFlask(__name__, spec_path='/specs', docs_path ='/docs')
-app.config.from_prefixed_env()
 
+# This is no longer needed the app takes the config map during initialization
+# app.config.from_prefixed_env()
 
 
 ################## BLUEPRINT REGISTRATION ##################
@@ -65,9 +66,7 @@ app.config.from_prefixed_env()
 # such as User Management, Catalog Management,
 # Workflow/Execution management etc.
 
-#app.register_blueprint(users_bp, url_prefix='/api/v1/catalog')
-
-
+app.register_blueprint(users_bp, url_prefix='/api/v1/catalog')
 
 ############################################################
 
@@ -150,6 +149,13 @@ def home():
     return jsonify(response)
 
 #    return '''<h1>STELAR Knowledge Lake Management System</h1><p>Prototype Data API for managing KLMS resources.</p><p>API specification is available <a href='/specs'>here</a>.<p>Interactive API documentation (Swagger UI) is available <a href='/docs'>here</a>.</p>'''
+
+
+
+# Endpoint to return configuration as JSON
+@app.route('/config', methods=['GET'])
+def get_config():
+    return jsonify(app.config['settings'])
 
 
 
@@ -2569,65 +2575,61 @@ def yaml_config(config_file):
 from werkzeug.middleware.proxy_fix import ProxyFix
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_for=1, x_host=1, x_port=1, x_prefix=1)
 
+def main(app):
+    app.config['settings'] = {
+        'FLASK_RUN_HOST': os.getenv('FLASK_RUN_HOST', '0.0.0.0'),
+        'FLASK_RUN_PORT': os.getenv('FLASK_RUN_PORT', '80'),
+        'FLASK_DEBUG': os.getenv('FLASK_DEBUG', 'True') == 'True',
 
-# Deploy service at the specific host and port
-def main(app, config_path):
-    # Get configuration settings specified in YAML or JSON
-    # config_path = 'config.yaml'  #sys.argv[1]
-    app.config['settings'] = yaml_config(config_path)
-    # app.config['settings'] = json_config(config_path)
+        'API_TITLE': os.getenv('API_TITLE', 'KLMS Data API'),
+        'API_VERSION': os.getenv('API_VERSION', '0.0.2'),
+        'API_SPEC_FORMAT': os.getenv('API_SPEC_FORMAT', 'json'),
 
-    # Apply configuration settings for this API
-    app.title = app.config['settings']['API_TITLE']
-    app.version = app.config['settings']['API_VERSION']
+        'API_AUTO_SERVERS': os.getenv('API_AUTO_SERVERS', 'True') == 'True',
+        'API_AUTO_TAGS': os.getenv('API_AUTO_TAGS', 'False') == 'True',
+        'API_AUTO_OPERATION_SUMMARY': os.getenv('API_AUTO_OPERATION_SUMMARY', 'True') == 'True',
+        'API_AUTO_OPERATION_DESCRIPTION': os.getenv('API_AUTO_OPERATION_DESCRIPTION', 'True') == 'True',
 
-    #app.config['LOCAL_SPEC_PATH'] = 'specs'
-    app.config['SPEC_FORMAT'] = app.config['settings']['API_SPEC_FORMAT']
-    app.config['AUTO_SERVERS'] = app.config['settings']['API_AUTO_SERVERS']
-    app.config['AUTO_TAGS'] = app.config['settings']['API_AUTO_TAGS']
-    app.config['AUTO_OPERATION_SUMMARY'] = app.config['settings']['API_AUTO_OPERATION_SUMMARY']
-    app.config['AUTO_OPERATION_DESCRIPTION'] = app.config['settings']['API_AUTO_OPERATION_DESCRIPTION']
-    app.config['TAGS'] = app.config['settings']['API_TAGS']
-    app.config['DESCRIPTION'] = app.config['settings']['API_DESCRIPTION']
-    app.config['TERMS_OF_SERVICE'] = app.config['settings']['API_TERMS_OF_SERVICE']
+        'API_TAGS': json.loads(os.getenv('API_TAGS', '[{"name": "KLMS", "description": "Knowledge Lake Management System"}, {"name": "STELAR", "description": "Spatio-TEmporal Linked data tools for the AgRi-food data space"}]')),
+        'API_DESCRIPTION': os.getenv('API_DESCRIPTION', 'Data API for managing resources in STELAR Knowledge Lake Management System'),
+        'API_TERMS_OF_SERVICE': os.getenv('API_TERMS_OF_SERVICE', 'http://stelar-project.eu/'),
+        'API_CONTACT': json.loads(os.getenv('API_CONTACT', '{"name": "API Support", "url": "<API-URL>", "email": "<CONTACT-EMAIL_ADDRESS>"}')),
+        'API_LICENSE': json.loads(os.getenv('API_LICENSE', '{"name": "Apache 2.0", "url": "http://www.apache.org/licenses/LICENSE-2.0.html"}')),
+        'API_SECURITY_SCHEMES': json.loads(os.getenv('API_SECURITY_SCHEMES', '{"ApiKeyAuth": {"type": "apiKey", "in": "header", "name": "Api-Token"}}')),
 
-    app.config['CONTACT'] = app.config['settings']['API_CONTACT']
-    app.config['LICENSE'] = app.config['settings']['API_LICENSE']
-    app.config['SECURITY_SCHEMES'] = app.config['settings']['API_SECURITY_SCHEMES']
+        'CKAN_API': f"{os.getenv('CKAN_SITE_URL', 'http://<CKAN-HOST>')}/api/3/action/",
 
-    if 'execution' not in app.config['settings'] and 'EXECUTION_ENGINE' in os.environ:
-        # Use environment var 'EXECUTION_ENGINE' to add entry to config
-        app.config['settings']['execution'] = {
-            'engine': os.environ['EXECUTION_ENGINE']
+        'dbname': os.getenv('POSTGRES_DB', '<DB-NAME>'),
+        'dbuser': os.getenv('POSTGRES_USER', '<DB-USERNAME>'),
+        'dbpass': os.getenv('POSTGRES_PASSWORD', '<DB-PASSWORD>'),
+        'dbhost': os.getenv('POSTGRES_HOST', '<DB-HOST>'),
+        'dbport': os.getenv('POSTGRES_PORT', '5432'),
+
+        'SPARQL_ENDPOINT': os.getenv('SPARQL_ENDPOINT', 'http://<ONTOP-HOST>/sparql'),
+
+        'RANK_DEFAULT_TOPK': int(os.getenv('RANK_DEFAULT_TOPK', '10')),
+        'RANK_MAX_TOPK': int(os.getenv('RANK_MAX_TOPK', '10000')),
+        'RANK_AGG_ALGORITHM': os.getenv('RANK_AGG_ALGORITHM', 'Bordacount'),
+
+        'MINIO_ENDPOINT': os.getenv('MINIO_ENDPOINT', '<MINIO-HOST>'),
+        'MINIO_ACCESS_KEY': os.getenv('MINIO_ACCESS_KEY', '<ACCESS_KEY>'),
+        'MINIO_SECRET_KEY': os.getenv('MINIO_SECRET_KEY', '<SECRET_KEY>'),
+        'MINIO_BUCKET': os.getenv('MINIO_BUCKET', '<BUCKET>'),
+
+        'API_URL': os.getenv('API_URL', 'http://<API-HOST>/'),
+        
+        'execution': {
+            'engine': os.getenv('EXECUTION_ENGINE') if 'EXECUTION_ENGINE' in os.environ else 'none'
         }
-
-    # The log level can be changed here
-    # app.logger.setLevel('DEBUG')
-
+    }
 
     # Configure execution
     execution.configure(app.config["settings"])
+    # Execution of the application will happen from gunicorn after create_app returns the app instance    
 
 
-
-# This entry point is used with 'flask run ...'
+# This entry point is used with gunicorn -b -w ....
 def create_app():
-    # current_directory = os.getcwd()
-    # config_file = os.path.join(current_directory, 'config.yaml')
-    main(app, 'config.yaml')
+    main(app)
+    # Return the application instance so that gunicorn can run it.
     return app
-    
-# This entry point is for the 'python src/data_api.py' startup
-if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print("Usage: python data_api.py <config_file>")
-        sys.exit(1)
-
-    # Do initialize the app
-    main(app, sys.argv[1])
-    
-    # Deploy the API
-    app.run(host=app.config['settings']['FLASK_RUN_HOST'],
-            port=app.config['settings']['FLASK_RUN_PORT'],
-            debug=app.config['settings']['FLASK_DEBUG'])
-
