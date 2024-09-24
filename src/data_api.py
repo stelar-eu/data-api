@@ -5,6 +5,7 @@ import re
 import sys
 import psycopg2
 import yaml
+import os
 import pandas as pd
 import uuid
 import datetime
@@ -16,7 +17,7 @@ import urllib
 from requests.models import Response
 
 from psycopg2.extras import RealDictCursor
-from flask import request, jsonify, current_app, redirect, url_for
+from flask import request, jsonify, current_app
 from apiflask import APIFlask, HTTPTokenAuth
 from apiflask.fields import Dict, Nested
 
@@ -64,7 +65,7 @@ app.config.from_prefixed_env()
 # such as User Management, Catalog Management,
 # Workflow/Execution management etc.
 
-app.register_blueprint(users_bp, url_prefix='/api/v1/catalog')
+#app.register_blueprint(users_bp, url_prefix='/api/v1/catalog')
 
 
 
@@ -2565,6 +2566,8 @@ def yaml_config(config_file):
     return config_data
 
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_for=1, x_host=1, x_port=1, x_prefix=1)
 
 
 # Deploy service at the specific host and port
@@ -2601,8 +2604,6 @@ def main(app, config_path):
     # The log level can be changed here
     # app.logger.setLevel('DEBUG')
 
-    from werkzeug.middleware.proxy_fix import ProxyFix
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_for=1, x_host=1, x_port=1, x_prefix=1)
 
     # Configure execution
     execution.configure(app.config["settings"])
@@ -2611,6 +2612,8 @@ def main(app, config_path):
 
 # This entry point is used with 'flask run ...'
 def create_app():
+    # current_directory = os.getcwd()
+    # config_file = os.path.join(current_directory, 'config.yaml')
     main(app, 'config.yaml')
     return app
     

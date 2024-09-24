@@ -10,5 +10,4 @@ COPY . /app/
 
 # This will change after refactoring
 ENV PYTHONPATH=/app/src
-WORKDIR /app/
-ENTRYPOINT ["sh","startup.sh"]
+ENTRYPOINT ["/app/startup.sh"]
