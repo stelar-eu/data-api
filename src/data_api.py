@@ -46,7 +46,9 @@ from routes.users import users_bp
 from routes.users import api_user_editor
 
 
-#### CKAN BP ####
+#### CKAN BPs ####
+
+from routes.users import catalog_search_bp
 
 
 
@@ -60,6 +62,7 @@ app = APIFlask(__name__, spec_path='/specs', docs_path ='/docs')
 # app.config.from_prefixed_env()
 
 
+
 ################## BLUEPRINT REGISTRATION ##################
 
 # Blueprints are used to split the API into logical parts, 
@@ -69,8 +72,6 @@ app = APIFlask(__name__, spec_path='/specs', docs_path ='/docs')
 app.register_blueprint(users_bp, url_prefix='/api/v1/catalog')
 
 ############################################################
-
-
 
 # Custom class to retain original ISO format like 'yyyy-mm-dd hh:mm:ss.m' in date/time/timestamp values
 class CustomJSONEncoder(JSONEncoder):
@@ -154,6 +155,7 @@ def home():
 
 # Endpoint to return configuration as JSON
 @app.route('/config', methods=['GET'])
+@app.doc(responses=[200], tags=['KLMS Data API'])   # ,summary='Entry point to the API'
 def get_config():
     return jsonify(app.config['settings'])
 
@@ -1787,7 +1789,7 @@ def api_artifact_publish(json_data, headers):
             # Also create the name of the new CKAN package from its title (assuming that this is unique)
             package_metadata['name'] = re.sub(r'[\W_]+','_',package_metadata['title']).lower()
             # Internal call to find the organization where the user belongs to (derived from API token)
-            resp_org = users_bp.api_user_editor()
+            resp_org = api_user_editor()
             if resp_org['success']:
                 org_json = resp_org['result']
                 if len(org_json) > 0:  
@@ -2572,8 +2574,7 @@ def yaml_config(config_file):
     return config_data
 
 
-from werkzeug.middleware.proxy_fix import ProxyFix
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_for=1, x_host=1, x_port=1, x_prefix=1)
+
 
 def main(app):
     app.config['settings'] = {
@@ -2583,19 +2584,19 @@ def main(app):
 
         'API_TITLE': os.getenv('API_TITLE', 'KLMS Data API'),
         'API_VERSION': os.getenv('API_VERSION', '0.0.2'),
-        'API_SPEC_FORMAT': os.getenv('API_SPEC_FORMAT', 'json'),
+        'SPEC_FORMAT': os.getenv('API_SPEC_FORMAT', 'json'),
 
-        'API_AUTO_SERVERS': os.getenv('API_AUTO_SERVERS', 'True') == 'True',
-        'API_AUTO_TAGS': os.getenv('API_AUTO_TAGS', 'False') == 'True',
-        'API_AUTO_OPERATION_SUMMARY': os.getenv('API_AUTO_OPERATION_SUMMARY', 'True') == 'True',
-        'API_AUTO_OPERATION_DESCRIPTION': os.getenv('API_AUTO_OPERATION_DESCRIPTION', 'True') == 'True',
+        'AUTO_SERVERS': os.getenv('API_AUTO_SERVERS', 'True') == 'True',
+        'AUTO_TAGS': os.getenv('API_AUTO_TAGS', 'False') == 'True',
+        'AUTO_OPERATION_SUMMARY': os.getenv('API_AUTO_OPERATION_SUMMARY', 'True') == 'True',
+        'AUTO_OPERATION_DESCRIPTION': os.getenv('API_AUTO_OPERATION_DESCRIPTION', 'True') == 'True',
 
-        'API_TAGS': json.loads(os.getenv('API_TAGS', '[{"name": "KLMS", "description": "Knowledge Lake Management System"}, {"name": "STELAR", "description": "Spatio-TEmporal Linked data tools for the AgRi-food data space"}]')),
-        'API_DESCRIPTION': os.getenv('API_DESCRIPTION', 'Data API for managing resources in STELAR Knowledge Lake Management System'),
-        'API_TERMS_OF_SERVICE': os.getenv('API_TERMS_OF_SERVICE', 'http://stelar-project.eu/'),
-        'API_CONTACT': json.loads(os.getenv('API_CONTACT', '{"name": "API Support", "url": "<API-URL>", "email": "<CONTACT-EMAIL_ADDRESS>"}')),
-        'API_LICENSE': json.loads(os.getenv('API_LICENSE', '{"name": "Apache 2.0", "url": "http://www.apache.org/licenses/LICENSE-2.0.html"}')),
-        'API_SECURITY_SCHEMES': json.loads(os.getenv('API_SECURITY_SCHEMES', '{"ApiKeyAuth": {"type": "apiKey", "in": "header", "name": "Api-Token"}}')),
+        'TAGS': json.loads(os.getenv('API_TAGS', '[{"name": "KLMS", "description": "Knowledge Lake Management System"}, {"name": "STELAR", "description": "Spatio-TEmporal Linked data tools for the AgRi-food data space"}]')),
+        'DESCRIPTION': os.getenv('API_DESCRIPTION', 'Data API for managing resources in STELAR Knowledge Lake Management System'),
+        'TERMS_OF_SERVICE': os.getenv('API_TERMS_OF_SERVICE', 'http://stelar-project.eu/'),
+        'CONTACT': json.loads(os.getenv('API_CONTACT', '{"name": "API Support", "url": "<API-URL>", "email": "<CONTACT-EMAIL_ADDRESS>"}')),
+        'LICENSE': json.loads(os.getenv('API_LICENSE', '{"name": "Apache 2.0", "url": "http://www.apache.org/licenses/LICENSE-2.0.html"}')),
+        'SECURITY_SCHEMES': json.loads(os.getenv('API_SECURITY_SCHEMES', '{"ApiKeyAuth": {"type": "apiKey", "in": "header", "name": "Api-Token"}}')),
 
         'CKAN_API': f"{os.getenv('CKAN_SITE_URL', 'http://<CKAN-HOST>')}/api/3/action/",
 
@@ -2623,8 +2624,14 @@ def main(app):
         }
     }
 
+    # Apply configuration settings for this API
+    app.title = app.config['settings']['API_TITLE']
+    app.version = app.config['settings']['API_VERSION']
+
     # Configure execution
     execution.configure(app.config["settings"])
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_for=1, x_host=1, x_port=1, x_prefix=1)
     # Execution of the application will happen from gunicorn after create_app returns the app instance    
 
 
