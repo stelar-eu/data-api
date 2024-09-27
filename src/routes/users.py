@@ -23,7 +23,15 @@ auth = HTTPTokenAuth(scheme='ApiKey', header='Api-Token')
 
 # The users operations blueprint for all operations related to the lifecycle of a user
 # The blueprint preempts the 
-users_bp = APIBlueprint('users_blueprint', __name__)
+users_bp = APIBlueprint('users_blueprint', __name__,tag='User Management')
+
+
+# Endpoint to return configuration as JSON
+@users_bp.route('/user/config', methods=['GET'])
+@users_bp.doc(tags=['User Management'])
+def get_config():
+    return jsonify(current_app.config['settings'])
+
 
 @users_bp.route('/user/create', methods=['POST'])
 @users_bp.input(schema.NewUser, location='json', example={"name":"test_user5", "email":"test5@example.com","password":"test_pass5", "fullname":"Jane Doe", "about":"Testing the CKAN API for creating another new user", "image_url":"https://commons.wikimedia.org/wiki/File:Example.jpg"})

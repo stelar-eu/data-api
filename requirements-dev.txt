@@ -1,7 +1,0 @@
-# The requirements file to use for the development environment.
-# The following packages are not needed at runtime.
--r requirements.txt
-pytest
-black
-flake8
-isort

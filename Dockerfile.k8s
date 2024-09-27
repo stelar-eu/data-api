@@ -10,4 +10,4 @@ COPY . /app/
 
 # This will change after refactoring
 ENV PYTHONPATH=/app/src
-ENTRYPOINT ["/app/startup.sh"]
+CMD gunicorn -w 4 -b 0.0.0.0:80 'data_api:create_app()'
