@@ -17,6 +17,12 @@ from shapely.geometry.polygon import Polygon
 from shapely.geometry.point import Point
 import shapely.wkt
 
+#for keycloak integration with the api
+import base64
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
+
 ################################## DATABASE CONNECTOR ########################################
 
 def execSql(sql, vars=None):
@@ -208,6 +214,18 @@ sparql_templates = {
 }
 
 #########################################################
+
+#fuction that is called from the api_verify_token function in data-api.py
+def construct_rsa_public_key(n, e):
+    """Construct an RSA public key from 'n' and 'e' values from JWKS."""
+    # Decode 'n' and 'e' from Base64URL to bytes, then convert to integers
+    n_int = int.from_bytes(base64.urlsafe_b64decode(n + '=='), byteorder='big')
+    e_int = int.from_bytes(base64.urlsafe_b64decode(e + '=='), byteorder='big')
+
+    # Create the RSA public key using the cryptography library
+    public_key = rsa.RSAPublicNumbers(e_int, n_int).public_key(default_backend())
+
+    return public_key
 
 
 def create_CKAN_headers(API_TOKEN):
@@ -1116,8 +1134,8 @@ def prepareZenodoMetadata(dataset, creator, creator_org, doi:None):
     # locations : list of locations -> NOT always the BBOX specified in CKAN
     # * lat (double): latitude
     # * lon (double): longitude
-    # * place (string): place’s name (required)
-    # * description (string): place’s description (optional)
+    # * place (string): placeï¿½s name (required)
+    # * description (string): placeï¿½s description (optional)
     # Example: [{"lat": 34.02577, "lon": -118.7804, "place": "Los Angeles"}, {"place": "Mt.Fuji, Japan", "description": "Sample found 100ft from the foot of the mountain."}]
     locations = None
     if spatial:
@@ -1147,8 +1165,8 @@ def prepareZenodoMetadata(dataset, creator, creator_org, doi:None):
     # dates -> List of date intervals
     # * start (ISO date string): start date (*)
     # * end (ISO date string): end date (*)
-    # * type (Collected, Valid, Withdrawn): The interval’s type (required)
-    # * description (string): The interval’s description (optional)
+    # * type (Collected, Valid, Withdrawn): The intervalï¿½s type (required)
+    # * description (string): The intervalï¿½s description (optional)
     # (*) Note that you have to specify at least a start or end date. For an exact date, use the same value for both start and end.
     # Example: [{"start": "2018-03-21", "end": "2018-03-25", "type": "Collected", "description": "Specimen A5 collection period."}]
     dates = None

@@ -14,10 +14,13 @@ import subprocess
 import traceback
 import urllib
 
+#for keycloak integration with the api
+from jose import jwt, JWTError
 from requests.models import Response
+import logging
 
 from psycopg2.extras import RealDictCursor
-from flask import request, jsonify, current_app
+from flask import request, jsonify, current_app, redirect, session, url_for
 from apiflask import APIFlask, HTTPTokenAuth
 from apiflask.fields import Dict, Nested
 
@@ -55,7 +58,12 @@ from routes.users import api_user_editor
 
 # Create an instance of this API; by default, its OpenAPI-compliant specification will be generated under folder /specs
 app = APIFlask(__name__, spec_path='/specs', docs_path ='/docs')
+
+app.secret_key = 'secretkey123'
+
 app.config.from_prefixed_env()
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 
@@ -90,35 +98,162 @@ app.json_encoder = CustomJSONEncoder
 
 ################################## AUTHENTICATION ########################################
 
-# Authenticate API requests using tokens (issued by CKAN)
-auth = HTTPTokenAuth(scheme='ApiKey', header='Api-Token')
+# # Authenticate API requests using tokens (issued by CKAN)
+# auth = HTTPTokenAuth(scheme='ApiKey', header='Api-Token')
 
+
+# @auth.verify_token
+# def api_verify_token(token):
+#     """Register a callback to verify that the token is valid for POST requests that require authentication. GET requests do not require authentication in CKAN.
+
+#     Args:
+#         token: A token issued by the user through the CKAN GUI.
+
+#     Returns:
+#         A boolean: True, if the token is valid; False, otherwise.
+#     """
+
+#     config = current_app.config['settings']
+
+#     user_headers = { 'X-CKAN-API-Key' : token }
+
+#     # Make a POST request to the CKAN API with the token to check access to user information
+#     response = requests.post(config['CKAN_API']+'user_show', headers=user_headers) 
+
+#     if response.json()['success']:
+#         return True
+#     else:
+#         return False
+
+# app.config['keycloak_settings'] = {
+#     'KEYCLOAK_ISSUER': 'https://<keycloak-domain>/auth/realms/master',
+#     'KEYCLOAK_CLIENT_ID': 'stelar-api',
+#     'KEYCLOAK_CLIENT_SECRET': 'iQTNNRsMxuVYqcL2KiDyCqtfVryxxaRw',  # Optional: only if you're using confidential clients
+#     'KEYCLOAK_REDIRECT_URI': 'http://localhost:5000/callback',  # Your redirect URI
+# }
+
+auth = HTTPTokenAuth(scheme='Bearer', header='Authorization')
+
+# Redirect user to Keycloak login page
+@app.route('/login')
+def login():
+    # config = app.config['keycloak_settings']
+    keycloak_login_url = (
+        "https://tb.petrounetwork.gr:8443/realms/master/protocol/openid-connect/auth"
+        "?client_id=stelar-api"
+        "&response_type=code"
+        "&redirect_uri=http://minikube/stelar/callback"
+        "&scope=openid"
+    )
+    return redirect(keycloak_login_url)
+
+# Callback endpoint to handle Keycloak's response
+@app.route('/callback')
+def callback():
+    code = request.args.get('code')
+    if not code:
+        return "Authorization code not provided", 400
+    
+    #config = app.config['keycloak_settings']
+    
+    # Exchange authorization code for an access token
+    token_url = "https://tb.petrounetwork.gr:8443/realms/master/protocol/openid-connect/token"
+    payload = {
+        'grant_type': 'authorization_code',
+        'client_id': 'stelar-api',
+        'client_secret': 'iQTNNRsMxuVYqcL2KiDyCqtfVryxxaRw',  # Optional
+        'code': code,
+        'redirect_uri': 'http://minikube/stelar/callback',
+    }
+    
+    response = requests.post(token_url, data=payload)
+    token_data = response.json()
+
+    if 'access_token' in token_data:
+        session['access_token'] = token_data['access_token']
+        return jsonify({"message": "Keycloak authenticated!", "token": token_data['access_token']})
+    else:
+        return "Failed to get access token", 400
+
+# Protect this endpoint with token verification
+@app.route('/secure-endpoint', methods=['GET'])
+@auth.login_required
+def secure_endpoint():
+    return jsonify({"message": "Authenticated with Keycloak!"})
 
 @auth.verify_token
 def api_verify_token(token):
-    """Register a callback to verify that the token is valid for POST requests that require authentication. GET requests do not require authentication in CKAN.
-
-    Args:
-        token: A token issued by the user through the CKAN GUI.
-
-    Returns:
-        A boolean: True, if the token is valid; False, otherwise.
     """
+    Verify JWT tokens issued by Keycloak for POST requests that require authentication.
+    
+    Args:
+        token: A JWT token issued by Keycloak after user authentication.
+        
+    Returns:
+        A boolean: True if the token is valid; False otherwise.
+    """
+    logging.debug("Starting token verification")
+    token = urllib.parse.unquote(token).strip()
+    # config = current_app.config['keycloak_settings']
+    keycloak_issuer = "https://tb.petrounetwork.gr:8443/realms/master"  # Issuer URL from Keycloak
+    keycloak_client_id = 'master-realm'  # Client ID registered in Keycloak(check the aud for different users)
+    keycloak_jwks_url = "https://tb.petrounetwork.gr:8443/realms/master/protocol/openid-connect/certs"
+    
+    try:
+        logging.debug(f"Token received: {token}")
+        # Get the JWKS (public keys) from Keycloak to verify JWT tokens
+        jwks_response = requests.get(keycloak_jwks_url)
+        jwks = jwks_response.json()
 
-    config = current_app.config['settings']
+        logging.debug(f"JWKS response: {jwks}")
 
-    user_headers = { 'X-CKAN-API-Key' : token }
+        # Extract token header to identify the correct public key (kid)
+        unverified_header = jwt.get_unverified_header(token)
+        logging.debug(f"Unverified header: {unverified_header}")
 
-    # Make a POST request to the CKAN API with the token to check access to user information
-    response = requests.post(config['CKAN_API']+'user_show', headers=user_headers) 
+        # Find the public key matching the 'kid' in the token header
+        # rsa_key = {}
+        for key in jwks['keys']:
+            if key['kid'] == unverified_header['kid']:
+                rsa_key = utils.construct_rsa_public_key(key['n'], key['e'])
+                logging.debug(f"Found RSA key: {rsa_key}")
+                # rsa_key = {
+                #     'kty': key['kty'],
+                #     'kid': key['kid'],
+                #     'use': key['use'],
+                #     'n': key['n'],
+                #     'e': key['e']
+                # }
 
-    if response.json()['success']:
-        return True
-    else:
+        # If we found the correct key, verify the token
+        if rsa_key:
+            payload = jwt.decode(
+                token,
+                rsa_key,
+                algorithms=['RS256'],
+                audience=keycloak_client_id,  # Ensure the audience matches the client ID
+                issuer=keycloak_issuer        # Ensure the token is from the right Keycloak issuer
+            )
+            logging.debug(f"Payload: {payload}")
+            print("Token verified successfully!")
+            
+            # If token verification succeeds, authentication is valid
+            return True
+        
+    except JWTError as e:
+        # Token is invalid
+        print(f"JWTError: {e}")
+        logging.error(f"JWTError: {e}")
+        # return "Invalid Token", 401
+        return False
+    except Exception as e:
+        # Other errors (e.g., network issue, token parsing error)
+        print(f"Error: {e}")
+        logging.error(f"General error: {e}")
         return False
 
-
-
+    # If no valid key is found, return False
+    return False
 
 ################################## ENTRY POINT ########################################
 
