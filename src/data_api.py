@@ -8,24 +8,24 @@ import yaml
 import os
 import pandas as pd
 import uuid
-import datetime
 import os
 import subprocess
-import traceback
 import urllib
 
 #for keycloak integration with the api
 from jose import jwt, JWTError
 from requests.models import Response
 import logging
+from src.auth import auth, security_doc
 
 from psycopg2.extras import RealDictCursor
 from flask import request, jsonify, current_app, redirect, session, url_for
-from apiflask import APIFlask, HTTPTokenAuth
+from apiflask import APIFlask
 from apiflask.fields import Dict, Nested
 
 from flask.json import JSONEncoder
-from datetime import date, datetime
+from datetime import datetime as datetime
+from datetime import date
 
 # Auxiliary custom functions & SQL query templates for ranking
 import utils
@@ -35,11 +35,11 @@ import sql_utils
 import execution
 
 
+#Import demo token creator
+from demo_t import get_demo_ckan_token
+
 # Input schemata for validating several API requests
 import schema
-
-
-
 
 #################### BLUEPRINT IMPORTS #####################
 # Import the blueprints for the logical parts of the API
@@ -49,14 +49,11 @@ from routes.users import users_bp
 from routes.users import api_user_editor
 
 
-#### CKAN BPs ####
-
-from routes.users import catalog_search_bp
-
+#### TASK BPs ####
+from routes.tasks import tasks_bp
 
 
 ############################################################
-
 
 # Create an instance of this API; by default, its OpenAPI-compliant specification will be generated under folder /specs
 app = APIFlask(__name__, spec_path='/specs', docs_path ='/docs')
@@ -67,8 +64,6 @@ app.config.from_prefixed_env()
 
 logging.basicConfig(level=logging.DEBUG)
 
-
-
 ################## BLUEPRINT REGISTRATION ##################
 
 # Blueprints are used to split the API into logical parts, 
@@ -76,6 +71,8 @@ logging.basicConfig(level=logging.DEBUG)
 # Workflow/Execution management etc.
 
 app.register_blueprint(users_bp, url_prefix='/api/v1/catalog')
+app.register_blueprint(tasks_bp, url_prefix='/api/v1/task')
+
 
 ############################################################
 
@@ -130,40 +127,41 @@ app.json_encoder = CustomJSONEncoder
 #     'KEYCLOAK_REDIRECT_URI': 'http://localhost:5000/callback',  # Your redirect URI
 # }
 
-auth = HTTPTokenAuth(scheme='Bearer', header='Authorization')
 
 # Redirect user to Keycloak login page
 @app.route('/login')
+@app.doc(tags=["KLMS Data API"])
 def login():
-    # config = app.config['keycloak_settings']
+    config = current_app.config['settings']
     keycloak_login_url = (
-        "https://tb.petrounetwork.gr:8443/realms/master/protocol/openid-connect/auth"
-        "?client_id=stelar-api"
-        "&response_type=code"
-        "&redirect_uri=http://minikube/stelar/callback"
-        "&scope=openid"
+        "https://"+config['KEYCLOAK_SUBDOMAIN']+"."+config['KLMS_DOMAIN_NAME']+"/realms/"+config['REALM_NAME']+"/protocol/openid-connect/auth"
+        +"?client_id="+config['KEYCLOAK_CLIENT_ID']
+        +"&response_type=code"
+        +"&redirect_uri=https://"+config['MAIN_INGRESS_SUBDOMAIN']+"."+config['KLMS_DOMAIN_NAME']+"/stelar/callback"
+        +"&scope=openid"
     )
     return redirect(keycloak_login_url)
 
 # Callback endpoint to handle Keycloak's response
 @app.route('/callback')
+@app.doc(tags=["KLMS Data Testing"])
 def callback():
     code = request.args.get('code')
     if not code:
         return "Authorization code not provided", 400
     
-    #config = app.config['keycloak_settings']
+    config = current_app.config['settings']
     
     # Exchange authorization code for an access token
-    token_url = "https://tb.petrounetwork.gr:8443/realms/master/protocol/openid-connect/token"
+    token_url = config['KEYCLOAK_URL']+"/realms/"+config['REALM_NAME']+"/protocol/openid-connect/token"
     payload = {
         'grant_type': 'authorization_code',
-        'client_id': 'stelar-api',
-        'client_secret': 'iQTNNRsMxuVYqcL2KiDyCqtfVryxxaRw',  # Optional
+        'client_id': config['KEYCLOAK_CLIENT_ID'],
+        'client_secret': config['KEYCLOAK_CLIENT_SECRET'],
         'code': code,
-        'redirect_uri': 'http://minikube/stelar/callback',
+        'redirect_uri': 'https://'+config['MAIN_INGRESS_SUBDOMAIN']+'.'+config['KLMS_DOMAIN_NAME']+'/stelar/callback',
     }
-    
+
     response = requests.post(token_url, data=payload)
     token_data = response.json()
 
@@ -176,82 +174,9 @@ def callback():
 # Protect this endpoint with token verification
 @app.route('/secure-endpoint', methods=['GET'])
 @auth.login_required
+@app.doc(tags=["KLMS Testing"], security=security_doc)
 def secure_endpoint():
     return jsonify({"message": "Authenticated with Keycloak!"})
-
-@auth.verify_token
-def api_verify_token(token):
-    """
-    Verify JWT tokens issued by Keycloak for POST requests that require authentication.
-    
-    Args:
-        token: A JWT token issued by Keycloak after user authentication.
-        
-    Returns:
-        A boolean: True if the token is valid; False otherwise.
-    """
-    logging.debug("Starting token verification")
-    token = urllib.parse.unquote(token).strip()
-    # config = current_app.config['keycloak_settings']
-    keycloak_issuer = "https://tb.petrounetwork.gr:8443/realms/master"  # Issuer URL from Keycloak
-    keycloak_client_id = 'master-realm'  # Client ID registered in Keycloak(check the aud for different users)
-    keycloak_jwks_url = "https://tb.petrounetwork.gr:8443/realms/master/protocol/openid-connect/certs"
-    
-    try:
-        logging.debug(f"Token received: {token}")
-        # Get the JWKS (public keys) from Keycloak to verify JWT tokens
-        jwks_response = requests.get(keycloak_jwks_url)
-        jwks = jwks_response.json()
-
-        logging.debug(f"JWKS response: {jwks}")
-
-        # Extract token header to identify the correct public key (kid)
-        unverified_header = jwt.get_unverified_header(token)
-        logging.debug(f"Unverified header: {unverified_header}")
-
-        # Find the public key matching the 'kid' in the token header
-        # rsa_key = {}
-        for key in jwks['keys']:
-            if key['kid'] == unverified_header['kid']:
-                rsa_key = utils.construct_rsa_public_key(key['n'], key['e'])
-                logging.debug(f"Found RSA key: {rsa_key}")
-                # rsa_key = {
-                #     'kty': key['kty'],
-                #     'kid': key['kid'],
-                #     'use': key['use'],
-                #     'n': key['n'],
-                #     'e': key['e']
-                # }
-
-        # If we found the correct key, verify the token
-        if rsa_key:
-            payload = jwt.decode(
-                token,
-                rsa_key,
-                algorithms=['RS256'],
-                audience=keycloak_client_id,  # Ensure the audience matches the client ID
-                issuer=keycloak_issuer        # Ensure the token is from the right Keycloak issuer
-            )
-            logging.debug(f"Payload: {payload}")
-            print("Token verified successfully!")
-            
-            # If token verification succeeds, authentication is valid
-            return True
-        
-    except JWTError as e:
-        # Token is invalid
-        print(f"JWTError: {e}")
-        logging.error(f"JWTError: {e}")
-        # return "Invalid Token", 401
-        return False
-    except Exception as e:
-        # Other errors (e.g., network issue, token parsing error)
-        print(f"Error: {e}")
-        logging.error(f"General error: {e}")
-        return False
-
-    # If no valid key is found, return False
-    return False
 
 ################################## ENTRY POINT ########################################
 
@@ -288,7 +213,8 @@ def home():
 
 # Endpoint to return configuration as JSON
 @app.route('/config', methods=['GET'])
-@app.doc(responses=[200], tags=['KLMS Data API'])   # ,summary='Entry point to the API'
+@app.doc(tags=["KLMS Testing"], responses=[200])
+
 def get_config():
     return jsonify(app.config['settings'])
 
@@ -461,8 +387,8 @@ def api_export_zenodo_dataset_id(query_data):
 @app.route('/api/v1/catalog/search', methods=['POST'])
 @app.input(schema.Query, location='json', example={"q":{"Topic":"POI", "INSPIRE theme":"Location", "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]}}})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Search Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Search Operations'], security=security_doc)
+@auth.login_required
 def api_catalog_search(json_data):
     """Submit a search request to the Data Catalog.
 
@@ -1054,8 +980,8 @@ def api_task_parameters(query_data):
 @app.route('/api/v1/graph/search', methods=['POST'])
 @app.input(schema.Filter, location='json', example={"q": "PREFIX dct: <http://purl.org/dc/terms/> SELECT ?uri ?title ?publisher WHERE { ?uri dct:title ?title . ?uri dct:publisher ?publisher . } LIMIT 5"})
 #@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Search Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Search Operations'], security=security_doc)
+@auth.login_required
 def api_sparql(json_data):
     """Submit a search request to the SPARQL endpoint.
 
@@ -1094,8 +1020,8 @@ def api_sparql(json_data):
 @app.route('/api/v1/catalog/sql', methods=['POST'])
 @app.input(schema.Filter, location='json', example={"q": "SELECT * FROM public.package LIMIT 5"})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Search Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Search Operations'], security=security_doc)
+@auth.login_required
 def api_sql(json_data):
     """Submit a SELECT SQL command to the PostgreSQL database.
 
@@ -1137,8 +1063,8 @@ def api_sql(json_data):
 @app.route('/api/v1/catalog/facet/values', methods=['POST'])
 @app.input(schema.Filter, location='json', example={"q": "format"})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Search Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Search Operations'], security=security_doc)
+@auth.login_required
 def api_facet_values(json_data):
     """Submit a SELECT SQL command to the PostgreSQL database.
 
@@ -1191,8 +1117,8 @@ def api_facet_values(json_data):
 @app.route('/api/v1/catalog/rank', methods=['POST'])
 @app.input(schema.Ranking, location='json', example={"rank_preferences":{"tags": ["Geospatial","POI"], "theme":["Land Use","Land Cover","Imagery"], "language":["en","el","fr"], "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]}}, "settings":{"k": 10, "algorithm": "threshold", "weights": [0.3,0.5,0.4] }})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Ranking Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Ranking Operations'], security=security_doc)
+@auth.login_required
 def api_catalog_rank(json_data):
     """Submit a rank request regarding specific metadata attributes (facets) to the Data Catalog.
 
@@ -1356,8 +1282,8 @@ def api_catalog_rank(json_data):
 @app.route('/api/v1/catalog/publish', methods=['POST'])
 @app.input(schema.Dataset, location='json', example={"basic_metadata":{"title": "Test Data API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": ["STELAR","OpenStreetMap","Geospatial","Bavaria"]},"extra_metadata":{"INSPIRE theme":"Imagery", "theme": ["Earth Sciences", "Landuse", "http://eurovoc.europa.eu/4630"], "language": ["ca", "en", "es"], "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]},"temporal_start":"2023-01-31T11:33:54.132Z", "temporal_end":"2023-01-31T11:35:48.593Z"},"profile_metadata":{"url":"https://raw.githubusercontent.com/stelar-eu/data-profiler/main/examples/output/timeseries_profile.json", "name": "Time series profile in JSON", "description": "This is the profile of a time series in JSON format", "resource_type": "Tabular", "format": "JSON", "resource_tags": ["Profile", "Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Publishing Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Publishing Operations'], security=security_doc)
+@auth.login_required
 def api_dataset_publish(json_data):
     """Publish a new dataset in the Catalog.
 
@@ -1486,8 +1412,8 @@ def api_dataset_publish(json_data):
 @app.route('/api/v1/dataset/register', methods=['POST'])
 @app.input(schema.Package, location='json', example={"package_metadata": {"title": "Test Data API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Berlin"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}],"name": "test_data_api_1","private": "false","version": "0.3","owner_org": "athenarc"}})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Publishing Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Publishing Operations'], security=security_doc)
+@auth.login_required
 def api_dataset_register(json_data):
     """Register a new dataset according to CKAN specifications. The user will become the publisher of this dataset.
 
@@ -1532,8 +1458,8 @@ def api_dataset_register(json_data):
 @app.route('/api/v1/dataset/patch', methods=['POST'])
 @app.input(schema.Package, location='json', example={"package_metadata": {"id": "test_data_api_1", "tags": [{"name": "Patch"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}] }})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Publishing Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Publishing Operations'], security=security_doc)
+@auth.login_required
 def api_dataset_patch(json_data):
     """Patch more metadata to an existing dataset according to CKAN specifications. The user will become the publisher of this dataset.
 
@@ -1578,8 +1504,8 @@ def api_dataset_patch(json_data):
 @app.route('/api/v1/profile/publish', methods=['POST'])
 @app.input(schema.Profile, location='json', example={"profile_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_type": "Raster", "resource_tags": ["Profile","Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Publishing Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Publishing Operations'], security=security_doc)
+@auth.login_required
 def api_profile_publish(json_data):
     """Upload a profile as a resource to an existing dataset in CKAN. The user will become the publisher of this profile.
 
@@ -1644,8 +1570,8 @@ def api_profile_publish(json_data):
 @app.route('/api/v1/profile/store', methods=['POST'])
 @app.input(schema.Profile, location='json', example={"profile_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_type": "Raster", "resource_tags": ["Profile","Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Publishing Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Publishing Operations'], security=security_doc)
+@auth.login_required
 def api_profile_store(json_data):
     """Store profile information directly in the PostgreSQL database. The respective resource must correspond to an existing dataset in CKAN. The user will become the publisher of this profile.
 
@@ -1694,8 +1620,8 @@ def api_profile_store(json_data):
 @app.route('/api/v1/resource/upload', methods=['POST'])
 @app.input(schema.Resource, location='json', example={"resource_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_tags": ["Profile","Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Publishing Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Publishing Operations'], security=security_doc)
+@auth.login_required
 def api_resource_upload(json_data):
     """Upload a resource to an existing dataset according to CKAN specifications. The user will become the publisher of this resource.
 
@@ -1749,8 +1675,8 @@ def api_resource_upload(json_data):
 @app.route('/api/v1/resource/link', methods=['POST'])
 @app.input(schema.Resource, location='json', example={"resource_metadata": {"package_id": "test_data_api_1", "url":"https://data.smartdublin.ie/dataset/09870e46-26a3-4dc2-b632-4d1fba5092f9/resource/40a718a8-cb99-468d-962b-af4fed4b0def/download/bleeperbike_map.geojson", "name": "Test GeoJSON resource", "description": "This is the test resource in GeoJSON format", "format": "GeoJSON", "resource_type": "Tabular", "resource_tags": ["Link to external resource", "Found in the Web"]}})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Publishing Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Publishing Operations'], security=security_doc)
+@auth.login_required
 def api_resource_link(json_data):
     """Associate a resource (with its URL) to an existing dataset in CKAN. The user will become the publisher of this resource.
 
@@ -1806,8 +1732,8 @@ def api_resource_link(json_data):
 @app.route('/api/v1/workflow/publish', methods=['POST'])
 @app.input(schema.Package, location='json', example={"package_metadata": {"title": "Test workflow", "notes": "This workflow performs entity matching", "tags": ["STELAR", "Entity matching", "Entity resolution"]}})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Publishing Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Publishing Operations'], security=security_doc)
+@auth.login_required
 def api_workflow_publish(json_data):
     """Publish a new workflow as a CKAN package. The user will become the publisher of this workflow.
 
@@ -1823,8 +1749,8 @@ def api_workflow_publish(json_data):
     config = current_app.config['settings']
 
     if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        if request.headers:
+            package_headers, resource_headers = utils.create_CKAN_headers(get_demo_ckan_token())
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -1871,137 +1797,11 @@ def api_workflow_publish(json_data):
         return jsonify(response)
 
 
-def api_artifact_publish(json_data, headers):
-    """Publish an artifact created by a workflow execution.
-
-    If a package id is provided, associate the artifact (with its URL) to this package in CKAN. Otherwise, create a new package in CKAN to make this association. The user will become the publisher of this resource.
-
-    Args:
-        data: A JSON with all metadata information provided by the publisher about the new artifact.
-
-    Returns:
-        A JSON with the CKAN response to the publishing request.
-    """
-
-    config = current_app.config['settings']
-
-    if headers:
-        if headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(headers['Api-Token'])
-        else:
-            return {'success':False, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-    else:
-        return {'success':False,  'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-
-    specs = json_data
-
-    if specs.get('artifact_metadata') != None:
-        artifact_metadata = specs['artifact_metadata']
-    else:
-        return {'success':False, 'error':{'__type':'No specifications','name':['No metadata provided for publishing this artifact in the Catalog. Please specify metadata for the artifact you wish to publish.']}}
-
-    # Check if a new package needs to be created with the basic metadata
-    if specs.get('package_metadata') != None:
-        package_metadata = specs['package_metadata']
-        if package_metadata.get('package_id') != None:
-            # Make a POST request to the CKAN API to associate this artifact to an existing dataset (CKAN package)
-            artifact_metadata['package_id'] = package_metadata['package_id']
-            resp_resource = requests.post(config['CKAN_API']+'resource_create', data=artifact_metadata, headers=resource_headers)
-            result = {'package_id': artifact_metadata['package_id']}
-            if resp_resource.status_code == 200:
-                resource_id = resp_resource.json()['result']['id']
-                result['resource_id'] = resource_id
-#                print("resource_id: ", resource_id)
-            else:
-                return resp_resource.json()
-            response = {'success':True,  'result':result} 
-            return response
-        else:
-        # Register a new package with some basic metadata
-            arr_resp = []
-            # Also create the name of the new CKAN package from its title (assuming that this is unique)
-            package_metadata['name'] = re.sub(r'[\W_]+','_',package_metadata['title']).lower()
-            # Internal call to find the organization where the user belongs to (derived from API token)
-            resp_org = api_user_editor()
-            if resp_org['success']:
-                org_json = resp_org['result']
-                if len(org_json) > 0:  
-                    for item in org_json: 
-                        if item['type'] == 'organization' and item['state'] == 'active' and item['capacity'] in ('admin','editor'):
-                            package_metadata['owner_org'] = org_json[0]['name']  # CAUTION! Taking the first organization where this user is editor
-                            break
-
-            # Make a POST request to the CKAN API with the basic metadata
-            resp_basic = requests.post(config['CKAN_API']+'package_create', json=package_metadata, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
-            arr_resp.append(resp_basic.json())
-
-            result = {}
-            # Get the id of the newly created package in order to associate the artifact as a resource
-            if resp_basic.status_code == 200:
-                package_id = resp_basic.json()['result']['id']
-                result['package_id'] = package_id
-#                print("package_id: ", package_id)
-            else:
-                return resp_basic.json()
-
-            artifact_metadata['package_id'] = package_id
-            # Make a POST request to the CKAN API to link the artifact as a resource
-            resp_resource = requests.post(config['CKAN_API']+'resource_create', data=artifact_metadata, headers=resource_headers)
-            arr_resp.append(resp_resource.json())
-
-            if resp_resource.status_code == 200:
-                resource_id = resp_resource.json()['result']['id']
-                result['resource_id'] = resource_id
-#                print("resource_id: ", resource_id)
-            else:
-                return resp_resource.json()
-
-            # Examine collected responses to compose the overall response
-            success = True   
-            for idx, resp in enumerate(arr_resp):
-                success &= resp['success']
-#                result.append(resp)
-
-            response = {'success':success, 'result':result}     
-            return response
-
-
-
-def api_artifact_id(resource_id, headers):
-    """Get the file path of an artifact. 
-
-    Provides the path to the file (URL, S3 bucket or local file) where an artifact (stored as a resource) is available. User may need credentials to access this file.
-
-    Args:
-        id: The unique identifier of the resource as listed in CKAN.
-
-    Returns:
-        A JSON with the file path for the specified resource as maintained in CKAN.
-    """
-
-    config = current_app.config['settings']
-
-    if headers and headers.get('Api-Token') != None:
-        package_headers, resource_headers = utils.create_CKAN_headers(headers['Api-Token'])
-    else:
-        return None
-
-    # Make a GET request to the CKAN API with the parameters
-    # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(config['CKAN_API']+'resource_show?id='+resource_id, headers=package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
-
-    # Get the path of this artifact 
-    if response.status_code == 200:
-        return response.json()['result']['url']
-    else:
-        return None
-
-
 @app.route('/api/v1/dataset/delete', methods=['POST'])
 @app.input(schema.Identifier, location='json', example={"id":"test_data_api_1"})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Catalog Management'])
-@app.auth_required(auth)
+@app.doc(tags=['Catalog Management'], security=security_doc)
+@auth.login_required
 def api_dataset_purge(json_data):
     """Delete an existing dataset from the Catalog.
 
@@ -2043,8 +1843,8 @@ def api_dataset_purge(json_data):
 @app.route('/api/v1/dataset/unpublish', methods=['POST'])
 @app.input(schema.Identifier, location='json', example={"id":"test_data_api_1"})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Catalog Management'])
-@app.auth_required(auth)
+@app.doc(tags=['Catalog Management'], security=security_doc)
+@auth.login_required
 def api_dataset_unpublish(json_data):
     """Unpublish an existing dataset from the Catalog.
 
@@ -2087,8 +1887,8 @@ def api_dataset_unpublish(json_data):
 @app.route('/api/v1/resource/delete', methods=['POST'])
 @app.input(schema.Identifier, location='json', example={"id":"aa2992aa-b589-463d-ae1e-8430d91206cb"})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Catalog Management'])
-@app.auth_required(auth)
+@app.doc(tags=['Catalog Management'], security=security_doc)
+@auth.login_required
 def api_resource_delete(json_data):
     """Delete an existing resource from the Catalog.
 
@@ -2127,386 +1927,6 @@ def api_resource_delete(json_data):
     return response.json()
 
 
-############################## TASK OPERATIONS ################################
-
-@app.route('/api/v1/task/execution/create', methods=['POST'])
-@app.input(schema.Task_Input, location='json', example={"workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41",
-                                                        "docker_image": "alzeakis/pytokenjoin:v3",
-                                                       "input": [  "0059004a-67b8-4445-b9d6-5b0475784c49",
-                                                                   "2350a24b-87af-4505-aafb-72a15e0c118c"],
-                                                       "parameters": {
-                                                           "col_id_left": 1,
-                                                           "col_text_left": 2,
-                                                           "separator_left": " ",
-                                                           "col_id_right": 0,
-                                                           "col_text_right": 1,
-                                                           "separator_right": " ",
-                                                           "k": 1,
-                                                           "delta_alg": "1",
-                                                           "output_file": "out.csv",
-                                                           "method": "knn",
-                                                           "similarity": "jaccard",
-                                                           "foreign": "foreign"
-                                                       },
-                                                       'package_id': '0f55380a-78ff-413e-9a99-3d214766f563',
-                                                       "tags": {}})
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Tracking Operations'])
-@app.auth_required(auth)
-def api_task_execution_create(json_data):
-    """Create a Task Execution that will run a docker image with the provided
-    parameters.
-
-    Args:
-        data: A JSON with the ID of the Workflow Execution, the docker image to run
-        and the corresponding input to the tool.
-
-    Returns:
-        A JSON with the Minio response to the uploading request.
-    """
-    
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/task/execution/create -d '{"workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41", "docker_image": "alzeakis/pytokenjoin:v3", "input": [  "0059004a-67b8-4445-b9d6-5b0475784c49", "2350a24b-87af-4505-aafb-72a15e0c118c"],"parameters": {"col_id_left": 1, "col_text_left": 2, "separator_left": " ", "col_id_right": 0, "col_text_right": 1, "separator_right": " ", "k": 1, "delta_alg": "1", "output_file": "out.csv", "method": "knn", "similarity": "jaccard", "foreign": "foreign" }, 'package_id': '0f55380a-78ff-413e-9a99-3d214766f563', "tags": {}}'
-
-    config = current_app.config['settings']
-    workflow_exec_id = json_data['workflow_exec_id']
-    docker_image = json_data['docker_image']
-    # input_json = json_data['input_json']
-    input = json_data['input']
-    parameters = json_data['parameters']
-    package_id = json_data['package_id']
-    tags = json_data['tags']
-
-    try :
-        #### CHECK WORKFLOW EXECUTION STATE
-        # status = check_workflow_status(workflow_exec_id)
-        state = sql_utils.workflow_execution_read(workflow_exec_id)['state']
-        if state != 'running':
-            return jsonify({'success': False, 'message': 'This workflow no longer accepts tasks'}), 500 
-        
-        
-        
-        
-        # #### GET FILE PATHS
-        # input_paths = []
-        # res_ids = input
-        # for res_id in res_ids:
-        #     path = api_artifact_id (res_id, headers=request.headers)
-        #     if path is None:
-        #         return jsonify({'success': False, 'message': f'This resource {res_id} cannot be fetched by CKAN'}), 500 
-        #     input_paths.append(path)
-            
-            
-            
-            
-        
-        #### UPDATE KG
-        start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        state = 'running'
-        task_exec_id = str(uuid.uuid4())
-        
-        response = sql_utils.task_execution_create(task_exec_id, workflow_exec_id, start_date, state, tags)
-        if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
-        # response = task_execution_insert_input(task_exec_id, input_json.get('input', []))
-        response = sql_utils.task_execution_insert_input(task_exec_id, input)
-        if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500        
-        # response = task_execution_insert_parameters(task_exec_id, input_json.get('parameters', {}))
-        parameters = {k: str(v) for k, v in parameters.items()}
-        response = sql_utils.task_execution_insert_parameters(task_exec_id, parameters)
-        if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
-        
-        
-        #### TOOL INVOKATION
-        # logdir = os.getcwd()+"/logs/"
-        # in_file, out_file = task_exec_id+"_input.json", task_exec_id+"_output.json"
-        # with open(logdir+in_file, "w") as o:
-        #     input_json = {'input': input_paths,
-        #                   'parameters': parameters,
-        #                   "minio": {
-        #                       "endpoint_url": config['MINIO_ENDPOINT'],
-        #                       "id": config['MINIO_ACCESS_KEY'],
-        #                       "key": config['MINIO_SECRET_KEY'],
-        #                       "bucket": config['MINIO_BUCKET']
-        #                       }   
-        #         }
-        #     o.write(json.dumps(input_json, indent=4))
-            
-
-        
-        #### UPDATE KG
-        
-        # Store the container ID into a variable
-        #tags['container_id'] = create_container(docker_image,
-        #                                        request.headers.get('Api-Token'),
-        #                                        config['API_URL'], 
-        #                                        task_exec_id)
-
-        engine = execution.exec_engine()
-        tags['container_id'] = engine.create_task(docker_image, request.headers.get('Api-Token'), task_exec_id)
-
-        tags['package_id'] = package_id
-        response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
-        if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
-
-
-        
-        return jsonify({'success': True, 'task_exec_id': task_exec_id}), 200
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-
-
-@app.route('/api/v1/task/execution/input_json', methods=['GET'])
-@app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Tracking Operations'])
-@app.auth_required(auth)
-def api_task_execution_input_json(query_data):
-    """Return the input json of the specific Task Execution.
-
-    Args:
-        id: The unique identifier of the Task Exection.
-
-    Returns:
-        A JSON with the input fields.
-    """
-    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/execution/input_json?id=24a976c4-fd84-47ef-92cc-5d5582bcaf41
-
-    task_exec_id = query_data['id']
-    
-    config = current_app.config['settings']
-    # input = json_data['input']
-    input = sql_utils.task_execution_input_read(task_exec_id)
-    print(input)
-    # parameters = json_data['parameters']
-    parameters = sql_utils.task_execution_parameters_read(task_exec_id)
-
-    try :
-        #### GET FILE PATHS
-        input_paths = []
-        res_ids = input
-        for res_id in res_ids:
-            path = api_artifact_id (res_id, headers=request.headers)
-            if path is None:
-                return jsonify({'success': False, 'message': f'This resource {res_id} cannot be fetched by CKAN'}), 500 
-            input_paths.append(path)
-        
-        input_json = {'input': input_paths,
-                      'parameters': parameters,
-                      "minio": {
-                          "endpoint_url": config['MINIO_ENDPOINT'],
-                          "id": config['MINIO_ACCESS_KEY'],
-                          "key": config['MINIO_SECRET_KEY'],
-                          "bucket": config['MINIO_BUCKET']
-                          }   
-        }
-        
-
-        
-        return jsonify({'success': True, 'result': input_json}), 200
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-
-
-@app.route('/api/v1/task/execution/output_json', methods=['POST'])
-@app.input(schema.Task_Output, location='json', example={"task_exec_id": "4a142419-2342-4495-bfa3-9b4b3c2cad2a",
-                                                        "output_json": {
-                                                                "message": "Tool executed successfully!",
-                                                                "output": [{
-                                                                    "path": "s3://XXXXXXXXX-bucket/2824af95-1467-4b0b-b12a-21eba4c3ac0f.csv",
-                                                                    "name": "List of joined entities"
-                                                                    }
-                                                                ],
-                                                                "metrics": {
-                                                                    "metric": 0.90,
-                                                                },
-                                                                "status": 200
-                                                            }})
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Tracking Operations'])
-@app.auth_required(auth)
-def api_task_execution_output_json(json_data):
-    """Receives the output json of a task execution, it marks it as done, it stores
-    all the information to the KG and it returns the metrics and output files 
-    in the Data Catalog.
-
-    Args:
-        id: The unique identifier of the Task Exection.
-        output_json: The json that the tool has produced.
-
-    Returns:
-        A JSON with the task execution metadata, the metrics and the ids of the 
-        outputfiles in the Data Catalog.
-    """
-    
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/task/execution/track -d '{"task_exec_id": "4a142419-2342-4495-bfa3-9b4b3c2cad2a", "output_json": {"message": "Tool executed successfully!", "output": [{ "path": "s3://XXXXXXXXX-bucket/2824af95-1467-4b0b-b12a-21eba4c3ac0f.csv","name": "List of joined entities"}], "metrics": {"metric": 0.90},"status": 200}}'
-
-    task_exec_id = json_data['task_exec_id']
-    output_json = json_data['output_json']
-    print(output_json)
-    
-    try :
-        #### GET METADATA FROM KG
-        metadata = sql_utils.task_execution_read(task_exec_id)
-        container_id = metadata['tags']['container_id']
-        package_id = metadata['tags']['package_id']
-        
-        print(task_exec_id)
-        print(container_id)
-        print(metadata)
-        
-        # #### GET STATUS FROM DOCKER
-        # client = docker.from_env()
-        # try:
-        #     container = client.containers.get(container_id)
-        #     state = container.status
-        # except docker.errors.NotFound:
-        #     return jsonify({'success': False, 'message': "Container not found"}), 500
-
-        # print(state)
-        # if state == 'exited':
-        #     exit_code = container.attrs['State']['ExitCode']
-        #     if exit_code == 0:
-        #         state = 'succeeded'
-        #     else:
-        #         state = 'failed'
-        
-        if output_json['status'] == 200:
-            state = 'succeeded'
-        else:
-            state = 'failed'
-        
-        metadata['state'] = state
-
-        # output_json = {}
-        # if state == 'failed' or state == 'succeeded':
-            # logdir = os.getcwd()+"/logs/"
-            # out_file = logdir+task_exec_id+"_output.json"
-            # with open(out_file) as o:
-            #     output_json = json.load(o)
-    
-        #### UPDATE TASK EXECUTION
-        end_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        response = sql_utils.task_execution_update(task_exec_id, state, end_date)
-        if not response:
-            return jsonify({'success': False, 'message': 'Task Execution could not be commited.'}), 500
-        
-        #### INSERT METRICS
-        metrics = output_json.get('metrics', {})
-        metrics = {k: str(v) for k, v in metrics.items()}
-        response = sql_utils.task_execution_insert_metrics(task_exec_id, metrics)
-        if not response:
-            return jsonify({'success': False, 'message': 'Task Execution could not be commited.'}), 500
-        
-        #### INSERT LOG
-        response = sql_utils.task_execution_insert_log(task_exec_id, output_json.get('message', ""))
-        if not response:
-            return jsonify({'success': False, 'message': 'Task Execution could not be commited.'}), 500
-        
-        #### INSERT FILES TO CATALOG
-        output_resource_ids = []
-        for file in output_json['output']:
-            ftype = file['path'].split('/')[-1].split(".")[-1].upper()
-            d = { "artifact_metadata":{
-                        "url":file['path'],
-                        'name': file['name'],
-                        "description": file['name'] + f'({ datetime.now().strftime("%Y-%m-%d %H:%M:%S")})',
-                        "format": ftype,
-                        "resource_tags":["Artifact"]
-                        },
-                    "package_metadata":  {
-                        "package_id": package_id
-                        }
-                }
-    
-            response = api_artifact_publish(d, headers=request.headers)
-            print(response)
-            if response['success']:
-                output_resource_ids.append(response['result']['resource_id'])
-            else:
-                return jsonify({'success': False, 'message': 'Error in publishing in CKAN'}), 500 
-            
-        #### INSERT OUTPUT FILES
-        response = sql_utils.task_execution_insert_output(task_exec_id, output_resource_ids)
-        if not response:
-            return jsonify({'success': False, 'message': 'Task Execution could not be commited.'}), 500
-        
-        return jsonify({'success': True, 'resource_ids': output_resource_ids,
-                        'metrics': metrics}), 200
-    except Exception as e:
-        return jsonify({'success': False, 'message': traceback.format_exc()}), 500  
-    
-    # return jsonify({'success': True, 'metadata': metadata}), 200
-    return jsonify({'success': True, 'resource_ids': [], 'metrics': {}}), 200
-
-
-
-
-@app.route('/api/v1/task/execution/read', methods=['GET'])
-@app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Tracking Operations'])
-@app.auth_required(auth)
-def api_task_execution_read(query_data):
-    """Return the metadata of the task execution.
-
-    Args:
-        id: The unique identifier of the Task Exection.
-
-    Returns:
-        A JSON with the task execution metadata.
-    """
-    
-    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/execution/read?id=24a976c4-fd84-47ef-92cc-5d5582bcaf41
-
-    task_exec_id = query_data['id']
-    
-    try :
-        #### GET METADATA FROM KG
-        d = {}
-        d['metadata'] = sql_utils.task_execution_read(task_exec_id)
-        state = d['metadata']['state']
-        if state != 'failed' and state != 'succeeded':
-            return jsonify({'success': True, 'result': d}), 200    
-        d['output'] = sql_utils.task_execution_output_read(task_exec_id)
-        d['metrics'] = sql_utils.task_execution_metrics_read(task_exec_id)
-            
-        return jsonify({'success': True, 'result': d}), 200
-    except Exception as e:
-        return jsonify({'success': False, 'message': traceback.format_exc()}), 500  
-    
-
-
-@app.route('/api/v1/task/execution/delete', methods=['GET'])
-@app.input(schema.Identifier, location='query', example="4a142419-2342-4495-bfa3-9b4b3c2cad2a")
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Tracking Operations'])
-@app.auth_required(auth)
-def api_task_execution_delete(query_data):
-    """Delete the given Task Execution id.
-
-    Args:
-        id: The unique identifier of the Task Exection.
-
-    Returns:
-        A JSON with the corresponding message.
-    """
-    
-    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/execution/delete?id=4a142419-2342-4495-bfa3-9b4b3c2cad2a
-
-    # task_exec_id = request.args.id
-    task_exec_id = query_data['id']
-    try :
-        response = sql_utils.task_execution_delete(task_exec_id)
-        if not response:
-            return jsonify({'success': True, 'message': f'The Task {task_exec_id} could not be deleted.'}), 500
-        return jsonify({'success': True, 'message': f'The Task {task_exec_id} was deleted successfully'}), 200
-    except Exception as e:
-        return jsonify({'success': True, 'message': str(e)}), 500
 
 
 ################################ WORKFLOW OPERATIONS ##########################
@@ -2516,8 +1936,8 @@ def api_task_execution_delete(query_data):
                                                         #"workflow_id": "workflow_id", 
                                                         "tags": {}})
 # @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Tracking Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Tracking Operations'], security=security_doc)
+@auth.login_required
 def api_workflow_execution_create(json_data):
     """Create a Workflow Execution under a specific defined workflow.
 
@@ -2553,8 +1973,8 @@ def api_workflow_execution_create(json_data):
 @app.route('/api/v1/workflow/execution/read', methods=['GET'])
 @app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
 # @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Tracking Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Tracking Operations'], security=security_doc)
+@auth.login_required
 def api_workflow_execution_read(query_data):
     """Return the metadata of the given Workflow Execution id.
 
@@ -2584,8 +2004,8 @@ def api_workflow_execution_read(query_data):
 @app.input(schema.Workflow_Commit, location='json', example={"workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41",
                                                              "state": "succeeded"})
 # @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Tracking Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Tracking Operations'], security=security_doc)
+@auth.login_required
 def api_workflow_execution_commit(json_data):
     """Store the results of the Workflow Execution.
 
@@ -2616,8 +2036,8 @@ def api_workflow_execution_commit(json_data):
 @app.route('/api/v1/workflow/execution/delete', methods=['GET'])
 @app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
 # @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Tracking Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Tracking Operations'], security=security_doc)
+@auth.login_required
 def api_workflow_execution_delete(query_data):
     """Delete the given Workflow Execution id.
 
@@ -2646,8 +2066,8 @@ def api_workflow_execution_delete(query_data):
                                                                  "metrics": ['food_tags', 'total_tags', 'f1_micro', 'f1_macro', 'f1_weighted'],
                                                                  "parameters": ['k', 'model']})
 # @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Tracking Operations'])
-@app.auth_required(auth)
+@app.doc(tags=['Tracking Operations'], security=security_doc)
+@auth.login_required
 def api_workflow_statistics(json_data):
     """Fetch statistics for each Worfklow Execution for a specific group of 
     workflow executions.
@@ -2732,6 +2152,7 @@ def main(app):
         'SECURITY_SCHEMES': json.loads(os.getenv('API_SECURITY_SCHEMES', '{"ApiKeyAuth": {"type": "apiKey", "in": "header", "name": "Api-Token"}}')),
 
         'CKAN_API': f"{os.getenv('CKAN_SITE_URL', 'http://<CKAN-HOST>')}/api/3/action/",
+        'CKAN_ADMIN_TOKEN': os.getenv('CKAN_ADMIN_TOKEN', ''),
 
         'dbname': os.getenv('POSTGRES_DB', '<DB-NAME>'),
         'dbuser': os.getenv('POSTGRES_USER', '<DB-USERNAME>'),
@@ -2739,18 +2160,23 @@ def main(app):
         'dbhost': os.getenv('POSTGRES_HOST', '<DB-HOST>'),
         'dbport': os.getenv('POSTGRES_PORT', '5432'),
 
+        'KEYCLOAK_URL': os.getenv('KEYCLOAK_URL', 'http://keycloak:8080'),
+        'KEYCLOAK_CLIENT_ID': os.getenv('KEYCLOAK_CLIENT_ID', 'stelar'),
+        'KEYCLOAK_CLIENT_SECRET': os.getenv('KEYCLOAK_CLIENT_SECRET', 'none'),
+        'REALM_NAME': os.getenv('REALM_NAME','master'),
+
         'SPARQL_ENDPOINT': os.getenv('SPARQL_ENDPOINT', 'http://<ONTOP-HOST>/sparql'),
 
         'RANK_DEFAULT_TOPK': int(os.getenv('RANK_DEFAULT_TOPK', '10')),
         'RANK_MAX_TOPK': int(os.getenv('RANK_MAX_TOPK', '10000')),
         'RANK_AGG_ALGORITHM': os.getenv('RANK_AGG_ALGORITHM', 'Bordacount'),
 
-        'MINIO_ENDPOINT': os.getenv('MINIO_ENDPOINT', '<MINIO-HOST>'),
-        'MINIO_ACCESS_KEY': os.getenv('MINIO_ACCESS_KEY', '<ACCESS_KEY>'),
-        'MINIO_SECRET_KEY': os.getenv('MINIO_SECRET_KEY', '<SECRET_KEY>'),
-        'MINIO_BUCKET': os.getenv('MINIO_BUCKET', '<BUCKET>'),
+        'API_URL': os.getenv('API_URL', 'http://stelarapi/'),
 
-        'API_URL': os.getenv('API_URL', 'http://<API-HOST>/'),
+        'KLMS_DOMAIN_NAME' : os.getenv('KLMS_DOMAIN_NAME', 'stelar.gr'),
+        'MAIN_INGRESS_SUBDOMAIN' : os.getenv('MAIN_INGRESS_SUBDOMAIN', 'klms'),
+        'KEYCLOAK_SUBDOMAIN' : os.getenv('KEYCLOAK_SUBDOMAIN', 'kc'),
+        'MINIO_API_SUBDOMAIN' : os.getenv('MINIO_API_SUBDOMAIN', 'minio'),
         
         'execution': {
             'engine': os.getenv('EXECUTION_ENGINE') if 'EXECUTION_ENGINE' in os.environ else 'none'
