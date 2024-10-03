@@ -1,18 +1,17 @@
 from flask import request, jsonify, current_app
 from apiflask import APIBlueprint, HTTPTokenAuth
 import requests
-import utils
 import json
-
+from src.auth import auth, security_doc
 # Auxiliary custom functions & SQL query templates for ranking
 import utils
 
+import logging 
 # Input schema for validating and structuring several API requests
 import schema
 
 
-auth = HTTPTokenAuth(scheme='ApiKey', header='Api-Token')
-
+from demo_t import get_demo_ckan_token
 
 """
     This .py file contains the endpoints attached to the blueprint
@@ -20,148 +19,148 @@ auth = HTTPTokenAuth(scheme='ApiKey', header='Api-Token')
     users in the ecosystem.
 """
 
+logging.basicConfig(level=logging.DEBUG)
 
 # The users operations blueprint for all operations related to the lifecycle of a user
 # The blueprint preempts the 
 users_bp = APIBlueprint('users_blueprint', __name__,tag='User Management')
 
-
-# Endpoint to return configuration as JSON
-@users_bp.route('/user/config', methods=['GET'])
-@users_bp.doc(tags=['User Management'])
-def get_config():
-    return jsonify(current_app.config['settings'])
-
-
 @users_bp.route('/user/create', methods=['POST'])
-@users_bp.input(schema.NewUser, location='json', example={"name":"test_user5", "email":"test5@example.com","password":"test_pass5", "fullname":"Jane Doe", "about":"Testing the CKAN API for creating another new user", "image_url":"https://commons.wikimedia.org/wiki/File:Example.jpg"})
+@users_bp.input(schema.NewUser, location='json', example={"name":"test_user", "email":"test@example.com","password":"test_pass", "fullname":"Jane Doe", "about":"Testing the Keycloak API endpoint for creating another new user", "image_url":"https://commons.wikimedia.org/wiki/File:Example.jpg"})
 @users_bp.output(schema.ResponseOK, status_code=200)
-@users_bp.doc(tags=['User Management'])
-@users_bp.auth_required(auth)
+@users_bp.doc(tags=['User Management'], security=security_doc)
+@auth.login_required
 def api_user_create(json_data):
-    """Create a new user in CKAN. Requires admin role in CKAN to create new users.
+    """Create a new user in Keycloak. Requires admin role to create new users."""
 
-    Args:
-        data: A JSON with user metadata.
-
-    Returns:
-        A JSON with the response to this request.
-    """
-
-    #EXAMPLE: curl -X POST --header 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX'  http://127.0.0.1:9055/api/v1/catalog/user/create -d '{"name":"test_user5", "email":"test5@example.com","password":"test_pass5", "fullname":"Jane Doe", "about":"Testing the CKAN API for creating another new user", "image_url":"https://upload.wikimedia.org/wikipedia/en/f/fc/Thanasis_Veggos.jpg"}'
+    # Obtain the admin token from request headers
+    admin_token = request.headers.get('Authorization')
+    if not admin_token:
+        response = {
+            'success': False, 
+            'help': request.url,
+            'error': {'__type': 'Authorization Error', 'name': ['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}
+        }
+        return jsonify(response)
     
     config = current_app.config['settings']
+    keycloak_url = config['KEYCLOAK_URL']
+    keycloak_admin_url = f"{keycloak_url}/admin/realms/{config['REALM_NAME']}/users"
 
-    if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
-        else:
-            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-            return jsonify(response)
+    headers = {
+        'Authorization': f"{admin_token}",
+        'Content-Type': 'application/json'
+    }
+
+    user_metadata = {
+        "username": json_data['name'],
+        "email": json_data['email'],
+        "enabled": True,
+        "firstName": json_data.get('fullname', ''),
+        "credentials": [{
+            "type": "password",
+            "value": json_data['password'],
+            "temporary": False
+        }]
+    }
+
+    response = requests.post(keycloak_admin_url, headers=headers, json=user_metadata)
+
+    if response.status_code == 201:
+        return {"success": True, "message": "User created successfully"}
     else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-        return jsonify(response)
-
-    if request.data:
-        user_metadata = json.loads(request.data.decode("utf-8"))
-    else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No specifications provided to create a new user in the Data Catalog. Please specify at least a username, a password and email.']}}
-        return jsonify(response)
-
-    # Make a POST request to the CKAN API with the parameters
-    response = requests.post(config['CKAN_API']+'user_create', json=user_metadata, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
-
-    return response.json()
+        return {"success": False, "error": response.json()}, response.status_code
 
 
 
 @users_bp.route('/user/update', methods=['POST'])
-@users_bp.input(schema.ChangedUser, location='json', example={"id":"02568a6c-9970-4650-87d7-26d4f7d64fd6", "about" : "Testing the CKAN API for patching information about an existing user", "image_url":"https://commons.wikimedia.org/wiki/File:JPEG_example_flower.jpg"})
+@users_bp.input(schema.ChangedUser, location='json', example={"id":"02568a6c-9970-4650-87d7-26d4f7d64fd6", "about" : "Updated user information"})
 @users_bp.output(schema.ResponseOK, status_code=200)
-@users_bp.doc(tags=['User Management'])
-@users_bp.auth_required(auth)
+@users_bp.doc(tags=['User Management'], security=security_doc)
+@auth.login_required
 def api_user_update(json_data):
-    """Update (patch) information an existing user in CKAN. Requires admin role in CKAN for such updates.
+    """Update information for an existing user in Keycloak."""
 
-    Args:
-        data: A JSON specifying changes in user's metadata.
-
-    Returns:
-        A JSON with the response to this request.
-    """
-
-    #EXAMPLE: curl -X POST --header 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/catalog/user/update -d '{"id":"02568a6c-9970-4650-87d7-26d4f7d64fd6", "about" : "Testing the CKAN API for patching information about an existing user"}'
+    admin_token = request.headers.get('Api-Token')
+    if not admin_token:
+        response = {
+            'success': False,
+            'help': request.url,
+            'error': {'__type': 'Authorization Error', 'name': ['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}
+        }
+        return jsonify(response)
 
     config = current_app.config['settings']
+    keycloak_url = config['KEYCLOAK_URL']
+    user_id = json_data['id']
 
-    if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
-        else:
-            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-            return jsonify(response)
+    keycloak_user_url = f"{keycloak_url}/admin/realms/{config['REALM_NAME']}/users/{user_id}"
+
+    headers = {
+        'Authorization': f"Bearer {admin_token}",
+        'Content-Type': 'application/json'
+    }
+
+    user_metadata = {
+        "attributes": {
+            "about": json_data.get('about', ''),
+            "image_url": json_data.get('image_url', '')
+        }
+    }
+
+    response = requests.put(keycloak_user_url, headers=headers, json=user_metadata)
+
+    if response.status_code == 204:
+        return {"success": True, "message": "User updated successfully"}
     else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-        return jsonify(response)
-
-    if request.data:
-        user_metadata = json.loads(request.data.decode("utf-8"))
-    else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No specifications provided for updating an existing user in the Data Catalog. Please specify the identifier of the user and values for the properties you wish to update.']}}
-        return jsonify(response)
-
-    # Make a POST request to the CKAN API with the parameters
-    response = requests.post(config['CKAN_API']+'user_patch', json=user_metadata, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
-
-    return response.json()
+        return {"success": False, "error": response.json()}, response.status_code
 
 
 @users_bp.route('/user/delete', methods=['POST'])
 @users_bp.input(schema.Identifier, location='json', example={"id":"02568a6c-9970-4650-87d7-26d4f7d64fd6"})
 @users_bp.output(schema.ResponseOK, status_code=200)
-@users_bp.doc(tags=['User Management'])
-@users_bp.auth_required(auth)
+@users_bp.doc(tags=['User Management'], security=security_doc)
+@auth.login_required
 def api_user_delete(json_data):
-    """Delete an existing user from CKAN. Requires admin role in CKAN for performing deletions.
+    """Delete an existing user from Keycloak."""
 
-    Args:
-        data: A JSON with user's id or username.
-
-    Returns:
-        A JSON with the response to this request.
-    """
-
-    #EXAMPLE: curl -X POST --header 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX'  http://127.0.0.1:9055/api/v1/catalog/user/delete -d '{"id":"02568a6c-9970-4650-87d7-26d4f7d64fd6"}'
+    admin_token = request.headers.get('Api-Token')
+    if not admin_token:
+        response = {
+            'success': False,
+            'help': request.url,
+            'error': {'__type': 'Authorization Error', 'name': ['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}
+        }
+        return jsonify(response)
 
     config = current_app.config['settings']
+    keycloak_url = config['KEYCLOAK_URL']
+    user_id = json_data['id']
 
-    if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
-        else:
-            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-            return jsonify(response)
+    keycloak_user_url = f"{keycloak_url}/admin/realms/{config['REALM_NAME']}/users/{user_id}"
+
+    headers = {
+        'Authorization': f"Bearer {admin_token}",
+        'Content-Type': 'application/json'
+    }
+
+    response = requests.delete(keycloak_user_url, headers=headers)
+
+    if response.status_code == 204:
+        return {"success": True, "message": "User deleted successfully"}
     else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-        return jsonify(response)
+        return {"success": False, "error": response.json()}, response.status_code
 
-    if request.data:
-        user_metadata = json.loads(request.data.decode("utf-8"))
-    else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No specifications provided for deleting an existing user in the Data Catalog. Please specify the identifier of this user.']}}
-        return jsonify(response)
-
-    # Make a POST request to the CKAN API with the parameters
-    response = requests.post(config['CKAN_API']+'user_delete', json=user_metadata, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
-
-    return response.json()
-
+##################################################################
+#   Up to this point (^) the endpoints have become Keycloak 
+#   compatible. 
+##################################################################
 
 @users_bp.route('/user/role/assign', methods=['POST'])
 @users_bp.input(schema.UserRole, location='json', example={"id": "athenarc", "username":"02568a6c-9970-4650-87d7-26d4f7d64fd6", "role":"editor"})
 @users_bp.output(schema.ResponseOK, status_code=200)
-@users_bp.doc(tags=['User Management'])
-@users_bp.auth_required(auth)
+@users_bp.doc(tags=['User Management'], security=security_doc)
+@auth.login_required
 def api_user_role(json_data):
     """Assign a role for an existing user as a member of an organization in CKAN. Requires admin role in CKAN for such assignments.
 
@@ -201,8 +200,8 @@ def api_user_role(json_data):
 @users_bp.route('/user/token/create', methods=['POST'])
 @users_bp.input(schema.NewToken, location='json', example={"user": "test_user5", "name": "test5_API_token"})
 @users_bp.output(schema.ResponseOK, status_code=200)
-@users_bp.doc(tags=['User Management'])
-@users_bp.auth_required(auth)
+@users_bp.doc(tags=['User Management'], security=security_doc)
+@auth.login_required
 def api_token_create(json_data):
     """Generate an API token for an existing user in CKAN. Requires authentication of the user in CKAN to generate a token.
 
@@ -243,7 +242,7 @@ def api_token_create(json_data):
 @users_bp.route('/user/organization', methods=['GET'])
 @users_bp.input(schema.Identifier, location='query', example="778bc28b-627c-472f-9d78-4d3617733218")
 #@users_bp.output(schema.ResponseOK, status_code=200)
-@users_bp.doc(tags=['User Management'])
+@users_bp.doc(tags=['User Management'], security=security_doc)
 def api_user_organization(query_data):
     """Finds the organization(s) where the given user is assigned a role (admin/editor/member) in CKAN.
 
@@ -272,8 +271,8 @@ def api_user_organization(query_data):
 
 @users_bp.route('/user/organization', methods=['POST'])
 #@users_bp.output(schema.ResponseOK, status_code=200)
-@users_bp.doc(tags=['User Management'])
-@users_bp.auth_required(auth)
+@users_bp.doc(tags=['User Management'], security=security_doc)
+@auth.login_required
 def api_user_editor():
     """Finds the organization(s) where the given user is assigned a role (admin/editor/member) in CKAN.
 
@@ -288,8 +287,10 @@ def api_user_editor():
     config = current_app.config['settings']
 
     if request.method == 'POST' and request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        if request.headers:
+            package_headers, resource_headers = utils.create_CKAN_headers(
+                get_demo_ckan_token()
+            )
             # Make a POST request to the CKAN API using this API token for user identification
             response = requests.post(config['CKAN_API']+'organization_list_for_user', headers=resource_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
             return response.json()
@@ -312,33 +313,33 @@ def api_user_editor():
 #        THE PREFIX '/api/v1/catalog' FOR ALL ENDPOINTS
 #        IN THIS BLUEPRINT. DECIDE HOW TO SOLVE THIS.
 ########################################################
-@users_bp.route('/api/v1/user', methods=['GET'])
-@users_bp.input(schema.Identifier, location='query', example="6dc36257-abb6-45b5-b3bb-5f94160fc2ee")
-@users_bp.output(schema.ResponseOK, status_code=200)
-@users_bp.doc(tags=['User Management'])
-def api_user_id(query_data):
-    """Get all metadata publicly available for the user (excluding password and tokens).
+# @users_bp.route('/api/v1/user', methods=['GET'])
+# @users_bp.input(schema.Identifier, location='query', example="6dc36257-abb6-45b5-b3bb-5f94160fc2ee")
+# @users_bp.output(schema.ResponseOK, status_code=200)
+# @users_bp.doc(tags=['User Management'], security=security_doc)
+# def api_user_id(query_data):
+#     """Get all metadata publicly available for the user (excluding password and tokens).
 
-    Args:
-        id: The unique identifier or account name of the user as listed in CKAN.
+#     Args:
+#         id: The unique identifier or account name of the user as listed in CKAN.
 
-    Returns:
-        A JSON with metadata maintained in CKAN for the specified user.
-    """
+#     Returns:
+#         A JSON with metadata maintained in CKAN for the specified user.
+#     """
 
-    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/user?id=6dc36257-abb6-45b5-b3bb-5f94160fc2ee
+#     #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/user?id=6dc36257-abb6-45b5-b3bb-5f94160fc2ee
 
-    config = current_app.config['settings']
+#     config = current_app.config['settings']
 
-    # Check if an ID (name) for a user was provided as argument
-    if 'id' in query_data:
-        id = query_data['id']
-    else:
-        response = {'success':False, 'help': request.url+'?id=', 'error':{'__type':'No specifications','name':['No identifier provided. Please specify the id or account name of the requested user.']}}
-        return jsonify(response)
+#     # Check if an ID (name) for a user was provided as argument
+#     if 'id' in query_data:
+#         id = query_data['id']
+#     else:
+#         response = {'success':False, 'help': request.url+'?id=', 'error':{'__type':'No specifications','name':['No identifier provided. Please specify the id or account name of the requested user.']}}
+#         return jsonify(response)
 
-    # Make a GET request to the CKAN API with the parameters
-    # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(config['CKAN_API']+'user_show?id='+id) #, headers=config.package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
+#     # Make a GET request to the CKAN API with the parameters
+#     # IMPORTANT! CKAN requires NO authentication for GET requests
+#     response = requests.get(config['CKAN_API']+'user_show?id='+id) #, headers=config.package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
 
-    return response.json()
+#     return response.json()
