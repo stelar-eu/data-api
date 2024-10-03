@@ -9,3 +9,4 @@ kubernetes==29.0.0
 gunicorn==21.1.0
 python-jose
 cryptography
+datetime
