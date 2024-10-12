@@ -48,10 +48,11 @@ import schema
 from routes.users import users_bp
 from routes.users import api_user_editor
 
-
 #### TASK BPs ####
 from routes.tasks import tasks_bp
 
+#### PUBLISHER BP ####
+from routes.publisher import publisher_bp
 
 ############################################################
 
@@ -62,7 +63,6 @@ app.secret_key = 'secretkey123'
 
 app.config.from_prefixed_env()
 
-logging.basicConfig(level=logging.DEBUG)
 
 ################## BLUEPRINT REGISTRATION ##################
 
@@ -72,6 +72,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 app.register_blueprint(users_bp, url_prefix='/api/v1/catalog')
 app.register_blueprint(tasks_bp, url_prefix='/api/v1/task')
+app.register_blueprint(publisher_bp, url_prefix='/api/publish')
 
 
 ############################################################
