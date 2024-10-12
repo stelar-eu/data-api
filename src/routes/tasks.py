@@ -6,7 +6,6 @@ import sql_utils
 import re
 import uuid
 import traceback
-from src.auth import auth
 from routes.users import api_user_editor
 from src.auth import auth, security_doc
 from datetime import datetime
