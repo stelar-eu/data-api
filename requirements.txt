@@ -10,3 +10,4 @@ gunicorn==21.1.0
 python-jose
 cryptography
 datetime
+minio
