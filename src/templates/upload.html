@@ -4,38 +4,224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Page</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <title>STELAR | Dataset Upload</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">    
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <style>
+        /* Hide progress bar by default */
+        #progress-bar-container {
+            display: none;
+        }
+    </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <h1>STELAR | Dataset Upload</h1>
-        <form id="uploadForm">
-            <div class="form-group">
-                <label for="pathSelector">Select Upload Path</label>
-                <select id="pathSelector" class="form-control" required>
-                    <!-- Paths will be loaded dynamically -->
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="fileInput">Choose File</label>
-                <input type="file" id="fileInput" class="form-control-file" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Upload</button>
-        </form>
+    <div class="page page-center">
+        <div class="container container-md py-2">
+          <div class="text-center mb-4">
+            <a href="." class="navbar-brand">
+              <img src="https://stelar-project.eu/wp-content/uploads/2022/08/cropped-stelar-sq.png" alt="STELAR" width="150">
+            </a>
+          </div>
+          <div class="card card-md">
+            <div class="card-body">
+              <h2 class="mb-3">Dataset Upload</h2>
+              <p class="text-secondary mb-4">
+                Datasets uploaded using this tool, will be uploaded into S3 destination and also registered in the Data Catalog.
+              </p>
+              <form id="uploadForm" class="card" enctype="multipart/form-data">
+                <div class="card-body">
+                  <h2>File and S3 Options</h2>
+                  <div class="mb-3">
+                    <div class="form-label">Select Origin File</div>
+                    <input type="file" class="form-control" id="fileInput" required />
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Destination Path</label>
+                    <select class="form-select" id="pathSelector" required></select>
+                  </div>
+                  <div class="hr mb-5 mt-5"></div>
+                  
+                  <h2>Data Catalog Options</h2>
+                  <div class="mb-3">
+                    <div class="form-label">How this file should be published on the Data Catalog?</div>
+                    <div>
+                      <label class="form-check">
+                        <input class="form-check-input" type="radio" name="radios" id="newPackageRadio" checked>
+                        <span class="form-check-label">Publish this file as a part of a new data catalog dataset</span>
+                      </label>
+                      <label class="form-check">
+                        <input class="form-check-input" type="radio" name="radios" id="existingPackageRadio">
+                        <span class="form-check-label">Publish this file as a part of an existing data catalog dataset</span>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <!-- Section for selecting an existing package -->
+                  <div class="mb-3" id="selectExistingPackage">
+                    <label class="form-label">Select Dataset from Data Catalog</label>
+                    <select class="form-select" id="catalog_packages">
+                      <option>Option 1</option>
+                      <option>Option 2</option>
+                      <!-- More options can be added as needed -->
+                    </select>
+                  </div>
+                  
+                  <!-- Section for specifying new dataset package metadata -->
+                  <div class="mb-3" id="newPackageMetadata">
+                    <div class="card-header">
+                      <h3 class="card-title">Specify the metadata for the new data catalog dataset</h3>
+                    </div>
+                    <div class="card-body">
+                      <!-- Title field -->
+                      <div class="mb-3 row">
+                        <label class="col-3 col-form-label required">Title</label>
+                        <div class="col">
+                          <input type="text" class="form-control" id="packageTitle" placeholder="Enter Dataset Package Title" required>
+                        </div>
+                      </div>
+              
+                      <!-- Notes field -->
+                      <div class="mb-3 row">
+                        <label class="col-3 col-form-label required">Notes</label>
+                        <div class="col">
+                          <textarea class="form-control" id="packageNotes" placeholder="Enter Dataset Notes" required></textarea>
+                        </div>
+                      </div>
 
-        <div id="uploadStatus" class="mt-3"></div>
-    </div>
+                      <input type="hidden" id="hiddenTagsInput" name="tags" />
+                      <!-- Tags field -->
+                        <div class="mb-3 row">
+                            <label class="col-3 col-form-label">Dataset Package Tags</label>
+                            <input type="text" id="tagInput" class="form-control" placeholder="Type a tag and press enter" />
+                            <div class="col tags-list mt-3" id="tagsContainer">
+                                <!-- Tags will be dynamically added here -->
+                            </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              
+                <div class="card-footer text-end">
+                  <!-- Progress bar container, hidden by default -->
+                  <div class="progress" id="progress-bar-container" style="flex-grow: 1; margin-right: 20px;">
+                    <div class="progress-bar" id="progress-bar" style="width: 0%" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="0% Complete">
+                      <span id="progress-text">0%</span>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+              
+                <!-- Upload status -->
+                <div id="uploadStatus"></div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script>
+          // Get reference to the tag input, container, and hidden input
+          const tagInput = document.getElementById('tagInput');
+          const tagsContainer = document.getElementById('tagsContainer');
+          const hiddenTagsInput = document.getElementById('hiddenTagsInput');
 
-    <script>
-        // Store the access token in a variable (this should come from the session or be injected in the template)    
+          // To store the tags
+          let tags = [];
+
+          // Function to render tags in the tagsContainer
+          function renderTags() {
+            // Clear the existing tags
+            tagsContainer.innerHTML = '';
+
+            // Add each tag as a span with a close button
+            tags.forEach((tag, index) => {
+              const tagElement = document.createElement('span');
+              tagElement.classList.add('tag', 'me-2', 'mb-2');
+
+              tagElement.innerHTML = `
+                ${tag}
+                <a href="#" class="btn-close ms-2" data-index="${index}"></a>
+              `;
+
+              // Append the tag element to the container
+              tagsContainer.appendChild(tagElement);
+            });
+
+            // Add event listeners to each close button
+            const closeButtons = document.querySelectorAll('.btn-close');
+            closeButtons.forEach(button => {
+              button.addEventListener('click', function (event) {
+                event.preventDefault();
+                const index = button.getAttribute('data-index');
+                removeTag(index);
+              });
+            });
+
+            // Update the hidden input with the current tags as a comma-separated string
+            hiddenTagsInput.value = tags.join(',');
+          }
+
+          // Function to remove a tag by index
+          function removeTag(index) {
+            tags.splice(index, 1);
+            renderTags();
+          }
+
+          // Function to handle input and add tag
+          tagInput.addEventListener('keydown', function (event) {
+            // If Enter is pressed, add the tag
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              const newTag = tagInput.value.trim();
+              
+              if (newTag !== '' && !tags.includes(newTag)) {
+                tags.push(newTag);
+                tagInput.value = ''; // Clear the input after adding the tag
+                renderTags();
+              }
+            }
+
+            // If backspace is pressed and input is empty, remove the last tag
+            if (event.key === 'Backspace' && tagInput.value === '') {
+              tags.pop();
+              renderTags();
+            }
+          });
+      </script>
+      <script>
+        // Get references to the radio buttons and the sections
+        const newPackageRadio = document.getElementById('newPackageRadio');
+        const existingPackageRadio = document.getElementById('existingPackageRadio');
+        const selectExistingPackage = document.getElementById('selectExistingPackage');
+        const newPackageMetadata = document.getElementById('newPackageMetadata');
+      
+        // Function to toggle visibility based on the selected radio button
+        function togglePackageOptions() {
+          if (newPackageRadio.checked) {
+            newPackageMetadata.style.display = 'block';
+            selectExistingPackage.style.display = 'none';
+          } else if (existingPackageRadio.checked) {
+            newPackageMetadata.style.display = 'none';
+            selectExistingPackage.style.display = 'block';
+          }
+        }
+      
+        // Add event listeners to the radio buttons
+        newPackageRadio.addEventListener('change', togglePackageOptions);
+        existingPackageRadio.addEventListener('change', togglePackageOptions);
+      
+        // Initialize the form to show the appropriate section on load
+        togglePackageOptions();
+      </script>
+      
+      <script>
         // Fetch paths on page load
         $(document).ready(function() {
             fetchPaths();
         });
     
-       // Fetch available paths
+        // Fetch available paths
+        // Fetch available paths
         function fetchPaths() {
             $.ajax({
                 url: 'fetch_paths',
@@ -43,33 +229,27 @@
                 success: function(data) {
                     var pathSelector = $('#pathSelector');
                     pathSelector.empty();  // Clear any existing options
-
                      // Add a placeholder as the default option
                     var placeholderOption = new Option('Select Destination Path Inside S3', '', true, true);
                     placeholderOption.disabled = true;  // Make it non-selectable
                     pathSelector.append(placeholderOption);
-
                     // Iterate over the zones and paths
                     $.each(data.paths, function(zone, directories) {
                         // Create an optgroup for each zone
                         var optGroup = $('<optgroup>', { label: zone });
-
                         // If there are no directories, add the root path (zone/)
                         if (directories.length === 0) {
                             var rootPath = zone + '/';
-                            optGroup.append(new Option(rootPath, rootPath));  // Add root path
+                            optGroup.append(new Option(rootPath, '/'));  // Add root path
                         }
-
                         // Add each subdirectory as an option within the optgroup
                         $.each(directories, function(index, directory) {
                             var fullPath = zone + '/' + directory;
-                            optGroup.append(new Option(fullPath, fullPath));  // Both text and value are the full path
+                            optGroup.append(new Option(fullPath, directory));  // Both text and value are the full path
                         });
-
                         // Append the optgroup to the selector
                         pathSelector.append(optGroup);
                     });
-
                     // If no paths are available, show a message
                     if ($('#pathSelector option').length === 0) {
                         pathSelector.append(new Option('No available paths', ''));
@@ -82,29 +262,56 @@
         }
 
     
-        // Async file upload
+        // Handle form submission with progress bar
         $('#uploadForm').submit(function(event) {
             event.preventDefault();
-    
+            
             var formData = new FormData();
+            var selectedOption = $('#pathSelector').find(':selected');  // Find the selected option
+            var bucketName = selectedOption.closest('optgroup').attr('label');  // Get bucket name from optgroup label
+            var filePath = selectedOption.val();  // Get full path (bucket/folder) from option value
+    
             formData.append('file', $('#fileInput')[0].files[0]);
-            formData.append('path', $('#pathSelector').val());
+            formData.append('bucket', bucketName);
+            formData.append('path', filePath);
+    
+            // Show the progress bar when uploading begins
+            $('#progress-bar-container').show();
+            $('#progress-bar').width('0%'); // Reset the progress bar width
+            $('#progress-text').text('0%');
     
             $.ajax({
-                url: '/upload_file',
+                url: 'upload_file',
                 method: 'POST',
                 data: formData,
                 contentType: false,
                 processData: false,
-                success: function(data) {
+                xhr: function() {
+                    var xhr = new window.XMLHttpRequest();
+                    xhr.upload.addEventListener('progress', function(event) {
+                        if (event.lengthComputable) {
+                            var percentComplete = (event.loaded / event.total) * 100;
+                            $('#progress-bar').width(percentComplete + '%');
+                            $('#progress-text').text(Math.round(percentComplete) + '%');
+                        }
+                    }, false);
+                    return xhr;
+                },
+                success: function(response) {
                     $('#uploadStatus').html('<div class="alert alert-success">File uploaded successfully!</div>');
+                    $('#uploadForm')[0].reset(); // Reset the form after successful upload
+                    $('#progress-bar').width('0%'); // Reset progress bar
+                    $('#progress-text').text('0%');
+                    $('#progress-bar-container').hide(); // Hide the progress bar after success
                 },
                 error: function(error) {
                     $('#uploadStatus').html('<div class="alert alert-danger">File upload failed!</div>');
+                    $('#progress-bar-container').hide(); // Hide the progress bar after failure
                 }
             });
         });
     </script>
+    
     
 </body>
 </html>
