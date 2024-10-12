@@ -1,5 +1,5 @@
 from apiflask import HTTPTokenAuth
-from flask import current_app
+from flask import current_app, session
 import logging
 import urllib
 from jose import jwt, JWTError
@@ -7,6 +7,9 @@ from requests.models import Response
 import logging
 import requests
 import utils
+
+
+logging.basicConfig(level=logging.DEBUG)
 
 auth = HTTPTokenAuth(scheme='Bearer', header='Authorization')
 
@@ -26,13 +29,20 @@ def api_verify_token(token):
 
     config = current_app.config['settings']
 
+    # Try to see if there is a token in the session field if not one was explicitely provided
+    if token is None or token.strip() == "":
+        token = session.get('access_token')
+        if token is None:
+            return False
+
     # logging.debug("Starting token verification")
     token = urllib.parse.unquote(token).strip()
     # config = current_app.config['keycloak_settings']
     keycloak_issuer = "https://"+config['KEYCLOAK_SUBDOMAIN']+"."+config['KLMS_DOMAIN_NAME']+"/realms/"+config['REALM_NAME']  # Issuer URL from Keycloak
     keycloak_client_id = 'master-realm'  # Client ID registered in Keycloak(check the aud for different users)
     keycloak_jwks_url = config['KEYCLOAK_URL']+"/realms/"+config['REALM_NAME']+"/protocol/openid-connect/certs"
-    
+
+
     try:
         # logging.debug(f"Token received: {token}")
         # Get the JWKS (public keys) from Keycloak to verify JWT tokens
@@ -50,7 +60,7 @@ def api_verify_token(token):
         for key in jwks['keys']:
             if key['kid'] == unverified_header['kid']:
                 rsa_key = utils.construct_rsa_public_key(key['n'], key['e'])
-                logging.debug(f"Found RSA key: {rsa_key}")
+                #logging.debug(f"Found RSA key: {rsa_key}")
                 # rsa_key = {
                 #     'kty': key['kty'],
                 #     'kid': key['kid'],
@@ -68,8 +78,7 @@ def api_verify_token(token):
                 audience=keycloak_client_id,  # Ensure the audience matches the client ID
                 issuer=keycloak_issuer        # Ensure the token is from the right Keycloak issuer
             )
-            # logging.debug(f"Payload: {payload}")
-            print("Token verified successfully!")
+            #logging.debug(f"Token payload: {payload}")
             
             # If token verification succeeds, authentication is valid
             return True
@@ -77,13 +86,13 @@ def api_verify_token(token):
     except JWTError as e:
         # Token is invalid
         print(f"JWTError: {e}")
-        # logging.error(f"JWTError: {e}")
+        #logging.error(f"JWTError: {e}")
         # return "Invalid Token", 401
         return False
     except Exception as e:
         # Other errors (e.g., network issue, token parsing error)
         print(f"Error: {e}")
-        # logging.error(f"General error: {e}")
+        #logging.error(f"General error: {e}")
         return False
 
     # If no valid key is found, return False
