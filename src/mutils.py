@@ -2,6 +2,8 @@
 from flask import request, jsonify, current_app, session, make_response, render_template
 from minio import Minio
 from minio.error import S3Error
+from minio import Minio
+from minio.commonconfig import CopySource
 import requests
 import xml.etree.ElementTree as ET
 import logging
@@ -69,9 +71,12 @@ def get_temp_minio_credentials(access_token):
 
 
 
-def evaluate_object_access(credentials, bucket, object_path):
+def evaluate_write_access(credentials, bucket_name, object_name):
+    """
+    Checks if the user has write access to an object in MinIO by attempting to copy the object to itself.
+    """
+    # Initialize the MinIO client
     config = current_app.config['settings']
-
     minio_url = config['MINIO_API_SUBDOMAIN'] + "." + config['KLMS_DOMAIN_NAME']
 
     client = Minio(
@@ -79,16 +84,29 @@ def evaluate_object_access(credentials, bucket, object_path):
         access_key=credentials['AccessKeyId'],
         secret_key=credentials['SecretAccessKey'],
         session_token=credentials['SessionToken'],
-        secure=True  # Set to False if you are using HTTP instead of HTTPS
+        secure=True  # Set to False if not using HTTPS
     )
 
+    # Create a copy source object
+    copy_source = CopySource(bucket_name, object_name)
+
     try:
-        client.stat_object(bucket, object_path)
-        return True
-    except S3Error as e:
-        if e.code == 'AccessDenied':
-            return False
-        return False
+        # Attempt to copy the object to the same path, while updating the metadata
+        client.copy_object(
+            bucket_name=bucket_name,
+            object_name=object_name,
+            source=copy_source,
+            metadata={"x-amz-meta-write-access-test": "true"},  # Add custom metadata
+            metadata_directive="REPLACE"  # Ensure the metadata is replaced to make the copy valid
+        )
+        logging.debug(f"Copy operation succeeded. Write access is allowed for {bucket_name}/{object_name}.")
+        return True  # The copy succeeded, meaning write access exists
+    except S3Error as err:
+        if err.code == 'AccessDenied':
+            logging.debug(f"Access denied. Write access is not allowed for {bucket_name}/{object_name}.")
+        else:
+            logging.debug(f"Error during copy operation: {err}")
+        return False  # Copy failed, meaning no write access
 
 
    
@@ -124,7 +142,9 @@ def list_buckets_with_folders(credentials):
                 for obj in objects:
                     # If the object name ends with '/', it is a folder
                     if obj.object_name.endswith('/'):
-                        folders.add(obj.object_name)
+                        # If the user has write access to the object then we can offer it to him for uploading a new dataset
+                        if evaluate_write_access(credentials, bucket_name, obj.object_name):
+                            folders.add(obj.object_name)    
             except:
                 continue
             # Store the folders in the result dictionary
