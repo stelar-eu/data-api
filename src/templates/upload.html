@@ -1,4 +1,3 @@
-<!-- templates/upload_page.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,6 +7,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">    
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
     <style>
         /* Hide progress bar by default */
         #progress-bar-container {
@@ -16,13 +17,26 @@
     </style>
 </head>
 <body>
-    <div class="page page-center">
-        <div class="container container-md py-2">
-          <div class="text-center mb-4">
-            <a href="." class="navbar-brand">
-              <img src="https://stelar-project.eu/wp-content/uploads/2022/08/cropped-stelar-sq.png" alt="STELAR" width="150">
-            </a>
+  <div class="page">
+    {%  include 'header.html' %}
+    <div class="page-wrapper">
+      <div class="page-header d-print-none">
+        <div class="container-xl">
+          <div class="row g-2 align-items-center">
+            <div class="col">
+              <!-- Page pre-title -->
+              <div class="page-pretitle">
+                Datasets
+              </div>
+              <h2 class="page-title">
+                Manage your Datasets
+              </h2>
+            </div>
           </div>
+        </div>
+      </div>
+      <div class="page-body">
+        <div class="container container-md py-2">
           <div class="card card-md">
             <div class="card-body">
               <h2 class="mb-3">Dataset Upload</h2>
@@ -119,6 +133,9 @@
           </div>
         </div>
       </div>
+      {% include 'footer.html' %}
+    </div>
+    </div>
       <script>
           // Get reference to the tag input, container, and hidden input
           const tagInput = document.getElementById('tagInput');
