@@ -54,6 +54,10 @@ from routes.tasks import tasks_bp
 #### PUBLISHER BP ####
 from routes.publisher import publisher_bp
 
+#### DASHBOARD BP ####
+from routes.dashboard import dashboard_bp
+from routes.publisher import publisher_bp
+
 ############################################################
 
 # Create an instance of this API; by default, its OpenAPI-compliant specification will be generated under folder /specs
@@ -72,7 +76,9 @@ app.config.from_prefixed_env()
 
 app.register_blueprint(users_bp, url_prefix='/api/v1/catalog')
 app.register_blueprint(tasks_bp, url_prefix='/api/v1/task')
-app.register_blueprint(publisher_bp, url_prefix='/api/publish')
+app.register_blueprint(dashboard_bp, url_prefix='/console/v1')
+app.register_blueprint(publisher_bp, url_prefix='/console/v1')
+
 
 
 ############################################################
@@ -200,9 +206,10 @@ def home():
         'help': request.base_url,
         'success': True,
         'result': {
-            'message':'Prototype Data API for managing resources in STELAR Knowledge Lake Management System.',
+            'message':'Data API for managing resources in STELAR Knowledge Lake Management System.',
             'OpenAPI specifications':request.base_url+'specs',
-            'Swagger UI':request.base_url+'docs'
+            'Swagger UI':request.base_url+'docs',
+            'Console':request.base_url+'console/v1/'
         }
     }
 
