@@ -134,7 +134,7 @@ def login():
                         session['USER_EMAIL'] = token_info.get('email')
                         session['USER_USERNAME'] = token_info.get('preferred_username')
                         session['ACTIVE'] = True
-                        session['role'] = 'user'
+                        session['USER_ROLES'] = token_info.get('realm_access', {}).get('roles', [])
 
                         # Redirect to home page
                         return redirect(url_for('dashboard_blueprint.dashboard_index'))

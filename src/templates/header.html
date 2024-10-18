@@ -15,7 +15,17 @@
                     <span class="avatar avatar-sm" style="background-image: url('{{ url_for('static', filename='avatar.png') }}')"></span>
                     <div class="d-none d-xl-block ps-2">
                         <div>{{ session.get('USER_NAME', 'Guest') }}</div>
-                        <div class="mt-1 small text-secondary">{{ session.get('role', 'No role') | replace('-', ' ') | title | replace(' ', '-') }}</div>
+                        <div class="mt-1 small text-secondary">
+                            {% set excluded_roles = ['default-roles-master', 'offline_access', 'uma_authorization'] %}
+                            {% set displayed_roles = session.get('USER_ROLES', []) 
+                                | reject("in", excluded_roles)  
+                                | map("replace", '-', ' ') 
+                                | map("replace", '_', ' ')  
+                                | map("title")  
+                                | join(', ')
+                            %}
+                            {{ displayed_roles }}
+                        </div>
                     </div>
                 </a>
                 <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
