@@ -15,56 +15,9 @@ import json
 """
 
 # The tasks operations blueprint for all operations related to the lifecycle of `tasks
-publisher_bp = APIBlueprint('pub_blueprint', __name__, tag='Publishing Operations')
+publisher_bp = APIBlueprint('pub_blueprint', __name__, tag='Dashboard Dataset')
 
 logging.basicConfig(level=logging.DEBUG)
-
-
-@publisher_bp.route('/', methods=['GET'])
-@publisher_bp.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.login_required
-def publisher_show_upload_page():
-
-    config = current_app.config['settings']
-
-    try:
-        # Try to get the token from the Authorization header
-        access_token = request.headers.get('Authorization')
-        
-        if access_token:
-            # Token found in Authorization header, remove 'Bearer ' prefix
-            access_token = access_token.replace("Bearer ", "")
-        else:
-            # No token in Authorization header, try to fetch from session
-            access_token = session.get('access_token')
-        
-        # If access_token is still None, raise an exception
-        if not access_token:
-            raise ValueError("No access token found in headers or session.")
-        
-        # If token is found, return The page for uploading
-        return render_template('upload.html', token=access_token)
-
-
-    except ValueError as e:
-    # Handle the case where no token is found, return 401 Unauthorized
-        return make_response({
-            'success': False, 
-            'error': {
-                '__type': 'Authorization Error',
-                'name': [str(e)]
-            }
-        }, 401)
-
-    except Exception as e:
-        # Handle any other unexpected errors, return 500 Internal Server Error
-        return make_response({
-            'success': False, 
-            'error': {
-                '__type': 'Unexpected Error',
-                'name': [str(e)]
-            }
-        }, 500)
     
 @publisher_bp.route('/fetch_paths', methods=['GET'])
 @auth.login_required
