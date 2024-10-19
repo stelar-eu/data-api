@@ -1,28 +1,25 @@
 from flask import request, jsonify, current_app, session, make_response, render_template, redirect, url_for
-import requests
 from apiflask import APIBlueprint
 import logging
-from minio import Minio
-from minio.error import S3Error
-import mutils as mu
-
-from routes.publisher import publisher_bp
-
+from keycloak import KeycloakOpenID, KeycloakAdmin
+import datetime
+import json
 
 dashboard_bp = APIBlueprint('dashboard_blueprint', __name__, tag='Dashboard Operations')
+logging.basicConfig(level=logging.DEBUG)
 
-
-# Set Keycloak variables in session
-def init_keycloak_session():
-    # Fetch the Keycloak server details from the environment variables set during app init
+# Initialize Keycloak client
+def init_keycloak_client():
     config = current_app.config['settings']
-
-    session['KEYCLOAK_HOST'] = config['KEYCLOAK_URL']
-    session['KEYCLOAK_BASE_URL'] = f"{session['KEYCLOAK_HOST']}/realms/{config['REALM_NAME']}"
-    session['KEYCLOAK_CLIENT_ID'] = config['KEYCLOAK_CLIENT_ID']
-    session['KEYCLOAK_CLIENT_SECRET'] = config['KEYCLOAK_CLIENT_SECRET'],
-    session['KEYCLOAK_TOKEN_URL'] = f"{session['KEYCLOAK_BASE_URL']}/protocol/openid-connect/token"
-    session['KEYCLOAK_INTROSPECT_URL'] = f"{session['KEYCLOAK_BASE_URL']}/protocol/openid-connect/token/introspect"
+    
+    keycloak_openid = KeycloakOpenID(
+        server_url=config['KEYCLOAK_URL'],
+        client_id=config['KEYCLOAK_CLIENT_ID'],
+        realm_name=config['REALM_NAME'],
+        client_secret_key=config['KEYCLOAK_CLIENT_SECRET']
+    )
+    
+    return keycloak_openid
 
 # Home page (redirect target after login)
 @dashboard_bp.route('/')
@@ -30,7 +27,6 @@ def dashboard_index():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
     
-
     return render_template('index.html')
 
 # Signup Route
@@ -39,9 +35,7 @@ def signup():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
     
-
     return f"Welcome {session.get('USER_NAME', 'User')}"
-
 
 # Settings Route
 @dashboard_bp.route('/settings')
@@ -49,16 +43,13 @@ def settings():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
     
-
     return render_template('settings.html')
-    
 
 @dashboard_bp.route('/workflows')
 def workflows():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
     
-
     return render_template('workflows.html')
 
 @dashboard_bp.route('/datasets')
@@ -68,16 +59,17 @@ def datasets():
     
     return render_template('upload.html')
 
-# Login route
+####################################
+# Login Route
+####################################
 @dashboard_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """
     Handles the Authentication process of a user given his credentials.
     Talks with the specified Keycloak instance to authenticate the user and fetch
     his info (roles, name, username, etc). Inits an active session.
-
     """
-    init_keycloak_session()  # Initialize the Keycloak session variables
+    keycloak_openid = init_keycloak_client()
 
     EMPTY_EMAIL_ERROR = False
     EMPTY_PASSWORD_ERROR = False
@@ -100,52 +92,37 @@ def login():
 
         # If no validation errors, proceed with login
         if not EMPTY_EMAIL_ERROR and not EMPTY_PASSWORD_ERROR:
-            token_data = {
-                'grant_type': 'password',
-                'client_id': session['KEYCLOAK_CLIENT_ID'],
-                'client_secret': session['KEYCLOAK_CLIENT_SECRET'],
-                'username': email,
-                'password': password,
-            }
-
             try:
                 # Request a token from Keycloak
-                token_response = requests.post(session['KEYCLOAK_TOKEN_URL'], data=token_data)
-                token_result = token_response.json()
+                token = keycloak_openid.token(email, password)
+                session['access_token'] = token['access_token']
+                session['refresh_token'] = token['refresh_token']
 
-                if 'access_token' in token_result:
-                    # Store tokens in session
-                    session['access_token'] = token_result['access_token']
-                    session['refresh_token'] = token_result['refresh_token']
+                # Introspect the token to get user details
+                userinfo = keycloak_openid.introspect(token['access_token'])
 
-                    # Introspect the token
-                    introspection_data = {
-                        'token': session['access_token'],
-                        'client_id': session['KEYCLOAK_CLIENT_ID'],
-                        'client_secret': session['KEYCLOAK_CLIENT_SECRET'],
-                    }
-                    introspection_response = requests.post(session['KEYCLOAK_INTROSPECT_URL'], data=introspection_data)
-                    token_info = introspection_response.json()
+                if userinfo:
+                    session['USER_NAME'] = userinfo.get('name')
+                    session['USER_EMAIL'] = userinfo.get('email')
+                    session['USER_USERNAME'] = userinfo.get('preferred_username')
+                    session['ACTIVE'] = True
+                    session['USER_ROLES'] = userinfo.get('realm_access', {}).get('roles', [])
+                    session['KEYCLOAK_ID_USER'] = userinfo.get('sub')
 
-                    # Verify if token is active
-                    if token_info.get('active'):
-                        # Store user info in session
-                        session['USER_NAME'] = token_info.get('name')
-                        session['USER_EMAIL'] = token_info.get('email')
-                        session['USER_USERNAME'] = token_info.get('preferred_username')
-                        session['ACTIVE'] = True
-                        session['USER_ROLES'] = token_info.get('realm_access', {}).get('roles', [])
+                    # Fetch user creation date using client credentials
+                    creation_date = fetch_user_creation_date(session['KEYCLOAK_ID_USER'])
+                    if creation_date:
+                        session['USER_CREATION_DATE'] = creation_date
 
-                        # Redirect to home page
-                        return redirect(url_for('dashboard_blueprint.dashboard_index'))
-                    else:
-                        LOGIN_ERROR = True
+                    # Redirect to home page
+                    return redirect(url_for('dashboard_blueprint.dashboard_index'))
                 else:
                     LOGIN_ERROR = True
+
             except Exception as e:
                 # Handle exceptions during the token request
+                logging.error(f"Login error: {e}")
                 LOGIN_ERROR = True
-
 
     # Pass error flags to the template. This is the login page frontend
     return render_template('login.html', 
@@ -153,14 +130,47 @@ def login():
                             EMPTY_PASSWORD_ERROR=EMPTY_PASSWORD_ERROR, 
                             LOGIN_ERROR=LOGIN_ERROR)
 
+def fetch_user_creation_date(user_id):
+    """
+    Fetches user creation date from Keycloak Admin API using client credentials access token.
+    """
+    config = current_app.config['settings']
+    
+    keycloak_admin = KeycloakAdmin(
+        server_url=config['KEYCLOAK_URL'],
+        realm_name=config['REALM_NAME'],
+        client_id=config['KEYCLOAK_CLIENT_ID'],
+        client_secret_key=config['KEYCLOAK_CLIENT_SECRET'],
+        verify=True
+    )
+
+    try:
+        user = keycloak_admin.get_user(user_id)
+        created_timestamp = user.get('createdTimestamp')
+        if created_timestamp:
+            creation_date = datetime.datetime.fromtimestamp(created_timestamp / 1000.0).strftime('%d-%m-%Y')
+            return creation_date
+        return None
+    except Exception as e:
+        logging.error(f"Error fetching user creation date: {e}")
+        return None
 
 ####################################
-# IMPLEMENT Single sign out with keycloak too!!!!!
+# Logout Route
 ####################################
 @dashboard_bp.route('/logout')
 def logout():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
-    # Clear local session and redirect to the login page if no OAuth token is found
+
+    keycloak_openid = init_keycloak_client()
+
+    # Revoke refresh token to log out
+    try:
+        keycloak_openid.logout(session['refresh_token'])
+    except Exception as e:
+        logging.error(f"Error during logout: {e}")
+
+    # Clear local session and redirect to the login page
     session.clear()
     return redirect(url_for('dashboard_blueprint.login'))
