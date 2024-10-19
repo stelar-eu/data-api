@@ -57,6 +57,7 @@ from routes.publisher import publisher_bp
 #### DASHBOARD BP ####
 from routes.dashboard import dashboard_bp
 from routes.publisher import publisher_bp
+from routes.settings import settings_bp
 
 ############################################################
 
@@ -78,8 +79,7 @@ app.register_blueprint(users_bp, url_prefix='/api/v1/catalog')
 app.register_blueprint(tasks_bp, url_prefix='/api/v1/task')
 app.register_blueprint(dashboard_bp, url_prefix='/console/v1')
 app.register_blueprint(publisher_bp, url_prefix='/console/v1')
-
-
+app.register_blueprint(settings_bp, url_prefix='/console/v1/settings')
 
 ############################################################
 
@@ -2185,6 +2185,11 @@ def main(app):
         'MAIN_INGRESS_SUBDOMAIN' : os.getenv('MAIN_INGRESS_SUBDOMAIN', 'klms'),
         'KEYCLOAK_SUBDOMAIN' : os.getenv('KEYCLOAK_SUBDOMAIN', 'kc'),
         'MINIO_API_SUBDOMAIN' : os.getenv('MINIO_API_SUBDOMAIN', 'minio'),
+
+        'SMTP_SERVER' : os.getenv('SMTP_SERVER','stelar.gr'),
+        'SMTP_PORT' : os.getenv('SMTP_PORT', '465'),
+        'SMTP_EMAIL' : os.getenv('SMTP_EMAIL', 'info@stelar.gr'),
+        'SMTP_PASSWORD' : os.getenv('SMTP_PASSWORD', 'None'),
         
         'execution': {
             'engine': os.getenv('EXECUTION_ENGINE') if 'EXECUTION_ENGINE' in os.environ else 'none'
