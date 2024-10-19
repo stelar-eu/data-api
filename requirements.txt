@@ -11,3 +11,5 @@ python-jose
 cryptography
 datetime
 minio
+python-keycloak
+email-validator
