@@ -58,6 +58,7 @@ from routes.publisher import publisher_bp
 from routes.dashboard import dashboard_bp
 from routes.publisher import publisher_bp
 from routes.settings import settings_bp
+from routes.admin import admin_bp
 
 ############################################################
 
@@ -80,6 +81,7 @@ app.register_blueprint(tasks_bp, url_prefix='/api/v1/task')
 app.register_blueprint(dashboard_bp, url_prefix='/console/v1')
 app.register_blueprint(publisher_bp, url_prefix='/console/v1')
 app.register_blueprint(settings_bp, url_prefix='/console/v1/settings')
+app.register_blueprint(admin_bp, url_prefix='/console/v1/admin')
 
 ############################################################
 
