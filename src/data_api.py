@@ -69,6 +69,7 @@ app.secret_key = 'secretkey123'
 
 app.config.from_prefixed_env()
 
+logging.basicConfig(level=logging.DEBUG)
 
 ################## BLUEPRINT REGISTRATION ##################
 
@@ -336,7 +337,48 @@ def api_dataset_id(query_data):
 
     return response.json()
 
+@app.route('/api/v1/catalog/metadata/all', methods=['GET'])
+@app.output(schema.ResponseOK, status_code=200)
+@app.doc(tags=['Search Operations'])
+def api_metadata_all_packages():
 
+    config = current_app.config['settings']
+
+    package_list_url = f"{config['API_URL']}api/v1/catalog/all"
+    package_metadata_url = f"{config['API_URL']}api/v1/catalog?id="
+
+
+    # Fetch the list of IDs from the first endpoint
+    response = requests.get(package_list_url)
+    if response.status_code != 200:
+        return jsonify({"error": "Failed to fetch package list"}), 500
+
+    data = response.json()
+
+    # Check if the response is successful and contains the result
+    if not data.get("success", False) or "result" not in data:
+        return jsonify({"error": "Invalid response from package list API"}), 500
+
+    ids_list = data["result"]
+
+    # Aggregate metadata for all the IDs
+    all_metadata = []
+    for package_id in ids_list:
+        # Fetch metadata for each package using the second endpoint
+        metadata_url = package_metadata_url + package_id
+        metadata_response = requests.get(metadata_url)
+        if metadata_response.status_code == 200:
+            metadata_data = metadata_response.json()
+            if metadata_data.get("success", False):
+                # Append the result of each successful call
+                all_metadata.append(metadata_data["result"])
+            else:
+                all_metadata.append({"error": f"Failed to fetch metadata for ID {package_id}"})
+        else:
+            all_metadata.append({"error": f"Failed to fetch metadata for ID {package_id}"})
+
+    # Return all metadata in a single response
+    return jsonify({"result": all_metadata, "success": True})
 
 @app.route('/api/v1/dataset/export_zenodo', methods=['GET'])
 @app.input(schema.Identifier, location='query', example="cf0c3c59-fc41-48c9-a529-6b9feff42991")
@@ -2106,6 +2148,15 @@ def api_workflow_statistics(json_data):
 
 ###########################################################
 
+@app.template_filter('datetimeformat')
+def datetimeformat(value, format='%d-%m-%Y %H:%M'):
+    # Convert string to datetime object if it's a string
+    try:
+        datetime_obj = datetime.strptime(value, '%Y-%m-%dT%H:%M:%S.%f')
+        return datetime_obj.strftime(format)
+    except ValueError:
+        return value  # Return the original value if it can't be formatted
+    
 
 def json_config(config_file):
     """Load configuration settings for interacting with CKAN, Ontop, and the PostgreSQL database.
