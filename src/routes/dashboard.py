@@ -3,6 +3,7 @@ from apiflask import APIBlueprint
 from keycloak import KeycloakOpenID, KeycloakAdmin
 import datetime
 import json
+import requests
 import kutils 
 
 dashboard_bp = APIBlueprint('dashboard_blueprint', __name__, tag='Dashboard Operations')
@@ -56,7 +57,30 @@ def datasets():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
     
-    return render_template('upload.html')
+    return render_template('datasets.html')
+
+
+@dashboard_bp.route('/datasets/<dataset_id>')
+def dataset_detail(dataset_id):
+    
+    config = current_app.config['settings']
+    
+    if 'ACTIVE' not in session or not session['ACTIVE']:
+        return redirect(url_for('dashboard_blueprint.login'))
+    
+    package_metadata_url = f"{config['API_URL']}api/v1/catalog?id="
+    metadata_url = package_metadata_url + dataset_id
+    metadata_response = requests.get(metadata_url)
+    if metadata_response.status_code == 200:
+        metadata_data = metadata_response.json()
+        if metadata_data.get("success", False):
+            # Render the dataset detail page, passing the dataset object to the template
+            return render_template('dataset_view.html', dataset=metadata_data)
+        else:
+            redirect(url_for('dashboard_blueprint.login'))
+    else:
+        redirect(url_for('dashboard_blueprint.login'))
+    
 
 
 @dashboard_bp.route('/admin-settings')
@@ -158,3 +182,4 @@ def logout():
     # Clear local session and redirect to the login page
     session.clear()
     return redirect(url_for('dashboard_blueprint.login'))
+
