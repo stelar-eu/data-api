@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+    <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+    <title>STELAR | Manage Dataset </title>
+    <!-- CSS files -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">    
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+  </head>
+  <body >
+    <div class="page">
+      <!-- Navbar -->
+      {%  include 'header.html' %}
+      <div class="page-wrapper">
+        <!-- Page header -->
+         <!-- Page header -->
+        <div class="page-header d-print-none">
+            <div class="container-xl">
+              <div class="row g-2 align-items-center">
+                <div class="col">
+                  <!-- Page pre-title -->
+                  <div class="page-pretitle">
+                    {{ dataset['result']['id'] }}
+                  </div>
+                  <h2 class="page-title">
+                    {{ dataset['result']['title'] }}
+                  </h2>
+                </div>
+              </div>
+            </div>
+          </div>
+        <!-- Page body -->
+        <div class="page-body">
+          <div class="container-xl">
+            <div class="row g-4">
+              <div class="col-md-4">
+                    <div class="card">
+                      <div class="card-body">
+                        <div class="card-title">Basic info</div>
+                        <div class="mb-2"> <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0" /><path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0" /><path d="M3 6l0 13" /><path d="M12 6l0 13" /><path d="M21 6l0 13" /></svg>
+                          Name: <strong>{{ dataset['result']['title'] }}</strong>
+                        </div>
+                        <div class="mb-2">
+                            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12.75m-4 0a4 1.75 0 1 0 8 0a4 1.75 0 1 0 -8 0" />
+                                <path d="M8 12.5v3.75c0 .966 1.79 1.75 4 1.75s4 -.784 4 -1.75v-3.75" /><path d="M14 3v4a1 1 0 0 0 1 1h4" />
+                                <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /></svg>
+                            Package ID: <strong>{{ dataset['result']['id'] }}</strong>
+                          </div>
+                        <div class="mb-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="44" height="44" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <path d="M3 21l18 0" />
+                            <path d="M3 10l18 0" />
+                            <path d="M5 6l7 -3l7 3" />
+                            <path d="M4 10l0 11" />
+                            <path d="M20 10l0 11" />
+                            <path d="M8 14l0 3" />
+                            <path d="M12 14l0 3" />
+                            <path d="M16 14l0 3" />
+                            </svg>        
+                            Owner Organization: <strong>{{ dataset['result']['organization']['title']}}</strong>
+                        </div>
+                        <div class="mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="44" height="44" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
+                                <path d="M16 3v4" />
+                                <path d="M8 3v4" />
+                                <path d="M4 11h16" />
+                                <path d="M7 14h.013" />
+                                <path d="M10.01 14h.005" />
+                                <path d="M13.01 14h.005" />
+                                <path d="M16.015 14h.005" />
+                                <path d="M13.015 17h.005" />
+                                <path d="M7.01 17h.005" />
+                                <path d="M10.01 17h.005" />
+                                </svg>
+                            Date Created: <strong>{{ dataset['result']['metadata_created'] | datetimeformat }}</strong>
+                          </div>
+                          <div class="mb-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="44" height="44" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
+                                <path d="M16 3v4" />
+                                <path d="M8 3v4" />
+                                <path d="M4 11h16" />
+                                <path d="M7 14h.013" />
+                                <path d="M10.01 14h.005" />
+                                <path d="M13.01 14h.005" />
+                                <path d="M16.015 14h.005" />
+                                <path d="M13.015 17h.005" />
+                                <path d="M7.01 17h.005" />
+                                <path d="M10.01 17h.005" />
+                                </svg>
+                            Date Modified: <strong>{{ dataset['result']['metadata_modified'] | datetimeformat }}</strong>
+                          </div>
+                          <div class="mb-2">
+
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="44" height="44" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+                                <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
+                            </svg>
+                            Visibility: <strong>
+                                {% if dataset['result']['private'] %}
+                                    Private
+                                {% else %}
+                                    Public
+                                {% endif %}
+                            </strong>
+                          </div>
+                      </div>
+                    </div>
+              </div>
+              <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="card-title">Package Resources</div>
+                            <div class="col-auto mb-3 d-flex justify-content-end">
+                                <a href="#" class="btn btn-primary">
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
+                                  New Resource
+                                </a>
+                            </div>
+                            <div class="table-responsive">
+                                <table  class="table table-vcenter card-table">
+                                <thead>
+                                    <tr>
+                                    <th style="width: 40%;">Resource Name</th>
+                                    <th style="width: 40%;">Path</th>
+                                    <th style="width: 10%">Format</th>
+                                    <th class="w-1"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for resource in dataset['result']['resources'] %}
+                                    <tr>
+                                        <td class="text-sm">{{ resource['name'] }}</td>
+                                        <td class="text-sm"><small>{{ resource['url'] | replace('https://minio.stelar.gr', '') }}</small></td>
+                                        <td class="text-sm">{{ resource['format'] }}</td>
+                                        <td>
+                                            <button class="btn btn-sm view-resource-btn" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="{{ resource['id'] }}">View ID</button>
+                                        </td>
+                                    </tr>                                    
+                                    {% endfor %}
+                                </tbody>
+                                </table>
+                                <p class="text-secondary text-sm mt-2 text-center">In order to use the above resources to tool executions please use the <strong>Resource ID</strong> as input.</p>
+                            </div>
+                        </div>
+                    </div>                
+              </div>
+            </div>
+
+
+
+    
+
+            <div class="modal modal-blur fade" id="modal-view-id" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Resource ID</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <label class="form-label">Copy this ID and use it to tool executions as input</label>
+                            <input type="text" class="form-control" id="resource-id-input" name="example-disabled-input" placeholder="Resource-ID" readonly>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="copyText()">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copy" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#ffffff" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                    <path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" />
+                                    <path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
+                                  </svg>
+                                Copy ID</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+          </div>
+        </div>
+        {% include 'footer.html'%}
+      </div>
+    </div>
+    <script>
+        // When a "View ID" button is clicked
+        document.addEventListener('DOMContentLoaded', function () {
+            // Get all buttons with class 'view-resource-btn'
+            const viewButtons = document.querySelectorAll('.view-resource-btn');
+
+            // Loop through each button and add an event listener
+            viewButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    // Get the resource ID from the data-resource-id attribute
+                    const resourceId = this.getAttribute('data-resource-id');
+
+                    // Set the value of the input inside the modal
+                    const inputField = document.getElementById('resource-id-input');
+                    inputField.value = resourceId;
+                });
+            });
+        });
+        function copyText() {
+            const inputField = document.getElementById('resource-id-input');
+            navigator.clipboard.writeText(inputField.value);
+        }
+        </script>
+  </body>
+</html>

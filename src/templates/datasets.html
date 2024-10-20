@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+    <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+    <title>STELAR | Datasets</title>
+    <!-- CSS files -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">    
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="{{ url_for('static', filename='images.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+  </head>
+  <body >
+    <div class="page">
+      <!-- Navbar -->
+      {%  include 'header.html' %}
+      <div class="page-wrapper">
+        <!-- Page header -->
+         <!-- Page header -->
+        <div class="page-header d-print-none">
+            <div class="container-xl">
+              <div class="row g-2 align-items-center">
+                <div class="col">
+                  <!-- Page pre-title -->
+                  <div class="page-pretitle">
+                    Datasets
+                  </div>
+                  <h2 class="page-title">
+                    Browse & Manage Datasets
+                  </h2>
+                </div>
+                <div class="col-auto ms-auto d-print-none">
+                    <a href="#" class="btn btn-primary">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
+                      Publish New Dataset
+                    </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        <!-- Page body -->
+        <div class="page-body">
+          <div class="container-xl">
+            <div class="row g-4">
+              <div class="col-md-3">
+                <form action="./" method="get" autocomplete="off" novalidate class="sticky-top">
+                  <div class="form-label">Organizations</div>
+                  <div class="mb-4">
+                    <label class="form-check">
+                      <input type="checkbox" class="form-check-input" name="form-type[]" value="1" checked>
+                      <span class="form-check-label">ATHENA RC</span>
+                    </label>
+                    <label class="form-check">
+                      <input type="checkbox" class="form-check-input" name="form-type[]" value="2" checked>
+                      <span class="form-check-label">VISTA</span>
+                    </label>
+                    <label class="form-check">
+                      <input type="checkbox" class="form-check-input" name="form-type[]" value="3">
+                      <span class="form-check-label">Agroknow</span>
+                    </label>
+                  </div>
+
+                  <div class="form-label">Dataset Tags</div>
+                  <div class="mb-4">
+                    <label class="form-check">
+                      <input type="checkbox" class="form-check-input" name="form-type[]" value="1" checked>
+                      <span class="form-check-label">Geo-Spatial Data</span>
+                    </label>
+                    <label class="form-check">
+                      <input type="checkbox" class="form-check-input" name="form-type[]" value="2" checked>
+                      <span class="form-check-label">Greek Farms</span>
+                    </label>
+                    <label class="form-check">
+                      <input type="checkbox" class="form-check-input" name="form-type[]" value="3">
+                      <span class="form-check-label">NL Weather Data</span>
+                    </label>
+                  </div>
+                  <div class="form-label">Formats</div>
+                  <div class="mb-4">
+                    <label class="form-check">
+                      <input type="checkbox" class="form-check-input" name="form-type[]" value="1" checked>
+                      <span class="form-check-label">JSON</span>
+                    </label>
+                    <label class="form-check">
+                      <input type="checkbox" class="form-check-input" name="form-type[]" value="2" checked>
+                      <span class="form-check-label">XML</span>
+                    </label>
+                    <label class="form-check">
+                      <input type="checkbox" class="form-check-input" name="form-type[]" value="3">
+                      <span class="form-check-label">CSV</span>
+                    </label>
+                  </div>
+                  <div class="form-label">Location</div>
+                  <div class="mb-4">
+                    <select class="form-select">
+                      <option>Anywhere</option>
+                      <option>Europe</option>
+                      <option>Greece</option>
+                      <option>Netherlands</option>
+                      <option>Germany</option>
+                    </select>
+                  </div>
+                  <div class="mt-5">
+                    <button class="btn btn-primary w-100">
+                      Apply filters
+                    </button>
+                    <a href="#" class="btn btn-link w-100">
+                      Reset to defaults
+                    </a>
+                  </div>
+                </form>
+              </div>
+              <div class="col-md-9">
+                <div class="row row-cards">
+                  <div class="space-y" id='dataset-container'>
+                    
+
+
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% include 'footer.html'%}
+      </div>
+    </div>
+    <script>
+        $(document).ready(function() {
+            $.ajax({
+                url: '/stelar/api/v1/catalog/metadata/all',
+                method: 'GET',
+                success: function(data) {
+                if (data.success && data.result) {
+                    const datasets = data.result;
+                    const container = $('#dataset-container'); 
+                    
+                    datasets.forEach(dataset => {
+
+                    const metadataDate = dataset.metadata_modified ? new Date(dataset.metadata_modified) : new Date(dataset.metadata_created);
+    
+                    const formattedDate = metadataDate.toLocaleString('en-GB', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                    });
+                    // Create card structure
+                    const card = `
+                        <div class="card mb-3">
+                        <div class="row g-0">
+                            <div class="col-auto">
+                            <div class="card-body">
+                                <div class="avatar avatar-md" style="background-image: url(${getOrganizationLink(dataset.organization.title)})"></div>
+                            </div>
+                            </div>
+                            <div class="col">
+                            <div class="card-body ps-0">
+                                <div class="row">
+                                <div class="col">
+                                    <h3 class="mb-0"><a href="datasets/${dataset.id}">${dataset.title}</a></h3>
+                                    <p class="text-secondary mt-1">${dataset.notes}</p>
+                                </div>
+                                </div>
+                                <div class="row">
+                                <div class="col-md">
+                                    <div class="mt-3 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
+                                    <div class="list-inline-item">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-building-bank" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#2c3e50" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                        <path d="M3 21l18 0" />
+                                        <path d="M3 10l18 0" />
+                                        <path d="M5 6l7 -3l7 3" />
+                                        <path d="M4 10l0 11" />
+                                        <path d="M20 10l0 11" />
+                                        <path d="M8 14l0 3" />
+                                        <path d="M12 14l0 3" />
+                                        <path d="M16 14l0 3" />
+                                        </svg>                                        
+                                        ${dataset.organization.title}
+                                    </div>
+                                    <div class="list-inline-item">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-month" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#2c3e50" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                        <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
+                                        <path d="M16 3v4" />
+                                        <path d="M8 3v4" />
+                                        <path d="M4 11h16" />
+                                        <path d="M7 14h.013" />
+                                        <path d="M10.01 14h.005" />
+                                        <path d="M13.01 14h.005" />
+                                        <path d="M16.015 14h.005" />
+                                        <path d="M13.015 17h.005" />
+                                        <path d="M7.01 17h.005" />
+                                        <path d="M10.01 17h.005" />
+                                        
+                                        </svg>
+                                        ${formattedDate}
+                                    </div>
+                                    </div>
+                                    <div class="mt-3 list mb-0 text-secondary d-block d-sm-none">
+                                    <div class="list-item">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-inline" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" /></svg>
+                                        ${dataset.organization.title}
+                                    </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-auto">
+                                    <div class="mt-3 badges">
+                                    ${dataset.tags.map(tag => `<span class="tag m-1 mb-0">${tag.display_name}</span>`).join('')}
+                                    </div>
+                                </div>
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                        </div>
+                    `;
+                    // Append the card to the container
+                    container.append(card);
+                    });
+                }},
+                error: function(err) {
+                    console.error('Error fetching datasets:', err);
+                }
+            });
+            });
+
+        </script>
+  </body>
+</html>
