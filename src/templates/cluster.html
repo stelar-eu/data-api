@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+    <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+    <title>STELAR | Cluster Settings</title>
+
+    <link rel="preload" href="https://code.jquery.com/jquery-3.6.0.min.js" as="script">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css" as="style">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js" as="script">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">   
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+
+    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+</head>
+<body>
+    <div class="page">
+        {%  include 'header.html' %}
+        <div class="page-wrapper">
+        <div class="page-header d-print-none">
+            <div class="container-xl">
+            <div class="row g-2 align-items-center">
+                <div class="col">
+                <div class="page-pretitle">
+                    ADMINISTRATION
+                </div>
+                <h2 class="page-title">
+                    Cluster Settings
+                </h2>
+                </div>
+            </div>
+            </div>
+        </div>
+        <div class="page-body">
+            <div class="container container-xl">
+              <div class="card card-md">
+                <div class="card-body">
+                    <div class="row row-cards">
+                       <div class="col-lg-12">
+                            <h2 class="mb-3">User Settings</h2>
+                            <p class="text-secondary mb-3">
+                                Manage your organization users, edit their details or add new users
+                            </p>
+                            <div class="card-body border-bottom">
+                                <div class="d-flex">
+                                  <div class="ms-auto text-secondary">
+                                    Search User:
+                                    <div class="ms-2 d-inline-block">
+                                      <input type="text" class="form-control form-control-sm" aria-label="Search invoice">
+                                    </div>
+                                  </div>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-vcenter card-table" id="users-table">
+                                    <thead>
+                                    <tr>
+                                        <th style="width: 15%;">Username</th>
+                                        <th style="width: 22%;">Name</th>
+                                        <th style="width: 23%;">Email</th>
+                                        <th style="width: 10%;">Joined Organization</th>
+                                        <th style="width: 22%;">Roles</th>
+                                        <th style="width: 8%;">Activation Status</th>
+                                        <th class="w-1"></th>
+                                    </tr>
+                                    </thead>     
+                                    <tbody id="user-body">                      
+                                    </tbody>
+                                </table>
+
+                                <div class="card-footer d-flex align-items-center" id="pagination-container">
+                                    <p class="m-0 text-secondary">Showing <span id="start"></span> to <span id="end"></span> of <span id="total"></span> entries</p>
+                                    <ul class="pagination m-0 ms-auto" id="pagination-numbers">
+                                        <li class="page-item" id="prev-page">
+                                            <a class="page-link"  tabindex="-1" aria-disabled="true">prev </a>
+                                        </li>
+                                        <li class="page-item active"><a class="page-link" data-page="1">1</a></li>
+                                        <li class="page-item" id="next-page">
+                                            <a class="page-link" > next</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>              
+            </div>
+          </div>
+          <div class="container container-xl mt-4">
+            <div class="card card-md">
+              <div class="card-body">
+                  <div class="row row-cards">
+                     <div class="col-lg-12">
+                          <h2 class="mb-3">Tool Settings</h2>
+                          <p class="text-secondary mb-4">
+                              Manage the data tool images that are allowed to be run in the KLMS cluster
+                          </p>
+                          <div class="table-responsive">
+                              <table class="table table-vcenter card-table">
+                                  <thead>
+                                  <tr>
+                                      <th style="width: 25%;">Tool</th>
+                                      <th style="width: 25%;">Image Name</th>
+                                      <th style="width: 25%;">Source Code Repo</th>
+                                      <th style="width: 15%;">Owner</th>
+                                      <th style="width: 10%;">Execution Allowed</th>
+                                      <th class="w-1"></th>
+                                  </tr>
+                                  </thead>     
+                                  <tbody id="tool-body">                      
+                                  </tbody>
+                              </table>
+                          </div>
+                      </div>
+                  </div>
+              </div>              
+          </div>
+        </div>
+
+        <div class="modal modal-blur fade" id="modal-edit-user" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Edit User</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <form id="edit-user-form">
+                    <input type="hidden" id="user-id" name="user-id"> <!-- Hidden field for user ID -->
+                    <div class="mb-3">
+                      <label class="form-label">Username</label>
+                      <input type="text" class="form-control" id="edit-username" name="username" placeholder="Enter username">
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Full Name</label>
+                      <input type="text" class="form-control" id="edit-fullname" name="fullname" placeholder="Enter full name">
+                    </div>
+                    
+            
+                    <div class="mb-3">
+                      <label class="form-label">Email</label>
+                      <input type="email" class="form-control" id="edit-email" name="email" placeholder="Enter email address">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">User Assigned Roles</label>
+                        <select type="text" class="form-select" placeholder="Select tags" id="user-select-roles" value="" multiple>
+
+                        </select>
+                      </div>
+                    <div class="mb-3">
+                      <label class="form-label">Activation Status</label>
+                      <select class="form-select" id="edit-status" name="status">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
+                  </form>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn btn-primary" id="save-user-btn">Save changes</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+        {% include 'footer.html' %}
+        </div>
+        </div>
+        <script>
+            let allUsers = []; // Store all users here after fetching
+            let filteredUsers = []; // Store filtered users when search is applied
+            const maxUsersPerPage = 8;
+            let currentPage = 1;
+
+            // Fetch all users at once
+            function fetchAllUsers() {
+                $.ajax({
+                    url: 'admin/users?limit=1000000',
+                    method: 'GET',
+                    dataType: 'json',
+                    success: function(users) {
+                        if (users.length > 0) {
+                            allUsers = users;
+                            filteredUsers = [...allUsers]; // Initialize filtered users with all users
+                            totalUsers = allUsers.length;
+                            updatePagination();
+                            renderTable(currentPage);
+                        } else {
+                            console.error("No users found.");
+                        }
+                    },
+                    error: function() {
+                        console.error("Error fetching users");
+                    }
+                });
+            }
+
+            // Function to render the table for the current page
+            function renderTable(page) {
+                const tableBody = $("#user-body");
+                tableBody.empty();
+
+                const start = (page - 1) * maxUsersPerPage;
+                const end = Math.min(start + maxUsersPerPage, filteredUsers.length);
+                const usersToShow = filteredUsers.slice(start, end);
+
+                // Populate the table with user data
+                usersToShow.forEach(user => {
+                    const roles = user.roles ? user.roles.join(', ') : 'None';
+                    const activeStatus = user.active 
+                        ? `<span class="status status-green">Active</span>` 
+                        : `<span class="status status-red">Inactive</span>`;
+
+                    tableBody.append(`
+                        <tr>
+                            <td>${user.username}</td>
+                            <td class="text-secondary">${user.fullname || 'N/A'}</td>
+                            <td><a href="mailto:${user.email || 'Not set'}" class="text-reset">${user.email || 'Not set'}</a></td>
+                            <td class="text-secondary">${user.joined_date || 'N/A'}</td>
+                            <td class="text-secondary">${roles}</td>
+                            <td class="text-center">${activeStatus}</td>
+                            <td>
+                                <button class="btn btn-sm edit-user-btn" data-bs-toggle="modal" data-bs-target="#modal-edit-user" data-user-id="${user.user_id}">Edit</button>
+                            </td>
+                        </tr>
+                    `);
+                });
+
+                // If fewer users than maxUsersPerPage, fill in with empty rows
+                const emptyRows = maxUsersPerPage - usersToShow.length;
+                for (let i = 0; i < emptyRows; i++) {
+                    tableBody.append(`
+                        <tr style="height:49px;">
+                            <td>&nbsp;</td>
+                            <td class="text-secondary">&nbsp;</td>
+                            <td class="text-secondary">&nbsp;</td>
+                            <td class="text-secondary">&nbsp;</td>
+                            <td class="text-secondary">&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                        </tr>
+                    `);
+                }
+
+                updatePageDetails(page, usersToShow.length);
+            }
+            // Search function to filter users by name, username, email, or role
+            function searchUsers(query) {
+                if (!query) {
+                    filteredUsers = [...allUsers]; // Reset to original if no search query
+                } else {
+                    query = query.toLowerCase();
+                    filteredUsers = allUsers.filter(user => {
+                        return (
+                            user.username.toLowerCase().includes(query) ||
+                            (user.fullname && user.fullname.toLowerCase().includes(query)) ||
+                            (user.email && user.email.toLowerCase().includes(query)) ||
+                            (user.roles && user.roles.join(', ').toLowerCase().includes(query))
+                        );
+                    });
+                }
+                totalUsers = filteredUsers.length;
+                currentPage = 1; // Reset to the first page after search
+                updatePagination();
+                renderTable(currentPage);
+            }
+
+            // Event listener for search box
+            $("input[aria-label='Search invoice']").on("input", function() {
+                const query = $(this).val();
+                searchUsers(query);
+            });
+
+            // Update the footer with the page details
+            function updatePageDetails(page, usersOnPage) {
+                const start = (page - 1) * maxUsersPerPage + 1;
+                const end = Math.min(start + usersOnPage - 1, totalUsers);
+                $("#start").text(start);
+                $("#end").text(end);
+                $("#total").text(totalUsers);
+            }
+
+            // Update the pagination controls
+            function updatePagination() {
+                const pagination = $("#pagination-numbers");
+                const totalPages = Math.ceil(filteredUsers.length / maxUsersPerPage);
+
+                pagination.empty(); // Clear existing pagination
+
+                // Add "Prev" button
+                pagination.append(`
+                    <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" id="prev-page">prev</a>
+                    </li>
+                `);
+
+                // Add page numbers
+                for (let i = 1; i <= totalPages; i++) {
+                    pagination.append(`
+                        <li class="page-item ${i === currentPage ? 'active' : ''}">
+                            <a class="page-link" href="#" data-page="${i}">${i}</a>
+                        </li>
+                    `);
+                }
+
+                // Add "Next" button
+                pagination.append(`
+                    <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                        <a class="page-link" href="#" id="next-page">next</a>
+                    </li>
+                `);
+
+                // Attach event listeners for pagination
+                $(".page-link").off("click").on("click", function(event) {
+                    event.preventDefault();
+                    const selectedPage = $(this).data('page');
+                    if (selectedPage && selectedPage !== currentPage) {
+                        currentPage = selectedPage;
+                        renderTable(currentPage);
+                        updatePagination(); // Make sure to update the pagination controls
+                    }
+                });
+
+                // "Prev" and "Next" buttons
+                $("#prev-page").off("click").on("click", function(event) {
+                    event.preventDefault();
+                    if (currentPage > 1) {
+                        currentPage--;
+                        renderTable(currentPage);
+                        updatePagination(); // Update pagination after switching page
+                    }
+                });
+
+                $("#next-page").off("click").on("click", function(event) {
+                    event.preventDefault();
+                    const totalPages = Math.ceil(filteredUsers.length / maxUsersPerPage);
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        renderTable(currentPage);
+                        updatePagination(); // Update pagination after switching page
+                    }
+                });
+            }
+
+
+            
+
+            // Fetch all users on page load
+            $(document).ready(function() {
+                fetchAllUsers();
+            });
+
+
+            $('#modal-edit-user').on('hidden.bs.modal', function () {
+                // Clear all input fields when the modal is hidden (closed)
+                $(this).find('input[type="text"], input[type="email"], input[type="date"], textarea').val('');
+                
+                // Reset the select dropdown to its default value (assuming you have default values)
+                $(this).find('select').prop('selectedIndex', 0);
+            });
+        </script>        
+       <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Initialize TomSelect for roles dropdown
+            var el = document.getElementById('user-select-roles');
+            
+            if (window.TomSelect) {
+                // Ensure any previous instances are destroyed before initializing a new one
+                if (el.tomselect) {
+                    el.tomselect.destroy();
+                }
+            
+                var tomSelectInstance = new TomSelect(el, {
+                    maxItems: null, // Allow multiple selections
+                    valueField: 'value',
+                    labelField: 'text',
+                    searchField: ['text'],
+                    placeholder: "Select Roles",
+                    allowEmptyOption: false,
+                    create: false,
+                    dropdownParent: 'body', // Ensure the dropdown is appended correctly
+                });
+            }
+        
+            // Function to fetch roles and populate TomSelect
+            function fetchRoles(userRoles = []) {
+                $.ajax({
+                    url: 'admin/users/roles', // Adjust this URL to your API endpoint
+                    method: 'GET',
+                    dataType: 'json',
+                    success: function(response) {
+                        console.log("Roles response:", response); // Debug: Log the roles response
+        
+                        // Access the roles array from the response
+                        const rolesArray = response.roles;
+        
+                        // Clear existing options in TomSelect
+                        tomSelectInstance.clearOptions();
+        
+                        // Add all roles to TomSelect
+                        rolesArray.forEach(function(role) {
+                            console.log("Adding role:", role.name); // Debug: Log each role being added
+                            tomSelectInstance.addOption({value: role.name, text: role.name});
+                        });
+        
+                        // Preselect user roles (if any)
+                        userRoles.forEach(function(role) {
+                            tomSelectInstance.addItem(role);
+                        });
+        
+                        // Refresh TomSelect to display newly added roles
+                        tomSelectInstance.refreshOptions(false);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("Error fetching roles:", error); // Log any errors during the AJAX request
+                    }
+                });
+            }
+        
+            // Event listener for opening the edit modal
+            $(document).on('click', '.edit-user-btn', function() {
+                const userId = $(this).data('user-id');
+        
+                // Fetch user data from server based on userId
+                $.ajax({
+                    url: `admin/users/${userId}`, // Adjust this URL to your API endpoint
+                    method: 'GET',
+                    dataType: 'json',
+                    success: function(user) {
+                        console.log("User data:", user); // Debug: Log the user data
+        
+                        // Populate the modal form with the fetched user data
+                        $('#user-id').val(user.id);
+                        $('#edit-username').val(user.username);
+                        $('#edit-fullname').val(user.fullname);
+                        $('#edit-email').val(user.email);
+                        $('#edit-status').val(user.active ? 'active' : 'inactive');
+        
+                        // Fetch roles and preselect user's assigned roles
+                        fetchRoles(user.roles.map(role => role.name));
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("Error fetching user details:", error); // Log any errors during the AJAX request
+                    }
+                });
+            });
+        
+            // Clear the modal input fields when closed
+            $('#modal-edit-user').on('hidden.bs.modal', function () {
+                $(this).find('input[type="text"], input[type="email"]').val('');
+                tomSelectInstance.clear(); // Clear selected roles in TomSelect
+                $('#edit-status').prop('selectedIndex', 0); // Reset status dropdown
+            });
+        });
+        </script>        
+    </body>
+</html>
