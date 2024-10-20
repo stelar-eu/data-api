@@ -1,13 +1,11 @@
 from flask import request, jsonify, current_app, session, make_response, render_template, redirect, url_for
 from apiflask import APIBlueprint
-import logging
 from keycloak import KeycloakOpenID, KeycloakAdmin
 import datetime
 import json
 import kutils 
 
 dashboard_bp = APIBlueprint('dashboard_blueprint', __name__, tag='Dashboard Operations')
-logging.basicConfig(level=logging.DEBUG)
 
 # Initialize Keycloak client
 def init_keycloak_client():
@@ -132,7 +130,6 @@ def login():
 
             except Exception as e:
                 # Handle exceptions during the token request
-                logging.error(f"Login error: {e}")
                 LOGIN_ERROR = True
 
     # Pass error flags to the template. This is the login page frontend
@@ -156,7 +153,7 @@ def logout():
     try:
         keycloak_openid.logout(session['refresh_token'])
     except Exception as e:
-        logging.error(f"Error during logout: {e}")
+       print(f"Error during logout: {e}")
 
     # Clear local session and redirect to the login page
     session.clear()

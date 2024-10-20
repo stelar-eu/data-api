@@ -7,10 +7,7 @@ from keycloak.exceptions import KeycloakAuthenticationError
 from routes.dashboard import init_keycloak_client
 import random
 import smtplib, ssl
-import logging
 from email_validator import validate_email, EmailNotValidError
-
-logging.basicConfig(level=logging.INFO)  # Set up logging configuration
 
 """
     This .py file contains the endpoints attached to the blueprint
