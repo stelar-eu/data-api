@@ -4,6 +4,7 @@ import logging
 from keycloak import KeycloakOpenID, KeycloakAdmin
 import datetime
 import json
+import kutils 
 
 dashboard_bp = APIBlueprint('dashboard_blueprint', __name__, tag='Dashboard Operations')
 logging.basicConfig(level=logging.DEBUG)
@@ -59,6 +60,16 @@ def datasets():
     
     return render_template('upload.html')
 
+
+@dashboard_bp.route('/admin-settings')
+def adminSettings():
+    if 'ACTIVE' not in session or not session['ACTIVE']:
+        return redirect(url_for('dashboard_blueprint.login'))
+    if not 'admin' in session.get('USER_ROLES', []):
+        return redirect(url_for('dashboard_blueprint.login'))
+    
+    return render_template('cluster.html')
+
 ####################################
 # Login Route
 ####################################
@@ -110,7 +121,7 @@ def login():
                     session['KEYCLOAK_ID_USER'] = userinfo.get('sub')
 
                     # Fetch user creation date using client credentials
-                    creation_date = fetch_user_creation_date(session['KEYCLOAK_ID_USER'])
+                    creation_date = kutils.fetch_user_creation_date(session['KEYCLOAK_ID_USER'])
                     if creation_date:
                         session['USER_CREATION_DATE'] = creation_date
 
@@ -130,30 +141,6 @@ def login():
                             EMPTY_PASSWORD_ERROR=EMPTY_PASSWORD_ERROR, 
                             LOGIN_ERROR=LOGIN_ERROR)
 
-def fetch_user_creation_date(user_id):
-    """
-    Fetches user creation date from Keycloak Admin API using client credentials access token.
-    """
-    config = current_app.config['settings']
-    
-    keycloak_admin = KeycloakAdmin(
-        server_url=config['KEYCLOAK_URL'],
-        realm_name=config['REALM_NAME'],
-        client_id=config['KEYCLOAK_CLIENT_ID'],
-        client_secret_key=config['KEYCLOAK_CLIENT_SECRET'],
-        verify=True
-    )
-
-    try:
-        user = keycloak_admin.get_user(user_id)
-        created_timestamp = user.get('createdTimestamp')
-        if created_timestamp:
-            creation_date = datetime.datetime.fromtimestamp(created_timestamp / 1000.0).strftime('%d-%m-%Y')
-            return creation_date
-        return None
-    except Exception as e:
-        logging.error(f"Error fetching user creation date: {e}")
-        return None
 
 ####################################
 # Logout Route
