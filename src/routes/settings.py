@@ -145,21 +145,19 @@ def send_otp_email(to_email):
     sender_name = "STELAR KLMS"
 
     # Ensure USER_NAME exists in session
-    user_name = session.get('USER_NAME', 'User')
+    user_name = session.get('USER_USERNAME', 'User')
 
     # Plain text message without headers (headers will be handled separately)
     plain_message = f"""\
+Dear {user_name},
 
-    Dear {user_name},
+Your OTP to verify your email change is: {otp}.
 
-    Your OTP to verify your email change is: {otp}.
+If you did not request this change, please contact our support team.
 
-    If you did not request this change, please contact our support team.
-
-    Kind Regards,
-    STELAR KLMS
-    """
-
+Kind Regards,
+STELAR KLMS
+"""
     # Create the full email message with subject, sender, and receiver
     full_message = f"Subject: {subject}\nFrom: {sender_name} <{sender_email}>\nTo: {to_email}\n\n{plain_message}"
 
