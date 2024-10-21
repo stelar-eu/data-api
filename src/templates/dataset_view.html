@@ -123,7 +123,7 @@
                         <div class="card-body">
                             <div class="card-title">Package Resources</div>
                             <div class="col-auto mb-3 d-flex justify-content-end">
-                                <a href="#" class="btn btn-primary">
+                                <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-new-resource">
                                   <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
                                   New Resource
                                 </a>
@@ -157,11 +157,160 @@
                     </div>                
               </div>
             </div>
-
-
-
-    
-
+            <div class="modal modal-blur fade" id="modal-new-resource" tabindex="-1" role="dialog" aria-hidden="true">
+              <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">New Resource</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="mb-3">
+                      <label class="form-label">Name</label>
+                      <input type="text" class="form-control" name="example-text-input" placeholder="Resource Name">
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Description</label>
+                      <input type="text" class="form-control" name="resource-description" placeholder="Resource Description">
+                    </div>
+                    <label class="form-label">Resource Type</label>
+                    <div class="form-selectgroup-boxes row mb-3">
+                      <div class="col-lg-6">
+                        <label class="form-selectgroup-item">
+                          <input type="radio" name="resource-type" value="external" class="form-selectgroup-input" checked>
+                          <span class="form-selectgroup-label d-flex align-items-center p-3">
+                            <span class="me-3">
+                              <span class="form-selectgroup-check"></span>
+                            </span>
+                            <span class="form-selectgroup-label-content">
+                              <span class="form-selectgroup-title strong mb-1">External Resource</span>
+                              <span class="d-block text-secondary">Provide only an external URL to resource. No uploads.</span>
+                            </span>
+                          </span>
+                        </label>
+                      </div>
+                      <div class="col-lg-6">
+                        <label class="form-selectgroup-item">
+                          <input type="radio" name="resource-type" value="internal" class="form-selectgroup-input">
+                          <span class="form-selectgroup-label d-flex align-items-center p-3">
+                            <span class="me-3">
+                              <span class="form-selectgroup-check"></span>
+                            </span>
+                            <span class="form-selectgroup-label-content">
+                              <span class="form-selectgroup-title strong mb-1">Upload Resource</span>
+                              <span class="d-block text-secondary">Upload a file to MinIO that will map as path of the resource.</span>
+                            </span>
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="modal-body" id="externalResource">
+                    <form id="externalResourceForm" enctype="multipart/form-data">
+                    <div class="row">
+                      <div class="col-lg-12">
+                        <div class="mb-3">
+                          <label class="form-label">URL</label>
+                          <input type="text" class="form-control">
+                        </div>
+                      </div>
+                      <div class="col-lg-12">
+                        <div class="mb-3">
+                          <label class="form-label">Format</label>
+                            <div class="form-selectgroup">
+                              <label class="form-selectgroup-item">
+                                <input type="checkbox" name="formatType" value="JSON" class="form-selectgroup-input" checked>
+                                <span class="form-selectgroup-label">JSON</span>
+                              </label>
+                              <label class="form-selectgroup-item">
+                                <input type="checkbox" name="formatType" value="CSV" class="form-selectgroup-input">
+                                <span class="form-selectgroup-label">CSV</span>
+                              </label>
+                              <label class="form-selectgroup-item">
+                                <input type="checkbox" name="formatType" value="TXT" class="form-selectgroup-input">
+                                <span class="form-selectgroup-label">TXT</span>
+                              </label>
+                              <label class="form-selectgroup-item">
+                                <input type="checkbox" name="formatType" value="PDF" class="form-selectgroup-input">
+                                <span class="form-selectgroup-label">PDF</span>
+                              </label>
+                              <label class="form-selectgroup-item">
+                                <input type="checkbox" name="formatType" value="HTML" class="form-selectgroup-input">
+                                <span class="form-selectgroup-label">HTML</span>
+                              </label>
+                            </div>
+                        </div>
+                      </div>
+                    </form>
+                    </div>
+                  </div>
+                  <div class="modal-body" id="internalResource" style="display:none;">
+                    <div class="row">
+                      <div class="col-lg-12">
+                        <div class="mb-3">
+                        <form id="uploadForm" enctype="multipart/form-data">
+                          <div class="form-label">Select Origin File</div>
+                          <input type="file" class="form-control" id="fileInput" required />
+                        </div>
+                      </div>
+                      <div class="col-lg-12">
+                        <div class="mb-3">
+                          <label class="form-label">Destination Path</label>
+                          <select class="form-select" id="pathSelector" required></select>
+                        </div>
+                      </div>
+                      <div class="col-lg-12">
+                        <div class="mb-3">
+                          <label class="form-label">Format</label>
+                            <div class="form-selectgroup">
+                              <label class="form-selectgroup-item">
+                                <input type="checkbox" name="name" value="JSON" class="form-selectgroup-input" checked>
+                                <span class="form-selectgroup-label">JSON</span>
+                              </label>
+                              <label class="form-selectgroup-item">
+                                <input type="checkbox" name="name" value="CSV" class="form-selectgroup-input">
+                                <span class="form-selectgroup-label">CSV</span>
+                              </label>
+                              <label class="form-selectgroup-item">
+                                <input type="checkbox" name="name" value="TXT" class="form-selectgroup-input">
+                                <span class="form-selectgroup-label">TXT</span>
+                              </label>
+                              <label class="form-selectgroup-item">
+                                <input type="checkbox" name="name" value="PDF" class="form-selectgroup-input">
+                                <span class="form-selectgroup-label">PDF</span>
+                              </label>
+                              <label class="form-selectgroup-item">
+                                <input type="checkbox" name="name" value="HTML" class="form-selectgroup-input">
+                                <span class="form-selectgroup-label">HTML</span>
+                              </label>
+                            </div>
+                        </div>
+                      </div>
+                    </form>
+                    <div class="col-lg-12">
+                      <div class="progress" id="progress-bar-container" style="flex-grow: 1; margin-right: 20px;">
+                        <div class="progress-bar" id="progress-bar" style="width: 0%" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="0% Complete">
+                          <span id="progress-text">0%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Upload status -->
+                    <div id="uploadStatus" class="col-lg-12"></div>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <a href="#" class="btn btn-link link-secondary" data-bs-dismiss="modal">
+                      Cancel
+                    </a>
+                    <a href="#" class="btn btn-primary ms-auto" id="submitResource">
+                      <!-- Download SVG icon from http://tabler-icons.io/i/plus -->
+                      <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
+                      Publish New Resource
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div class="modal modal-blur fade" id="modal-view-id" tabindex="-1" role="dialog" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
                     <div class="modal-content">
@@ -193,26 +342,274 @@
     </div>
     <script>
         // When a "View ID" button is clicked
-        document.addEventListener('DOMContentLoaded', function () {
-            // Get all buttons with class 'view-resource-btn'
+        function attachViewIdEventListeners() {
             const viewButtons = document.querySelectorAll('.view-resource-btn');
-
-            // Loop through each button and add an event listener
-            viewButtons.forEach(function (button) {
-                button.addEventListener('click', function () {
-                    // Get the resource ID from the data-resource-id attribute
+            viewButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
                     const resourceId = this.getAttribute('data-resource-id');
-
-                    // Set the value of the input inside the modal
                     const inputField = document.getElementById('resource-id-input');
                     inputField.value = resourceId;
                 });
             });
-        });
+        }
+        document.addEventListener('DOMContentLoaded', attachViewIdEventListeners);
+        
         function copyText() {
             const inputField = document.getElementById('resource-id-input');
             navigator.clipboard.writeText(inputField.value);
         }
         </script>
+        
+
+
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const externalResourceForm = document.getElementById('externalResourceForm');
+            const internalResourceForm = document.getElementById('uploadForm');
+            const externalResource = document.getElementById('externalResource');
+            const internalResource = document.getElementById('internalResource');
+            const submitButton = document.getElementById('submitResource');
+            const resourceRadios = document.querySelectorAll('input[name="resource-type"]');
+            
+            // Reset modal on close
+            $('#resourceModal').on('hidden.bs.modal', function () {
+              resetModalForms();
+            });
+
+            // Function to reset the forms and progress bar when modal closes
+            function resetModalForms() {
+              // Reset forms
+              externalResourceForm.reset();
+              internalResourceForm.reset();
+
+              // Hide progress bar and reset its state
+              $('#progress-bar-container').hide();
+              $('#progress-bar').width('0%');
+              $('#progress-text').text('0%');
+
+              // Clear upload status message
+              $('#uploadStatus').html('');
+
+              // Optionally reset radio button selection to the default (if needed)
+              document.querySelector('input[name="resource-type"][value="external"]').checked = true;
+              toggleResourceForm(); // Re-initialize form visibility
+            }
+
+
+            // Function to toggle visibility of forms based on selected radio button
+            function toggleResourceForm() {
+              if (document.querySelector('input[name="resource-type"]:checked').value === 'external') {
+                externalResource.style.display = 'block';
+                internalResource.style.display = 'none';
+              } else {
+                externalResource.style.display = 'none';
+                internalResource.style.display = 'block';
+              }
+            }
+
+            // Attach event listeners to radio buttons
+            resourceRadios.forEach(radio => {
+              radio.addEventListener('change', toggleResourceForm);
+            });
+
+            // Initialize form visibility based on current selection
+            toggleResourceForm();
+
+            // Handle form submission
+            submitButton.addEventListener('click', function() {
+              const selectedResourceType = document.querySelector('input[name="resource-type"]:checked').value;
+
+              if (selectedResourceType === 'external') {
+                // Serialize the external form data
+                const formData = new FormData(externalResourceForm);
+                handleExternalResourceSubmit(formData);  // Trigger external resource AJAX
+
+              } else if (selectedResourceType === 'internal') {
+                // Serialize the internal form data
+                const formData = new FormData(internalResourceForm);
+                handleInternalResourceSubmit(formData);  // Trigger internal resource AJAX
+              }
+            });
+
+            // Function to handle external resource submission (AJAX)
+            function handleExternalResourceSubmit(formData) {
+              // Example AJAX call
+              fetch('/submit-external-resource', {
+                method: 'POST',
+                body: formData
+              })
+              .then(response => response.json())
+              .then(data => {
+                console.log('External resource submitted successfully:', data);
+                alert('External resource submitted successfully!');
+              })
+              .catch(error => {
+                console.error('Error submitting external resource:', error);
+              });
+            }
+
+            // Function to handle internal resource submission with progress bar (AJAX)
+            function handleInternalResourceSubmit() {
+              const formData = new FormData();
+
+              const selectedOption = $('#pathSelector').find(':selected');  // Find the selected option
+              const bucketName = selectedOption.closest('optgroup').attr('label');  // Get bucket name from optgroup label
+              const filePath = selectedOption.val();  // Get full path (bucket/folder) from option value
+              
+              formData.append('file', $('#fileInput')[0].files[0]);
+              formData.append('bucket', bucketName);
+              formData.append('path', filePath);
+
+              // Show the progress bar when uploading begins
+              $('#progress-bar-container').show();
+              $('#progress-bar').width('0%'); // Reset the progress bar width
+              $('#progress-text').text('0%');
+
+              $.ajax({
+                  url: '/stelar/console/v1/publisher/upload_file',  // Change to your actual server-side file upload URL
+                  method: 'POST',
+                  data: formData,
+                  contentType: false,
+                  processData: false,
+                  xhr: function() {
+                      var xhr = new window.XMLHttpRequest();
+                      xhr.upload.addEventListener('progress', function(event) {
+                          if (event.lengthComputable) {
+                              var percentComplete = (event.loaded / event.total) * 100;
+                              $('#progress-bar').width(percentComplete + '%');
+                              $('#progress-text').text(Math.round(percentComplete) + '%');
+                          }
+                      }, false);
+                      return xhr;
+                  },
+                  success: function(response) {
+                      $('#uploadStatus').html('<div class="alert alert-success">File uploaded successfully!</div>');
+                      $('#progress-bar').width('0%'); // Reset progress bar
+                      $('#progress-text').text('0%');
+                      $('#progress-bar-container').hide(); // Hide the progress bar after success
+
+                      // Call the second AJAX function to link the resource
+                      linkResourceAfterUpload(bucketName+"/"+filePath);  // Send metadata after success
+                  },
+                  error: function(error) {
+                      $('#uploadStatus').html('<div class="alert alert-danger">File upload failed!</div>');
+                      $('#progress-bar-container').hide(); // Hide the progress bar after failure
+                  }
+              });
+            }
+
+            function linkResourceAfterUpload(filePath) {
+              const description = $('input[name="resource-description"]').val();
+              const name = $('input[name="example-text-input"]').val();
+              const format = $('input[name="name"]:checked').val();  // The selected format
+              const packageId = "{{ dataset['result']['id'] }}";  // Dataset package ID from the page context
+              const fileInput = $('#fileInput')[0].files[0];  // Get the uploaded file
+              const filename = fileInput.name;  // Extract the file name from the uploaded file
+
+              const resourceMetadata = {
+                  "resource_metadata": {
+                      "description": description,
+                      "format": format,
+                      "name": name,
+                      "package_id": packageId,
+                      "resource_tags": [],
+                      "resource_type": "Tabular",
+                      "url": "http://minio.stelar.gr/" + filePath + filename
+                  }
+              };
+
+              $.ajax({
+                  url: '/stelar/api/v1/resource/link',
+                  method: 'POST',
+                  contentType: 'application/json',
+                  data: JSON.stringify(resourceMetadata),
+                  success: function(response) {
+                      $('#uploadStatus').html('<div class="alert alert-success">Resource Linked Succesfully!</div>');
+                      $('#progress-bar-container').hide(); // Hide the progress bar after success
+                      $('#uploadForm')[0].reset(); // Reset the form after successful upload
+                      $('#progress-bar').width('0%'); // Reset progress bar
+                      $('#progress-text').text('0%');
+                      // Append the new resource to the table
+                      appendNewResourceRow(response.result);
+                  },
+                  error: function(error) {
+                      console.error('Error linking resource:', error);
+                      alert('Error linking resource!');
+                  }
+              });
+            }
+            function appendNewResourceRow(resource) {
+              // Get the resource table body
+              const resourceTableBody = $('table tbody');
+
+              // Create a new table row with the resource data
+              const newRow = `
+                  <tr>
+                      <td class="text-sm">${resource.name}</td>
+                      <td class="text-sm"><small>${resource.url}</small></td>
+                      <td class="text-sm">${resource.format}</td>
+                      <td>
+                          <button class="btn btn-sm view-resource-btn" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="${resource.id}">View ID</button>
+                      </td>
+                  </tr>
+              `;
+
+              // Append the new row to the table
+              resourceTableBody.append(newRow);
+
+              // Re-attach the event listener for the "View ID" button
+              attachViewIdEventListeners();
+            } 
+      });
+    
+
+      </script>
+      <script>
+        // Fetch paths on page load
+        $(document).ready(function() {
+            fetchPaths();
+        });
+    
+        // Fetch available paths
+        // Fetch available paths
+        function fetchPaths() {
+            $.ajax({
+                url: '/stelar/console/v1/publisher/fetch_paths',
+                method: 'GET',
+                success: function(data) {
+                    var pathSelector = $('#pathSelector');
+                    pathSelector.empty();  // Clear any existing options
+                     // Add a placeholder as the default option
+                    var placeholderOption = new Option('Select Destination Path Inside MinIO', '', true, true);
+                    placeholderOption.disabled = true;  // Make it non-selectable
+                    pathSelector.append(placeholderOption);
+                    // Iterate over the zones and paths
+                    $.each(data.paths, function(zone, directories) {
+                        // Create an optgroup for each zone
+                        var optGroup = $('<optgroup>', { label: zone });
+                        // If there are no directories, add the root path (zone/)
+                        if (directories.length === 0) {
+                            var rootPath = zone + '/';
+                            optGroup.append(new Option(rootPath, '/'));  // Add root path
+                        }
+                        // Add each subdirectory as an option within the optgroup
+                        $.each(directories, function(index, directory) {
+                            var fullPath = zone + '/' + directory;
+                            optGroup.append(new Option(fullPath, directory));  // Both text and value are the full path
+                        });
+                        // Append the optgroup to the selector
+                        pathSelector.append(optGroup);
+                    });
+                    // If no paths are available, show a message
+                    if ($('#pathSelector option').length === 0) {
+                        pathSelector.append(new Option('No available paths', ''));
+                    }
+                },
+                error: function(error) {
+                    console.log("Error fetching paths:", error);
+                }
+            });
+        }
+      </script>
   </body>
 </html>
