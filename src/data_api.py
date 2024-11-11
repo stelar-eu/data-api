@@ -80,7 +80,7 @@ logging.basicConfig(level=logging.DEBUG)
 app.register_blueprint(users_bp, url_prefix='/api/v1/catalog')
 app.register_blueprint(tasks_bp, url_prefix='/api/v1/task')
 app.register_blueprint(dashboard_bp, url_prefix='/console/v1')
-app.register_blueprint(publisher_bp, url_prefix='/console/v1')
+app.register_blueprint(publisher_bp, url_prefix='/console/v1/publisher')
 app.register_blueprint(settings_bp, url_prefix='/console/v1/settings')
 app.register_blueprint(admin_bp, url_prefix='/console/v1/admin')
 
@@ -1744,8 +1744,8 @@ def api_resource_link(json_data):
     config = current_app.config['settings']
 
     if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        if request.headers:
+            package_headers, resource_headers = utils.create_CKAN_headers(get_demo_ckan_token())
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
