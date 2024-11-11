@@ -1,5 +1,5 @@
 from apiflask import HTTPTokenAuth
-from flask import current_app, session
+from flask import current_app, session, abort, request
 import logging
 import urllib
 from jose import jwt, JWTError
@@ -15,7 +15,7 @@ auth = HTTPTokenAuth(scheme='Bearer', header='Authorization')
 
 security_doc = ["ApiKeyAuth"]
 
-@auth.verify_token
+# @auth.verify_token
 def api_verify_token(token):
     """
     Verify JWT tokens issued by Keycloak for POST requests that require authentication.
@@ -26,7 +26,7 @@ def api_verify_token(token):
     Returns:
         A boolean: True if the token is valid; False otherwise.
     """
-
+    logging.info("api_verification started")
     config = current_app.config['settings']
 
     # Try to see if there is a token in the session field if not one was explicitely provided
@@ -76,6 +76,7 @@ def api_verify_token(token):
                         audience=audience,  # Verify against each audience
                         issuer=keycloak_issuer
                     )
+                    logging.info("token verification succeds")
                     # If one audience works, return True
                     return True
                 except JWTError:
@@ -88,4 +89,63 @@ def api_verify_token(token):
         return False
 
     # If no valid key is found, return False
-    return False    
+    return False
+
+def enforce_policy(token, resource, scope):
+    """Enforces authorization using Keycloak's Authorization API."""
+
+    config = current_app.config['settings']
+
+    url = config['KEYCLOAK_URL']+"/realms/"+config['REALM_NAME']+"/protocol/openid-connect/token"
+    logging.debug("DATA")
+    data = {
+        'grant_type': 'urn:ietf:params:oauth:grant-type:uma-ticket',
+        'client_id' : config['KEYCLOAK_CLIENT_ID'],
+        'client_secret' : config['KEYCLOAK_CLIENT_SECRET'],
+        'audience': config['KEYCLOAK_CLIENT_ID'],
+        'permission': f'{resource}#{scope}',
+        'response_mode': 'decision'
+    }
+
+    
+
+    headers = {
+        'Authorization': f'Bearer {token}'
+    }
+
+    response = requests.post(url, data=data, headers=headers)
+    
+    if response.status_code == 200:
+        response_json = response.json()
+        # If the 'result' key in the response is true, permission is granted
+        if response_json.get('result', False):
+            return True
+        else:
+            return False
+    return False
+
+# Middleware to protect routes using Keycloak's policy enforcer
+def policy_enforcer(resource, scope, function_name):
+    def decorator(f):
+        def decorated_function(*args, **kwargs):
+            auth_header = request.headers.get('Authorization')
+            if not auth_header:
+                abort(401, description="Authorization token is missing")
+            
+            token = auth_header.split(" ")[1] if " " in auth_header else None
+            if not token:
+                abort(401, description="Bearer token is missing")
+            
+            # Verify JWT token
+            decoded_token = api_verify_token(token)
+            if not decoded_token:
+                abort(403, description="Token verification failed")
+            
+            # Enforce Keycloak authorization policy
+            if not enforce_policy(token, resource, scope):
+                abort(403, description="Access denied by policy enforcement")
+            
+            return f(*args, **kwargs)
+        decorated_function.__name__ = function_name  # Set unique function name for each route
+        return decorated_function
+    return decorator   
