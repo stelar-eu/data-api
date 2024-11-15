@@ -71,7 +71,8 @@ def workflows():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
     
-    return render_template('workflows.html', PARTNER_IMAGE_SRC=get_partner_logo())
+    return render_template('workflow.html', PARTNER_IMAGE_SRC=get_partner_logo())
+
 
 @dashboard_bp.route('/datasets')
 def datasets():

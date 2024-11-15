@@ -7,3 +7,11 @@
   --tblr-primary-border-subtle: #988a9e;
   --tblr-info-border-subtle: #988a9e;
 }
+
+.steps-vertical {
+  --tblr-steps-dot-offset: 2rem !important;
+}
+
+.steps{
+  --tblr-steps-dot-size: 1rem !important;
+}
