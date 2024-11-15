@@ -59,6 +59,7 @@ from routes.admin import admin_bp
 from routes.workflow_ops import workflow_ops_bp
 from routes.catalog import catalog_bp
 from routes.knowledge_graph import knowledge_graph_bp
+from routes.authorization_tool import auth_tool_bp
 
 ############################################################
 
@@ -87,6 +88,7 @@ app.register_blueprint(admin_bp, url_prefix='/console/v1/admin')
 app.register_blueprint(catalog_bp, url_prefix='/api/v1/catalog')
 app.register_blueprint(workflow_ops_bp, url_prefix='/api/v1/workflow')
 app.register_blueprint(knowledge_graph_bp, url_prefix='/api/v1/kg')
+app.register_blueprint(auth_tool_bp, url_prefix='api/v1/auth_tool')
 
 
 ############################################################
