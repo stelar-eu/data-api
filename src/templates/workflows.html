@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+    <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+    <title>STELAR | Workflows</title>
+    <!-- CSS files -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">    
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="{{ url_for('static', filename='images.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+  </head>
+  <body >
+    <div class="page">
+      <!-- Navbar -->
+      {%  include 'header.html' %}
+      <div class="page-wrapper">
+        <!-- Page header -->
+         <!-- Page header -->
+        <div class="page-header d-print-none">
+            <div class="container-xl">
+              <div class="row g-2 align-items-center">
+                <div class="col">
+                  <!-- Page pre-title -->
+                  <div class="page-pretitle">
+                    Workfflows
+                  </div>
+                  <h2 class="page-title">
+                    Browse & Manage Workflows
+                  </h2>
+                </div>
+                <div class="col-auto ms-auto d-print-none">
+                    <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-new-dataset">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
+                      Publish New Workflow Metadata
+                    </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        <!-- Page body -->
+        <div class="page-body">
+        <div class="container-xl">
+            <div class="row row-deck row-cards">
+                <div class="col-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">History of organization workflows in the KLMS</h3>
+                        </div>
+                        <div class="card-body border-bottom py-3">
+                            <div class="d-flex">
+                                <div class="ms-auto text-secondary">
+                                    Search:
+                                    <div class="ms-2 d-inline-block">
+                                        <input type="text" class="form-control form-control-sm" aria-label="Search invoice" id="search-input">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table card-table table-vcenter text-nowrap datatable" id="invoice-table">
+                                <thead>
+                                <tr>
+                                    <th class="w-1">ID</th>
+                                    <th>Workflow Subject</th>
+                                    <th>Dataset ID</th>
+                                    <th>Created</th>
+                                    <th>Status</th>
+                                    <th>Value</th>
+                                    <th></th>
+                                </tr>
+                                </thead>
+                                <tbody id="invoice-body">
+                                <!-- Invoice Rows (You can dynamically generate these in your application) -->
+                                <tr>
+                                    <td><span class="text-secondary">001404</span></td>
+                                    <td><a href="invoice.html" class="text-reset" tabindex="-1">Landing Page</a></td>
+                                    <td>87953421</td>
+                                    <td>2 Sep 2017</td>
+                                    <td><span class="badge bg-secondary me-1"></span> Due in 2 Weeks</td>
+                                    <td>$1500</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-primary">View WF</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><span class="text-secondary">001405</span></td>
+                                    <td><a href="invoice.html" class="text-reset" tabindex="-1">Marketing Templates</a></td>
+                                    <td>87956621</td>
+                                    <td>29 Jan 2018</td>
+                                    <td><span class="badge bg-danger me-1"></span> Paid Today</td>
+                                    <td>$648</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-primary">View WF</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><span class="text-secondary">001406</span></td>
+                                    <td><a href="invoice.html" class="text-reset" tabindex="-1">Sales Presentation</a></td>
+                                    <td>87956621</td>
+                                    <td>4 Feb 2018</td>
+                                    <td><span class="badge bg-secondary me-1"></span> Due in 3 Weeks</td>
+                                    <td>$300</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-primary">View WF</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><span class="text-secondary">001407</span></td>
+                                    <td><a href="invoice.html" class="text-reset" tabindex="-1">Logo & Print</a></td>
+                                    <td>87956621</td>
+                                    <td>22 Mar 2018</td>
+                                    <td><span class="badge bg-success me-1"></span> Paid Today</td>
+                                    <td>$2500</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-primary">View WF</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><span class="text-secondary">001408</span></td>
+                                    <td><a href="invoice.html" class="text-reset" tabindex="-1">Icons</a></td>
+                                    <td>87956621</td>
+                                    <td>13 May 2018</td>
+                                    <td><span class="badge bg-success me-1"></span> Paid Today</td>
+                                    <td>$940</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-primary">View WF</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><span class="text-secondary">001409</span></td>
+                                    <td><a href="invoice.html" class="text-reset" tabindex="-1">Invoice Design</a></td>
+                                    <td>87956621</td>
+                                    <td>20 May 2018</td>
+                                    <td><span class="badge bg-success me-1"></span> Paid Today</td>
+                                    <td>$1200</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-primary">View WF</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><span class="text-secondary">001410</span></td>
+                                    <td><a href="invoice.html" class="text-reset" tabindex="-1">Consulting Services</a></td>
+                                    <td>87956621</td>
+                                    <td>25 May 2018</td>
+                                    <td><span class="badge bg-success me-1"></span> Paid Today</td>
+                                    <td>$2200</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-primary">View WF</button>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="card-footer d-flex align-items-center" id="pagination-container">
+                            <p class="m-0 text-secondary">Showing <span id="start"></span> to <span id="end"></span> of <span id="total"></span> entries</p>
+                            <ul class="pagination m-0 ms-auto" id="pagination-numbers">
+                                <li class="page-item" id="prev-page">
+                                    <a class="page-link"  tabindex="-1" aria-disabled="true">prev</a>
+                                </li>
+                                <li class="page-item active"><a class="page-link" data-page="1">1</a></li>
+                                <li class="page-item" id="next-page">
+                                    <a class="page-link" >next</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 col-xl-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Workflow Status</h5>
+                                <div id="chart-demo-pie" style="height: 100px;"></div>
+                            </div>
+
+                            <div class="card-body">
+                                <h5 class="card-title">Workflows Per Month</h5>
+                                <div id="chart-completion-tasks" style="height: 10px;"></div>
+
+                            </div>
+                        </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h3 class="card-title">Traffic summary</h3>
+                            <div id="chart-mentions" class="chart-lg"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h3 class="card-title">Locations</h3>
+                            <div class="ratio ratio-21x9">
+                                <div>
+                                    <div id="map-world" class="w-100 h-100"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+          <div class="modal modal-blur fade" id="modal-new-dataset" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <form>
+                <div class="modal-header">
+                  <h5 class="modal-title">New Dataset Package</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="row">
+                    <div class="col-lg-8">
+                      <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-control" name="package-name-input" placeholder="Resource Name" required>
+                      </div>
+                    </div>
+                    <div class="col-lg-4">
+                      <div class="mb-3">
+                        <label class="form-label">Visibility</label>
+                        <select class="form-select">
+                          <option value="1">Private</option>
+                          <option value="2" selected>Public</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="modal-body">
+                  <div class="row">
+                    <div class="col-lg-12">
+                      <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="packageDescription" class="form-control" rows="3" required></textarea>
+                      </div>
+                    </div>
+                    <input type="hidden" name="packageTags" id="hiddenTagsInput" name="tags"/>
+                    <div class="col-lg-12">
+                      <div class="mb-3">
+                        <label class="form-label">Tags</label>
+                        <input type="text" id="tagInput" class="form-control" placeholder="Type a tag and press enter" required/>
+                        <div class="col tags-list mt-3" id="tagsContainer">
+                            <!-- Tags will be dynamically added here -->
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <a href="#" class="btn btn-link link-secondary" data-bs-dismiss="modal">
+                    Cancel
+                  </a>
+                  <a href="#" class="btn btn-primary ms-auto" data-bs-dismiss="modal">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
+                    Create new report
+                  </a>
+                </div>
+              </form>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% include 'footer.html'%}
+      </div>
+    </div>
+    </div>
+  </body>
+</html>

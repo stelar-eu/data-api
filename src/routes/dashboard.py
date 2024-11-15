@@ -6,7 +6,28 @@ import json
 import requests
 import kutils 
 
+#FOR TESTING ONLY!!!
+import os
+
 dashboard_bp = APIBlueprint('dashboard_blueprint', __name__, tag='Dashboard Operations')
+
+
+# DEVELOPMENT ONLY FOR AWS CLUSTERS: Decide which partner the cluster corresponds to 
+def get_partner_logo():
+    domain = os.getenv("KLMS_DOMAIN_NAME","")
+
+    PARTNER_IMAGE = None
+
+    if domain:
+        if 'vista' in domain.lower():
+            PARTNER_IMAGE = url_for('static', filename='logos/vista.png')
+        elif 'abaco' in domain.lower():
+            PARTNER_IMAGE = url_for('static', filename='logos/abaco.png')
+        elif 'ak' in domain.lower():
+            PARTNER_IMAGE = url_for('static', filename='logos/ak.png')
+
+    return PARTNER_IMAGE
+
 
 # Initialize Keycloak client
 def init_keycloak_client():
@@ -27,7 +48,7 @@ def dashboard_index():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
     
-    return render_template('index.html')
+    return render_template('index.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 # Signup Route
 @dashboard_bp.route('/signup')
@@ -43,21 +64,21 @@ def settings():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
     
-    return render_template('settings.html')
+    return render_template('settings.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 @dashboard_bp.route('/workflows')
 def workflows():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
     
-    return render_template('workflows.html')
+    return render_template('workflows.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 @dashboard_bp.route('/datasets')
 def datasets():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
     
-    return render_template('datasets.html')
+    return render_template('datasets.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 @dashboard_bp.route('/datasets/<dataset_id>')
@@ -75,7 +96,7 @@ def dataset_detail(dataset_id):
         metadata_data = metadata_response.json()
         if metadata_data.get("success", False):
             # Render the dataset detail page, passing the dataset object to the template
-            return render_template('dataset_view.html', dataset=metadata_data)
+            return render_template('dataset_view.html', dataset=metadata_data, PARTNER_IMAGE_SRC=get_partner_logo())
         else:
             redirect(url_for('dashboard_blueprint.login'))
     else:
@@ -90,7 +111,7 @@ def adminSettings():
     if not 'admin' in session.get('USER_ROLES', []):
         return redirect(url_for('dashboard_blueprint.login'))
     
-    return render_template('cluster.html')
+    return render_template('cluster.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 ####################################
 # Login Route
@@ -160,7 +181,8 @@ def login():
     return render_template('login.html', 
                             EMPTY_EMAIL_ERROR=EMPTY_EMAIL_ERROR, 
                             EMPTY_PASSWORD_ERROR=EMPTY_PASSWORD_ERROR, 
-                            LOGIN_ERROR=LOGIN_ERROR)
+                            LOGIN_ERROR=LOGIN_ERROR,
+                            PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 ####################################
