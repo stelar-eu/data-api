@@ -59,7 +59,7 @@ from routes.dashboard import dashboard_bp
 from routes.publisher import publisher_bp
 from routes.settings import settings_bp
 from routes.admin import admin_bp
-
+from routes.auth_tool import auth_tool_bp
 ############################################################
 
 # Create an instance of this API; by default, its OpenAPI-compliant specification will be generated under folder /specs
@@ -83,6 +83,7 @@ app.register_blueprint(dashboard_bp, url_prefix='/console/v1')
 app.register_blueprint(publisher_bp, url_prefix='/console/v1/publisher')
 app.register_blueprint(settings_bp, url_prefix='/console/v1/settings')
 app.register_blueprint(admin_bp, url_prefix='/console/v1/admin')
+app.register_blueprint(auth_tool_bp, url_prefix='/api/v1/auth_tool')
 
 ############################################################
 
@@ -2048,7 +2049,7 @@ def api_workflow_execution_read(query_data):
         
         return jsonify({'success': True, 'metadata': metadata}), 200
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': str(e)}), 500    
     
     
     
