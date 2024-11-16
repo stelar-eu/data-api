@@ -23,6 +23,11 @@ class ExecEngine:
         """
         pass
 
+    def fetch_task_logs(self, task_id: str) -> dict:
+        pass
+
+    def get_task_info(self, task_id: str) -> dict:
+        pass
 
 # The following is used to designate the return value of the
 # 'configure' functions

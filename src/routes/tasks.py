@@ -251,29 +251,18 @@ def api_task_execution_create(json_data):
         if not response:
             return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
 
-        
-        #### UPDATE KG
-        
-        # Store the container ID into a variable
-        #tags['container_id'] = create_container(docker_image,
-        #                                        request.headers.get('Api-Token'),
-        #                                        config['API_URL'], 
-        #                                        task_exec_id)
-
         engine = execution.exec_engine()
-        tags['container_id'] = engine.create_task(docker_image, request.headers.get('Authorization'), task_exec_id)
+        tags['container_id'], tags['job_id'] = engine.create_task(docker_image, request.headers.get('Authorization'), task_exec_id)
 
         tags['package_id'] = package_id
         response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
         if not response:
             return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
 
-
         
-        return jsonify({'success': True, 'task_exec_id': task_exec_id}), 200
+        return jsonify({'success': True, 'task_exec_id': task_exec_id, 'job_id': tags['job_id']}), 200
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
-
 
 
 @tasks_bp.route('/execution/input_json', methods=['GET'])
@@ -524,7 +513,57 @@ def api_task_execution_read(query_data):
         return jsonify({'success': True, 'result': d}), 200
     except Exception as e:
         return jsonify({'success': False, 'message': traceback.format_exc()}), 500  
+
+
+@tasks_bp.route('/logs/read', methods=['GET'])
+@tasks_bp.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
+# @tasks_bp.output(schema.ResponseOK, status_code=200)
+@tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
+@auth.login_required
+def api_task_log_read(query_data):
+    """Return the log of a task executed in the cluster.
+
+    Args:
+        id: The unique identifier of the Task Exection.
+
+    Returns:
+        A JSON with the logs of all attempted executions logs.
+    """
     
+    task_exec_id = query_data['id']
+    
+    try :
+        engine = execution.exec_engine()
+        logs = engine.fetch_task_logs(task_id=task_exec_id)
+            
+        return logs
+    except Exception as e:
+        return jsonify({'success': False, 'message': traceback.format_exc()}), 500  
+    
+
+@tasks_bp.route('/runtime/read', methods=['GET'])
+@tasks_bp.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
+# @tasks_bp.output(schema.ResponseOK, status_code=200)
+@tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
+def api_task_runtime_read(query_data):
+    """Return the runtime information of a task executed in the cluster.
+
+    Args:
+        id: The unique identifier of the Task Exection.
+
+    Returns:
+        A JSON with the runtime information of the pod executing the task
+    """
+    
+    task_exec_id = query_data['id']
+    
+    try :
+        engine = execution.exec_engine()
+        info = engine.get_task_info(task_id=task_exec_id)
+        return jsonify(info)
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': traceback.format_exc()}), 500  
 
 
 @tasks_bp.route('/execution/delete', methods=['GET'])
