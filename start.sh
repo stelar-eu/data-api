@@ -3,6 +3,24 @@
 
 # Check if the first argument is 'start-server'
 if [ "$1" = 'start-server' ]; then
+    # Create MinIO alias
+    echo "Configuring MinIO client alias 'myminio'..."
+    
+    # Validate that the necessary environment variables are set
+    if [ -z "$MINIO_DOMAIN" ] || [ -z "$MINIO_ROOT_USER" ] || [ -z "$MINIO_ROOT_PASSWORD" ]; then
+        echo "Error: One or more required environment variables (MINIO_DOMAIN, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD) are not set."
+        exit 1
+    fi
+
+    mc alias set myminio $MINIO_DOMAIN $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
+    
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to configure MinIO client alias."
+        exit 1
+    else
+        echo "MinIO client alias 'myminio' configured successfully."
+    fi
+    
     echo "Starting the server with Gunicorn..."
     gunicorn -w 4 -b 0.0.0.0:80 'data_api:create_app()'
 # Check if the first argument is 'setup-db'

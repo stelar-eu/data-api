@@ -5,7 +5,16 @@
         </button>
         <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
             <a href="{{ url_for('dashboard_blueprint.login') }}">
-                <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR">
+                <!-- <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR"> -->
+                <div class="d-flex align-items-center justify-content-center">
+                    <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR" class="me-3">
+                    {% if PARTNER_IMAGE_SRC %}
+                        <!-- Vertical line -->
+                        <div class="vr" style="height: 70px; margin: 20px;"></div>
+                        <!-- Partner image -->
+                        <img src="{{ PARTNER_IMAGE_SRC }}" width="70" alt="Partner Logo">
+                    {% endif %}
+                  </div>      
             </a>
         </h1>
         <div class="navbar-nav flex-row order-md-last">
@@ -16,7 +25,7 @@
                     <div class="d-none d-xl-block ps-2">
                         <div>{{ session.get('USER_NAME', 'Guest') }}</div>
                         <div class="mt-1 small text-secondary">
-                            {% set excluded_roles = ['default-roles-master', 'offline_access', 'uma_authorization'] %}
+                            {% set excluded_roles = ['default-roles-master', 'offline_access', 'uma_authorization', 'create_realm'] %}
                             {% set displayed_roles = session.get('USER_ROLES', []) 
                                 | reject("in", excluded_roles)  
                                 | map("replace", '-', ' ') 
