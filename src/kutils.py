@@ -1,7 +1,19 @@
 from keycloak import KeycloakOpenID, KeycloakAdmin
 from flask import current_app, session
 import logging
-import datetime 
+import datetime
+
+
+
+def initialize_keycloak_openid():
+    config = current_app.config['settings']
+    return KeycloakOpenID(
+        server_url=config['KEYCLOAK_URL'],
+        client_id=config['KEYCLOAK_CLIENT_ID'],
+        realm_name=config['REALM_NAME'],
+        client_secret_key=config['KEYCLOAK_CLIENT_SECRET'],
+        verify=True
+    )
 
 def refresh_access_token():
     """
@@ -19,16 +31,18 @@ def refresh_access_token():
     Raises:
         Exception: If an error occurs during the token refresh process.
     """
-    config = current_app.config['settings']
+    # config = current_app.config['settings']
     
     # Initialize Keycloak OpenID client
-    keycloak_openid = KeycloakOpenID(
-        server_url=config['KEYCLOAK_URL'],
-        client_id=config['KEYCLOAK_CLIENT_ID'],
-        realm_name=config['REALM_NAME'],
-        client_secret_key=config['KEYCLOAK_CLIENT_SECRET'],
-        verify=True
-    )
+    # keycloak_openid = KeycloakOpenID(
+    #     server_url=config['KEYCLOAK_URL'],
+    #     client_id=config['KEYCLOAK_CLIENT_ID'],
+    #     realm_name=config['REALM_NAME'],
+    #     client_secret_key=config['KEYCLOAK_CLIENT_SECRET'],
+    #     verify=True
+    # )
+
+    keycloak_openid = initialize_keycloak_openid()
 
     # Retrieve the refresh token from the session
     refresh_token = session.get('refresh_token')
@@ -98,13 +112,15 @@ def init_admin_client(username, password):
     config = current_app.config['settings']
     
     # Initialize Keycloak OpenID client
-    keycloak_openid = KeycloakOpenID(
-        server_url=config['KEYCLOAK_URL'],
-        client_id=config['KEYCLOAK_CLIENT_ID'],
-        realm_name=config['REALM_NAME'],
-        client_secret_key=config['KEYCLOAK_CLIENT_SECRET'],
-        verify=True
-    )
+    # keycloak_openid = KeycloakOpenID(
+    #     server_url=config['KEYCLOAK_URL'],
+    #     client_id=config['KEYCLOAK_CLIENT_ID'],
+    #     realm_name=config['REALM_NAME'],
+    #     client_secret_key=config['KEYCLOAK_CLIENT_SECRET'],
+    #     verify=True
+    # )
+
+    keycloak_openid = initialize_keycloak_openid()
 
     try:
         # Generate token by authenticating using username and password
@@ -171,3 +187,40 @@ def fetch_user_creation_date(user_id):
     except Exception as e:
         logging.error(f"Error fetching user creation date: {e}")
         return None
+    
+
+
+def create_client_role(keycloak_admin, client_name, client_id, role_name):
+    print(client_id)
+    keycloak_admin.create_client_role(client_id, {'name': role_name},skip_exists=True)
+    print(f'Role "{role_name}" created successfully for client "{client_name}".')
+    return role_name
+
+
+
+def create_realm_role(keycloak_admin, role_name):
+    config = current_app.config['settings']
+    realm_role = {
+        "name": role_name,
+        "composite": True,
+        "clientRole": False,
+        "containerId": config['REALM_NAME']
+    }
+    keycloak_admin.create_realm_role(realm_role,skip_exists=True)
+
+    return role_name
+
+
+
+def delete_realm_roles(keycloak_admin,roles_to_delete):
+# Delete the roles that are no longer needed
+    for role in roles_to_delete:
+        print("realm role to delete: ",role)
+        role_id = keycloak_admin.get_realm_role(role)["id"]
+        keycloak_admin.delete_role_by_id(role_id)
+
+
+
+def delete_client_roles(keycloak_admin,client_roles_to_delete):
+    for client_role in client_roles_to_delete:
+        keycloak_admin.delete_client_role(keycloak_admin.get_client_id('minio'),client_role)
