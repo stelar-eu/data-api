@@ -255,6 +255,7 @@ def api_task_execution_create(json_data):
         tags['container_id'], tags['job_id'] = engine.create_task(docker_image, request.headers.get('Authorization'), task_exec_id)
 
         tags['package_id'] = package_id
+        tags['tool_image'] = docker_image
         response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
         if not response:
             return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500

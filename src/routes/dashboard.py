@@ -71,7 +71,120 @@ def workflows():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
     
-    return render_template('workflow.html', PARTNER_IMAGE_SRC=get_partner_logo())
+    return render_template('workflows.html', PARTNER_IMAGE_SRC=get_partner_logo())
+
+
+@dashboard_bp.route('/workflow/<workflow_id>')
+def workflow(workflow_id):
+    config = current_app.config['settings']
+    
+    # Basic input validation
+    if not workflow_id:
+        return redirect(url_for('dashboard_blueprint.datasets'))
+    
+    if 'ACTIVE' not in session or not session['ACTIVE']:
+        return redirect(url_for('dashboard_blueprint.login'))
+    
+    # Extract the access token from the session
+    access_token = session.get('access_token')
+    if not access_token:
+        return redirect(url_for('dashboard_blueprint.login'))
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    wf_metadata_url = f"{config['API_URL']}api/v1/workflow/execution/read?id="
+    metadata_url = wf_metadata_url + workflow_id
+    metadata_response = requests.get(metadata_url, headers=headers)
+    wf_metadata = metadata_response.json()
+
+    wf_task_url = f"{config['API_URL']}api/v1/workflow/tasks?id="
+    tasks_url = wf_task_url + workflow_id
+    tasks_response = requests.get(tasks_url, headers=headers)
+    wf_tasks = tasks_response.json()
+
+    if metadata_response.status_code != 200:
+        return redirect(url_for('dashboard_blueprint.datasets'))
+    
+    if tasks_response.status_code != 200:
+        return redirect(url_for('dashboard_blueprint.datasets'))
+
+    # Sort tasks based on start date
+    if wf_tasks['result']:
+        wf_tasks['result'] = sorted(wf_tasks['result'], key=lambda x: x["start_date"])
+
+    return render_template('workflow.html', workflow_id = workflow_id,
+                                            PARTNER_IMAGE_SRC=get_partner_logo(),
+                                            wf_metadata = wf_metadata,
+                                            wf_tasks = wf_tasks['result'])
+
+
+@dashboard_bp.route('/task/<workflow_id>/<task_id>')
+def task(workflow_id, task_id):
+    config = current_app.config['settings']
+
+    # Basic input validation
+    if not workflow_id or not task_id:
+        return redirect(url_for('dashboard_blueprint.datasets'))
+
+    if 'ACTIVE' not in session or not session['ACTIVE']:
+        return redirect(url_for('dashboard_blueprint.login'))
+
+    # Extract the access token from the session
+    access_token = session.get('access_token')
+    if not access_token:
+        return redirect(url_for('dashboard_blueprint.login'))
+
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    # Request to fetch task metadata with authorization token
+    task_metadata_url = f"{config['API_URL']}api/v1/task/execution/read?id="
+    metadata_url = task_metadata_url + task_id
+    metadata_response = requests.get(metadata_url, headers=headers)
+    if metadata_response.status_code != 200:
+        return redirect(url_for('dashboard_blueprint.datasets'))
+
+    metadata_json = metadata_response.json()
+
+    # Check if metadata is valid
+    if not metadata_json.get("success", False):
+        return redirect(url_for('dashboard_blueprint.datasets'))
+
+    # Check if the metadata corresponds to the correct workflow
+    if metadata_json.get('result').get('metadata').get('workflow_exec_id') != workflow_id:
+        return redirect(url_for('dashboard_blueprint.datasets'))
+
+    # Request to fetch task input data with authorization token
+    task_input_url = f"{config['API_URL']}api/v1/task/execution/input_json?id="
+    input_url = task_input_url + task_id
+    input_response = requests.get(input_url, headers=headers)
+    if input_response.status_code != 200:
+        return redirect(url_for('dashboard_blueprint.datasets'))
+
+    input_json = input_response.json()
+
+    # Request to fetch task logs with authorization token
+    job_logs_url = f"{config['API_URL']}api/v1/task/runtime/read?id="
+    logs_url = job_logs_url + task_id
+    logs_response = requests.get(logs_url, headers=headers)
+    if logs_response.status_code != 200:
+        return redirect(url_for('dashboard_blueprint.datasets'))
+
+    logs_json = logs_response.json()
+
+    # Finally render the page if everything is correct
+    if input_json.get("success", False):
+        return render_template('task.html', PARTNER_IMAGE_SRC=get_partner_logo(),
+                               task_id=task_id,
+                               workflow_id=workflow_id,
+                               task_metadata=metadata_json['result'],
+                               task_input=input_json['result'],
+                               logs=logs_json)
+    
+    return redirect(url_for('dashboard_blueprint.datasets'))
+
 
 
 @dashboard_bp.route('/datasets')

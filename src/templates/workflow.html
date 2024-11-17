@@ -4,7 +4,7 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
     <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
-    <title>STELAR | Workflows</title>
+    <title>STELAR | Workflow Overview</title>
     <!-- CSS files -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">    
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
@@ -26,17 +26,11 @@
                 <div class="col">
                   <!-- Page pre-title -->
                   <div class="page-pretitle">
-                    Workflow
+                    {{ workflow_id }}
                   </div>
                   <h2 class="page-title">
-                    Browse & Manage Workflow
+                    Workflow
                   </h2>
-                </div>
-                <div class="col-auto ms-auto d-print-none">
-                    <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-new-dataset">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
-                      Publish New Workflow Metadata
-                    </a>
                 </div>
               </div>
             </div>
@@ -45,66 +39,82 @@
         <div class="page-body">
             <div class="container-xl">
                 <div class="row row-cards">
-                    <div class="col-lg-6">
+                    <div class="col-lg-5">
                         <div class="card">
-                            <div class="card-header">
-                                <h3 class="card-title">
-                                    Basic Info
-                                </h3>
-                                <div class="card-actions">
-                                    <a href="#">
-                                        Configure
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon ms-1" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" /><path d="M16 5l3 3" /></svg>
-                                    </a>
-                                </div>
-                            </div>
                             <div class="card-body">
-                                <dl class="row">
-                                    <dt class="col-5">Date:</dt>
-                                    <dd class="col-7">2020-01-05 16:42:29 UTC</dd>
-                                    <dt class="col-5">User:</dt>
-                                    <dd class="col-7">dpetrou</dd>
-                                    <dt class="col-5">Location:</dt>
-                                    <dd class="col-7"><span class="flag flag-country-pl"></span>
-                                        Poland</dd>
-                                    <dt class="col-5">IP Address:</dt>
-                                    <dd class="col-7">46.113.11.3</dd>
-                                    <dt class="col-5">Operating system:</dt>
-                                    <dd class="col-7">OS X 10.15.2 64-bit</dd>
-                                    <dt class="col-5">Browser:</dt>
-                                    <dd class="col-7">Chrome</dd>
-                                </dl>
+                                <div class="card-title">Basic Information</div>
+                                <div class="mb-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-e-passport"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" /><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M9 12h-7" /><path d="M15 12h7" /></svg>                                        
+                                    Execution ID: <strong>{{ wf_metadata['metadata']['workflow_exec_id']}}</strong>
+                                </div>
+                                <div class="mb-2">
+                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-secondary icon icon-tabler icons-tabler-outline icon-tabler-file-database">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12.75m-4 0a4 1.75 0 1 0 8 0a4 1.75 0 1 0 -8 0" />
+                                        <path d="M8 12.5v3.75c0 .966 1.79 1.75 4 1.75s4 -.784 4 -1.75v-3.75" /><path d="M14 3v4a1 1 0 0 0 1 1h4" />
+                                        <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /></svg>
+                                    Package ID: <strong><a href="/stelar/console/v1/datasets/{{ wf_metadata['metadata']['tags'].get('package_id', None) }}" target="_blank" >{{ wf_metadata['metadata']['tags'].get('package_id','Not specified') }}</a></strong>
+                                </div>
+                                <div class="mb-2">
+                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-player-play"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 4v16l13 -8z" /></svg>                                        
+                                    Started at: <strong>{{ wf_metadata['metadata'].get('start_date', 'Not available') | replace("T", " ") }}</strong>
+                                </div>
+                                <div class="mb-2">
+                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-hand-stop"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 13v-7.5a1.5 1.5 0 0 1 3 0v6.5" /><path d="M11 5.5v-2a1.5 1.5 0 1 1 3 0v8.5" /><path d="M14 5.5a1.5 1.5 0 0 1 3 0v6.5" /><path d="M17 7.5a1.5 1.5 0 0 1 3 0v8.5a6 6 0 0 1 -6 6h-2h.208a6 6 0 0 1 -5.012 -2.7a69.74 69.74 0 0 1 -.196 -.3c-.312 -.479 -1.407 -2.388 -3.286 -5.728a1.5 1.5 0 0 1 .536 -2.022a1.867 1.867 0 0 1 2.28 .28l1.47 1.47" /></svg>                                 
+                                    Finished at: <strong>{{ wf_metadata['metadata'].get('end_date', 'Not finished') | replace("T", " ")  }}</strong>
+                                </div>
+                                <div>
+                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-brand-redux"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16.54 7c-.805 -2.365 -2.536 -4 -4.54 -4c-2.774 0 -5.023 2.632 -5.023 6.496c0 1.956 1.582 4.727 2.512 6" /><path d="M4.711 11.979c-1.656 1.877 -2.214 4.185 -1.211 5.911c1.387 2.39 5.138 2.831 8.501 .9c1.703 -.979 2.875 -3.362 3.516 -4.798" /><path d="M15.014 19.99c2.511 0 4.523 -.438 5.487 -2.1c1.387 -2.39 -.215 -5.893 -3.579 -7.824c-1.702 -.979 -4.357 -1.235 -5.927 -1.07" /><path d="M10.493 9.862c.48 .276 1.095 .112 1.372 -.366a1 1 0 0 0 -.367 -1.365a1.007 1.007 0 0 0 -1.373 .366a1 1 0 0 0 .368 1.365z" /><path d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /></svg>                                        
+                                    Workflow state: <span id="workflow-state-badge" class="badge me-1 {% if wf_metadata['metadata']['state'] == 'succeeded' %}bg-green{% elif wf_metadata['metadata']['state'] == 'failed' %}bg-danger{% else %}bg-warning{% endif %}"></span>
+                                    <span id="workflow-state-text">{{ wf_metadata['metadata']['state'] | capitalize }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-lg-6">
+                    <div class="col-lg-7">
                         <div class="card">
                             <div class="card-body m-2">
                                 <h3 class="card-title">Workflow Tasks</h3>
                                 <ul class="steps steps-vertical ">
+                                    {% if wf_tasks %}
+                                    {% for task in wf_tasks %}
                                     <li class="step-item">
-                                        <a class="card disabled card-link m" href="#">
+                                        <a class="card disabled card-link m" href="/stelar/console/v1/task/{{workflow_id}}/{{task.task_uuid}}">
                                             <div class="card-body p-3">
                                                 <div class="row">
                                                     <div class="col">
-                                                        <div class="font-weight-medium">Task 1</div>
+                                                        <div class="list-inline list-inline-dots"><span class="list-inline-item"><strong>Task {{ loop.index }}</strong></span><span class="text-secondary list-inline-item">{{task.task_uuid}}</span></div>
+                                                        <div style="display: none;" id="task-index-{{task.task_uuid}}">{{loop.index}}</div>
                                                         <div class="text-secondary mt-1">
                                                             <div class="m-0 list-inline">
                                                                 <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-user"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" /><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /></svg>
-                                                                    dpetrou</div>
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-tool">
+                                                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                                        <path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" />
+                                                                    </svg>
+                                                                    {{ task.tool_image }}
+                                                                </div>                                                        
                                                                 <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-tool"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" /></svg>
-                                                                    Synopsis Data Engine</div>
+                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-calendar-event"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 5m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" /><path d="M16 3l0 4" /><path d="M8 3l0 4" /><path d="M4 11l16 0" /><path d="M8 15h2v2h-2z" /></svg>
+                                                                    <span>{{ task.start_date.replace('T', ' ') }}</span>
+                                                                </div>
                                                                 <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-redux"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16.54 7c-.805 -2.365 -2.536 -4 -4.54 -4c-2.774 0 -5.023 2.632 -5.023 6.496c0 1.956 1.582 4.727 2.512 6" /><path d="M4.711 11.979c-1.656 1.877 -2.214 4.185 -1.211 5.911c1.387 2.39 5.138 2.831 8.501 .9c1.703 -.979 2.875 -3.362 3.516 -4.798" /><path d="M15.014 19.99c2.511 0 4.523 -.438 5.487 -2.1c1.387 -2.39 -.215 -5.893 -3.579 -7.824c-1.702 -.979 -4.357 -1.235 -5.927 -1.07" /><path d="M10.493 9.862c.48 .276 1.095 .112 1.372 -.366a1 1 0 0 0 -.367 -1.365a1.007 1.007 0 0 0 -1.373 .366a1 1 0 0 0 .368 1.365z" /><path d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /></svg>
-                                                                    Success
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-brand-redux">
+                                                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                                        <path d="M16.54 7c-.805 -2.365 -2.536 -4 -4.54 -4c-2.774 0 -5.023 2.632 -5.023 6.496c0 1.956 1.582 4.727 2.512 6" />
+                                                                        <path d="M4.711 11.979c-1.656 1.877 -2.214 4.185 -1.211 5.911c1.387 2.39 5.138 2.831 8.501 .9c1.703 -.979 2.875 -3.362 3.516 -4.798" />
+                                                                        <path d="M15.014 19.99c2.511 0 4.523 -.438 5.487 -2.1c1.387 -2.39 -.215 -5.893 -3.579 -7.824c-1.702 -.979 -4.357 -1.235 -5.927 -1.07" />
+                                                                        <path d="M10.493 9.862c.48 .276 1.095 .112 1.372 -.366a1 1 0 0 0 -.367 -1.365a1.007 1.007 0 0 0 -1.373 .366a1 1 0 0 0 .368 1.365z" />
+                                                                        <path d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                                                                        <path d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                                                                    </svg>
+                                                                    <span id="task-status-{{ task.task_uuid }}">{{ task.state | capitalize }}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                     <div class="col-auto">
-                                                        <span class="status-indicator status-green">
+                                                        <span id="task-indicator-{{ task.task_uuid }}" class="status-indicator 
+                                                            {% if task.state == 'succeeded' %}status-green{% elif task.state == 'failed' %}status-red{% elif task.state == 'running' %}status-yellow status-indicator-animated{% endif %}">
                                                             <span class="status-indicator-circle"></span>
                                                             <span class="status-indicator-circle"></span>
                                                             <span class="status-indicator-circle"></span>
@@ -114,136 +124,10 @@
                                             </div>
                                         </a>
                                     </li>
-                                    <li class="step-item">
-                                        <a class="card disabled card-link m" href="#">
-                                            <div class="card-body p-3">
-                                                <div class="row">
-                                                    <div class="col">
-                                                        <div class="font-weight-medium">Task 2</div>
-                                                        <div class="text-secondary mt-1">
-                                                            <div class="m-0 list-inline">
-                                                                <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-user"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" /><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /></svg>
-                                                                    nbakats</div>
-                                                                <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-tool"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" /></svg>
-                                                                    Synopsis Data Engine</div>
-                                                                <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-redux"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16.54 7c-.805 -2.365 -2.536 -4 -4.54 -4c-2.774 0 -5.023 2.632 -5.023 6.496c0 1.956 1.582 4.727 2.512 6" /><path d="M4.711 11.979c-1.656 1.877 -2.214 4.185 -1.211 5.911c1.387 2.39 5.138 2.831 8.501 .9c1.703 -.979 2.875 -3.362 3.516 -4.798" /><path d="M15.014 19.99c2.511 0 4.523 -.438 5.487 -2.1c1.387 -2.39 -.215 -5.893 -3.579 -7.824c-1.702 -.979 -4.357 -1.235 -5.927 -1.07" /><path d="M10.493 9.862c.48 .276 1.095 .112 1.372 -.366a1 1 0 0 0 -.367 -1.365a1.007 1.007 0 0 0 -1.373 .366a1 1 0 0 0 .368 1.365z" /><path d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /></svg>
-                                                                    Success
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-auto">
-                                                        <span class="status-indicator status-green">
-                                                            <span class="status-indicator-circle"></span>
-                                                            <span class="status-indicator-circle"></span>
-                                                            <span class="status-indicator-circle"></span>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </li>
-                                    <li class="step-item">
-                                        <a class="card disabled card-link m" href="#">
-                                            <div class="card-body p-3">
-                                                <div class="row">
-                                                    <div class="col">
-                                                        <div class="font-weight-medium">Task 5</div>
-                                                        <div class="text-secondary mt-1">
-                                                            <div class="m-0 list-inline">
-                                                                <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-user"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" /><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /></svg>
-                                                                    dpetrou</div>
-                                                                <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-tool"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" /></svg>
-                                                                    Correllation Detective</div>
-                                                                <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-redux"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16.54 7c-.805 -2.365 -2.536 -4 -4.54 -4c-2.774 0 -5.023 2.632 -5.023 6.496c0 1.956 1.582 4.727 2.512 6" /><path d="M4.711 11.979c-1.656 1.877 -2.214 4.185 -1.211 5.911c1.387 2.39 5.138 2.831 8.501 .9c1.703 -.979 2.875 -3.362 3.516 -4.798" /><path d="M15.014 19.99c2.511 0 4.523 -.438 5.487 -2.1c1.387 -2.39 -.215 -5.893 -3.579 -7.824c-1.702 -.979 -4.357 -1.235 -5.927 -1.07" /><path d="M10.493 9.862c.48 .276 1.095 .112 1.372 -.366a1 1 0 0 0 -.367 -1.365a1.007 1.007 0 0 0 -1.373 .366a1 1 0 0 0 .368 1.365z" /><path d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /></svg>
-                                                                    Error
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-auto">
-                                                        <span class="status-indicator status-red">
-                                                            <span class="status-indicator-circle"></span>
-                                                            <span class="status-indicator-circle"></span>
-                                                            <span class="status-indicator-circle"></span>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </li>
-                                    <li class="step-item">
-                                        <a class="card disabled card-link m" href="#">
-                                            <div class="card-body p-3">
-                                                <div class="row">
-                                                    <div class="col">
-                                                        <div class="font-weight-medium">Task 5</div>
-                                                        <div class="text-secondary mt-1">
-                                                            <div class="m-0 list-inline ">
-                                                                <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-user"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" /><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /></svg>
-                                                                    nbakats</div>
-                                                                <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-tool"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" /></svg>
-                                                                    Correllation Detective</div>
-                                                                <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-redux"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16.54 7c-.805 -2.365 -2.536 -4 -4.54 -4c-2.774 0 -5.023 2.632 -5.023 6.496c0 1.956 1.582 4.727 2.512 6" /><path d="M4.711 11.979c-1.656 1.877 -2.214 4.185 -1.211 5.911c1.387 2.39 5.138 2.831 8.501 .9c1.703 -.979 2.875 -3.362 3.516 -4.798" /><path d="M15.014 19.99c2.511 0 4.523 -.438 5.487 -2.1c1.387 -2.39 -.215 -5.893 -3.579 -7.824c-1.702 -.979 -4.357 -1.235 -5.927 -1.07" /><path d="M10.493 9.862c.48 .276 1.095 .112 1.372 -.366a1 1 0 0 0 -.367 -1.365a1.007 1.007 0 0 0 -1.373 .366a1 1 0 0 0 .368 1.365z" /><path d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /></svg>
-                                                                    Success
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-auto">
-                                                        <span class="status-indicator status-green">
-                                                            <span class="status-indicator-circle"></span>
-                                                            <span class="status-indicator-circle"></span>
-                                                            <span class="status-indicator-circle"></span>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </li>
-                                    <li class="step-item">
-                                        <a class="card disabled card-link m" href="#">
-                                            <div class="card-body p-3">
-                                                <div class="row">
-                                                    <div class="col">
-                                                        <div class="font-weight-medium">Task 5</div>
-                                                        <div class="text-secondary mt-1">
-                                                            <div class="m-0 list-inline">
-                                                                <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-user"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" /><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /></svg>
-                                                                    dpetrou</div>
-                                                                <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-tool"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" /></svg>
-                                                                    Correllation Detective</div>
-                                                                <div class="list-inline-item">
-                                                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-brand-redux"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16.54 7c-.805 -2.365 -2.536 -4 -4.54 -4c-2.774 0 -5.023 2.632 -5.023 6.496c0 1.956 1.582 4.727 2.512 6" /><path d="M4.711 11.979c-1.656 1.877 -2.214 4.185 -1.211 5.911c1.387 2.39 5.138 2.831 8.501 .9c1.703 -.979 2.875 -3.362 3.516 -4.798" /><path d="M15.014 19.99c2.511 0 4.523 -.438 5.487 -2.1c1.387 -2.39 -.215 -5.893 -3.579 -7.824c-1.702 -.979 -4.357 -1.235 -5.927 -1.07" /><path d="M10.493 9.862c.48 .276 1.095 .112 1.372 -.366a1 1 0 0 0 -.367 -1.365a1.007 1.007 0 0 0 -1.373 .366a1 1 0 0 0 .368 1.365z" /><path d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /></svg>
-                                                                    Running
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-auto fs-3">
-                                                        <div class="col-auto">
-                                                        <span class="status-indicator status-yellow status-indicator-animated">
-                                                            <span class="status-indicator-circle"></span>
-                                                            <span class="status-indicator-circle"></span>
-                                                            <span class="status-indicator-circle"></span>
-                                                        </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </li>
+                                    {% endfor %}
+                                    {% else %}
+                                        <p id="no-tasks-message">No tasks have been submitted yet.</p>
+                                    {% endif %}
                                 </ul>
                             </div>
                         </div>
@@ -255,4 +139,131 @@
       </div>
     </div>
   </body>
+  <script>
+    
+    function updateTaskStatus(tasks) {
+        const taskList = $('.steps'); 
+        const noTasksMessage = $('#no-tasks-message'); // Reference to the "No tasks" message
+        
+        if (!tasks) {
+            return; // Exit if no tasks data
+        }
+
+        // If there were no tasks previously and new tasks are added, remove the "No tasks" message
+        if (noTasksMessage.length > 0) {
+            noTasksMessage.remove(); // Remove the "No tasks" message
+        }
+        
+        let currentIndex = taskList.children().length + 1; 
+        // Iterate through all tasks in the response
+        tasks.forEach(task => {
+            const existingTask = $('#task-status-' + task.task_uuid);
+
+            if (existingTask.length > 0) {
+                // If the task is already in the list, update its status
+                existingTask.text(task.state.charAt(0).toUpperCase() + task.state.slice(1)); 
+                updateStatusIndicator(task.task_uuid, task.state); 
+            } else {
+                // If the task is not found, append it to the list
+                const taskItem = `
+                    <li class="step-item">
+                        <a class="card disabled card-link m" href="/stelar/console/v1/task/{{ workflow_id }}/${task.task_uuid}">
+                            <div class="card-body p-3">
+                                <div class="row">
+                                    <div class="col">
+                                        <div class="list-inline list-inline-dots">
+                                            <span class="list-inline-item"><strong>Task ${currentIndex}</strong></span><span class="text-secondary list-inline-item">${task.task_uuid}</span>
+                                        </div>
+                                        <div style="display: none;" id="task-index-${task.task_uuid}">${currentIndex}</div>
+                                        <div class="text-secondary mt-1">
+                                            <div class="m-0 list-inline">
+                                                <div class="list-inline-item">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-tool">
+                                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                        <path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" />
+                                                    </svg>
+                                                    ${task.tool_image}
+                                                </div>
+                                                <div class="list-inline-item">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-calendar-event">
+                                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                        <path d="M4 5m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z"/>
+                                                        <path d="M16 3l0 4"/>
+                                                        <path d="M8 3l0 4"/>
+                                                        <path d="M4 11l16 0"/>
+                                                        <path d="M8 15h2v2h-2z"/>
+                                                    </svg>
+                                                    <span>${task.start_date.replace('T', ' ')}</span>
+                                                </div>
+                                                <div class="list-inline-item">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-brand-redux">
+                                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                        <path d="M16.54 7c-.805 -2.365 -2.536 -4 -4.54 -4c-2.774 0 -5.023 2.632 -5.023 6.496c0 1.956 1.582 4.727 2.512 6"/>
+                                                        <path d="M4.711 11.979c-1.656 1.877 -2.214 4.185 -1.211 5.911c1.387 2.39 5.138 2.831 8.501 .9c1.703 -.979 2.875 -3.362 3.516 -4.798"/>
+                                                        <path d="M15.014 19.99c2.511 0 4.523 -.438 5.487 -2.1c1.387 -2.39 -.215 -5.893 -3.579 -7.824c-1.702 -.979 -4.357 -1.235 -5.927 -1.07"/>
+                                                        <path d="M10.493 9.862c.48 .276 1.095 .112 1.372 -.366a1 1 0 0 0 -.367 -1.365a1.007 1.007 0 0 0 -1.373 .366a1 1 0 0 0 .368 1.365z"/>
+                                                        <path d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/>
+                                                        <path d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/>
+                                                    </svg>
+                                                    <span id="task-status-${task.task_uuid}">${task.state.charAt(0).toUpperCase() + task.state.slice(1)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <span id="task-indicator-${task.task_uuid}" class="status-indicator ${task.state === 'succeeded' ? 'status-green' : (task.state === 'running' ? 'status-yellow status-indicator-animated' : 'status-red')}">
+                                            <span class="status-indicator-circle"></span>
+                                            <span class="status-indicator-circle"></span>
+                                            <span class="status-indicator-circle"></span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </li>
+                `;
+                taskList.append(taskItem); // Append the new task to the list
+                currentIndex++; // Increment index for the next task
+            }
+        });
+    }
+
+
+    function updateStatusIndicator(taskUuid, state) {
+        const indicator = $('#task-indicator-' + taskUuid);
+
+        if (state === 'succeeded') {
+            indicator.removeClass('status-red status-yellow').addClass('status-green');
+        } else if (state === 'failed') {
+            indicator.removeClass('status-green status-yellow').addClass('status-red');
+        } else if (state === 'running') {
+            indicator.removeClass('status-green status-red').addClass('status-yellow status-indicator-animated');
+        }
+    }
+
+    function fetchTasks() {
+        const workflowId = '{{ workflow_id }}';
+
+        $.ajax({
+            url: '/stelar/api/v1/workflow/tasks?id=' + workflowId,
+            method: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    updateTaskStatus(response.result);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching tasks:', status, error);
+            }
+        });
+    }
+
+    // Call fetchTasks every 3 seconds
+    setInterval(fetchTasks, 3000);
+
+    fetchTasks();
+
+  </script>
+  
 </html>
