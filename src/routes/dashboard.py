@@ -74,7 +74,7 @@ def workflows():
     return render_template('workflows.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 
-@dashboard_bp.route('/workflow/<workflow_id>')
+@dashboard_bp.route('/workflows/<workflow_id>')
 def workflow(workflow_id):
     config = current_app.config['settings']
     
@@ -109,14 +109,23 @@ def workflow(workflow_id):
     if tasks_response.status_code != 200:
         return redirect(url_for('dashboard_blueprint.datasets'))
 
-    # Sort tasks based on start date
-    if wf_tasks['result']:
-        wf_tasks['result'] = sorted(wf_tasks['result'], key=lambda x: x["start_date"])
+    if wf_metadata['metadata'] and wf_tasks['result']:
+        # Sort tasks based on start date
+        if wf_tasks['result']:
+            wf_tasks['result'] = sorted(wf_tasks['result'], key=lambda x: x["start_date"])
 
-    return render_template('workflow.html', workflow_id = workflow_id,
-                                            PARTNER_IMAGE_SRC=get_partner_logo(),
-                                            wf_metadata = wf_metadata,
-                                            wf_tasks = wf_tasks['result'])
+        try:
+            package_id = wf_metadata['metadata']['tags'].get('package_id')
+        except:
+            package_id = "Not specified"
+
+        return render_template('workflow.html', workflow_id = workflow_id,
+                                                PARTNER_IMAGE_SRC=get_partner_logo(),
+                                                wf_metadata = wf_metadata,
+                                                wf_tasks = wf_tasks['result'],
+                                                package_id = package_id)
+    else:
+        return redirect(url_for('dashboard_blueprint.datasets'))
 
 
 @dashboard_bp.route('/task/<workflow_id>/<task_id>')
