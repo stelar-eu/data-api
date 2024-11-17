@@ -2090,7 +2090,6 @@ def api_workflow_tasks(query_data):
     """
     # Retrieve query parameters from the request
     wf_exec_id = query_data['id']
-    logging.debug(wf_exec_id)
 
     if not wf_exec_id:
         return jsonify({'success': False, 'message': 'Missing required parameter: id'}), 400
