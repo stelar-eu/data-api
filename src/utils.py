@@ -8,6 +8,7 @@ import uuid
 import copy
 import random
 from datetime import datetime
+import logging
 
 from flask import request, jsonify, current_app
 from requests.auth import HTTPBasicAuth
@@ -165,6 +166,12 @@ sql_workflow_execution_templates = {
     'workflow_state_template': 'SELECT workflow_uuid AS workflow_exec_id, state FROM klms.workflow_execution WHERE workflow_uuid = %s',
     'workflow_delete_template': 'DELETE FROM klms.workflow_execution WHERE workflow_uuid = %s',
     'workflow_read_template': 'SELECT workflow_uuid AS workflow_exec_id, state, start_date, end_date FROM klms.workflow_execution WHERE workflow_uuid = %s',
+    'workflow_get_tasks': """SELECT tsk.task_uuid, tsk.state, tsk.start_date, tsk.end_date, tsk_tg.value as tool_image 
+                             FROM klms.workflow_execution as wf 
+                             JOIN klms.task_execution as tsk ON wf.workflow_uuid=tsk.workflow_uuid 
+                             JOIN klms.task_tag as tsk_tg ON tsk.task_uuid=tsk_tg.task_uuid 
+                             WHERE wf.workflow_uuid= %s
+                             AND tsk_tg.key='tool_image';""",
     'workflow_read_tags_template': 'SELECT key, value FROM klms.workflow_tag WHERE workflow_uuid = %s',
     'task_create_template': 'INSERT INTO klms.task_execution(task_uuid, workflow_uuid, state, start_date) VALUES (%s, %s, %s, %s)',
     'task_update_template': 'UPDATE klms.task_execution SET state = %s WHERE task_uuid = %s',

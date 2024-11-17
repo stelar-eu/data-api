@@ -814,77 +814,6 @@ def api_workflow_output_resource(query_data):
 
 
 
-# NO LONGER USED: Mlflow schema deprecated
-#@app.route('/api/v1/workflow/tasks', methods=['GET'])
-#@app.input(schema.Identifier, location='query', example="id=UC_A3")
-#@app.output(schema.ResponseOK, status_code=200)
-#@app.doc(tags=['Search Operations'])
-#def api_workflow_tasks(query_data):
-#    """Submit a request to the Knowledge Graph to retrieve the tasks executed in a workflow.
-#
-#    Args:
-#        id: The tag value under key "name" assigned to workflow executions.
-#
-#    Returns:
-#        A JSON with the list of task executions included in the given workflow name.
-#    """
-#
-#    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/tasks?id=UC_A3
-#
-#    config = current_app.config['settings']
-#
-#    if 'id' in query_data:
-#        id = query_data['id']
-#    else:
-#        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the workflow in the Knowledge Graph. Please specify a valid identifier for the workflow.']}}
-#        return jsonify(response)
-#
-#    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
-#    # Formulate the SPARQL query with the given identifier
-#    sparql = utils.format_sparql_filter('workflow_tasks_template', id)
-#    print(sparql)
-#    # Make a POST request to the Ontop API with the given query
-#    # IMPORTANT! NO authentication required by public SPARQL endpoints
-#    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
-#
-#    return jsonify(json.loads(response.text))
-
-
-# NO LONGER USED: Mlflow schema deprecated
-#@app.route('/api/v1/task/executions', methods=['GET'])
-#@app.input(schema.Identifier, location='query', example="id=entity_extraction")
-#@app.output(schema.ResponseOK, status_code=200)
-#@app.doc(tags=['Search Operations'])
-#def api_task_executions(query_data):
-#    """Submit a request to the Knowledge Graph to retrieve all executions tagged with the name of the given task.
-#
-#    Args:
-#        id: The tag value under key "name" assigned to task executions.
-#
-#    Returns:
-#        A JSON with the details of the task executions.
-#    """
-#
-#    #EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/task/executions?id=entity_extraction
-#
-#    config = current_app.config['settings']
-#
-#    if 'id' in query_data:
-#        id = query_data['id']
-#    else:
-#        response = {'success':False, 'help': request.url+'?q=', 'error':{'__type':'No specifications','name':['No identifier provided for the task execution in the Knowledge Graph. Please specify a valid identifier for the task execution.']}}
-#        return jsonify(response)
-#
-#    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
-#    # Formulate the SPARQL query with the given identifier
-#    sparql = utils.format_sparql_filter('task_executions_template', id)
-#    print(sparql)
-#    # Make a POST request to the Ontop API with the given query
-#    # IMPORTANT! NO authentication required by public SPARQL endpoints
-#    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
-#
-#    return jsonify(json.loads(response.text))
-
 
 @app.route('/api/v1/task/execution/input', methods=['GET'])
 @app.input(schema.Identifier, location='query', example="id=0075f24c7b654246a65c12739e96b867")
@@ -2052,7 +1981,6 @@ def api_workflow_execution_read(query_data):
         return jsonify({'success': False, 'message': str(e)}), 500    
     
     
-    
 @app.route('/api/v1/workflow/execution/commit', methods=['POST'])
 @app.input(schema.Workflow_Commit, location='json', example={"workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41",
                                                              "state": "succeeded"})
@@ -2147,6 +2075,33 @@ def api_workflow_statistics(json_data):
         return jsonify({'success': False, 'message': str(e)}), 500        
 
 
+@app.route('/api/v1/workflow/tasks', methods=['GET'])
+@app.doc(tags=['Tracking Operations'], security=security_doc)
+@app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
+@auth.login_required
+def api_workflow_tasks(query_data):
+    """Fetch the tasks for a given Workflow Execution 
+
+    Args:
+        params: A JSON with the id of the Workflow Execution
+
+    Returns:
+        A JSON with the result of the tasks per workflow
+    """
+    # Retrieve query parameters from the request
+    wf_exec_id = query_data['id']
+    logging.debug(wf_exec_id)
+
+    if not wf_exec_id:
+        return jsonify({'success': False, 'message': 'Missing required parameter: id'}), 400
+
+    try:
+        response = sql_utils.workflow_get_tasks(wf_exec_id)
+        return jsonify({'success': True, 'result': response}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    
+    
 ###########################################################
 
 @app.template_filter('datetimeformat')

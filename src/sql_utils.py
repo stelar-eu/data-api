@@ -627,6 +627,32 @@ def task_execution_metrics_read(task_exec_id):
     return metrics
 
 
+def workflow_get_tasks(workflow_exec_id):
+    """Submit a request to the Metadata Database to retrieve information about all tasks 
+        belonging to a workflow execution with given id
+
+    Args:
+        id: The identifier (UUID) assigned to a worfklow execution
+
+    Returns:
+        A JSON with the tasks, if any, belonging to the workflow 
+    """
+
+    if workflow_exec_id:
+          
+        sql = utils.sql_workflow_execution_templates['workflow_get_tasks']   
+
+        # Execute the SQL command in the database
+        resp = utils.execSql(sql, (workflow_exec_id, ))
+
+        if resp and len(resp)>0:
+            wf_tasks = resp          
+            return wf_tasks
+        else:
+            return None
+
+
+
 def workflow_statistics(workflow_tags, parameters, metrics):
     """Fetch statistics for each Worfklow Execution for a specific group of 
     workflow executions.
