@@ -172,6 +172,11 @@ sql_workflow_execution_templates = {
                              JOIN klms.task_tag as tsk_tg ON tsk.task_uuid=tsk_tg.task_uuid 
                              WHERE wf.workflow_uuid= %s
                              AND tsk_tg.key='tool_image';""",
+    'workflow_get_all': """SELECT pkg.title as package_title, ex.workflow_uuid as id, ex.state, start_date, end_date, value as package_id 
+                           FROM klms.workflow_execution as ex
+                           LEFT JOIN
+                           (SELECT DISTINCT workflow_uuid, value FROM klms.workflow_tag WHERE key='package_id') as tg
+                           ON ex.workflow_uuid=tg.workflow_uuid LEFT JOIN public.package as pkg ON tg.value=pkg.id;""",
     'workflow_read_tags_template': 'SELECT key, value FROM klms.workflow_tag WHERE workflow_uuid = %s',
     'task_create_template': 'INSERT INTO klms.task_execution(task_uuid, workflow_uuid, state, start_date) VALUES (%s, %s, %s, %s)',
     'task_update_template': 'UPDATE klms.task_execution SET state = %s WHERE task_uuid = %s',

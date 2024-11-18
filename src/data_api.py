@@ -2099,7 +2099,21 @@ def api_workflow_tasks(query_data):
         return jsonify({'success': True, 'result': response}), 200
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
-    
+
+@app.route('/api/v1/workflows', methods=['GET'])
+@app.doc(tags=['Tracking Operations'], security=security_doc)
+@auth.login_required
+def api_workflow_all():
+    """Fetch all parameters for all workflow executions
+
+    Returns:
+        A JSON with the results of all workflow executions
+    """
+    try:
+        response = sql_utils.workflow_get_all()
+        return jsonify({'success': True, 'result': response}), 200
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500  
     
 ###########################################################
 

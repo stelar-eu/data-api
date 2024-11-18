@@ -5,6 +5,7 @@ import datetime
 import json
 import requests
 import kutils 
+from datetime import datetime, timedelta
 
 #FOR TESTING ONLY!!!
 import os
@@ -68,10 +69,54 @@ def settings():
 
 @dashboard_bp.route('/workflows')
 def workflows():
+    config = current_app.config['settings']
+
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
     
-    return render_template('workflows.html', PARTNER_IMAGE_SRC=get_partner_logo())
+    # Extract the access token from the session
+    access_token = session.get('access_token')
+    if not access_token:
+        return redirect(url_for('dashboard_blueprint.login'))
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    wf_metadata_url = f"{config['API_URL']}api/v1/workflows"
+    metadata_response = requests.get(wf_metadata_url, headers=headers)
+    wf_metadata = metadata_response.json()
+
+    if metadata_response.status_code == 200:
+        if wf_metadata['result']:
+            status_counts = {}
+            monthly_counts = {}
+
+            for wf in wf_metadata['result']:
+                # Count workflow status for pie chart
+                status = wf['state']
+                status_counts[status] = status_counts.get(status, 0) + 1
+
+                # Count workflows per month for bar chart
+                start_date = wf['start_date']
+                month_year = start_date[:7]  # Get "YYYY-MM" from "YYYY-MM-DDTHH:MM:SS"
+                monthly_counts[month_year] = monthly_counts.get(month_year, 0) + 1
+
+            # Get the last two months + current month for bar chart display
+            today = datetime.today()
+            months_to_display = [(today - timedelta(days=30 * i)).strftime('%Y-%m') for i in range(2, -1, -1)]
+            
+            # Ensure monthly_counts includes all three months (set to 0 if missing)
+            monthly_counts = {month: monthly_counts.get(month, 0) for month in months_to_display}
+
+            return render_template('workflows.html', 
+                                workflows = wf_metadata['result'],
+                                status_counts=status_counts,
+                                monthly_counts=monthly_counts,
+                                PARTNER_IMAGE_SRC=get_partner_logo())
+        else:
+            return redirect(url_for('dashboard_blueprint.login'))
+    else:
+        return redirect(url_for('dashboard_blueprint.login'))
+
 
 
 @dashboard_bp.route('/workflows/<workflow_id>')
@@ -109,11 +154,10 @@ def workflow(workflow_id):
     if tasks_response.status_code != 200:
         return redirect(url_for('dashboard_blueprint.datasets'))
 
-    if wf_metadata['metadata'] and wf_tasks['result']:
+    if wf_metadata['metadata'] and wf_tasks:
         # Sort tasks based on start date
         if wf_tasks['result']:
             wf_tasks['result'] = sorted(wf_tasks['result'], key=lambda x: x["start_date"])
-
         try:
             package_id = wf_metadata['metadata']['tags'].get('package_id')
         except:
@@ -122,7 +166,7 @@ def workflow(workflow_id):
         return render_template('workflow.html', workflow_id = workflow_id,
                                                 PARTNER_IMAGE_SRC=get_partner_logo(),
                                                 wf_metadata = wf_metadata,
-                                                wf_tasks = wf_tasks['result'],
+                                                wf_tasks = wf_tasks.get('result', None),
                                                 package_id = package_id)
     else:
         return redirect(url_for('dashboard_blueprint.datasets'))

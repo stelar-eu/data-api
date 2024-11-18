@@ -650,6 +650,28 @@ def workflow_get_tasks(workflow_exec_id):
             return wf_tasks
         else:
             return None
+        
+def workflow_get_all():
+    """
+        Submit a request to the Metadata Database to retrieve information about all workflow
+        executions. If an execution contains a reference to the package_id, it will be available 
+        in the result.
+
+    Returns:
+        A JSON with the workflows, if any.
+    """
+
+    sql = utils.sql_workflow_execution_templates['workflow_get_all']   
+
+    # Execute the SQL command in the database
+    resp = utils.execSql(sql)
+
+    if resp and len(resp)>0:
+        wf_tasks = resp          
+        return wf_tasks
+    else:
+        return None
+
 
 
 
