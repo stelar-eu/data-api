@@ -165,6 +165,7 @@ def list_buckets_with_folders(credentials):
                     obj_name = obj.object_name
                     if '/' in obj_name:
                         new_obj_name = obj_name[:obj_name.rfind('/') + 1]
+                        client.put_object(bucket_name, new_obj_name, data=b"", length=0)
                     else:
                         new_obj_name = obj_name
                     # If the object name ends with '/', it is a folder
