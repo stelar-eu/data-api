@@ -157,23 +157,36 @@ def list_buckets_with_folders(credentials):
             bucket_name = bucket.name
             # Use list_objects with recursive=False to only get "folders"
             folders = set()
+            seen = {}
             # Here we should use TRY to list the objects of the bucket to avoid exceptions
             # happening if the user has no access to bucket due to policy.
             try:
                 objects = client.list_objects(bucket_name, recursive=True)
                 for obj in objects:
                     obj_name = obj.object_name
-                    if '/' in obj_name:
-                        new_obj_name = obj_name[:obj_name.rfind('/') + 1]
-                        client.put_object(bucket_name, new_obj_name, data=b"", length=0)
-                    else:
-                        new_obj_name = obj_name
-                    # If the object name ends with '/', it is a folder
-                    if new_obj_name.endswith('/'):
-                        # If the user has write access to the object then we can offer it to him for uploading a new dataset
-                        if evaluate_write_access(credentials, bucket_name, new_obj_name):
-                            folders.add(new_obj_name)    
-            except:
+                    # Split the input string by '/'
+                    parts = obj_name.split('/')
+                    # Initialize an empty list to store the paths
+                    paths = []
+                    # Build the paths incrementally
+                    current_path = ""
+                    for part in parts[:-1]:  # Exclude the last part (the filename)
+                        current_path = current_path + part + "/"
+                        if current_path not in seen:
+                            paths.append(current_path)
+
+                    for path in paths:
+                        if '/' in path:
+                            empty_content = io.BytesIO(b'')
+                            try:
+                                client.put_object(bucket_name, path, data=empty_content, length=0)
+                            except S3Error as ex:
+                                return None
+                            if evaluate_write_access(credentials, bucket_name, path):
+                                folders.add(path)    
+                            seen[path] = True
+            except Exception as e:
+                logging.debug(f"{str(e)}")
                 continue
             # Store the folders in the result dictionary
             result[bucket_name] = list(folders)
