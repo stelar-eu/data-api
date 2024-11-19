@@ -177,7 +177,7 @@
                     <div class="form-selectgroup-boxes row mb-3">
                       <div class="col-lg-6">
                         <label class="form-selectgroup-item">
-                          <input type="radio" name="resource-type" value="external" class="form-selectgroup-input" checked>
+                          <input type="radio" name="resource-type" value="external" class="form-selectgroup-input" disabled>
                           <span class="form-selectgroup-label d-flex align-items-center p-3">
                             <span class="me-3">
                               <span class="form-selectgroup-check"></span>
@@ -191,7 +191,7 @@
                       </div>
                       <div class="col-lg-6">
                         <label class="form-selectgroup-item">
-                          <input type="radio" name="resource-type" value="internal" class="form-selectgroup-input">
+                          <input type="radio" name="resource-type" value="internal" class="form-selectgroup-input" checked>
                           <span class="form-selectgroup-label d-flex align-items-center p-3">
                             <span class="me-3">
                               <span class="form-selectgroup-check"></span>
@@ -264,7 +264,7 @@
                           <label class="form-label">Format</label>
                             <div class="form-selectgroup">
                               <label class="form-selectgroup-item">
-                                <input type="checkbox" name="name" value="JSON" class="form-selectgroup-input" checked>
+                                <input type="checkbox" name="name" value="JSON" class="form-selectgroup-input">
                                 <span class="form-selectgroup-label">JSON</span>
                               </label>
                               <label class="form-selectgroup-item">
@@ -303,7 +303,6 @@
                       Cancel
                     </a>
                     <a href="#" class="btn btn-primary ms-auto" id="submitResource">
-                      <!-- Download SVG icon from http://tabler-icons.io/i/plus -->
                       <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
                       Publish New Resource
                     </a>
@@ -500,11 +499,12 @@
             function linkResourceAfterUpload(filePath) {
               const description = $('input[name="resource-description"]').val();
               const name = $('input[name="example-text-input"]').val();
-              const format = $('input[name="name"]:checked').val();  // The selected format
-              const packageId = "{{ dataset['result']['id'] }}";  // Dataset package ID from the page context
+              const format = $('input[name="name"]:checked').val();
+              const packageId = "{{ dataset['result']['id'] }}";
               const fileInput = $('#fileInput')[0].files[0];  // Get the uploaded file
-              const filename = fileInput.name;  // Extract the file name from the uploaded file
-
+              const filename = fileInput.name;
+              const url = filePath + filename;
+              let normalizedUrl = url.replace(/\/+/g, '/');
               const resourceMetadata = {
                   "resource_metadata": {
                       "description": description,
@@ -513,7 +513,7 @@
                       "package_id": packageId,
                       "resource_tags": [],
                       "resource_type": "Tabular",
-                      "url": "http://minio.stelar.gr/" + filePath + filename
+                      "url": "s3://" + normalizedUrl
                   }
               };
 
@@ -528,11 +528,14 @@
                       $('#uploadForm')[0].reset(); // Reset the form after successful upload
                       $('#progress-bar').width('0%'); // Reset progress bar
                       $('#progress-text').text('0%');
-                      // Append the new resource to the table
                       appendNewResourceRow(response.result);
+                      setTimeout(function() {
+                          $('#uploadStatus').fadeOut(500, function() {
+                              $(this).remove();
+                          });
+                      }, 3000);
                   },
                   error: function(error) {
-                      console.error('Error linking resource:', error);
                       alert('Error linking resource!');
                   }
               });
