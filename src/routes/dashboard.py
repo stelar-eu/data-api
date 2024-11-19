@@ -149,10 +149,9 @@ def workflow(workflow_id):
     wf_tasks = tasks_response.json()
 
     if metadata_response.status_code != 200:
-        return redirect(url_for('dashboard_blueprint.datasets'))
-    
+        return redirect(url_for('dashboard_blueprint.login'))    
     if tasks_response.status_code != 200:
-        return redirect(url_for('dashboard_blueprint.datasets'))
+        return redirect(url_for('dashboard_blueprint.login'))
 
     if wf_metadata['metadata'] and wf_tasks:
         # Sort tasks based on start date
@@ -169,7 +168,7 @@ def workflow(workflow_id):
                                                 wf_tasks = wf_tasks.get('result', None),
                                                 package_id = package_id)
     else:
-        return redirect(url_for('dashboard_blueprint.datasets'))
+        return redirect(url_for('dashboard_blueprint.login'))
 
 
 @dashboard_bp.route('/task/<workflow_id>/<task_id>')
@@ -178,7 +177,7 @@ def task(workflow_id, task_id):
 
     # Basic input validation
     if not workflow_id or not task_id:
-        return redirect(url_for('dashboard_blueprint.datasets'))
+        return redirect(url_for('dashboard_blueprint.login'))
 
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
@@ -197,24 +196,24 @@ def task(workflow_id, task_id):
     metadata_url = task_metadata_url + task_id
     metadata_response = requests.get(metadata_url, headers=headers)
     if metadata_response.status_code != 200:
-        return redirect(url_for('dashboard_blueprint.datasets'))
+        return redirect(url_for('dashboard_blueprint.login'))
 
     metadata_json = metadata_response.json()
 
     # Check if metadata is valid
     if not metadata_json.get("success", False):
-        return redirect(url_for('dashboard_blueprint.datasets'))
+        return redirect(url_for('dashboard_blueprint.login'))
 
     # Check if the metadata corresponds to the correct workflow
     if metadata_json.get('result').get('metadata').get('workflow_exec_id') != workflow_id:
-        return redirect(url_for('dashboard_blueprint.datasets'))
+        return redirect(url_for('dashboard_blueprint.login'))
 
     # Request to fetch task input data with authorization token
     task_input_url = f"{config['API_URL']}api/v1/task/execution/input_json?id="
     input_url = task_input_url + task_id
     input_response = requests.get(input_url, headers=headers)
     if input_response.status_code != 200:
-        return redirect(url_for('dashboard_blueprint.datasets'))
+        return redirect(url_for('dashboard_blueprint.login'))
 
     input_json = input_response.json()
 
@@ -223,7 +222,7 @@ def task(workflow_id, task_id):
     logs_url = job_logs_url + task_id
     logs_response = requests.get(logs_url, headers=headers)
     if logs_response.status_code != 200:
-        return redirect(url_for('dashboard_blueprint.datasets'))
+        return redirect(url_for('dashboard_blueprint.login'))
 
     logs_json = logs_response.json()
 
@@ -236,8 +235,7 @@ def task(workflow_id, task_id):
                                task_input=input_json['result'],
                                logs=logs_json)
     
-    return redirect(url_for('dashboard_blueprint.datasets'))
-
+    return redirect(url_for('dashboard_blueprint.login'))
 
 
 @dashboard_bp.route('/datasets')
