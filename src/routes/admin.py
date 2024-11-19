@@ -20,7 +20,7 @@ admin_bp = APIBlueprint('admin_blueprint', __name__, tag='Cluster Administration
 def get_realm_roles():
     try:
         # Initialize KeycloakAdmin client with refresh token or admin credentials
-        keycloak_admin = kutils.init_admin_client('admin', 'stelartuc')
+        keycloak_admin = kutils.init_admin_client_with_credentials()
 
         # Get the optional 'brief_representation' and 'search_text' parameters from the request
         brief_representation = request.args.get('brief_representation', 'true').lower() == 'true'
@@ -48,7 +48,7 @@ def get_realm_roles():
 def get_user_count():
     try:
         # Initialize KeycloakAdmin client with refresh token
-        keycloak_admin = kutils.init_admin_client('admin', 'stelartuc')
+        keycloak_admin = kutils.init_admin_client_with_credentials()
 
         # Fetch the total number of users in Keycloak
         total_user_count = keycloak_admin.users_count()
@@ -66,8 +66,7 @@ def get_user_count():
 def get_users():
     try:
         # Initialize KeycloakAdmin client with refresh token
-        keycloak_admin = kutils.init_admin_client('admin','stelartuc')
-
+        keycloak_admin = kutils.init_admin_client_with_credentials()
         # Get pagination values
         offset = int(request.args.get('offset', 0))
         limit = int(request.args.get('limit', 8))
@@ -115,7 +114,7 @@ def handle_user(user_id):
     if request.method == 'GET':
         # Handle GET request - Fetch user details from Keycloak
         try:
-            keycloak_admin = kutils.init_admin_client('admin', 'stelartuc')
+            keycloak_admin = kutils.init_admin_client_with_credentials()
             user = keycloak_admin.get_user(user_id=user_id)
 
             if not user:
@@ -162,7 +161,7 @@ def handle_user(user_id):
                 return jsonify({"success": False, "message": "User ID mismatch"}), 400
 
             # Initialize KeycloakAdmin client
-            keycloak_admin = kutils.init_admin_client('admin', 'stelartuc')
+            keycloak_admin = kutils.init_admin_client_with_credentials()
 
             # Fetch user details by user_id
             user = keycloak_admin.get_user(user_id=user_id)
