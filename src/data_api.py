@@ -219,19 +219,6 @@ def home():
 
     return jsonify(response)
 
-#    return '''<h1>STELAR Knowledge Lake Management System</h1><p>Prototype Data API for managing KLMS resources.</p><p>API specification is available <a href='/specs'>here</a>.<p>Interactive API documentation (Swagger UI) is available <a href='/docs'>here</a>.</p>'''
-
-
-
-# Endpoint to return configuration as JSON
-@app.route('/config', methods=['GET'])
-@app.doc(tags=["KLMS Testing"], responses=[200])
-
-def get_config():
-    return jsonify(app.config['settings'])
-
-
-
 ################################## SEARCH OPERATIONS ########################################
 
 @app.route('/api/v1/catalog/tags', methods=['GET'])
