@@ -180,13 +180,12 @@ def list_buckets_with_folders(credentials):
                             empty_content = io.BytesIO(b'')
                             try:
                                 client.put_object(bucket_name, path, data=empty_content, length=0)
-                            except S3Error as ex:
-                                return None
+                            except S3Error:
+                                continue
                             if evaluate_write_access(credentials, bucket_name, path):
                                 folders.add(path)    
                             seen[path] = True
             except Exception as e:
-                logging.debug(f"{str(e)}")
                 continue
             # Store the folders in the result dictionary
             result[bucket_name] = list(folders)
