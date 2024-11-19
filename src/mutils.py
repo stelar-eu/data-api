@@ -162,11 +162,16 @@ def list_buckets_with_folders(credentials):
             try:
                 objects = client.list_objects(bucket_name, recursive=True)
                 for obj in objects:
+                    obj_name = obj.object_name
+                    if '/' in obj_name:
+                        new_obj_name = obj_name[:obj_name.rfind('/') + 1]
+                    else:
+                        new_obj_name = obj_name
                     # If the object name ends with '/', it is a folder
-                    if obj.object_name.endswith('/'):
+                    if new_obj_name.endswith('/'):
                         # If the user has write access to the object then we can offer it to him for uploading a new dataset
-                        if evaluate_write_access(credentials, bucket_name, obj.object_name):
-                            folders.add(obj.object_name)    
+                        if evaluate_write_access(credentials, bucket_name, new_obj_name):
+                            folders.add(new_obj_name)    
             except:
                 continue
             # Store the folders in the result dictionary
