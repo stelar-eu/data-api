@@ -77,7 +77,7 @@ logging.basicConfig(level=logging.DEBUG)
 # such as User Management, Catalog Management,
 # Workflow/Execution management etc.
 
-app.register_blueprint(users_bp, url_prefix='/api/v1/catalog')
+app.register_blueprint(users_bp, url_prefix='/api/v1/users')
 app.register_blueprint(tasks_bp, url_prefix='/api/v1/task')
 app.register_blueprint(dashboard_bp, url_prefix='/console/v1')
 app.register_blueprint(publisher_bp, url_prefix='/console/v1/publisher')
@@ -103,41 +103,6 @@ class CustomJSONEncoder(JSONEncoder):
 app.json_encoder = CustomJSONEncoder
 
 ################################## AUTHENTICATION ########################################
-
-# # Authenticate API requests using tokens (issued by CKAN)
-# auth = HTTPTokenAuth(scheme='ApiKey', header='Api-Token')
-
-
-# @auth.verify_token
-# def api_verify_token(token):
-#     """Register a callback to verify that the token is valid for POST requests that require authentication. GET requests do not require authentication in CKAN.
-
-#     Args:
-#         token: A token issued by the user through the CKAN GUI.
-
-#     Returns:
-#         A boolean: True, if the token is valid; False, otherwise.
-#     """
-
-#     config = current_app.config['settings']
-
-#     user_headers = { 'X-CKAN-API-Key' : token }
-
-#     # Make a POST request to the CKAN API with the token to check access to user information
-#     response = requests.post(config['CKAN_API']+'user_show', headers=user_headers) 
-
-#     if response.json()['success']:
-#         return True
-#     else:
-#         return False
-
-# app.config['keycloak_settings'] = {
-#     'KEYCLOAK_ISSUER': 'https://<keycloak-domain>/auth/realms/master',
-#     'KEYCLOAK_CLIENT_ID': 'stelar-api',
-#     'KEYCLOAK_CLIENT_SECRET': 'iQTNNRsMxuVYqcL2KiDyCqtfVryxxaRw',  # Optional: only if you're using confidential clients
-#     'KEYCLOAK_REDIRECT_URI': 'http://localhost:5000/callback',  # Your redirect URI
-# }
-
 
 # Redirect user to Keycloak login page
 @app.route('/login')
@@ -427,8 +392,7 @@ def api_export_zenodo_dataset_id(query_data):
 @app.route('/api/v1/catalog/search', methods=['POST'])
 @app.input(schema.Query, location='json', example={"q":{"Topic":"POI", "INSPIRE theme":"Location", "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]}}})
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Search Operations'], security=security_doc)
-@auth.login_required
+@app.doc(tags=['Search Operations'])
 def api_catalog_search(json_data):
     """Submit a search request to the Data Catalog.
 
@@ -444,8 +408,8 @@ def api_catalog_search(json_data):
     config = current_app.config['settings']
 
     if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        if request.headers:
+            package_headers, resource_headers = utils.create_CKAN_headers(get_demo_ckan_token())
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -468,7 +432,7 @@ def api_catalog_search(json_data):
 
     # Make a GET request to the CKAN API with the parameters
     # IMPORTANT! Although CKAN generally requires NO authentication for GET requests, it is important in order to also retrieve private datasets of the user's organization
-    response = requests.get(config['CKAN_API']+'package_search'+q+'&include_private=True&fl=*,score', headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
+    response = requests.get(config['CKAN_API']+'package_search'+q+'&include_private=True&fl=*,score', headers=package_headers)
 
     return response.json()
 
@@ -543,8 +507,8 @@ def api_resource_id(query_data):
     config = current_app.config['settings']
 
     if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+        if request.headers:
+            package_headers, resource_headers = utils.create_CKAN_headers(get_demo_ckan_token())
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -585,6 +549,16 @@ def api_resource_search(query_data):
 
     config = current_app.config['settings']
 
+    if request.headers:
+        if request.headers:
+            package_headers, resource_headers = utils.create_CKAN_headers(get_demo_ckan_token())
+        else:
+            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
+            return jsonify(response)
+    else:
+        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
+        return jsonify(response)
+    
     # Check if filtering criteria was provided as argument
     if 'q' in query_data:
         q = query_data['q']
@@ -594,7 +568,7 @@ def api_resource_search(query_data):
 
     # Make a GET request to the CKAN API with the parameters
     # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.post(config['CKAN_API']+'resource_search?query='+q, headers=config.package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
+    response = requests.post(config['CKAN_API']+'resource_search?query='+q, headers=package_headers)  
 
     return response.json()
 

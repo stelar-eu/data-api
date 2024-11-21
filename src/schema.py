@@ -51,8 +51,8 @@ class UserRole(Schema):
 
 
 class NewToken(Schema):
-    user = String(required=True, validate=Length(0, 50))
-    name = String(required=True, validate=Length(0, 50))
+    username = String(required=True, validate=Length(0, 50))
+    password = String(required=True, validate=Length(0, 50))
 
 
 #class Tag(Schema):
