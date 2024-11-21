@@ -1,0 +1,17 @@
+FROM petroud/stelar-tuc:data-api-prod
+
+ENV PYTHONPATH=/app/src
+COPY ./src/ /app/src/
+
+# Set environment variables for Flask
+ENV FLASK_APP=data_api:create_app
+ENV FLASK_DEBUG=true
+ENV FLASK_RUN_HOST=0.0.0.0
+ENV FLASK_RUN_PORT=80
+
+
+# Expose the port Flask will run on
+EXPOSE 80
+
+# Command to run the Flask application
+ENTRYPOINT ["flask", "run"]
