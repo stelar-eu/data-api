@@ -14,7 +14,7 @@ kubectl cp ./src "$POD_NAME":/app/ -c apiserver
 
 # Check if the copy command was successful
 if [ $? -eq 0 ]; then
-  echo "Files successfully copied to $POD_NAME:/app/"
+  echo "Files successfully synced with $POD_NAME:/app/"
 else
   echo "Error: Failed to copy files"
   exit 1

@@ -40,7 +40,7 @@ def session_required(f):
     def decorated_function(*args, **kwargs):
         # Check if session is active
         if 'ACTIVE' not in session or not session['ACTIVE']:
-            flash("Session Expired, Please Login Again","warning") 
+            flash("Please login first to access this page.","info") 
             return redirect(url_for('dashboard_blueprint.login', next=request.url))
 
         # Retrieve token from session
