@@ -100,11 +100,15 @@
                         <div class="card">
                             <div class="card-header">
                                 <div class="row">
-                                <h3 class="card-title">Task In-Cluster Jobs</h3>
-                                <div class="text-secondary"><small>Jobs and logs are only available for tools executed within the KLMS cluster. Logs are available for 24h after a job is executed.</small></div>
+                                    <h3 class="card-title">Task In-Cluster Jobs</h3>
+                                    <div class="text-secondary">
+                                        <small>
+                                            Jobs and logs are only available for tools executed within the KLMS cluster. Logs are available for 24h after a job is executed.
+                                        </small>
+                                    </div>
                                 </div>
                             </div>
-                           <div class="table-responsive">
+                            <div class="table-responsive overflow-hidden">
                                 <table class="table table-vcenter card-table" id="job-table">
                                     <thead>
                                         <tr>
@@ -116,23 +120,23 @@
                                     </thead>
                                     <tbody class="accordion" id="task-list">
                                         {% for task_id, task_data in logs.items() %}
-                                            <tr id="task-{{ task_id }}">
+                                            <tr id="task-{{ task_id }}" data-bs-toggle="collapse" class="cursor-pointer" data-bs-target="#collapse-{{ task_id }}">
                                                 <td>{{ task_id }}</td>
-                                                <td class="text-secondary">{{ task_data['status'] }}</td>
+                                                <td id="task-{{ task_id }}-date" class="text-secondary"></td>
                                                 <td class="text-secondary">
-                                                    <span class="badge {% if task_data['status'] == 'Succeeded' %}bg-success{% else %}bg-danger{% endif %} me-1"></span>
-                                                    <p class="d-inline m-1">{{ task_data['status'] }}</p>
+                                                    <span id="task-{{ task_id }}-badge"  class="badge {% if task_data['status'] == 'Succeeded' %}bg-success{% elif task_data['status'] =='Running' %}bg-warning{% else %}bg-danger{% endif %} me-1"></span>
+                                                    <p id="task-{{ task_id }}-status" class="d-inline m-1">{{ task_data['status'] }}</p>
                                                 </td>
                                                 <td>
-                                                    <button class="btn btn-link p-0 accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}" aria-expanded="false" aria-controls="collapse-{{ loop.index }}"></button>
+                                                    <button class="btn btn-link p-0 accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ task_id }}" aria-expanded="false" aria-controls="collapse-{{ loop.index }}"></button>
                                                 </td>
                                             </tr>
-                                            <tr id="collapse-{{ loop.index }}" class="accordion-collapse collapse">
+                                            <tr id="collapse-{{ task_id }}" class="accordion-collapse collapse">
                                                 <td colspan="5">
                                                     <div class="accordion-body">
                                                         <h4>Runtime Logs</h4>
-                                                         <div>
-                                                            <pre><code>{{ task_data['logs'] | replace('\n', '<br>') | replace('\"', '') | safe }}</code></pre>
+                                                        <div style="max-height: 40rem; overflow: auto;">
+                                                            <pre id="task-{{ task_id }}-logs" style="max-height: 100%; overflow: auto; white-space: pre-wrap; word-break: break-all;">{{ task_data['logs'] | replace('\n', '<br>') | replace('\"', '') | safe }}</pre>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -142,7 +146,7 @@
                                 </table>
                             </div>
                         </div>
-                    </div>
+                    </div>                    
                 </div>
             </div>
             <div class="modal modal-blur fade" id="inputs-json-modal" tabindex="-1" role="dialog" aria-hidden="true">
@@ -294,29 +298,43 @@
 
         function updateTaskTable(data) {
             for (const task_id in data) {
-                const task_data = data[task_id];
-                const taskRow = $('#task-' + task_id);
+                const preElement = $(`#task-${task_id}-logs`);
+                const statusTextElement = $(`#task-${task_id}-status`);
+                const statusBadgeElement = $(`#task-${task_id}-badge`);
                 
-                if (taskRow.length) {
+                if (preElement.length > 0) {
                     // Task already exists, update its status and logs
-                    const statusBadge = taskRow.find('span');
-                    const statusTextParagraph = taskRow.find('td').eq(2).find('p');
+                    // Update the status badge
+                    statusBadgeElement
+                        .removeClass('bg-success bg-warning bg-danger')
+                        .addClass(
+                            data[task_id].status === 'Succeeded' 
+                                ? 'bg-success' 
+                                : data[task_id].status === 'Running' 
+                                ? 'bg-warning' 
+                                : 'bg-danger'
+                        );
+
+                    // Update the status text
+                    statusTextElement.text(data[task_id].status);
                     
-                    statusBadge.removeClass('bg-success bg-danger');
-                    statusBadge.addClass(task_data.status == 'Succeeded' ? 'bg-success' : 'bg-danger');
-                    
-                    statusTextParagraph.text(task_data.status);
-                    
-                    taskRow.find('.accordion-body code').html(task_data.logs.replace(/\n/g, '<br>').replace(/\"/g, ''));
+                    // Update the logs in the <pre> element
+                    preElement.html(data[task_id].logs.replace(/\n/g, '<br>').replace(/\"/g, ''));
                 } else {
                     // If the task row doesn't exist, create a new one
                     const newRow = `
-                        <tr id="task-${task_id}">
+                        <tr id="task-${task_id}" data-bs-toggle="collapse" class="cursor-pointer" data-bs-target="#collapse-${task_id}">
                             <td>${task_id}</td>
-                            <td class="text-secondary">${task_data.status}</td>
+                            <td class="text-secondary">${data[task_id].created_at}</td>
                             <td class="text-secondary">
-                                <span class="badge ${task_data.status == 'Succeeded' ? 'bg-success' : 'bg-danger'} me-1"></span>
-                                <p class="d-inline m-1">${task_data.status}</p>
+                                <span id="task-${task_id}-badge" class="badge ${
+                                    data[task_id].status === 'Succeeded' 
+                                        ? 'bg-success' 
+                                        : data[task_id].status === 'Running' 
+                                        ? 'bg-warning' 
+                                        : 'bg-danger'
+                                } me-1"></span>
+                                <p id="task-${task_id}-status" class="d-inline m-1">${data[task_id].status}</p>
                             </td>
                             <td>
                                 <button class="btn btn-link p-0 accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${task_id}" aria-expanded="false" aria-controls="collapse-${task_id}"></button>
@@ -326,8 +344,8 @@
                             <td colspan="5">
                                 <div class="accordion-body">
                                     <h4>Runtime Logs</h4>
-                                    <div>
-                                        <pre><code>${task_data.logs.replace(/\n/g, '<br>').replace(/\"/g, '')}</code></pre>
+                                    <div style="max-height: 40rem; overflow: auto;">
+                                        <pre id="task-${task_id}-logs" style="max-height: 100%; overflow-x: auto; overflow-y: auto; white-space: pre;">${data[task_id].logs.replace(/\n/g, '<br>').replace(/\"/g, '')}</pre>
                                     </div>
                                 </div>
                             </td>
@@ -337,6 +355,7 @@
                 }
             }
         }
+
 
         setInterval(fetchTaskData, 8000);
 
