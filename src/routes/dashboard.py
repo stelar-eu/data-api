@@ -12,7 +12,7 @@ from functools import wraps
 #FOR TESTING ONLY!!!
 import os
 
-dashboard_bp = APIBlueprint('dashboard_blueprint', __name__, tag='Dashboard Operations')
+dashboard_bp = APIBlueprint('dashboard_blueprint', __name__, enable_openapi=False)
 
 
 
@@ -233,6 +233,7 @@ def task(workflow_id, task_id):
 
 
 @dashboard_bp.route('/datasets')
+@dashboard_bp.doc(False)
 @session_required
 def datasets():    
     return render_template('datasets.html', PARTNER_IMAGE_SRC=get_partner_logo())
