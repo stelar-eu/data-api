@@ -44,12 +44,12 @@
                                           <div class="d-inline-block">
                                               <button class="btn btn-outline-secondary" id="clear-workflow-search-btn">Reset Filters</button>
                                           </div>
-                                          <div class="ms-auto d-flex ">
+                                          <div class="ms-auto w-50">
                                               <div class="input-icon">
                                                   <span class="input-icon-addon">
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" /><path d="M21 21l-6 -6" /></svg>
                                                   </span>
-                                                  <input type="text" value="" class="form-control" placeholder="Search Workflows" id="workflow-search-box" aria-label="Workflow Filtered Search">
+                                                  <input type="text" value="" class="form-control" placeholder="Search Workflows (ID, Name, State)" id="workflow-search-box" aria-label="Workflow Filtered Search">
                                               </div>
                                           </div>
                                       </div>
@@ -67,7 +67,7 @@
                                           <tbody id="workflow-body">
                                             {% if workflows is not none and workflows|length > 0 %}
                                               {% for item in workflows %}
-                                                <tr id="wf-{{ item.id }}" class="cursor-help" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                                <tr id="wf-{{ item.id }}" data-bs-toggle="tooltip" data-bs-placement="top" 
                                                     title="Package ID: {{ item.package_id if item.package_id else 'Not Associated' }} &#013;Execution ID: {{ item.id }}">
                                                     <td class="d-none" id="wf-exec-id-{{ item.id }}">{{ item.id }}</td>
                                                     <td class="d-none" id="wf-pkg-id-{{ item.id }}">{{ item.package_id if item.package_id else 'not-associated'}}</td>

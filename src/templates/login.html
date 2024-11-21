@@ -52,6 +52,16 @@
               </div>
               {% endif %}
 
+              {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                      {% for category, message in messages %}
+                          <div class="alert alert-{{ category }}">
+                              {{ message }}
+                          </div>
+                      {% endfor %}
+                  {% endif %}
+              {% endwith %}
+
               <div class="form-footer">
                 <button type="submit" class="btn btn-primary w-100">Sign in</button>
               </div>
