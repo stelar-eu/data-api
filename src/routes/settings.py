@@ -4,8 +4,7 @@ from src.auth import auth, security_doc
 import re
 from keycloak import KeycloakAdmin
 from keycloak.exceptions import KeycloakAuthenticationError
-from routes.dashboard import init_keycloak_client
-import random
+import kutils
 import smtplib, ssl
 from email_validator import validate_email, EmailNotValidError
 
@@ -56,17 +55,12 @@ def change_password():
     config = current_app.config['settings']
 
     # Initialize KeycloakOpenID client
-    keycloak_openid = init_keycloak_client()
+    keycloak_openid = kutils.initialize_keycloak_openid()
 
 
     # Initialize KeycloakAdmin client
-    keycloak_admin = KeycloakAdmin(
-        server_url=config['KEYCLOAK_URL'],
-        realm_name=config['REALM_NAME'],
-        client_id=config['KEYCLOAK_CLIENT_ID'],
-        client_secret_key=config['KEYCLOAK_CLIENT_SECRET'],
-        verify=True
-    )
+
+    keycloak_admin = kutils.init_admin_client_with_credentials()
 
     # Check if the user is logged in
     if 'ACTIVE' not in session or not session['ACTIVE']:
@@ -198,13 +192,7 @@ def request_email_change():
 
 
     # Initialize KeycloakAdmin client
-    keycloak_admin = KeycloakAdmin(
-        server_url=config['KEYCLOAK_URL'],
-        realm_name=config['REALM_NAME'],
-        client_id=config['KEYCLOAK_CLIENT_ID'],
-        client_secret_key=config['KEYCLOAK_CLIENT_SECRET'],
-        verify=True
-    )
+    keycloak_admin = kutils.init_admin_client_with_credentials()
 
     # Check if the email is already in use by another user
     try:
@@ -252,13 +240,7 @@ def verify_email_otp():
     try:
         # Initialize KeycloakAdmin client
         config = current_app.config['settings']
-        keycloak_admin = KeycloakAdmin(
-            server_url=config['KEYCLOAK_URL'],
-            realm_name=config['REALM_NAME'],
-            client_id=config['KEYCLOAK_CLIENT_ID'],
-            client_secret_key=config['KEYCLOAK_CLIENT_SECRET'],
-            verify=True
-        )
+        keycloak_admin = kutils.init_admin_client_with_credentials()
 
         # Update the user's email using Keycloak Admin API
         keycloak_admin.update_user(user_id=user_id, payload={'email': new_email, 'emailVerified': True})

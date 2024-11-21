@@ -1,11 +1,13 @@
-from flask import request, jsonify, current_app, session, make_response, render_template, redirect, url_for
+from flask import request, jsonify, current_app, session, make_response, render_template, redirect, url_for, flash
 from apiflask import APIBlueprint
 from keycloak import KeycloakOpenID, KeycloakAdmin
 import datetime
-import json
+import time
+from auth import api_verify_token
 import requests
 import kutils 
 from datetime import datetime, timedelta
+from functools import wraps
 
 #FOR TESTING ONLY!!!
 import os
@@ -13,12 +15,11 @@ import os
 dashboard_bp = APIBlueprint('dashboard_blueprint', __name__, tag='Dashboard Operations')
 
 
+
 # DEVELOPMENT ONLY FOR AWS CLUSTERS: Decide which partner the cluster corresponds to 
 def get_partner_logo():
     domain = os.getenv("KLMS_DOMAIN_NAME","")
-
     PARTNER_IMAGE = None
-
     if domain:
         if 'vista' in domain.lower():
             PARTNER_IMAGE = url_for('static', filename='logos/vista.png')
@@ -30,56 +31,62 @@ def get_partner_logo():
     return PARTNER_IMAGE
 
 
-# Initialize Keycloak client
-def init_keycloak_client():
-    config = current_app.config['settings']
+def session_required(f):
+    """
+    Custom decorator to check if the session is active and the token is valid.
+    If the session is invalid or token is expired, redirect to login with a default message.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check if session is active
+        if 'ACTIVE' not in session or not session['ACTIVE']:
+            flash("Session Expired, Please Login Again","warning") 
+            return redirect(url_for('dashboard_blueprint.login', next=request.url))
+
+        # Retrieve token from session
+        access_token = session.get('access_token')
+
+        # If token doesn't exist or is invalid, clear session and redirect to login with a message
+        if not access_token or not api_verify_token(access_token):
+            session.clear() 
+            flash("Session Expired, Please Login Again","warning") 
+            return redirect(url_for('dashboard_blueprint.login', next=request.url))
+
+        # If token is valid, continue with the requested function
+        return f(*args, **kwargs)
     
-    keycloak_openid = KeycloakOpenID(
-        server_url=config['KEYCLOAK_URL'],
-        client_id=config['KEYCLOAK_CLIENT_ID'],
-        realm_name=config['REALM_NAME'],
-        client_secret_key=config['KEYCLOAK_CLIENT_SECRET']
-    )
-    
-    return keycloak_openid
+    return decorated_function
+
 
 # Home page (redirect target after login)
 @dashboard_bp.route('/')
+@session_required
 def dashboard_index():
-    if 'ACTIVE' not in session or not session['ACTIVE']:
-        return redirect(url_for('dashboard_blueprint.login'))
-    
     return render_template('index.html', PARTNER_IMAGE_SRC=get_partner_logo())
+
 
 # Signup Route
 @dashboard_bp.route('/signup')
 def signup():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
-    
     return f"Welcome {session.get('USER_NAME', 'User')}"
+
 
 # Settings Route
 @dashboard_bp.route('/settings')
-def settings():
-    if 'ACTIVE' not in session or not session['ACTIVE']:
-        return redirect(url_for('dashboard_blueprint.login'))
-    
+@session_required
+def settings():    
     return render_template('settings.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
+
 @dashboard_bp.route('/workflows')
+@session_required
 def workflows():
     config = current_app.config['settings']
-
-    if 'ACTIVE' not in session or not session['ACTIVE']:
-        return redirect(url_for('dashboard_blueprint.login'))
     
-    # Extract the access token from the session
-    access_token = session.get('access_token')
-    if not access_token:
-        return redirect(url_for('dashboard_blueprint.login'))
     headers = {
-        'Authorization': f'Bearer {access_token}'
+        'Authorization': f"Bearer {session.get('access_token')}"
     }
     wf_metadata_url = f"{config['API_URL']}api/v1/workflows"
     metadata_response = requests.get(wf_metadata_url, headers=headers)
@@ -120,6 +127,7 @@ def workflows():
 
 
 @dashboard_bp.route('/workflows/<workflow_id>')
+@session_required
 def workflow(workflow_id):
     config = current_app.config['settings']
     
@@ -127,15 +135,8 @@ def workflow(workflow_id):
     if not workflow_id:
         return redirect(url_for('dashboard_blueprint.datasets'))
     
-    if 'ACTIVE' not in session or not session['ACTIVE']:
-        return redirect(url_for('dashboard_blueprint.login'))
-    
-    # Extract the access token from the session
-    access_token = session.get('access_token')
-    if not access_token:
-        return redirect(url_for('dashboard_blueprint.login'))
     headers = {
-        'Authorization': f'Bearer {access_token}'
+        'Authorization': f"Bearer {session.get('access_token')}"
     }
 
     wf_metadata_url = f"{config['API_URL']}api/v1/workflow/execution/read?id="
@@ -172,23 +173,16 @@ def workflow(workflow_id):
 
 
 @dashboard_bp.route('/task/<workflow_id>/<task_id>')
+@session_required
 def task(workflow_id, task_id):
     config = current_app.config['settings']
 
     # Basic input validation
     if not workflow_id or not task_id:
         return redirect(url_for('dashboard_blueprint.login'))
-
-    if 'ACTIVE' not in session or not session['ACTIVE']:
-        return redirect(url_for('dashboard_blueprint.login'))
-
-    # Extract the access token from the session
-    access_token = session.get('access_token')
-    if not access_token:
-        return redirect(url_for('dashboard_blueprint.login'))
-
+    
     headers = {
-        'Authorization': f'Bearer {access_token}'
+        'Authorization': f"Bearer {session.get('access_token')}"
     }
 
     # Request to fetch task metadata with authorization token
@@ -239,20 +233,16 @@ def task(workflow_id, task_id):
 
 
 @dashboard_bp.route('/datasets')
-def datasets():
-    if 'ACTIVE' not in session or not session['ACTIVE']:
-        return redirect(url_for('dashboard_blueprint.login'))
-    
+@session_required
+def datasets():    
     return render_template('datasets.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 @dashboard_bp.route('/datasets/<dataset_id>')
+@session_required
 def dataset_detail(dataset_id):
     
     config = current_app.config['settings']
-    
-    if 'ACTIVE' not in session or not session['ACTIVE']:
-        return redirect(url_for('dashboard_blueprint.login'))
     
     package_metadata_url = f"{config['API_URL']}api/v1/catalog?id="
     metadata_url = package_metadata_url + dataset_id
@@ -270,9 +260,8 @@ def dataset_detail(dataset_id):
 
 
 @dashboard_bp.route('/admin-settings')
+@session_required
 def adminSettings():
-    if 'ACTIVE' not in session or not session['ACTIVE']:
-        return redirect(url_for('dashboard_blueprint.login'))
     if not 'admin' in session.get('USER_ROLES', []):
         return redirect(url_for('dashboard_blueprint.login'))
     
@@ -288,7 +277,7 @@ def login():
     Talks with the specified Keycloak instance to authenticate the user and fetch
     his info (roles, name, username, etc). Inits an active session.
     """
-    keycloak_openid = init_keycloak_client()
+    keycloak_openid = kutils.initialize_keycloak_openid()
 
     EMPTY_EMAIL_ERROR = False
     EMPTY_PASSWORD_ERROR = False
@@ -333,8 +322,13 @@ def login():
                     if creation_date:
                         session['USER_CREATION_DATE'] = creation_date
 
-                    # Redirect to home page
-                    return redirect(url_for('dashboard_blueprint.dashboard_index'))
+                    # After login, redirect to the original page (if provided)
+                    next_url = request.args.get('next')
+                    if next_url:
+                        return redirect(next_url)
+                    else:
+                        return redirect(url_for('dashboard_blueprint.dashboard_index'))
+                    
                 else:
                     LOGIN_ERROR = True
 
@@ -358,7 +352,7 @@ def logout():
     if 'ACTIVE' not in session or not session['ACTIVE']:
         return redirect(url_for('dashboard_blueprint.login'))
 
-    keycloak_openid = init_keycloak_client()
+    keycloak_openid = kutils.initialize_keycloak_openid()
 
     # Revoke refresh token to log out
     try:

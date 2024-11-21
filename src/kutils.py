@@ -1,8 +1,9 @@
-from keycloak import KeycloakOpenID, KeycloakAdmin
+from keycloak import KeycloakOpenID, KeycloakAdmin, KeycloakAuthenticationError
 from flask import current_app, session
 import logging
 import datetime
 
+logging.basicConfig(level=logging.DEBUG)
 
 
 def initialize_keycloak_openid():
@@ -14,6 +15,26 @@ def initialize_keycloak_openid():
         client_secret_key=config['KEYCLOAK_CLIENT_SECRET'],
         verify=True
     )
+
+
+def introspect_token(access_token):
+    """
+    Introspects the given access token to check if it's valid and active.
+    Returns True if the token is valid, False if the token is invalid or expired.
+    """
+    try:
+        keycloak_openid = initialize_keycloak_openid()
+        introspect_response = keycloak_openid.introspect(access_token)
+        
+        # Check if the token is active
+        if introspect_response.get("active", False):
+            return True
+        else:
+            return False
+    except Exception as e:
+        # Log or handle any errors that occur during introspection
+        print(f"Error during token introspection: {e}")
+        return False
 
 def refresh_access_token():
     """
@@ -31,16 +52,6 @@ def refresh_access_token():
     Raises:
         Exception: If an error occurs during the token refresh process.
     """
-    # config = current_app.config['settings']
-    
-    # Initialize Keycloak OpenID client
-    # keycloak_openid = KeycloakOpenID(
-    #     server_url=config['KEYCLOAK_URL'],
-    #     client_id=config['KEYCLOAK_CLIENT_ID'],
-    #     realm_name=config['REALM_NAME'],
-    #     client_secret_key=config['KEYCLOAK_CLIENT_SECRET'],
-    #     verify=True
-    # )
 
     keycloak_openid = initialize_keycloak_openid()
 
@@ -62,6 +73,31 @@ def refresh_access_token():
     except Exception as e:
         # Handle errors during token refresh
         return None, str(e)
+
+
+
+def get_token(username, password):
+    """ 
+    Returns a token for a user in Keycloak by using username and password. 
+
+    Args:
+        username: The username of the user in Keycloak
+        password The secret password of the user in Keycloak
+
+    Returns:
+        str: The access_token
+        null: Error return  
+   
+    """
+    kopenid = initialize_keycloak_openid()
+    try:
+        token = kopenid.token(username, password)
+        if token:
+            return token
+        else:
+            return None
+    except Exception as e:
+        return None
 
 
 def init_admin_client_with_credentials():
@@ -88,6 +124,41 @@ def init_admin_client_with_credentials():
     except Exception as e:
         raise RuntimeError(f'Failed to generate token and initialize KeycloakAdmin: {str(e)}')
     
+
+
+def init_admin_client_with_admin_token(admin_token):
+    """
+    Initializes and returns a KeycloakAdmin client using a pre-obtained admin token.
+
+    Args:
+        admin_token: An OAuth2.0 admin token
+
+    Returns:
+        KeycloakAdmin: An initialized KeycloakAdmin client with admin token.
+    
+    Raises:
+        RuntimeError: If initialization fails due to an error.
+    """
+    config = current_app.config['settings']
+    
+
+    
+    try:
+        
+        # Initialize KeycloakAdmin using the token
+        admin_client = KeycloakAdmin(
+            server_url=config['KEYCLOAK_URL'],
+            realm_name=config['REALM_NAME'],
+            client_id=config['KEYCLOAK_CLIENT_ID'],
+            verify=True,
+            token=admin_token
+        )
+        
+        return admin_client
+    except Exception as e:
+        raise RuntimeError(f'Failed to initialize KeycloakAdmin with admin token: {str(e)}')
+
+
 
 def init_admin_client(username, password):
     """
@@ -130,7 +201,7 @@ def init_admin_client(username, password):
         keycloak_admin = KeycloakAdmin(
             server_url=config['KEYCLOAK_URL'],
             realm_name=config['REALM_NAME'],
-            token=token,  # Use the generated access token
+            token=token,  
             verify=True
         )
 
@@ -167,6 +238,67 @@ def get_user_roles(user_id, keycloak_admin):
     except Exception as e:
         print(f"Error fetching roles for user {user_id}: {str(e)}")
         return []
+
+
+def get_users_from_keycloak(access_token, offset: int = 0, limit: int = 0):
+    """
+    Retrieves a list of users from Keycloak with pagination and additional user details.
+
+    Args:
+        access_token: An admin related OAuth2.0 token
+        offset (int): The starting index for the users to retrieve (default is 0).
+        limit (int): The maximum number of users to retrieve (default is 50).
+
+    Returns:
+        A list of user dictionaries containing user details.
+    
+    Raises:
+        ValueError: If invalid values for offset or limit are provided.
+        RuntimeError: If there is an issue with the Keycloak connection or API interaction.
+    """
+    try:
+        # Initialize KeycloakAdmin client with credentials
+        keycloak_admin = init_admin_client_with_admin_token(access_token)
+
+        # Validate and adjust pagination values
+        if limit or offset <= 0:
+            raise ValueError("Limit must be greater than 0.")
+        
+        users = keycloak_admin.get_users(query={"first": offset, "max": limit})
+
+        result = []
+        for user in users:
+            created_timestamp = user.get('createdTimestamp')
+            creation_date = None
+            if created_timestamp:
+                creation_date = datetime.datetime.fromtimestamp(created_timestamp / 1000.0).strftime('%d-%m-%Y')
+
+            # Get roles and exclude 'default-roles-master'
+            roles = get_user_roles(user.get("id"), keycloak_admin)
+            filtered_roles = [role for role in roles if role != 'default-roles-master']
+            
+            active_status = user.get('enabled', False)
+
+            user_info = {
+                "username": user.get("username"),
+                "email": user.get("email"),
+                "fullname": f"{user.get('firstName', '')} {user.get('lastName', '')}".strip(),
+                "joined_date": creation_date,
+                "user_id": user.get("id"),
+                "roles": filtered_roles,
+                "active": active_status  
+            }
+            result.append(user_info)
+        
+        return result
+
+    except ValueError as ve:
+        logging.debug(str(ve))
+        raise ValueError(f"Invalid parameter: {str(ve)}")
+    except RuntimeError as re:
+        logging.debug(str(re))
+        raise RuntimeError(f"Failed to fetch users from Keycloak: {str(re)}")
+
 
 
 def fetch_user_creation_date(user_id):
