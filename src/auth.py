@@ -1,12 +1,12 @@
 from apiflask import HTTPTokenAuth
-from flask import current_app, session
+from flask import current_app, session, jsonify, request
 import logging
 import urllib
 from jose import jwt, JWTError
-from requests.models import Response
 import logging
 import requests
-import utils
+from functools import wraps
+import kutils
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -89,3 +89,98 @@ def api_verify_token(token):
 
     # If no valid key is found, return False
     return False    
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+
+            # Extract the token from the 'Authorization' header
+            access_token = request.headers.get('Authorization').split(" ")[1]
+            
+            # Check if the token is valid and corresponds to an admin user
+            if not kutils.introspect_admin_token(access_token):
+                response = {
+                    'success': False,
+                    'help': request.url,
+                    'error': {
+                        '__type': 'Authorization Error',
+                        'name': 'Bearer Token is not related to an admin user'
+                    }
+                }
+                return response, 403
+        except (IndexError, ValueError):
+            response = {
+                'success': False,
+                'help': request.url,
+                'error': {
+                    '__type': 'Authorization Error',
+                    'name': 'Authorization Bearer Token is missing or malformed'
+                }
+            }
+            return response, 400
+        except Exception as e:
+            response = {
+                'success': False,
+                'help': request.url,
+                'error': {
+                    '__type': 'Unexpected Error',
+                    'name': str(e)
+                }
+            }
+            return response, 500
+        
+        return f(*args, **kwargs)
+    
+    return decorated_function
+
+
+def token_active(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+
+            if request.headers.get('Authorization'):
+                # Extract the token from the 'Authorization' header
+                access_token = request.headers.get('Authorization').split(" ")[1]
+            else:
+                raise ValueError
+            
+            # Check if the token is valid and corresponds to an admin user
+            if not kutils.introspect_token(access_token):
+                response = {
+                    'success': False,
+                    'help': request.url,
+                    'error': {
+                        '__type': 'Authorization Error',
+                        'name': 'Bearer Token is expired'
+                    }
+                }
+                return response, 403
+            
+        except (IndexError, ValueError):
+            response = {
+                'success': False,
+                'help': request.url,
+                'error': {
+                    '__type': 'Authorization Error',
+                    'name': 'Authorization Bearer Token is missing or malformed'
+                }
+            }
+            return response, 400
+        except Exception as e:
+            response = {
+                'success': False,
+                'help': request.url,
+                'error': {
+                    '__type': 'Unexpected Error',
+                    'name': str(e)
+                }
+            }
+            return response, 500
+        
+        return f(*args, **kwargs)
+    
+    
+    return decorated_function
