@@ -17,6 +17,31 @@ def initialize_keycloak_openid():
     )
 
 
+def introspect_admin_token(access_token):
+    """
+    Introspects the given access token to check if it's valid and active.
+    It also checks if the user has admin role.
+    Returns True if the token is valid and admin, False if the token is invalid or expired or not admin.
+    """
+    try:
+        keycloak_openid = initialize_keycloak_openid()
+        introspect_response = keycloak_openid.introspect(access_token)
+        
+        # Check if the token is active and user has admin role
+        if introspect_response.get("active", False):
+            if(introspect_response.get("realm_access", False)):
+                if ("admin" in introspect_response["realm_access"]["roles"]):
+                    return True
+                else:
+                    return False
+            else:
+                return False
+        else:
+            return False
+    except Exception as e:
+        return False
+
+
 def introspect_token(access_token):
     """
     Introspects the given access token to check if it's valid and active.
@@ -25,15 +50,12 @@ def introspect_token(access_token):
     try:
         keycloak_openid = initialize_keycloak_openid()
         introspect_response = keycloak_openid.introspect(access_token)
-        
         # Check if the token is active
         if introspect_response.get("active", False):
             return True
         else:
             return False
     except Exception as e:
-        # Log or handle any errors that occur during introspection
-        print(f"Error during token introspection: {e}")
         return False
 
 def refresh_access_token():
@@ -240,7 +262,7 @@ def get_user_roles(user_id, keycloak_admin):
         return []
 
 
-def get_users_from_keycloak(access_token, offset: int = 0, limit: int = 0):
+def get_users_from_keycloak(access_token, offset, limit):
     """
     Retrieves a list of users from Keycloak with pagination and additional user details.
 
@@ -258,13 +280,19 @@ def get_users_from_keycloak(access_token, offset: int = 0, limit: int = 0):
     """
     try:
         # Initialize KeycloakAdmin client with credentials
-        keycloak_admin = init_admin_client_with_admin_token(access_token)
+        keycloak_admin = init_admin_client_with_credentials()
 
         # Validate and adjust pagination values
-        if limit or offset <= 0:
-            raise ValueError("Limit must be greater than 0.")
+        if limit < 0 or offset < 0:
+            raise ValueError("Limit and offset must be greater than 0.")
         
-        users = keycloak_admin.get_users(query={"first": offset, "max": limit})
+        if limit == 0:
+            query={"first": offset}
+        else:
+            query={"first": offset, "max": limit}
+
+
+        users = keycloak_admin.get_users(query=query)
 
         result = []
         for user in users:
@@ -278,7 +306,6 @@ def get_users_from_keycloak(access_token, offset: int = 0, limit: int = 0):
             filtered_roles = [role for role in roles if role != 'default-roles-master']
             
             active_status = user.get('enabled', False)
-
             user_info = {
                 "username": user.get("username"),
                 "email": user.get("email"),
