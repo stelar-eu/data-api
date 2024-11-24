@@ -1,11 +1,9 @@
 from flask import request, jsonify, current_app
-from apiflask import APIBlueprint, HTTPTokenAuth
+from apiflask import APIBlueprint
 import requests
-import json
-from src.auth import auth, security_doc
+from src.auth import auth, security_doc, admin_required, token_active
 # Auxiliary custom functions & SQL query templates for ranking
 import utils
-
 import logging 
 # Input schema for validating and structuring several API requests
 import schema
@@ -26,71 +24,62 @@ from demo_t import get_demo_ckan_token
 logging.basicConfig(level=logging.DEBUG)
 
 # The users operations blueprint for all operations related to the lifecycle of a user
-# The blueprint preempts the 
 users_bp = APIBlueprint('users_blueprint', __name__,tag='User Management')
 
 
 @users_bp.route('/', methods=['GET'])
-@users_bp.output(schema.ResponseOK, status_code=200)
 @users_bp.doc(tags=['User Management'], security=security_doc)
-def get_users():
+@users_bp.input(schema.PaginationParameters, location='query')
+@users_bp.output(schema.ResponseAmbiguous, status_code=200, example={"help":"http://klms.stelar.gr/stelar/docs","success":True,"result":{"count":2,"users":[{"active":True,"email":"user1@example.com","fullname":"User One","joined_date":"01-01-2024","roles":["admin"],"user_id":"uuid-1234","username":"userone"},{"active":True,"email":"user2@example.com","fullname":"User Two","joined_date":"01-01-2024","roles":["user"],"user_id":"uuid-5678","username":"usertwo"}]}})
+@token_active
+@admin_required
+def get_users(query_data):
     """
-        Returns all users of the STELAR KLMS in a JSON 
-        if token given is related to an admin account
+        Returns all users of the STELAR KLMS in a JSON. Requires admin role. Supports pagination.
 
         Returns:
-        dict():  The JSON containing the users
+            - dict():  The JSON containing the users
 
-        Error: Returns error message
+        Args optionally:
+            - limit: Maximum number of users returned per request, if limit is 0 all users are returned.
+            - offset: Offset of the result by #offset user.
     """
-
-    # Obtain the admin token from request headers
-    admin_token = request.headers.get('Authorization')
-    if not admin_token:
-        response = {
-            'success': False, 
-            'help': request.url,
-            'error': {'__type': 'Authorization Error', 'name': ['No Authorization Bearer Token specified. Please verify the is one present in the headers of your request.']}
-        }
-        return jsonify(response), 401
     try:
-        # Get query parameters from the request
         access_token = request.headers.get('Authorization').split(" ")[1]
-        offset = int(request.args.get('offset', 0)) 
-        limit = int(request.args.get('limit',0))  
-
-        users = kutils.get_users_from_keycloak(access_token, offset=offset, limit=limit)
-       
-        result = {
-            "help": request.url,
-            "result": users,
-            "success": True
-        }
+        offset = query_data.get('offset', 0)
+        limit = query_data.get('limit', 0)
         
-        return jsonify(result), 200
+        users = kutils.get_users_from_keycloak(access_token, offset=offset, limit=limit)
+        
+        result = {
+            'help': request.url,
+            'result':  { 
+                'users': users,
+                'count': len(users)
+            },
+            'success': True
+        }
 
+        return result, 200    
     except ValueError as ve:
         return jsonify({'error': str(ve)}), 400 
-    except RuntimeError as re:
-        return jsonify({'error': str(re)}), 500 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
 @users_bp.route('/token', methods=['POST'])
 @users_bp.input(schema.NewToken, location='json', example={"username": "dpetrou", "password": "mypassword"})
-@users_bp.output(schema.ResponseOK, status_code=200)
+@users_bp.output(schema.ResponseOK, example={"help":"https://klms.stelar.gr/stelar/docs","result":{"token":"$$$ACCESS_TOKEN$$$","refresh_token":"$$$REFRESH_TOKEN$$$"},"success":True}, status_code=200)
 @users_bp.doc(tags=['User Management'])
 def api_token_create(json_data):
     """
     Generate an OAuth2.0 token for an existing user.
-    Args:
-        In a JSON:
-        username: The username of the user
-        password: The user's secret password
+    Args in a JSON:
+        - username: The username of the user
+        - password: The user's secret password
 
     Returns:
-        A JSON response with the OAuth2.0 token or an error message.
+        - A JSON response with the OAuth2.0 token or an error message.
     """
 
     try:
@@ -120,58 +109,215 @@ def api_token_create(json_data):
         }, 400
 
 
-@users_bp.route('/users', methods=['POST'])
-@users_bp.input(schema.NewUser, location='json', example={"name":"test_user", "email":"test@example.com","password":"test_pass", "fullname":"Jane Doe", "about":"Testing the Keycloak API endpoint for creating another new user", "image_url":"https://commons.wikimedia.org/wiki/File:Example.jpg"})
-@users_bp.output(schema.ResponseOK, status_code=200)
+@users_bp.route('/', methods=['POST'])
+@users_bp.input(schema.NewUser, location='json')
+@users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['User Management'], security=security_doc)
-def api_user_create(json_data):
-    """Create a new user in Keycloak. Requires admin role to create new users."""
+@token_active
+@admin_required
+def api_create_user(json_data):
+    """
+    Creates a new user in the STELAR KLMS. Requires admin role.
 
-    # Obtain the admin token from request headers
-    admin_token = request.headers.get('Authorization')
-    if not admin_token:
-        response = {
-            'success': False, 
-            'help': request.url,
-            'error': {'__type': 'Authorization Error', 'name': ['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}
-        }
-        return jsonify(response)
+    Args:
+        - New user description in JSON in the request body.
+
+    JSON Fields (validated against schema.NewUser):
+        - username (str): The username for the new user. Should be unique.
+        - email (str): The user's email address. Should be unique.
+        - firstName (str): The user's first name.
+        - lastName (str): The user's last name.
+        - password (str): The user's password.
+        - enabled (bool): Whether the user account should be enabled.
+    """
+    try:
+        username = json_data["username"]
+        email = json_data["email"]
+        first_name = json_data["firstName"]
+        last_name = json_data["lastName"]
+        password = json_data["password"]
+        enabled = json_data.get("enabled", True)  
+        attributes = json_data.get("attributes", {})
+
+        user_id = kutils.create_user_with_password(
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            password=password,
+            enabled=enabled)
+
+        if not user_id:
+            raise RuntimeError("Failed to create user. Please check the logs for details.")
+
+        # Retrieve and return the newly created user representation
+        user_rep = kutils.get_user(user_id)
+
+        if user_rep:
+            return {
+                'help': request.url,
+                'result': {
+                    'user': user_rep
+                },
+                'success': True
+            }, 200
+        else:
+            raise AttributeError(f"Failed to find user with identifier: {user_id}")
+
+    except ValueError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Validation error: {ve}",
+                '__type': 'User Entity Error',
+            },
+            "success": False
+        }, 400
     
-    config = current_app.config['settings']
-    keycloak_url = config['KEYCLOAK_URL']
-    keycloak_admin_url = f"{keycloak_url}/admin/realms/{config['REALM_NAME']}/users"
-
-    headers = {
-        'Authorization': f"{admin_token}",
-        'Content-Type': 'application/json'
-    }
-
-    user_metadata = {
-        "username": json_data['name'],
-        "email": json_data['email'],
-        "enabled": True,
-        "firstName": json_data.get('fullname', ''),
-        "credentials": [{
-            "type": "password",
-            "value": json_data['password'],
-            "temporary": False
-        }]
-    }
-
-    response = requests.post(keycloak_admin_url, headers=headers, json=user_metadata)
-
-    if response.status_code == 201:
-        return {"success": True, "message": "User created successfully"}
-    else:
-        return {"success": False, "error": response.json()}, response.status_code
+    except AttributeError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Existence error: {ve}",
+                '__type': 'User Entity Not Found',
+            },
+            "success": False
+        }, 404
+        
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
 
 
+@users_bp.route('/<user_id>', methods=['GET'])
+@users_bp.output(schema.ResponseAmbiguous, status_code=200)
+@users_bp.doc(tags=['User Management'], security=security_doc)
+@token_active
+@admin_required
+def api_get_user(user_id):
+    """Get information about a specific STELAR KLMS User by ID. Requires admin role.
+       
+       Args:
+       - user_id: The UUID of the user in STELAR KLMS or the username.
+    """
 
-@users_bp.route('/user/update', methods=['POST'])
-@users_bp.input(schema.ChangedUser, location='json', example={"id":"02568a6c-9970-4650-87d7-26d4f7d64fd6", "about" : "Updated user information"})
+    try:
+        user_rep = kutils.get_user(user_id=user_id)
+        if user_rep:
+            return {
+                'help': request.url,
+                'result': {
+                    'user': user_rep
+                },
+                'success': True
+            }, 200
+        else:
+            raise AttributeError(f"Failed to find user with identifier: {user_id}")
+
+    except ValueError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Validation error: {ve}",
+                '__type': 'User Entity Error',
+            },
+            "success": False
+        }, 400
+
+    except AttributeError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Existence error: {ve}",
+                '__type': 'User Entity Not Found',
+            },
+            "success": False
+        }, 404
+
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
+
+
+
+
+
+
+@users_bp.route('/<user_id>', methods=['PUT'])
 @users_bp.output(schema.ResponseOK, status_code=200)
 @users_bp.doc(tags=['User Management'], security=security_doc)
 @auth.login_required
+def api_put_user(json_data):
+    """Update information of a specific STELAR KLMS User by ID. Requires admin role."""
+
+@users_bp.route('/<user_id>', methods=['DELETE'])
+@users_bp.output(schema.ResponseOK, status_code=200)
+@users_bp.doc(tags=['User Management'], security=security_doc)
+@auth.login_required
+def api_delete_user(json_data):
+    """Delete a specific STELAR KLMS User by ID. Requires admin role."""
+
+@users_bp.route('/<user_id>/roles/<role_id>', methods=['POST'])
+@users_bp.output(schema.ResponseOK, status_code=200)
+@users_bp.doc(tags=['Authorization Management'], security=security_doc)
+@auth.login_required
+def api_assign_role(json_data):
+    """Assign role to a specific STELAR KLMS User by ID and by Role ID. Requires admin role."""
+
+@users_bp.route('/<user_id>/roles/<role_id>', methods=['DELETE'])
+@users_bp.output(schema.ResponseOK, status_code=200)
+@users_bp.doc(tags=['Authorization Management'], security=security_doc)
+@auth.login_required
+def api_delete_role(json_data):
+    """Unassign role from a specific STELAR KLMS User by ID. Requires admin role."""
+
+@users_bp.route('/<user_id>/roles', methods=['POST'])
+@users_bp.output(schema.ResponseOK, status_code=200)
+@users_bp.doc(tags=['Authorization Management'], security=security_doc)
+@auth.login_required
+def api_assign_roles(json_data):
+    """Assing lot-of roles to a specific STELAR KLMS User by id. Requires admin role.
+       This will not remove any roles already assigned to the user.
+    """
+
+@users_bp.route('/roles', methods=['GET'])
+@users_bp.output(schema.ResponseOK, status_code=200)
+@users_bp.doc(tags=['Authorization Management'], security=security_doc)
+@auth.login_required
+def api_get_roles(json_data):
+    """Get roles existing in the STELAR KLMS. Requires admin role."""
+
+
+@users_bp.route('/<user_id>/roles', methods=['PUT'])
+@users_bp.output(schema.ResponseOK, status_code=200)
+@users_bp.doc(tags=['Authorization Management'], security=security_doc)
+@auth.login_required
+def api_patch_roles(json_data):
+    """Patch the roles of a user in the STELAR KLMS. Requires admin role.
+       This will remove any roles not present in the input JSON and assign 
+       the ones specified. 
+    """
+
+
+
+
+# @users_bp.route('/user/update', methods=['POST'])
+# @users_bp.input(schema.ChangedUser, location='json', example={"id":"02568a6c-9970-4650-87d7-26d4f7d64fd6", "about" : "Updated user information"})
+# @users_bp.output(schema.ResponseOK, status_code=200)
+# @users_bp.doc(tags=['User Management'], security=security_doc)
+# @auth.login_required
 def api_user_update(json_data):
     """Update information for an existing user in Keycloak."""
 
@@ -210,11 +356,11 @@ def api_user_update(json_data):
         return {"success": False, "error": response.json()}, response.status_code
 
 
-@users_bp.route('/user/delete', methods=['POST'])
-@users_bp.input(schema.Identifier, location='json', example={"id":"02568a6c-9970-4650-87d7-26d4f7d64fd6"})
-@users_bp.output(schema.ResponseOK, status_code=200)
-@users_bp.doc(tags=['User Management'], security=security_doc)
-@auth.login_required
+# @users_bp.route('/user/delete', methods=['POST'])
+# @users_bp.input(schema.Identifier, location='json', example={"id":"02568a6c-9970-4650-87d7-26d4f7d64fd6"})
+# @users_bp.output(schema.ResponseOK, status_code=200)
+# @users_bp.doc(tags=['User Management'], security=security_doc)
+# @auth.login_required
 def api_user_delete(json_data):
     """Delete an existing user from Keycloak."""
 
@@ -250,11 +396,6 @@ def api_user_delete(json_data):
 #   compatible. 
 ##################################################################
 
-
-@users_bp.route('/user/organization', methods=['POST'])
-#@users_bp.output(schema.ResponseOK, status_code=200)
-@users_bp.doc(tags=['User Management'], security=security_doc)
-@auth.login_required
 def api_user_editor():
     """Finds the organization(s) where the given user is assigned a role (admin/editor/member) in CKAN.
 

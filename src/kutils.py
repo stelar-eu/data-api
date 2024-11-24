@@ -2,8 +2,19 @@ from keycloak import KeycloakOpenID, KeycloakAdmin, KeycloakAuthenticationError
 from flask import current_app, session
 import logging
 import datetime
+import uuid
 
 logging.basicConfig(level=logging.DEBUG)
+
+
+def is_valid_uuid(s):
+    try:
+        # Try converting the string to a UUID object
+        uuid_obj = uuid.UUID(s)
+        # Check if the string matches the canonical form of the UUID (with lowercase hexadecimal and hyphens)
+        return str(uuid_obj) == s
+    except ValueError:
+        return False
 
 
 def initialize_keycloak_openid():
@@ -260,6 +271,98 @@ def get_user_roles(user_id, keycloak_admin):
     except Exception as e:
         print(f"Error fetching roles for user {user_id}: {str(e)}")
         return []
+
+def create_user_with_password(
+    username,
+    email,
+    first_name,
+    last_name,
+    password,
+    enabled=True,
+    temporary_password=False,
+    attributes=None
+):
+    """
+    Create a new user in Keycloak and set a password, ensuring username and email are unique.
+
+    :param username: Username for the new user
+    :param email: Email for the new user
+    :param first_name: First name of the user
+    :param last_name: Last name of the user
+    :param password: Password for the new user
+    :param enabled: Whether the user account should be enabled (default: True)
+    :param temporary_password: If True, the password is marked as temporary
+    :param attributes: Additional attributes to add to the user
+    :return: The ID of the created user, or None if creation failed
+    """
+    
+    # Initialize the Keycloak admin client
+    keycloak_admin = init_admin_client_with_credentials()
+
+    # Check for existing users with the same username
+    existing_users = keycloak_admin.get_users({
+        "username": username
+    })
+
+    if existing_users:
+        raise ValueError(f"A user with the username '{username}' already exists.")
+
+    # Check for existing users with the same email
+    existing_emails = keycloak_admin.get_users({
+        "email": email
+    })
+
+    if existing_emails:
+        raise ValueError(f"A user with the email '{email}' already exists.")
+
+    user_payload = {
+        "username": username,
+        "email": email,
+        "firstName": first_name,
+        "lastName": last_name,
+        "enabled": enabled,
+        "emailVerified": True,
+        "attributes": attributes or {}
+    }
+
+    user_id = keycloak_admin.create_user(payload=user_payload, exist_ok=False)
+
+    if user_id:
+        keycloak_admin.set_user_password(user_id=user_id, password=password, temporary=temporary_password)
+    
+    return user_id
+
+
+
+def get_user(user_id=None):
+    """
+    Retrieve a user from Keycloak by user ID.
+
+    :param user_id: The ID of the user to retrieve (str). If None, returns None.
+    :return: A dictionary representation of the user if found, otherwise None.
+    """
+    if not user_id or not isinstance(user_id, str):
+        return None
+    
+    try:
+        keycloak_admin = init_admin_client_with_credentials()
+
+        #Support both searching by UUID and by Username
+        if is_valid_uuid(user_id):
+            user_representation = keycloak_admin.get_user(user_id)
+        else:
+            id= keycloak_admin.get_user_id(user_id)
+            user_representation= keycloak_admin.get_user(id)
+
+        if user_representation:
+            # Clean up unnecessary fields (if present) to make response cleaner
+            for field in ['disableableCredentialTypes', 'access', 'notBefore', 'requiredActions', 'totp']:
+                user_representation.pop(field, None)
+            return user_representation
+        return None
+    
+    except Exception as e:
+        return None
 
 
 def get_users_from_keycloak(access_token, offset, limit):

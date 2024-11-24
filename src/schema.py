@@ -59,12 +59,13 @@ class PaginationParameters(Schema):
 
 
 class NewUser(Schema):
-    name = String(required=True, validate=Length(0, 20))
-    password = String(required=True, validate=Length(0, 20))
+    username = String(required=True, validate=Length(0, 25))
     email = String(required=True, validate=Length(0, 100))
-    fullname = String(required=True, validate=Length(0, 100))
-    about = String(required=False, validate=Length(0, 1000))
-    image_url = String(required=False, validate=Length(0, 200))
+    firstName = String(required=True, validate=Length(0, 100))
+    lastName = String(required=True, validate=Length(0, 100))
+    password = String(required=True, validate=Length(8, 25))
+    enabled = Boolean(required=True)
+   
 
 
 class ChangedUser(Schema):
