@@ -3,7 +3,7 @@ import json
 from apiflask import Schema, abort
 from apiflask.fields import Boolean, Integer, String, Date, DateTime, Dict, List, Nested, URL
 from apiflask.validators import Length, OneOf, NoneOf
-from marshmallow import pre_load, post_dump, ValidationError
+from marshmallow import pre_load, fields, INCLUDE, validates,post_dump, ValidationError
 
 
 optional_basic_metadata = ['version', 'url', 'author', 'author_email', 'maintainer', 'maintainer_email', 'license_id', 'type', 'private']
@@ -21,8 +21,41 @@ class ResponseError(Schema):
     success = Boolean(required=True)
 
 
+class ResponseAmbiguous(Schema):
+    help = fields.URL(required=True)
+    success = fields.Boolean(required=True)
+    
+    # Use fields that are conditionally required depending on success
+    result = fields.Dict(required=False)
+    error = fields.Dict(required=False)
+
+    class Meta:
+        unknown = INCLUDE  # This allows extra fields not explicitly defined in the schema
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def validate(self, data):
+        """
+        Custom validation to ensure either 'result' or 'error' is present
+        based on the 'success' value.
+        """
+        if data.get('success'):
+            if not data.get('result'):
+                raise ValueError("'result' field is required when success is True.")
+        else:
+            if not data.get('error'):
+                raise ValueError("'error' field is required when success is False.")
+        return data
+
+
 class Identifier(Schema):
     id = String(required=False, validate=Length(0, 64), example="6dc36257-abb6-45b5-b3bb-5f94160fc2ee")
+
+
+class PaginationParameters(Schema):
+    limit = Integer(required=False, example="100")
+    offset = Integer(required=False, example="0")
 
 
 class NewUser(Schema):
