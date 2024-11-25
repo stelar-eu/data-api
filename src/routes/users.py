@@ -418,6 +418,7 @@ def api_assign_role(user_id, role_id):
     Args:
         - user_id: The UUID of the user or the username.
         - role_id: The UUID of the role or the name of it.
+        
     Returns:
         - JSON: the updated user description
     """
@@ -470,6 +471,7 @@ def api_delete_role(user_id, role_id):
     Args:
         - user_id: The UUID of the user or the username.
         - role_id: The UUID of the role or the name of it.
+
     Returns:
         - JSON: the updated user description
     """
@@ -573,6 +575,13 @@ def api_patch_roles(user_id, json_data):
     """Patch the roles of a user in the STELAR KLMS. Requires admin role.
        This will remove any roles not present in the input JSON and assign 
        the ones specified. 
+
+       Args:
+       - user_id: The UUID or the username of the user.
+       - roles: A list containing the role name or role IDs to be patched.
+
+       Returns:
+       - JSON: the updated user description
     """
 
     try:
