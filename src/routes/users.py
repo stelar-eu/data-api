@@ -294,7 +294,7 @@ def api_get_user(user_id):
 
 
 
-@users_bp.route('/<user_id>', methods=['PUT'])
+@users_bp.route('/<user_id>', methods=['PATCH'])
 @users_bp.input(schema.UpdatedUser, location='json')
 @users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['User Management'], security=security_doc)
@@ -608,7 +608,7 @@ def api_assign_roles(user_id, json_data):
         }, 500
 
 
-@users_bp.route('/<user_id>/roles', methods=['PUT'])
+@users_bp.route('/<user_id>/roles', methods=['PATCH'])
 @users_bp.input(schema.RolesInput, location='json')
 @users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['Authorization Management'], security=security_doc)
