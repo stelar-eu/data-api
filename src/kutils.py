@@ -311,7 +311,29 @@ def get_user_roles(user_id):
         logging.error(f"Error fetching roles for user {user_id}: {str(e)}")
         return []
 
+def get_role(role_id):
+    """
+    Fetches the role by ID from the Realm
 
+    :param user_id: The ID or the name of the role to be fetched.
+    :return: The role representation
+    """
+    try:
+        keycloak_admin = init_admin_client_with_credentials()  
+
+        if is_valid_uuid(role_id):
+            role_rep = keycloak_admin.get_realm_role_by_id(role_id)
+        else:
+            role_rep = keycloak_admin.get_realm_role(role_id)
+            
+        if not role_rep:
+            return None
+
+        return role_rep
+    
+    except Exception as e:
+        logging.error(f"Error fetching role with ID or name {role_id}: {str(e)}")
+        return None
 
 def get_realm_roles():
     """
@@ -611,20 +633,235 @@ def fetch_user_creation_date(user_id):
     Fetches user creation date from Keycloak Admin API using client credentials access token.
 
     """    
-
     keycloak_admin = init_admin_client_with_credentials()
 
     try:
         user = keycloak_admin.get_user(user_id)
-        created_timestamp = user.get('createdTimestamp')
-        if created_timestamp:
-            creation_date = datetime.datetime.fromtimestamp(created_timestamp / 1000.0).strftime('%d-%m-%Y')
-            return creation_date
-        return None
+        data = convert_iat_to_date(user.get("creadedTimestamp"))
+        if data:
+            return data
     except Exception as e:
         logging.error(f"Error fetching user creation date: {e}")
         return None
     
+
+def assign_role_to_user(user_id, role_id):
+    """
+        Assigns realm role to user.
+
+        Args:
+        - user_id: The UUID of the user or the username.
+        - role_id: The UUID of the realm role or the name of it.
+
+        Returns:
+        - dict(): The updated user represantation containing the new role
+    """
+    
+    try:
+        keycloak_admin = init_admin_client_with_credentials()
+
+        # Fetch the user representation
+        user_rep = get_user(user_id)
+
+        if not user_rep:
+            raise ValueError(f"User with ID: {user_id} was not found.")
+        
+        user_roles = get_user_roles(user_rep.get('id'))
+        
+        role_rep = get_role(role_id)
+        if not role_rep:
+            raise ValueError(f"Role with ID: {role_id} was not found")
+
+        # Assign the role to the user if it is not already assigned
+        if role_rep['name'] not in user_roles:
+            keycloak_admin.assign_realm_roles(user_rep['id'],[role_rep])
+            return get_user(user_id)
+        else:
+            raise AttributeError(f"Role with ID: {role_id} already assigned to user with ID: {user_id}")
+
+    except ValueError as ve:
+        raise ValueError(str(ve))
+    except AttributeError as ae:
+        raise AttributeError(str(ae))
+    except Exception as e:
+        logging.error(f"Unexpected error occured: {e}")
+
+
+def assign_roles_to_user(user_id, role_ids):
+    """
+    Assign multiple realm roles to a user.
+
+    Args:
+    - user_id: The UUID of the user or the username.
+    - role_ids: A list of UUIDs or names of the realm roles to be assigned.
+
+    Returns:
+    - dict: The updated user representation containing the new roles.
+    
+    Raises:
+    - ValueError: If the user or any role is not found.
+    - AttributeError: If any role is already assigned to the user.
+    """
+    if not isinstance(role_ids, list):
+        raise ValueError("role_ids must be a list of role UUIDs or names.")
+
+    try:
+        # Initialize Keycloak admin client
+        keycloak_admin = init_admin_client_with_credentials()
+
+        # Fetch the user representation
+        user_rep = get_user(user_id)
+        if not user_rep:
+            raise ValueError(f"User with ID: {user_id} was not found.")
+
+        user_roles = get_user_roles(user_rep.get('id'))
+
+        # Fetch all roles representations
+        roles_to_assign = []
+        already_assigned_roles = []
+        for role_id in role_ids:
+            role_rep = get_role(role_id)
+            if not role_rep:
+                raise ValueError(f"Role with ID: {role_id} was not found.")
+            
+            # Check if the role is already assigned
+            if role_rep['name'] not in user_roles:
+                roles_to_assign.append(role_rep)
+            else:
+                already_assigned_roles.append(role_rep['name'])
+
+        # Assign roles to the user if there are new roles to assign
+        if roles_to_assign:
+            keycloak_admin.assign_realm_roles(user_rep['id'], roles_to_assign)
+
+        return get_user(user_id)
+
+    except ValueError as ve:
+        logging.error(f"ValueError: {ve}")
+        raise
+    except AttributeError as ae:
+        logging.error(f"AttributeError: {ae}")
+        raise
+    except Exception as e:
+        logging.error(f"Unexpected error occurred: {e}")
+        raise
+
+
+def patch_user_roles(user_id, role_ids):
+    """
+    Patch the roles of the user with new roles. Any roles not specified in the list will be removed.
+
+    Args:
+    - user_id: The UUID of the user or the username.
+    - role_ids: A list of UUIDs or names of the realm roles to be assigned.
+
+    Returns:
+    - dict: The updated user representation containing the new roles.
+    
+    Raises:
+    - ValueError: If the user or any role is not found.
+    - AttributeError: If any role is already assigned to the user.
+    """
+    if not isinstance(role_ids, list):
+        raise ValueError("role_ids must be a list of role UUIDs or names.")
+
+    try:
+        # Initialize Keycloak admin client
+        keycloak_admin = init_admin_client_with_credentials()
+
+        # Fetch the user representation
+        user_rep = get_user(user_id)
+        if not user_rep:
+            raise ValueError(f"User with ID: {user_id} was not found.")
+
+        # Fetch and validate roles
+        roles = []
+        for role in role_ids:
+            rep = get_role(role)
+            if rep is None:
+                raise ValueError(f"The following role was not found: {role}")
+            else:
+                roles.append(rep.get('name'))
+
+        current_roles = keycloak_admin.get_realm_roles_of_user(user_rep.get('id'))
+        current_role_names = get_user_roles(user_rep.get('id'))
+
+        if roles is not None:
+            if not roles:
+                # No roles specified: Unassign all non-default roles
+                roles_to_remove = [role for role in current_roles if role['name'] != 'default-roles-master']
+                if roles_to_remove:
+                    keycloak_admin.delete_realm_roles_of_user(user_rep.get('id'), roles_to_remove)
+            else:
+                # Unassign roles not in the request
+                roles_to_remove = [role for role in current_roles if role['name'] not in roles]
+                if roles_to_remove:
+                    keycloak_admin.delete_realm_roles_of_user(user_rep.get('id'), roles_to_remove)
+
+                # Assign new roles that are not already assigned
+                available_realm_roles = keycloak_admin.get_realm_roles()
+                roles_to_add = []
+                for role in roles:
+                    if role not in current_role_names:
+                        role_info = next((r for r in available_realm_roles if r['name'] == role), None)
+                        if role_info:
+                            roles_to_add.append(role_info)
+                        else:
+                            raise ValueError(f"Role '{role}' not found in realm roles")
+
+                if roles_to_add:
+                    keycloak_admin.assign_realm_roles(user_rep.get('id'), roles_to_add)
+
+        return get_user(user_id)
+
+    except ValueError as ve:
+        logging.error(f"ValueError: {ve}")
+        raise
+    except AttributeError as ae:
+        logging.error(f"AttributeError: {ae}")
+        raise
+    except Exception as e:
+        logging.error(f"Unexpected error occurred: {e}")
+        raise
+
+def unassign_role_from_user(user_id, role_id):
+    """
+        Unassigns a realm role from a user.
+
+        Args:
+        - user_id: The UUID of the user or the username.
+        - role_id: The UUID of the realm role or the name of it.
+
+        Returns:
+        - dict(): The updated user representation without the removed role.
+    """
+    try:
+        keycloak_admin = init_admin_client_with_credentials()
+
+        # Fetch the user representation
+        user_rep = get_user(user_id)
+        if not user_rep:
+            raise ValueError(f"User with ID: {user_id} was not found.")
+
+        user_roles = get_user_roles(user_rep.get('id'))
+
+        role_rep = get_role(role_id)
+        if not role_rep:
+            raise ValueError(f"Role with ID: {role_id} was not found.")
+
+        # Unassign the role if it is currently assigned to the user
+        if role_rep['name'] in user_roles:
+            keycloak_admin.delete_realm_roles_of_user(user_rep['id'], [role_rep])
+            return get_user(user_id)
+        else:
+            raise AttributeError(f"Role with ID: {role_id} is not assigned to user with ID: {user_id}")
+
+    except ValueError as ve:
+        raise ValueError(str(ve))
+    except AttributeError as ae:
+        raise AttributeError(str(ae))
+    except Exception as e:
+        logging.error(f"Unexpected error occurred: {e}")
 
 
 def create_client_role(keycloak_admin, client_name, client_id, role_name):

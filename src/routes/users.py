@@ -408,74 +408,212 @@ def api_get_roles():
 
 
 @users_bp.route('/<user_id>/roles/<role_id>', methods=['POST'])
-@users_bp.output(schema.ResponseOK, status_code=200)
+@users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['Authorization Management'], security=security_doc)
-@auth.login_required
-def api_assign_role(json_data):
-    """Assign role to a specific STELAR KLMS User by ID and by Role ID. Requires admin role."""
+@token_active
+@admin_required
+def api_assign_role(user_id, role_id):
+    """Assign role to a specific STELAR KLMS User by ID and by Role ID. Requires admin role.
 
-@users_bp.route('/<user_id>/roles/<role_id>', methods=['DELETE'])
-@users_bp.output(schema.ResponseOK, status_code=200)
-@users_bp.doc(tags=['Authorization Management'], security=security_doc)
-@auth.login_required
-def api_delete_role(json_data):
-    """Unassign role from a specific STELAR KLMS User by ID. Requires admin role."""
-
-@users_bp.route('/<user_id>/roles', methods=['POST'])
-@users_bp.output(schema.ResponseOK, status_code=200)
-@users_bp.doc(tags=['Authorization Management'], security=security_doc)
-@auth.login_required
-def api_assign_roles(json_data):
-    """Assing lot-of roles to a specific STELAR KLMS User by id. Requires admin role.
-       This will not remove any roles already assigned to the user.
+    Args:
+        - user_id: The UUID of the user or the username.
+        - role_id: The UUID of the role or the name of it.
+    Returns:
+        - JSON: the updated user description
     """
 
-@users_bp.route('/<user_id>/roles', methods=['PUT'])
-@users_bp.output(schema.ResponseOK, status_code=200)
+    try:
+        user = kutils.assign_role_to_user(user_id, role_id)
+        return {
+            "success":True, 
+            "result":{
+                "user": user
+            },
+            "help": request.url
+        }, 200
+    except AttributeError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Uniqueness error: {ve}",
+                '__type': 'Entity Already Present',
+            },
+            "success": False
+        }, 400
+    except ValueError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Existence error: {ve}",
+                '__type': 'Entity Not Found',
+            },
+            "success": False
+        }, 404
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
+
+
+@users_bp.route('/<user_id>/roles/<role_id>', methods=['DELETE'])
+@users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['Authorization Management'], security=security_doc)
 @auth.login_required
-def api_patch_roles(json_data):
+def api_delete_role(user_id, role_id):
+    """Unassign role from a specific STELAR KLMS User by ID. Requires admin role.
+
+    Args:
+        - user_id: The UUID of the user or the username.
+        - role_id: The UUID of the role or the name of it.
+    Returns:
+        - JSON: the updated user description
+    """
+    try:
+        user = kutils.unassign_role_from_user(user_id, role_id)
+        return {
+            "success":True, 
+            "result":{
+                "user": user
+            },
+            "help": request.url
+        }, 200
+    except AttributeError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Existence error: {ve}",
+                '__type': 'Entity Not Present',
+            },
+            "success": False
+        }, 400
+    except ValueError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Existence error: {ve}",
+                '__type': 'Entity Not Found',
+            },
+            "success": False
+        }, 404
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
+
+
+@users_bp.route('/<user_id>/roles', methods=['POST'])
+@users_bp.input(schema.RolesInput, location='json')
+@users_bp.output(schema.ResponseAmbiguous, status_code=200)
+@users_bp.doc(tags=['Authorization Management'], security=security_doc)
+@auth.login_required
+def api_assign_roles(user_id, json_data):
+    """
+    Assing lot-of roles to a specific STELAR KLMS User by id. Requires admin role.
+    This will not remove any roles already assigned to the user.
+    Args:
+        - user_id: The UUID of the user or the username.
+        - roles: A list containing the role name or role IDs to be assigned.
+    Returns:
+        - JSON: the updated user description
+    """ 
+    try:
+        user = kutils.assign_roles_to_user(user_id, json_data.get("roles"))
+        return {
+            "success":True, 
+            "result":{
+                "user": user
+            },
+            "help": request.url
+        }, 200
+    except AttributeError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Existence error: {ve}",
+                '__type': 'Entity Not Present',
+            },
+            "success": False
+        }, 400
+    except ValueError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Existence error: {ve}",
+                '__type': 'Entity Not Found',
+            },
+            "success": False
+        }, 404
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
+
+
+@users_bp.route('/<user_id>/roles', methods=['PUT'])
+@users_bp.input(schema.RolesInput, location='json')
+@users_bp.output(schema.ResponseAmbiguous, status_code=200)
+@users_bp.doc(tags=['Authorization Management'], security=security_doc)
+@auth.login_required
+def api_patch_roles(user_id, json_data):
     """Patch the roles of a user in the STELAR KLMS. Requires admin role.
        This will remove any roles not present in the input JSON and assign 
        the ones specified. 
     """
 
+    try:
+        user = kutils.patch_user_roles(user_id=user_id, role_ids=json_data['roles'])
+        return {
+            "success":True, 
+            "result":{
+                "user": user
+            },
+            "help": request.url
+        }, 200
+    except AttributeError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Existence error: {ve}",
+                '__type': 'Entity Not Present',
+            },
+            "success": False
+        }, 400
+    except ValueError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Existence error: {ve}",
+                '__type': 'Entity Not Found',
+            },
+            "success": False
+        }, 404
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
+        
 
 
-# @users_bp.route('/user/delete', methods=['POST'])
-# @users_bp.input(schema.Identifier, location='json', example={"id":"02568a6c-9970-4650-87d7-26d4f7d64fd6"})
-# @users_bp.output(schema.ResponseOK, status_code=200)
-# @users_bp.doc(tags=['User Management'], security=security_doc)
-# @auth.login_required
-def api_user_delete(json_data):
-    """Delete an existing user from Keycloak."""
-
-    admin_token = request.headers.get('Api-Token')
-    if not admin_token:
-        response = {
-            'success': False,
-            'help': request.url,
-            'error': {'__type': 'Authorization Error', 'name': ['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}
-        }
-        return jsonify(response)
-
-    config = current_app.config['settings']
-    keycloak_url = config['KEYCLOAK_URL']
-    user_id = json_data['id']
-
-    keycloak_user_url = f"{keycloak_url}/admin/realms/{config['REALM_NAME']}/users/{user_id}"
-
-    headers = {
-        'Authorization': f"Bearer {admin_token}",
-        'Content-Type': 'application/json'
-    }
-
-    response = requests.delete(keycloak_user_url, headers=headers)
-
-    if response.status_code == 204:
-        return {"success": True, "message": "User deleted successfully"}
-    else:
-        return {"success": False, "error": response.json()}, response.status_code
 
 ##################################################################
 #   Up to this point (^) the endpoints have become Keycloak 

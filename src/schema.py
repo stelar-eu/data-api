@@ -57,6 +57,8 @@ class PaginationParameters(Schema):
     limit = Integer(required=False, example="100")
     offset = Integer(required=False, example="0")
 
+class RolesInput(Schema):
+    roles = List(String, required=True, example='["intern","finance_manager"]')
 
 class NewUser(Schema):
     username = String(required=True, validate=Length(0, 25))
