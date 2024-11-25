@@ -109,6 +109,48 @@ def api_token_create(json_data):
         }, 400
 
 
+@users_bp.route('/token', methods=['PUT'])
+@users_bp.input(schema.RefreshToken, location='json', example={"refresh_token": "$$$REFRESH_TOKEN$$$"})
+@users_bp.output(schema.ResponseOK, example={"help":"https://klms.stelar.gr/stelar/docs","result":{"token":"$$$ACCESS_TOKEN$$$","refresh_token":"$$$REFRESH_TOKEN$$$"},"success":True}, status_code=200)
+@users_bp.doc(tags=['User Management'])
+def api_token_refresh(json_data):
+    """
+    Refresh an OAuth2.0 token using a refresh token.
+
+    Args in a JSON:
+        - refresh_token: (In JSON) : The refresh token retrieved during the token issuance.
+
+    Returns:
+        - A JSON response with the OAuth2.0 token or an error message.
+    """
+
+    try:
+        reftoken = json_data.get('refresh_token')
+
+        token = kutils.refresh_access_token(reftoken)
+
+        if token:
+            return {
+                'help' : request.url,
+                'result': {
+                    'token': token['access_token'],
+                    'refresh_token': token['refresh_token']
+                },
+                'success': True
+            }, 200
+        else:
+            return {
+                'help' : request.url,
+                'result': {},
+                'success': False
+            }, 400
+    except Exception as e:
+        return {
+                'help' : request.url,
+                'result': {},
+                'success': False
+        }, 400
+
 @users_bp.route('/', methods=['POST'])
 @users_bp.input(schema.NewUser, location='json')
 @users_bp.output(schema.ResponseAmbiguous, status_code=200)

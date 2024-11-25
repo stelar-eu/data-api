@@ -118,13 +118,16 @@ def introspect_token(access_token):
     except Exception as e:
         return False
 
-def refresh_access_token():
+def refresh_access_token(refresh_token):
     """
-    Refreshes the access token using the refresh token stored in the session.
+    Refreshes the access token using the refresh token given as args.
 
     This function initializes the Keycloak OpenID client and uses the stored refresh token 
     to obtain a new access token. If successful, it updates the session with the new 
     access token and refresh token. In case of failure, it returns an appropriate error message.
+
+    Args:
+        - refresh_token: The refresh token to use.
 
     Returns:
         tuple: A tuple containing:
@@ -136,24 +139,14 @@ def refresh_access_token():
     """
 
     keycloak_openid = initialize_keycloak_openid()
-
-    # Retrieve the refresh token from the session
-    refresh_token = session.get('refresh_token')
     
     if not refresh_token:
-        return None, 'Refresh token not found in session.'
+        return None
 
     try:
-        # Use the refresh token to get a new token set
-        token = keycloak_openid.refresh_token(refresh_token)
-
-        # Update the session with the new tokens
-        session['access_token'] = token['access_token']
-        session['refresh_token'] = token['refresh_token']
-
-        return token['access_token'], None
+        token = keycloak_openid.refresh_token(refresh_token, grant_type='refresh_token')
+        return token
     except Exception as e:
-        # Handle errors during token refresh
         return None, str(e)
 
 

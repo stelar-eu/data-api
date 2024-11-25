@@ -88,6 +88,9 @@ class NewToken(Schema):
     password = String(required=True, validate=Length(0, 50))
 
 
+class RefreshToken(Schema):
+   refresh_token = String(required=True)
+
 #class Tag(Schema):
 #    name = String(required=True)
 
