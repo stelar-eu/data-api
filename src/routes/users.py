@@ -252,15 +252,79 @@ def api_get_user(user_id):
 
 
 
-
-
-
 @users_bp.route('/<user_id>', methods=['PUT'])
-@users_bp.output(schema.ResponseOK, status_code=200)
+@users_bp.input(schema.UpdatedUser, location='json')
+@users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['User Management'], security=security_doc)
 @auth.login_required
-def api_put_user(json_data):
-    """Update information of a specific STELAR KLMS User by ID. Requires admin role."""
+def api_put_user(user_id, json_data):
+    """
+    Update information of a specific STELAR KLMS User by ID. Requires admin role.
+
+    Args:
+        - The UUID or the username of the user to be updated.
+
+    JSON Fields:
+        - username (str) (Optional): The username for the new user. Should be unique.
+        - email (str) (Optional): The user's email address. Should be unique.
+        - firstName (str) (Optional): The user's first name.
+        - lastName (str) (Optional): The user's last name.
+        - enabled (bool) (Optional): Whether the user account should be enabled.
+    
+    Returns:
+        - A JSON with the updated user
+    """
+
+    try:
+        username = json_data.get("username")
+        email = json_data.get("email")
+        first_name = json_data.get('firstName')
+        last_name = json_data.get("lastName")
+        enabled = json_data.get("enabled", True)  
+
+        user_upd = kutils.update_user(user_id=user_id,
+                                      username=username,
+                                      first_name=first_name,
+                                      last_name=last_name,
+                                      email=email,
+                                      enabled=enabled)
+        if user_upd:
+            return {
+                "success":True, 
+                "result":{
+                    "user": user_upd
+                },
+                "help": request.url
+            }
+        else:
+            raise AttributeError(f"User with ID or username: {user_id} not found")
+    except ValueError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Validation error: {ve}",
+                '__type': 'User Entity Error',
+            },
+            "success": False
+        }, 400
+    except AttributeError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Existence error: {ve}",
+                '__type': 'User Entity Not Found',
+            },
+            "success": False
+        }, 404
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
 
 @users_bp.route('/<user_id>', methods=['DELETE'])
 @users_bp.output(schema.ResponseOK, status_code=200)

@@ -3,6 +3,7 @@ from flask import current_app, session
 import logging
 import datetime
 import uuid
+import re
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -15,6 +16,46 @@ def is_valid_uuid(s):
         return str(uuid_obj) == s
     except ValueError:
         return False
+
+
+def validate_email(email):
+    """
+    Validates an email address. Raises a ValueError if the email is invalid.
+
+    :param email: The email address to validate (string).
+    :raises ValueError: If the email is not a valid format.
+    """
+    # Regular expression for validating an email
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
+    if not re.match(email_regex, email):
+        raise ValueError(f"Invalid email address: {email}")
+
+def email_username_unique(username, email):
+    username_unique(username=username)
+    email_unique(email=email)
+
+
+def username_unique(username):
+    keycloak_admin = init_admin_client_with_credentials()
+    # Check for existing users with the same username
+    existing_users = keycloak_admin.get_users({
+        "username": username
+    })
+
+    if existing_users:
+        raise ValueError(f"A user with the username '{username}' already exists.")
+  
+
+def email_unique(email):
+    keycloak_admin = init_admin_client_with_credentials()
+
+    # Check for existing users with the same email
+    existing_emails = keycloak_admin.get_users({
+        "email": email
+    })
+    if existing_emails:
+        raise ValueError(f"A user with the email '{email}' already exists.")    
 
 
 def initialize_keycloak_openid():
@@ -214,15 +255,6 @@ def init_admin_client(username, password):
         RuntimeError: If the token generation or client initialization fails.
     """
     config = current_app.config['settings']
-    
-    # Initialize Keycloak OpenID client
-    # keycloak_openid = KeycloakOpenID(
-    #     server_url=config['KEYCLOAK_URL'],
-    #     client_id=config['KEYCLOAK_CLIENT_ID'],
-    #     realm_name=config['REALM_NAME'],
-    #     client_secret_key=config['KEYCLOAK_CLIENT_SECRET'],
-    #     verify=True
-    # )
 
     keycloak_openid = initialize_keycloak_openid()
 
@@ -294,44 +326,112 @@ def create_user_with_password(
     :param temporary_password: If True, the password is marked as temporary
     :param attributes: Additional attributes to add to the user
     :return: The ID of the created user, or None if creation failed
+
+    Raises:
+    - ValueError if the username or the email are not unique
+
     """
+    try:
+        # Initialize the Keycloak admin client
+        keycloak_admin = init_admin_client_with_credentials()
+
+        # Validate that an email matches the RegEx
+        validate_email(email=email)
+
+        # Will raise ValueError if the username or email already exist.
+        email_username_unique(username=username, email=email)
+
+
+        user_payload = {
+            "username": username,
+            "email": email,
+            "firstName": first_name,
+            "lastName": last_name,
+            "enabled": enabled,
+            "emailVerified": True,
+            "attributes": attributes or {}
+        }
+
+        user_id = keycloak_admin.create_user(payload=user_payload, exist_ok=False)
+
+        if user_id:
+            keycloak_admin.set_user_password(user_id=user_id, password=password, temporary=temporary_password)
+        
+        return user_id
+    except KeycloakAuthenticationError as e:
+        logging.error(f"Error updating user: {e}")
+        return None
+    except ValueError as ve:
+        raise ValueError(ve)
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
+        return None
+
+
+def update_user(
+        user_id, 
+        username=None, 
+        first_name=None, 
+        last_name=None, 
+        email=None, 
+        enabled=None):
+    """
+    Updates a user in the Keycloak realm by the given user ID.
     
-    # Initialize the Keycloak admin client
-    keycloak_admin = init_admin_client_with_credentials()
-
-    # Check for existing users with the same username
-    existing_users = keycloak_admin.get_users({
-        "username": username
-    })
-
-    if existing_users:
-        raise ValueError(f"A user with the username '{username}' already exists.")
-
-    # Check for existing users with the same email
-    existing_emails = keycloak_admin.get_users({
-        "email": email
-    })
-
-    if existing_emails:
-        raise ValueError(f"A user with the email '{email}' already exists.")
-
-    user_payload = {
-        "username": username,
-        "email": email,
-        "firstName": first_name,
-        "lastName": last_name,
-        "enabled": enabled,
-        "emailVerified": True,
-        "attributes": attributes or {}
-    }
-
-    user_id = keycloak_admin.create_user(payload=user_payload, exist_ok=False)
-
-    if user_id:
-        keycloak_admin.set_user_password(user_id=user_id, password=password, temporary=temporary_password)
+    Parameters:
+    - username (str, optional): The new username for the user.
+    - first_name (str, optional): The new first name for the user.
+    - last_name (str, optional): The new last name for the user.
+    - email (str, optional): The new email for the user.
+    - enabled (bool, optional): Whether the user account should be enabled or disabled.
     
-    return user_id
+    Returns:
+    - dict: The updated user data if successful, otherwise raises an exception.
+    
+    Raises:
+    - ValueError: if the username or the email are not unique
+    """
+    try:
+        keycloak_admin = init_admin_client_with_credentials()
+       
+        # Prepare the update data dictionary with only the fields that are not None
+        user_data = {}
 
+        if username:
+            # Will raise ValueError if username not unique
+            username_unique(username=username)
+            user_data['username'] = username
+        if first_name:
+            user_data['firstName'] = first_name
+        if last_name:
+            user_data['lastName'] = last_name
+        if email:
+            # Validate that an email matches the RegEx
+            validate_email(email=email)
+            # Will raise ValueError if email not unique
+            email_unique(email=email)
+            user_data['email'] = email  
+        if enabled is not None:
+            user_data['enabled'] = enabled
+    
+        # Support both selecting user by UUID and by Username
+        if not is_valid_uuid(user_id):
+            user_id = keycloak_admin.get_user_id(user_id)
+
+        updated_user = keycloak_admin.update_user(user_id, user_data)
+
+        updated_user_json = get_user(user_id=user_id)
+        
+        return updated_user_json
+    
+    except KeycloakAuthenticationError as e:
+        logging.error(f"Error updating user: {e}")
+        return None
+    except ValueError as ve:
+        raise ValueError(ve)
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
+        return None
 
 
 def get_user(user_id=None):

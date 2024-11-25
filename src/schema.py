@@ -68,15 +68,12 @@ class NewUser(Schema):
    
 
 
-class ChangedUser(Schema):
-    id = String(required=True, validate=Length(0, 50))
-    name = String(required=False, validate=Length(0, 20))
-    password = String(required=False, validate=Length(0, 20))
+class UpdatedUser(Schema):
+    username = String(required=False, validate=Length(0, 25))
     email = String(required=False, validate=Length(0, 100))
-    fullname = String(required=False, validate=Length(0, 100))
-    about = String(required=False, validate=Length(0, 1000))
-    image_url = String(required=False, validate=Length(0, 200))
-
+    firstName = String(required=False, validate=Length(0, 100))
+    lastName = String(required=False, validate=Length(0, 100))
+    enabled = Boolean(required=False)
 
 class UserRole(Schema):
     id = String(required=True, validate=Length(0, 50))
