@@ -1,4 +1,4 @@
-from keycloak import KeycloakOpenID, KeycloakAdmin, KeycloakAuthenticationError
+from keycloak import KeycloakOpenID, KeycloakAdmin, KeycloakAuthenticationError, KeycloakGetError
 from flask import current_app, session
 import logging
 import datetime
@@ -418,7 +418,7 @@ def update_user(
         if not is_valid_uuid(user_id):
             user_id = keycloak_admin.get_user_id(user_id)
 
-        updated_user = keycloak_admin.update_user(user_id, user_data)
+        keycloak_admin.update_user(user_id, user_data)
 
         updated_user_json = get_user(user_id=user_id)
         
@@ -463,6 +463,41 @@ def get_user(user_id=None):
     
     except Exception as e:
         return None
+    
+def delete_user(user_id=None):
+    """
+    Delete a user from Keycloak by user UUID.
+
+    :param user_id: The UUID of the user to delete (str). If None, returns None.
+    :return: The UUID of the deleted user.
+    :raises AttributeError: If the user is not found.
+
+    """
+    if not user_id or not isinstance(user_id, str):
+        return None
+
+    try:
+        keycloak_admin = init_admin_client_with_credentials()
+
+        #Support both searching by UUID and by Username
+        if not is_valid_uuid(user_id):
+            id = keycloak_admin.get_user_id(user_id)
+            user_id = keycloak_admin.get_user(id)
+
+        keycloak_admin.delete_user(user_id['id'])
+        return user_id['id']
+
+    except KeycloakGetError as e:
+        if e.response_code == 404:
+            raise AttributeError(f"User with ID '{user_id}' not found.") from e
+        else:
+            logging.error(f"Unexpected Keycloak error: {e}")
+            raise
+
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
+        raise
+
 
 
 def get_users_from_keycloak(access_token, offset, limit):

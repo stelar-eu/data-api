@@ -2127,7 +2127,7 @@ def main(app):
         'FLASK_DEBUG': os.getenv('FLASK_DEBUG', 'True') == 'True',
 
         'API_TITLE': os.getenv('API_TITLE', 'KLMS Data API'),
-        'API_VERSION': os.getenv('API_VERSION', '0.0.2'),
+        'API_VERSION': os.getenv('API_VERSION', '1.0.0'),
         'SPEC_FORMAT': os.getenv('API_SPEC_FORMAT', 'json'),
 
         'AUTO_SERVERS': os.getenv('API_AUTO_SERVERS', 'True') == 'True',

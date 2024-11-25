@@ -295,7 +295,7 @@ def api_put_user(user_id, json_data):
                     "user": user_upd
                 },
                 "help": request.url
-            }
+            }, 200
         else:
             raise AttributeError(f"User with ID or username: {user_id} not found")
     except ValueError as ve:
@@ -327,11 +327,58 @@ def api_put_user(user_id, json_data):
         }, 500
 
 @users_bp.route('/<user_id>', methods=['DELETE'])
-@users_bp.output(schema.ResponseOK, status_code=200)
+@users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['User Management'], security=security_doc)
 @auth.login_required
-def api_delete_user(json_data):
-    """Delete a specific STELAR KLMS User by ID. Requires admin role."""
+def api_delete_user(user_id):
+    """
+    Delete a specific STELAR KLMS User by ID or by username. Requires admin role.
+
+    Args:
+     - The UUID or the username of the user to be deleted.
+
+    Returns:
+     - The UUID of the deleted user
+    """
+
+    try:
+        id = kutils.delete_user(user_id)
+        if id:
+             return {
+                "success":True, 
+                "result":{
+                    "deleted_id": id
+                },
+                "help": request.url
+            },200
+
+    except AttributeError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Existence error: {ve}",
+                '__type': 'User Entity Not Found',
+            },
+            "success": False
+        }, 404
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
+
+
+
+@users_bp.route('/roles', methods=['GET'])
+@users_bp.output(schema.ResponseOK, status_code=200)
+@users_bp.doc(tags=['Authorization Management'], security=security_doc)
+@auth.login_required
+def api_get_roles(json_data):
+    """Get roles existing in the STELAR KLMS. Requires admin role."""
 
 @users_bp.route('/<user_id>/roles/<role_id>', methods=['POST'])
 @users_bp.output(schema.ResponseOK, status_code=200)
@@ -356,13 +403,6 @@ def api_assign_roles(json_data):
        This will not remove any roles already assigned to the user.
     """
 
-@users_bp.route('/roles', methods=['GET'])
-@users_bp.output(schema.ResponseOK, status_code=200)
-@users_bp.doc(tags=['Authorization Management'], security=security_doc)
-@auth.login_required
-def api_get_roles(json_data):
-    """Get roles existing in the STELAR KLMS. Requires admin role."""
-
 
 @users_bp.route('/<user_id>/roles', methods=['PUT'])
 @users_bp.output(schema.ResponseOK, status_code=200)
@@ -374,50 +414,6 @@ def api_patch_roles(json_data):
        the ones specified. 
     """
 
-
-
-
-# @users_bp.route('/user/update', methods=['POST'])
-# @users_bp.input(schema.ChangedUser, location='json', example={"id":"02568a6c-9970-4650-87d7-26d4f7d64fd6", "about" : "Updated user information"})
-# @users_bp.output(schema.ResponseOK, status_code=200)
-# @users_bp.doc(tags=['User Management'], security=security_doc)
-# @auth.login_required
-def api_user_update(json_data):
-    """Update information for an existing user in Keycloak."""
-
-    admin_token = request.headers.get('Api-Token')
-    if not admin_token:
-        response = {
-            'success': False,
-            'help': request.url,
-            'error': {'__type': 'Authorization Error', 'name': ['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}
-        }
-        return jsonify(response)
-
-    config = current_app.config['settings']
-    keycloak_url = config['KEYCLOAK_URL']
-    user_id = json_data['id']
-
-    keycloak_user_url = f"{keycloak_url}/admin/realms/{config['REALM_NAME']}/users/{user_id}"
-
-    headers = {
-        'Authorization': f"Bearer {admin_token}",
-        'Content-Type': 'application/json'
-    }
-
-    user_metadata = {
-        "attributes": {
-            "about": json_data.get('about', ''),
-            "image_url": json_data.get('image_url', '')
-        }
-    }
-
-    response = requests.put(keycloak_user_url, headers=headers, json=user_metadata)
-
-    if response.status_code == 204:
-        return {"success": True, "message": "User updated successfully"}
-    else:
-        return {"success": False, "error": response.json()}, response.status_code
 
 
 # @users_bp.route('/user/delete', methods=['POST'])
