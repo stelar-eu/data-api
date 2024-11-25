@@ -344,7 +344,7 @@ def api_delete_user(user_id):
     try:
         id = kutils.delete_user(user_id)
         if id:
-             return {
+            return {
                 "success":True, 
                 "result":{
                     "deleted_id": id
@@ -374,11 +374,38 @@ def api_delete_user(user_id):
 
 
 @users_bp.route('/roles', methods=['GET'])
-@users_bp.output(schema.ResponseOK, status_code=200)
+@users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['Authorization Management'], security=security_doc)
 @auth.login_required
-def api_get_roles(json_data):
-    """Get roles existing in the STELAR KLMS. Requires admin role."""
+def api_get_roles():
+    """
+    Get roles existing in the STELAR KLMS. Requires admin role.
+
+    Returns:
+        - A JSON containing the roles present inside the KLMS with.
+    """
+
+    try:
+        roles = kutils.get_realm_roles()
+
+        return {
+            "success":True, 
+            "result":{
+                "roles": roles
+            },
+            "help": request.url
+        }, 200
+
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
+
 
 @users_bp.route('/<user_id>/roles/<role_id>', methods=['POST'])
 @users_bp.output(schema.ResponseOK, status_code=200)
@@ -402,7 +429,6 @@ def api_assign_roles(json_data):
     """Assing lot-of roles to a specific STELAR KLMS User by id. Requires admin role.
        This will not remove any roles already assigned to the user.
     """
-
 
 @users_bp.route('/<user_id>/roles', methods=['PUT'])
 @users_bp.output(schema.ResponseOK, status_code=200)

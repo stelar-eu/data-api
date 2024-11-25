@@ -36,6 +36,14 @@ def email_username_unique(username, email):
     email_unique(email=email)
 
 
+def convert_iat_to_date(timestamp):
+    date = None
+    if timestamp:
+        date = datetime.datetime.fromtimestamp(timestamp / 1000.0).strftime('%d-%m-%Y')
+        return date
+    else:
+        return None
+
 def username_unique(username):
     keycloak_admin = init_admin_client_with_credentials()
     # Check for existing users with the same username
@@ -277,32 +285,55 @@ def init_admin_client(username, password):
 
 
 
-def get_user_roles(user_id, keycloak_admin):
+def get_user_roles(user_id):
     """
     Fetches the roles assigned to a user with the given user_id using KeycloakAdmin object.
 
     :param user_id: The ID of the user whose roles are to be fetched.
-    :param keycloak_admin: The KeycloakAdmin object to interact with Keycloak.
     :return: A list of roles assigned to the user.
     """
     try:
-        # Get the roles assigned to the user from the realm
-        realm_roles = keycloak_admin.get_realm_roles_of_user(user_id)
+        keycloak_admin = init_admin_client_with_credentials()  
+        realm_roles = keycloak_admin.get_realm_roles_of_user(user_id) 
 
-        # Combining both realm and client roles
-        assigned_roles = []
+        if not realm_roles:
+            return []  
 
-        # Adding realm roles
-        if realm_roles:
-            for role in realm_roles:
-                assigned_roles.append(role['name'])
-                
+        # Filter out default roles and extract role names
+        filtered_roles = [
+            role['name'] for role in realm_roles
+            if role.get('name') and role['name'] != 'default-roles-master'
+        ]
 
-        return assigned_roles
+        return filtered_roles
+    
+    except Exception as e:
+        logging.error(f"Error fetching roles for user {user_id}: {str(e)}")
+        return []
+
+
+
+def get_realm_roles():
+    """
+        Returns the realm roles exluding the Keycloak default roles. 
+    """
+    
+    try:
+        keycloak_admin = init_admin_client_with_credentials()
+
+        roles = keycloak_admin.get_realm_roles(brief_representation=True)
+
+        # Define a set of roles to exclude
+        roles_to_exclude = {'offline_access', 'uma_authorization', 'create-realm', 'default-roles-master'}
+
+        # Filter the roles, excluding those in the roles_to_exclude set
+        filtered_roles = [role for role in roles if role['name'] not in roles_to_exclude]
+
+        return filtered_roles
 
     except Exception as e:
-        print(f"Error fetching roles for user {user_id}: {str(e)}")
-        return []
+        raise Exception(str(e))
+
 
 def create_user_with_password(
     username,
@@ -437,6 +468,7 @@ def update_user(
 def get_user(user_id=None):
     """
     Retrieve a user from Keycloak by user ID.
+    It also returns the roles
 
     :param user_id: The ID of the user to retrieve (str). If None, returns None.
     :return: A dictionary representation of the user if found, otherwise None.
@@ -455,10 +487,24 @@ def get_user(user_id=None):
             user_representation= keycloak_admin.get_user(id)
 
         if user_representation:
-            # Clean up unnecessary fields (if present) to make response cleaner
-            for field in ['disableableCredentialTypes', 'access', 'notBefore', 'requiredActions', 'totp']:
-                user_representation.pop(field, None)
-            return user_representation
+          
+            creation_date = convert_iat_to_date(user_representation['createdTimestamp'])
+
+            filtered_roles = get_user_roles(user_representation['id'])
+            
+            active_status = user_representation.get('enabled', False)
+        
+            user_info = {
+                "username": user_representation.get("username"),
+                "email": user_representation.get("email"),
+                "fullname": f"{user_representation.get('firstName', '')} {user_representation.get('lastName', '')}".strip(),
+                "joined_date": creation_date,
+                "id": user_representation.get("id"),
+                "roles": filtered_roles,
+                "active": active_status  
+            }
+
+            return user_info
         return None
     
     except Exception as e:
@@ -534,14 +580,8 @@ def get_users_from_keycloak(access_token, offset, limit):
 
         result = []
         for user in users:
-            created_timestamp = user.get('createdTimestamp')
-            creation_date = None
-            if created_timestamp:
-                creation_date = datetime.datetime.fromtimestamp(created_timestamp / 1000.0).strftime('%d-%m-%Y')
-
-            # Get roles and exclude 'default-roles-master'
-            roles = get_user_roles(user.get("id"), keycloak_admin)
-            filtered_roles = [role for role in roles if role != 'default-roles-master']
+            creation_date = convert_iat_to_date(user['createdTimestamp'])
+            filtered_roles = get_user_roles(user['id'])
             
             active_status = user.get('enabled', False)
             user_info = {
@@ -549,7 +589,7 @@ def get_users_from_keycloak(access_token, offset, limit):
                 "email": user.get("email"),
                 "fullname": f"{user.get('firstName', '')} {user.get('lastName', '')}".strip(),
                 "joined_date": creation_date,
-                "user_id": user.get("id"),
+                "id": user.get("id"),
                 "roles": filtered_roles,
                 "active": active_status  
             }
