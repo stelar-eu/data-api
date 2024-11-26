@@ -267,7 +267,7 @@ def api_task_execution_create(json_data):
 
 
 @tasks_bp.route('/execution/input_json', methods=['GET'])
-@tasks_bp.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
+@tasks_bp.input(schema.Identifier, example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
 # @tasks_bp.output(schema.ResponseOK, status_code=200)
 @tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
 @auth.login_required
@@ -475,10 +475,6 @@ def api_task_execution_output_json(json_data):
                         'metrics': metrics}), 200
     except Exception as e:
         return jsonify({'success': False, 'message': traceback.format_exc()}), 500  
-    
-    # return jsonify({'success': True, 'metadata': metadata}), 200
-    return jsonify({'success': True, 'resource_ids': [], 'metrics': {}}), 200
-
 
 
 

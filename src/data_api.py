@@ -62,6 +62,14 @@ from routes.admin import admin_bp
 from routes.auth_tool import auth_tool_bp
 ############################################################
 
+
+
+###################### REST ENDPOINTS ######################
+
+from routes.rest_catalog import rest_catalog_bp
+from routes.rest_workflows import rest_workflows_bp
+############################################################
+
 # Create an instance of this API; by default, its OpenAPI-compliant specification will be generated under folder /specs
 app = APIFlask(__name__, spec_path='/specs', docs_path ='/docs')
 
@@ -84,7 +92,8 @@ app.register_blueprint(publisher_bp, url_prefix='/console/v1/publisher')
 app.register_blueprint(settings_bp, url_prefix='/console/v1/settings')
 app.register_blueprint(admin_bp, url_prefix='/console/v1/admin')
 app.register_blueprint(auth_tool_bp, url_prefix='/api/v1/auth_tool')
-
+app.register_blueprint(rest_catalog_bp, url_prefix='/api/v2')
+app.register_blueprint(rest_workflows_bp, url_prefix='/api/v2')
 ############################################################
 
 # Custom class to retain original ISO format like 'yyyy-mm-dd hh:mm:ss.m' in date/time/timestamp values
@@ -1224,7 +1233,7 @@ def api_catalog_rank(json_data):
 
 @app.route('/api/v1/catalog/publish', methods=['POST'])
 @app.input(schema.Dataset, location='json', example={"basic_metadata":{"title": "Test Data API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": ["STELAR","OpenStreetMap","Geospatial","Bavaria"]},"extra_metadata":{"INSPIRE theme":"Imagery", "theme": ["Earth Sciences", "Landuse", "http://eurovoc.europa.eu/4630"], "language": ["ca", "en", "es"], "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]},"temporal_start":"2023-01-31T11:33:54.132Z", "temporal_end":"2023-01-31T11:35:48.593Z"},"profile_metadata":{"url":"https://raw.githubusercontent.com/stelar-eu/data-profiler/main/examples/output/timeseries_profile.json", "name": "Time series profile in JSON", "description": "This is the profile of a time series in JSON format", "resource_type": "Tabular", "format": "JSON", "resource_tags": ["Profile", "Computed with STELAR Profiler"]}})
-@app.output(schema.ResponseOK, status_code=200)
+@app.output(schema.ResponseAmbiguous, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
 @auth.login_required
 def api_dataset_publish(json_data):
@@ -1245,7 +1254,7 @@ def api_dataset_publish(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(get_demo_ckan_token())
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
@@ -1419,7 +1428,7 @@ def api_dataset_patch(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(get_demo_ckan_token())
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)

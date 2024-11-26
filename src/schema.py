@@ -100,7 +100,6 @@ class BasicMetadata(Schema):
     notes = String(required=True, validate=Length(0, 10000))
     url = URL(required=False)
     tags = List(String, required=True)
-#    tags = Nested(Tag(many=True), required=True)
     private = Boolean(required=False, load_default=False)   # By default, dataset metadata will be publicly available
     extra = Dict(required=False)   # Any other user-specified basic metadata must conform with CKAN
 
@@ -143,7 +142,7 @@ class Profile(Schema):
 class Dataset(Schema):
     basic_metadata = Nested(BasicMetadata, required=True)
     extra_metadata = Nested(ExtraMetadata, required=False)
-    profile_metadata = Dict(required=False)   # TODO: Validate various types of profiles
+    profile_metadata = Dict(required=False) 
 
 
 class Artifact(Schema):
@@ -155,6 +154,9 @@ class Track(Schema):
 
 class Package(Schema):
     package_metadata = Dict(required=True)
+
+class Workflow(Schema):
+    workflow_metadata = Dict(required=True)
 
 
 class Resource(Schema):
