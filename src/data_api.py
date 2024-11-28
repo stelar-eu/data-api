@@ -1743,6 +1743,7 @@ def api_workflow_publish(json_data):
         return jsonify(response)
 
 
+
 ################################ WORKFLOW OPERATIONS ##########################
 
 @app.route('/api/v1/workflow/execution/create', methods=['POST'])
@@ -2059,7 +2060,6 @@ def main(app):
             'bearerFormat': 'JWT'
         }
     }
-    os.putenv = app.config['SECURITY_SCHEMES']
     
     # Configure execution
     execution.configure(app.config["settings"])

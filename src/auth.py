@@ -9,7 +9,7 @@ from functools import wraps
 import kutils
 
 
-auth = HTTPTokenAuth(scheme="Bearer", header="Authorization", security_scheme_name="BearerAuth")
+auth = HTTPTokenAuth(scheme="Bearer", header="Authorization", security_scheme_name="BearerAuth", description="An OAuth2 token issued by the STELAR IDP by using endpoint or GUI issuance.")
 
 security_doc = "BearerAuth"
 
