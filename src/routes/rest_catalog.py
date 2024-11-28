@@ -6,6 +6,7 @@ import logging
 # Input schema for validating and structuring several API requests
 import schema
 import json
+import os
 
 import cutils
 
@@ -539,14 +540,69 @@ def api_rest_delete_resource(resource_id: str):
             "success": False
         }, 500
 
+@rest_catalog_bp.route("/resources/<resource_id>",methods=["PATCH"])
+@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'])
+@rest_catalog_bp.input(schema.Resource, location='json')
+@rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
+@auth.login_required
+def api_rest_patch_resource(resource_id: str, json_data):
+    """
+    Patch a resource's fields without deleting any omitted ones by its ID.
+
+    This route allows clients to edit a specific resource by UUID 
+
+    Args:
+        resource_id (str): The UUID of the resource.
+
+    Responses:
+        - 200: Resource successfully patched.
+        - 400: Missing parameters
+        - 404: Resource with ID not found in the catalog.
+        - 500: An unknown error occurred.
+
+    Returns:
+        id (str): The ID of the deleted resource.
+    """
+    try:
+        specs = json.loads(request.data.decode("utf-8"))
+        resp = cutils.patch_resource(resource_id, specs.get("resource_metadata"))
+        return {
+                "success":True, 
+                "result":{
+                    "resource": resp
+                },
+                "help": request.url
+        }, 200
+    except ValueError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {ve}",
+                '__type': 'Resource Entity Not Found',
+            },
+            "success": False
+        }, 404
+    except AttributeError as ae:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {ae}",
+                '__type': 'Resource Parameters Missing',
+            },
+            "success": False
+        }, 400
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
+
 
 
 #########################################################
 ##################### PROFILE ###########################
 #########################################################
-
-@rest_catalog_bp.route("/profile",methods=["POST"])
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'])
-def api_rest_create_profile():
-    print("Hello")
-

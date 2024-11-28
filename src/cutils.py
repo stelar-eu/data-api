@@ -28,7 +28,7 @@ def create_CKAN_headers(API_TOKEN):
     return package_headers, resource_headers
 
 
-def request(method, entity_type, endpoint, params=None, data=None, headers=None, json=None):        
+def request(method, entity_type, endpoint, params=None, data=None, headers=None, json=None, files=None):        
         """
         Sends a request to the CKAN API
 
@@ -40,6 +40,7 @@ def request(method, entity_type, endpoint, params=None, data=None, headers=None,
             data (dict, optional): Form data to be sent in the body.
             headers (dict, optional): Additional request headers.
             json (dict, optional): JSON data to be sent in the body.
+            file (file, optional): A file to upload to the request endpoint.
 
         Returns:
             requests.Response: The response object from the API.
@@ -93,12 +94,14 @@ def request(method, entity_type, endpoint, params=None, data=None, headers=None,
             data=data,    # if provided, this will be form data
             json=json,    # if provided, this will be JSON payload
             headers=default_headers,
-            verify=True
+            verify=True,
+            files=files
         )
 
         # Raise an exception for HTTP errors (4xx, 5xx responses)
         response.raise_for_status()
         return response
+
 
 def list_packages(limit: int = 0, offset: int = 0):
     """
@@ -141,7 +144,6 @@ def list_packages(limit: int = 0, offset: int = 0):
     except Exception:
         # If an error occurs during the request, raise a general exception
         raise
-
 
 
 def get_packages(limit: int = 0, offset: int = 0, tag_filter: str = None, filter_mode: str = None):
@@ -245,7 +247,6 @@ def get_package(id: str, compressed: bool = False, no_resources: bool = False):
             raise RuntimeError from he
 
 
-
 def create_package(basic_metadata: dict, extra_metadata: dict = None, profile_metadata: dict = None):
     """This method utilizes the CKAN API to publish a package in the catalog.
     The package published can be defined w/ or w/out resources, w/ or w/out extra metadata
@@ -326,7 +327,6 @@ def create_package(basic_metadata: dict, extra_metadata: dict = None, profile_me
     else:
         raise RuntimeError(new_package_resp.json['result'])
     
-
     
 def patch_package(id: str, package_metadata: dict):
     """
@@ -365,7 +365,6 @@ def patch_package(id: str, package_metadata: dict):
             raise Exception from he
     except Exception as e:
         raise Exception from e
-    
 
 
 def update_package(id: str, package_metadata: dict):
@@ -400,8 +399,7 @@ def get_package_resources(package_id: str, relation_filter: str = None):
         raise ValueError(f"Package with ID: {package_id} was not found")
     except Exception as e:
         raise Exception from e
-
-
+    
 
 def get_resource(id: str):
     try:
@@ -417,9 +415,8 @@ def get_resource(id: str):
     except Exception as e:
         raise Exception from e
     
-
-    
-def create_resource(package_id: str, resource_metadata: dict, relation_type: str = 'owned'):
+ 
+def create_resource(package_id: str, resource_metadata: dict, relation_type: str = 'owned') -> dict:
     try:
         if package_id:
             resource_metadata['package_id'] = package_id
@@ -442,6 +439,23 @@ def create_resource(package_id: str, resource_metadata: dict, relation_type: str
         raise Exception from e
             
 
+def patch_resource(id:str, resource_metadata: dict):
+    try:
+        if id:           
+            resource_metadata['id'] = id
+            response = request("POST","resource",'resource_patch', data=resource_metadata)
+            if response.status_code == 200:
+                return response.json()['result']
+        else:
+            raise ValueError("ID cannot be empty")
+    except requests.exceptions.HTTPError as he:
+        if he.response.status_code == 404:
+            raise ValueError(f"Resource with ID: {id} was not found")
+        if he.response.status_code == 400:
+            raise AttributeError(f"Missing parameters: {he}")
+    except Exception as e:
+        raise Exception from e
+            
 
 def delete_resource(id: str):
     try:
@@ -459,3 +473,43 @@ def delete_resource(id: str):
         raise ValueError(f"Resource with ID: {id} was not found")
     except Exception as e:
         raise Exception from e
+    
+
+##########################
+# NOT IMPLEMENTED
+##########################
+def publish_profile(package_id: str, profile_metadata: dict ) -> dict:
+    
+    if profile_metadata.get('file'):
+
+        with open(profile_metadata['file'], 'rb') as f:
+            try:
+                profile_metadata['package_id'] = package_id
+                profile_metadata['relation'] = 'profile'
+
+                # Use this instead of the custom create_resource method as we have a file
+                response = request("POST", "resource","resource_create", data=profile_metadata, files=[('upload', f)])
+                if response.status_code == 200:
+                    prf = open(profile_metadata['file'])
+                    profile = json.load(prf)
+                    resource_id = response.json()['result']['id']
+
+                    sql_commands = utils.extractProfileProperties(resource_id, profile)
+                    for sql in sql_commands:
+                        utils.execSql(sql)
+
+                    return response.json()['result']
+            except requests.exceptions.HTTPError as he:
+                if he.response.status_code == 404:
+                    raise ValueError(f"Package with ID: {package_id} was not found")
+                elif he.response.status_code == 400:
+                    raise AttributeError(f"Missing parameter fields for profile metadata: {he}")
+            except Exception as e:
+                raise Exception from e
+        
+    elif profile_metadata.get('url'):
+        try:
+            resource = create_resource(package_id, resource_metadata=profile_metadata, relation_type='profile')
+            return resource
+        except Exception as e:
+            raise Exception from e

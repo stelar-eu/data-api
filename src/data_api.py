@@ -85,7 +85,7 @@ logging.basicConfig(level=logging.DEBUG)
 # such as User Management, Catalog Management,
 # Workflow/Execution management etc.
 
-app.register_blueprint(users_bp, url_prefix='/api/v1/users')
+app.register_blueprint(users_bp, url_prefix='/api/v2/users')
 app.register_blueprint(tasks_bp, url_prefix='/api/v1/task')
 app.register_blueprint(dashboard_bp, url_prefix='/console/v1')
 app.register_blueprint(publisher_bp, url_prefix='/console/v1/publisher')
@@ -1474,7 +1474,7 @@ def api_profile_publish(json_data):
 
     if request.headers:
         if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
+            package_headers, resource_headers = utils.create_CKAN_headers(get_demo_ckan_token())
         else:
             response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
             return jsonify(response)
