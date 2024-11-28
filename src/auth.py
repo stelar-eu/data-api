@@ -9,11 +9,9 @@ from functools import wraps
 import kutils
 
 
-logging.basicConfig(level=logging.DEBUG)
+auth = HTTPTokenAuth(scheme="Bearer", header="Authorization", security_scheme_name="BearerAuth")
 
-auth = HTTPTokenAuth(scheme='Bearer', header='Authorization')
-
-security_doc = ["ApiKeyAuth"]
+security_doc = "BearerAuth"
 
 @auth.verify_token
 def api_verify_token(token):
@@ -95,21 +93,23 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
-
-            # Extract the token from the 'Authorization' header
-            access_token = request.headers.get('Authorization').split(" ")[1]
-            
-            # Check if the token is valid and corresponds to an admin user
-            if not kutils.introspect_admin_token(access_token):
-                response = {
-                    'success': False,
-                    'help': request.url,
-                    'error': {
-                        '__type': 'Authorization Error',
-                        'name': 'Bearer Token is not related to an admin user'
+            if request.headers.get('Authorization'):
+                # Extract the token from the 'Authorization' header
+                access_token = request.headers.get('Authorization').split(" ")[1]
+                
+                # Check if the token is valid and corresponds to an admin user
+                if not kutils.introspect_admin_token(access_token):
+                    response = {
+                        'success': False,
+                        'help': request.url,
+                        'error': {
+                            '__type': 'Authorization Error',
+                            'name': 'Bearer Token is not related to an admin user'
+                        }
                     }
-                }
-                return response, 403
+                    return response, 403
+            else:
+                raise IndexError
         except (IndexError, ValueError):
             response = {
                 'success': False,
@@ -119,7 +119,7 @@ def admin_required(f):
                     'name': 'Authorization Bearer Token is missing or malformed'
                 }
             }
-            return response, 400
+            return response, 401
         except Exception as e:
             response = {
                 'success': False,

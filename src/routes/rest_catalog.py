@@ -17,9 +17,10 @@ rest_catalog_bp = APIBlueprint('rest_catalog_blueprint', __name__, tag='RESTful 
 #########################################################
 
 @rest_catalog_bp.route("/datasets", methods=["GET"])
-@rest_catalog_bp.doc(tags=['RESTful Search Operations'])
+@rest_catalog_bp.doc(tags=['RESTful Search Operations'], security=security_doc)
 @rest_catalog_bp.input(schema.PaginationParameters, location='query')
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
+@auth.verify_token
 def api_rest_get_datasets(query_data):
     """
     Retrieve a list of datasets with rich information about each entry. Only Datasets, not workflows
@@ -64,9 +65,9 @@ def api_rest_get_datasets(query_data):
 
 
 @rest_catalog_bp.route("/datasets/list", methods=["GET"])
-@rest_catalog_bp.doc(tags=['RESTful Search Operations'])
+@rest_catalog_bp.doc(tags=['RESTful Search Operations'], security=security_doc)
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-@auth.login_required
+@auth.verify_token
 def api_rest_list_datasets():
     """
     List all dataset IDs in the CKAN catalog.
@@ -102,9 +103,9 @@ def api_rest_list_datasets():
         }, 500
 
 @rest_catalog_bp.route("/datasets/<dataset_id>", methods=["GET"])
-@rest_catalog_bp.doc(tags=['RESTful Search Operations'])
+@rest_catalog_bp.doc(tags=['RESTful Search Operations'], security=security_doc)
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-@auth.login_required
+@auth.verify_token
 def api_rest_get_dataset(dataset_id: str):
     """
     Retrieve a dataset from the Data Catalog by its ID with full information.
@@ -155,8 +156,8 @@ def api_rest_get_dataset(dataset_id: str):
 @rest_catalog_bp.route("/datasets", methods=["POST"])
 @rest_catalog_bp.input(schema.Dataset, location='json')
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'])
-@auth.login_required
+@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
+@auth.verify_token
 def api_rest_create_dataset(json_data):
     """
     Create and publish a dataset in the Data Catalog.
@@ -221,18 +222,18 @@ def api_rest_create_dataset(json_data):
 
 
 @rest_catalog_bp.route("/datasets/<dataset_id>",methods=["PUT"])
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'])
+@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-@auth.login_required
+@auth.verify_token
 def api_rest_update_dataset(dataset_id: str):
 
     print("Hello")
 
 @rest_catalog_bp.route("/datasets/<dataset_id>",methods=["PATCH"])
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'])
+@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
 @rest_catalog_bp.input(schema.Package, location='json')
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-@auth.login_required
+@auth.verify_token
 def api_rest_patch_dataset(dataset_id: str, json_data):
     """
     Patch a dataset in the Data Catalog by its ID.
@@ -282,9 +283,9 @@ def api_rest_patch_dataset(dataset_id: str, json_data):
 
 
 @rest_catalog_bp.route("/datasets/<dataset_id>",methods=["DELETE"])
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'])
+@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-@auth.login_required
+@auth.verify_token
 def api_rest_delete_dataset(dataset_id):
     """
     Delete a dataset in the Data Catalog by its ID.
@@ -337,9 +338,9 @@ def api_rest_delete_dataset(dataset_id):
 
 @rest_catalog_bp.route("/datasets/<dataset_id>/resources", methods=["GET"])
 @rest_catalog_bp.route("/datasets/<dataset_id>/resources/<filter>", methods=["GET"])
-@rest_catalog_bp.doc(tags=['RESTful Search Operations'])
+@rest_catalog_bp.doc(tags=['RESTful Search Operations'], security=security_doc)
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-@auth.login_required
+@auth.verify_token
 def api_rest_get_dataset_resources(dataset_id: str, filter: str = None):
     """
     Retrieve the resources of a Dataset from the Data Catalog by its ID with full information.
@@ -388,10 +389,10 @@ def api_rest_get_dataset_resources(dataset_id: str, filter: str = None):
         }, 500
 
 @rest_catalog_bp.route("/datasets/<dataset_id>/resource", methods=["POST"])
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'])
+@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
 @rest_catalog_bp.input(schema.Resource, location='json')
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-@auth.login_required
+@auth.verify_token
 def api_rest_create_resource(dataset_id: str, json_data):
     """
     Create a new resource associated with a dataset.
@@ -442,9 +443,9 @@ def api_rest_create_resource(dataset_id: str, json_data):
 
 
 @rest_catalog_bp.route("/resources/<resource_id>",methods=["GET"])
-@rest_catalog_bp.doc(tags=['RESTful Search Operations'])
+@rest_catalog_bp.doc(tags=['RESTful Search Operations'], security=security_doc)
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-@auth.login_required
+@auth.verify_token
 def api_rest_get_resource(resource_id: str):
     """
     Retrieve a resource by its ID with full information.
@@ -492,9 +493,9 @@ def api_rest_get_resource(resource_id: str):
 
 
 @rest_catalog_bp.route("/resources/<resource_id>",methods=["DELETE"])
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'])
+@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-@auth.login_required
+@auth.verify_token
 def api_rest_delete_resource(resource_id: str):
     """
     Delete a resource by its ID.
@@ -541,10 +542,10 @@ def api_rest_delete_resource(resource_id: str):
         }, 500
 
 @rest_catalog_bp.route("/resources/<resource_id>",methods=["PATCH"])
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'])
+@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
 @rest_catalog_bp.input(schema.Resource, location='json')
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-@auth.login_required
+@auth.verify_token
 def api_rest_patch_resource(resource_id: str, json_data):
     """
     Patch a resource's fields without deleting any omitted ones by its ID.

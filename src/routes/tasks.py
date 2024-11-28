@@ -186,7 +186,7 @@ def api_artifact_publish(json_data, headers):
                                                        "tags": {}})
 # @tasks_bp.output(schema.ResponseOK, status_code=200)
 @tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_task_execution_create(json_data):
     """Create a Task Execution that will run a docker image with the provided
     parameters.
@@ -270,7 +270,7 @@ def api_task_execution_create(json_data):
 @tasks_bp.input(schema.Identifier, example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
 # @tasks_bp.output(schema.ResponseOK, status_code=200)
 @tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_task_execution_input_json(query_data):
     """Return the input json of the specific Task Execution.
 
@@ -385,7 +385,7 @@ def api_task_execution_input_json(query_data):
                                                             }})
 # @tasks_bp.output(schema.ResponseOK, status_code=200)
 @tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_task_execution_output_json(json_data):
     """Receives the output json of a task execution, it marks it as done, it stores
     all the information to the KG and it returns the metrics and output files 
@@ -482,7 +482,7 @@ def api_task_execution_output_json(json_data):
 @tasks_bp.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
 # @tasks_bp.output(schema.ResponseOK, status_code=200)
 @tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_task_execution_read(query_data):
     """Return the metadata of the task execution.
 
@@ -516,7 +516,7 @@ def api_task_execution_read(query_data):
 @tasks_bp.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
 # @tasks_bp.output(schema.ResponseOK, status_code=200)
 @tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_task_log_read(query_data):
     """Return the log of a task executed in the cluster.
 
@@ -567,7 +567,7 @@ def api_task_runtime_read(query_data):
 @tasks_bp.input(schema.Identifier, location='query', example="4a142419-2342-4495-bfa3-9b4b3c2cad2a")
 # @tasks_bp.output(schema.ResponseOK, status_code=200)
 @tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_task_execution_delete(query_data):
     """Delete the given Task Execution id.
 

@@ -20,7 +20,7 @@ publisher_bp = APIBlueprint('pub_blueprint', __name__, tag='Dashboard Dataset')
 logging.basicConfig(level=logging.DEBUG)
     
 @publisher_bp.route('/fetch_paths', methods=['GET'])
-@auth.login_required
+@auth.verify_token
 def fetch_minio_paths():
 
     try:
@@ -66,7 +66,7 @@ def fetch_minio_paths():
 
 
 @publisher_bp.route('/upload_file', methods=['POST'])
-@auth.login_required
+@auth.verify_token
 def upload_file_to_minio():
 
     try:

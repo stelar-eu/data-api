@@ -21,6 +21,7 @@ rest_workflows_bp = APIBlueprint('rest_workflows_blueprint', __name__, tag='REST
 @rest_workflows_bp.input(schema.Workflow, location='json')
 @rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
 @rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
+@auth.verify_token
 def api_rest_create_workflow(json_data):
     """
     Endpoint to create and publish a workflow in the Data Catalog.
@@ -86,6 +87,7 @@ def api_rest_create_workflow(json_data):
 @rest_workflows_bp.route("/workflows",methods=["GET"])
 @rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
 @rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
+@auth.verify_token
 def api_rest_get_datasets():
     try:
         resp = cutils.get_packages(tag_filter="Workflow", filter_mode='keep')
@@ -110,6 +112,7 @@ def api_rest_get_datasets():
 @rest_workflows_bp.route("/workflows/<workflow_id>",methods=["GET"])
 @rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
 @rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
+@auth.verify_token
 def api_rest_get_dataset(workflow_id: str):
     """
     Endpoint to retrieve a workflow from the CKAN catalog by its ID.
@@ -159,6 +162,7 @@ def api_rest_get_dataset(workflow_id: str):
 
 @rest_workflows_bp.route("/workflows/<wid>",methods=["PUT"])
 @rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
+@auth.verify_token
 def api_rest_update_dataset(wid):
     print("Hello")
 

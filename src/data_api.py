@@ -156,19 +156,13 @@ def callback():
     else:
         return "Failed to get access token", 400
 
-# Protect this endpoint with token verification
-@app.route('/secure-endpoint', methods=['GET'])
-@auth.login_required
-@app.doc(tags=["KLMS Testing"], security=security_doc)
-def secure_endpoint():
-    return jsonify({"message": "Authenticated with Keycloak!"})
 
 ################################## ENTRY POINT ########################################
 
 
 @app.route('/', methods=['GET'])
 @app.output(schema.ResponseOK, status_code=200)
-@app.doc(responses=[404], tags=['KLMS Data API'])   # ,summary='Entry point to the API'
+@app.doc(responses=[404], tags=['KLMS Data API']) 
 def home():
     """Entry point to the Data API of Knowledge Lake Management System.
 
@@ -933,7 +927,7 @@ def api_task_parameters(query_data):
 @app.input(schema.Filter, location='json', example={"q": "PREFIX dct: <http://purl.org/dc/terms/> SELECT ?uri ?title ?publisher WHERE { ?uri dct:title ?title . ?uri dct:publisher ?publisher . } LIMIT 5"})
 #@app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Search Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_sparql(json_data):
     """Submit a search request to the SPARQL endpoint.
 
@@ -973,7 +967,7 @@ def api_sparql(json_data):
 @app.input(schema.Filter, location='json', example={"q": "SELECT * FROM public.package LIMIT 5"})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Search Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_sql(json_data):
     """Submit a SELECT SQL command to the PostgreSQL database.
 
@@ -1016,7 +1010,7 @@ def api_sql(json_data):
 @app.input(schema.Filter, location='json', example={"q": "format"})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Search Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_facet_values(json_data):
     """Submit a SELECT SQL command to the PostgreSQL database.
 
@@ -1070,7 +1064,7 @@ def api_facet_values(json_data):
 @app.input(schema.Ranking, location='json', example={"rank_preferences":{"tags": ["Geospatial","POI"], "theme":["Land Use","Land Cover","Imagery"], "language":["en","el","fr"], "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]}}, "settings":{"k": 10, "algorithm": "threshold", "weights": [0.3,0.5,0.4] }})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Ranking Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_catalog_rank(json_data):
     """Submit a rank request regarding specific metadata attributes (facets) to the Data Catalog.
 
@@ -1235,7 +1229,7 @@ def api_catalog_rank(json_data):
 @app.input(schema.Dataset, location='json', example={"basic_metadata":{"title": "Test Data API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": ["STELAR","OpenStreetMap","Geospatial","Bavaria"]},"extra_metadata":{"INSPIRE theme":"Imagery", "theme": ["Earth Sciences", "Landuse", "http://eurovoc.europa.eu/4630"], "language": ["ca", "en", "es"], "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]},"temporal_start":"2023-01-31T11:33:54.132Z", "temporal_end":"2023-01-31T11:35:48.593Z"},"profile_metadata":{"url":"https://raw.githubusercontent.com/stelar-eu/data-profiler/main/examples/output/timeseries_profile.json", "name": "Time series profile in JSON", "description": "This is the profile of a time series in JSON format", "resource_type": "Tabular", "format": "JSON", "resource_tags": ["Profile", "Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseAmbiguous, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_dataset_publish(json_data):
     """Publish a new dataset in the Catalog.
 
@@ -1365,7 +1359,7 @@ def api_dataset_publish(json_data):
 @app.input(schema.Package, location='json', example={"package_metadata": {"title": "Test Data API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Berlin"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}],"name": "test_data_api_1","private": "false","version": "0.3","owner_org": "athenarc"}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_dataset_register(json_data):
     """Register a new dataset according to CKAN specifications. The user will become the publisher of this dataset.
 
@@ -1411,7 +1405,7 @@ def api_dataset_register(json_data):
 @app.input(schema.Package, location='json', example={"package_metadata": {"id": "test_data_api_1", "tags": [{"name": "Patch"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}] }})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_dataset_patch(json_data):
     """Patch more metadata to an existing dataset according to CKAN specifications. The user will become the publisher of this dataset.
 
@@ -1457,7 +1451,7 @@ def api_dataset_patch(json_data):
 @app.input(schema.Profile, location='json', example={"profile_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_type": "Raster", "resource_tags": ["Profile","Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_profile_publish(json_data):
     """Upload a profile as a resource to an existing dataset in CKAN. The user will become the publisher of this profile.
 
@@ -1523,7 +1517,7 @@ def api_profile_publish(json_data):
 @app.input(schema.Profile, location='json', example={"profile_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_type": "Raster", "resource_tags": ["Profile","Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_profile_store(json_data):
     """Store profile information directly in the PostgreSQL database. The respective resource must correspond to an existing dataset in CKAN. The user will become the publisher of this profile.
 
@@ -1573,7 +1567,7 @@ def api_profile_store(json_data):
 @app.input(schema.Resource, location='json', example={"resource_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_tags": ["Profile","Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_resource_upload(json_data):
     """Upload a resource to an existing dataset according to CKAN specifications. The user will become the publisher of this resource.
 
@@ -1628,7 +1622,7 @@ def api_resource_upload(json_data):
 @app.input(schema.Resource, location='json', example={"resource_metadata": {"package_id": "test_data_api_1", "url":"https://data.smartdublin.ie/dataset/09870e46-26a3-4dc2-b632-4d1fba5092f9/resource/40a718a8-cb99-468d-962b-af4fed4b0def/download/bleeperbike_map.geojson", "name": "Test GeoJSON resource", "description": "This is the test resource in GeoJSON format", "format": "GeoJSON", "resource_type": "Tabular", "resource_tags": ["Link to external resource", "Found in the Web"]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_resource_link(json_data):
     """Associate a resource (with its URL) to an existing dataset in CKAN. The user will become the publisher of this resource.
 
@@ -1685,7 +1679,7 @@ def api_resource_link(json_data):
 @app.input(schema.Package, location='json', example={"package_metadata": {"title": "Test workflow", "notes": "This workflow performs entity matching", "tags": ["STELAR", "Entity matching", "Entity resolution"]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_workflow_publish(json_data):
     """Publish a new workflow as a CKAN package. The user will become the publisher of this workflow.
 
@@ -1749,138 +1743,6 @@ def api_workflow_publish(json_data):
         return jsonify(response)
 
 
-@app.route('/api/v1/dataset/delete', methods=['POST'])
-@app.input(schema.Identifier, location='json', example={"id":"test_data_api_1"})
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Catalog Management'], security=security_doc)
-@auth.login_required
-def api_dataset_purge(json_data):
-    """Delete an existing dataset from the Catalog.
-
-    Completely removes the metadata and any associated resources (e.g., profiles) of an existing dataset from the CKAN database. The user must have admin role in order to delete datasets.
-
-    Args:
-        data: A JSON with the id of an existing dataset.
-
-    Returns:
-        A JSON with the CKAN response to the delete request.
-    """
-
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/dataset/delete -d '{"id": "test_data_api_1"}'
-
-    config = current_app.config['settings']
-
-    if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
-        else:
-            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-            return jsonify(response)
-    else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-        return jsonify(response)
-
-    if request.data:
-        metadata=request.data
-        delete_metadata = json.loads(metadata.decode("utf-8"))   #json.loads(json.dumps(str(request.data)))
-    else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No metadata provided for deleting a dataset from the Catalog. Please specify the id of the dataset you wish to permanently delete.']}}
-        return jsonify(response)
-
-    # Make a POST request to the CKAN API to purge an existing dataset
-    response = requests.post(config['CKAN_API']+'dataset_purge', json=delete_metadata, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
-    return response.json()
-
-
-@app.route('/api/v1/dataset/unpublish', methods=['POST'])
-@app.input(schema.Identifier, location='json', example={"id":"test_data_api_1"})
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Catalog Management'], security=security_doc)
-@auth.login_required
-def api_dataset_unpublish(json_data):
-    """Unpublish an existing dataset from the Catalog.
-
-    Marks an existing dataset as inactive in CKAN. The package remains in the CKAN database with "deleted" status, but does not appear in the GUI and is not included in search results.
-
-    Args:
-        data: A JSON with the id of an existing dataset.
-
-    Returns:
-        A JSON with the CKAN response to the unpublish request.
-    """
-
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/dataset/unpublish -d '{"id": "test_data_api_1"}'
-
-    config = current_app.config['settings']
-
-    if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
-        else:
-            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-            return jsonify(response)
-    else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-        return jsonify(response)
-
-    if request.data:
-        metadata=request.data
-        unpublish_metadata = json.loads(metadata.decode("utf-8"))   #json.loads(json.dumps(str(request.data)))
-    else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No metadata provided for unpublishing a dataset from the Catalog. Please specify the id of the dataset you wish to unpublish.']}}
-        return jsonify(response)
-
-    # Make a POST request to the CKAN API to unpublish an existing package
-    response = requests.post(config['CKAN_API']+'package_delete', json=unpublish_metadata, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
-    return response.json()
-
-
-
-@app.route('/api/v1/resource/delete', methods=['POST'])
-@app.input(schema.Identifier, location='json', example={"id":"aa2992aa-b589-463d-ae1e-8430d91206cb"})
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=['Catalog Management'], security=security_doc)
-@auth.login_required
-def api_resource_delete(json_data):
-    """Delete an existing resource from the Catalog.
-
-    Completely removes a resource (e.g., profile) associated with an existing dataset from the CKAN database. The user must have admin role or must be the publisher of this resource.
-
-    Args:
-        data: A JSON with the id of an existing resource.
-
-    Returns:
-        A JSON with the CKAN response to the delete request.
-    """
-
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/resource/delete -d '{"id": "aa2992aa-b589-463d-ae1e-8430d91206cb"}'
-
-    config = current_app.config['settings']
-
-    if request.headers:
-        if request.headers.get('Api-Token') != None:
-            package_headers, resource_headers = utils.create_CKAN_headers(request.headers['Api-Token'])
-        else:
-            response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request.']}}
-            return jsonify(response)
-    else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'Authorization Error','name':['No headers specified. Please specify headers for your request, including a valid API TOKEN.']}}
-        return jsonify(response)
-
-    if request.data:
-        metadata=request.data
-        delete_metadata = json.loads(metadata.decode("utf-8"))   #json.loads(json.dumps(str(request.data)))
-    else:
-        response = {'success':False, 'help': request.url, 'error':{'__type':'No specifications','name':['No metadata provided for deleting a resource from the Catalog. Please specify the id of the resource you wish to permanently delete.']}}
-        return jsonify(response)
-
-    # Make a POST request to the CKAN API to purge an existing dataset
-    response = requests.post(config['CKAN_API']+'resource_delete', json=delete_metadata, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
-    return response.json()
-
-
-
-
 ################################ WORKFLOW OPERATIONS ##########################
 
 @app.route('/api/v1/workflow/execution/create', methods=['POST'])
@@ -1889,7 +1751,7 @@ def api_resource_delete(json_data):
                                                         "tags": {}})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_workflow_execution_create(json_data):
     """Create a Workflow Execution under a specific defined workflow.
 
@@ -1926,7 +1788,7 @@ def api_workflow_execution_create(json_data):
 @app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_workflow_execution_read(query_data):
     """Return the metadata of the given Workflow Execution id.
 
@@ -1956,7 +1818,7 @@ def api_workflow_execution_read(query_data):
                                                              "state": "succeeded"})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_workflow_execution_commit(json_data):
     """Store the results of the Workflow Execution.
 
@@ -1988,7 +1850,7 @@ def api_workflow_execution_commit(json_data):
 @app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_workflow_execution_delete(query_data):
     """Delete the given Workflow Execution id.
 
@@ -2018,7 +1880,7 @@ def api_workflow_execution_delete(query_data):
                                                                  "parameters": ['k', 'model']})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_workflow_statistics(json_data):
     """Fetch statistics for each Worfklow Execution for a specific group of 
     workflow executions.
@@ -2048,7 +1910,7 @@ def api_workflow_statistics(json_data):
 @app.route('/api/v1/workflow/tasks', methods=['GET'])
 @app.doc(tags=['Tracking Operations'], security=security_doc)
 @app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
-@auth.login_required
+@auth.verify_token
 def api_workflow_tasks(query_data):
     """Fetch the tasks for a given Workflow Execution 
 
@@ -2072,7 +1934,7 @@ def api_workflow_tasks(query_data):
 
 @app.route('/api/v1/workflows', methods=['GET'])
 @app.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.login_required
+@auth.verify_token
 def api_workflow_all():
     """Fetch all parameters for all workflow executions
 
@@ -2149,7 +2011,6 @@ def main(app):
         'TERMS_OF_SERVICE': os.getenv('API_TERMS_OF_SERVICE', 'http://stelar-project.eu/'),
         'CONTACT': json.loads(os.getenv('API_CONTACT', '{"name": "API Support", "url": "<API-URL>", "email": "<CONTACT-EMAIL_ADDRESS>"}')),
         'LICENSE': json.loads(os.getenv('API_LICENSE', '{"name": "Apache 2.0", "url": "http://www.apache.org/licenses/LICENSE-2.0.html"}')),
-        'SECURITY_SCHEMES': json.loads(os.getenv('API_SECURITY_SCHEMES', '{"ApiKeyAuth": {"type": "apiKey", "in": "header", "name": "Api-Token"}}')),
 
         'CKAN_API': f"{os.getenv('CKAN_SITE_URL', 'http://<CKAN-HOST>')}/api/3/action/",
         'CKAN_ADMIN_TOKEN': os.getenv('CKAN_ADMIN_TOKEN', ''),
@@ -2191,7 +2052,15 @@ def main(app):
     # Apply configuration settings for this API
     app.title = app.config['settings']['API_TITLE']
     app.version = app.config['settings']['API_VERSION']
-
+    app.config['SECURITY_SCHEMES'] = {
+        'BearerAuth': {
+            'type': 'http',
+            'scheme': 'bearer',
+            'bearerFormat': 'JWT'
+        }
+    }
+    os.putenv = app.config['SECURITY_SCHEMES']
+    
     # Configure execution
     execution.configure(app.config["settings"])
     from werkzeug.middleware.proxy_fix import ProxyFix

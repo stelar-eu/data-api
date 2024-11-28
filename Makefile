@@ -1,6 +1,6 @@
 
 DOCKER=docker
-IMGTAG=petroud/stelar-tuc:data-api-prod
+IMGTAG=petroud/stelar-tuc:data-api-dev
 IMGPATH=.
 DOCKERFILE=$(IMGPATH)/Dockerfile.k8s
 
