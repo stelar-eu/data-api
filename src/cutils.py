@@ -426,9 +426,10 @@ def create_resource(package_id: str, resource_metadata: dict, relation_type: str
 
             if response.status_code == 200:
                 resource_id = response.json()['result']['id']
-                sql_commands = utils.extractResourceProperties(resource_id, resource_metadata)
-                for sql in sql_commands:
-                    utils.execSql(sql)
+                if resource_metadata.get("resource_type"):
+                    sql_commands = utils.extractResourceProperties(resource_id, resource_metadata)
+                    for sql in sql_commands:
+                        utils.execSql(sql)
 
             return response.json()['result']
         
