@@ -7,8 +7,9 @@ import utils
 import logging 
 # Input schema for validating and structuring several API requests
 import schema
-
+import xml.etree.ElementTree as ET
 import kutils
+import mutils
 
 
 from demo_t import get_demo_ckan_token
@@ -663,6 +664,41 @@ def api_patch_roles(user_id, json_data):
             "success": False
         }, 500
         
+@users_bp.route('/s3/credentials', methods=['GET'])
+@users_bp.output(schema.ResponseAmbiguous, status_code=200)
+@users_bp.doc(tags=['User Management'], security=security_doc)
+@token_active
+def api_acquire_s3_creds():
+    """Returns a set of STS S3 Credentials for the user to use within the STELAR Client's context. 
+
+       Returns:
+       - JSON: Containing the S3 API URL and the STS credentials.
+       
+    """
+    
+    try:
+        access_token = request.headers['Authorization'].replace("Bearer ","")
+        config = current_app.config['settings']
+        minio_url = "https://"+config['MINIO_API_SUBDOMAIN']+"."+config['KLMS_DOMAIN_NAME']
+        creds = mutils.get_temp_minio_credentials(access_token=access_token)
+        creds['S3Url'] = minio_url
+        return {
+            "success":True, 
+            "result":{
+                "creds": creds
+            },
+            "help": request.url
+        }, 200
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
+
 
 
 
