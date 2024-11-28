@@ -373,7 +373,19 @@ def update_package(id: str, package_metadata: dict):
     pass
 
 
-
+def delete_package(id: str):
+    try:
+        if id:
+            response = request("POST","package","dataset_purge",json={"id":id})
+            if response.status_code == 200:
+                return id
+    except requests.exceptions.HTTPError as he:
+        if he.response.status_code == 404:
+            raise ValueError(f"Package with ID: {id} was not found")
+        elif he.response.status_code == 409:
+            raise AttributeError(f"Missing Parameters")
+    except Exception as e:
+        raise Exception from e
 
 def get_package_resources(package_id: str, relation_filter: str = None):
 
@@ -405,6 +417,8 @@ def get_resource(id: str):
     except Exception as e:
         raise Exception from e
     
+
+    
 def create_resource(package_id: str, resource_metadata: dict, relation_type: str = 'owned'):
     try:
         if package_id:
@@ -428,3 +442,20 @@ def create_resource(package_id: str, resource_metadata: dict, relation_type: str
         raise Exception from e
             
 
+
+def delete_resource(id: str):
+    try:
+        if id:
+            # Performing double delete because CKAN needs 2 resource delete requests to hard delete a resource.
+            # Ugh....
+            response = request("POST","resource","resource_delete",json={"id":id})
+            if response.status_code == 200:
+                response = request("POST","resource","resource_delete",json={"id":id})
+            if response.status_code == 200:
+                return id
+        else:
+            raise ValueError("ID cannot be empty")
+    except requests.exceptions.HTTPError as he:
+        raise ValueError(f"Resource with ID: {id} was not found")
+    except Exception as e:
+        raise Exception from e

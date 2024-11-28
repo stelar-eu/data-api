@@ -280,10 +280,55 @@ def api_rest_patch_dataset(dataset_id: str, json_data):
         }, 500
 
 
-@rest_catalog_bp.route("/datasets",methods=["DELETE"])
+@rest_catalog_bp.route("/datasets/<dataset_id>",methods=["DELETE"])
 @rest_catalog_bp.doc(tags=['RESTful Publishing Operations'])
-def api_rest_delete_dataset():
-    print("Hello")
+@rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
+@auth.login_required
+def api_rest_delete_dataset(dataset_id):
+    """
+    Delete a dataset in the Data Catalog by its ID.
+    Any catalog resources associated with the dataset will also be deleted. 
+    ! ATTENTION ! This action performs a hard-delete and the dataset will no longer be retrievable.
+
+    Args:
+        - dataset_id (str): The unique identifier of the dataset in the Data Catalog.
+
+    Responses:
+        - 200: Dataset successfully deleted and returned.
+        - 404: Dataset not found in the catalog.
+        - 500: An unknown error occurred.
+    Returns:
+        - id (str): The ID of the deleted dataset when the action was performed succesfully.
+    """
+    
+    try:
+        resp = cutils.delete_package(dataset_id)
+        return {
+                "success":True, 
+                "result":{
+                    "dataset": resp
+                },
+                "help": request.url
+        }, 200
+    
+    except ValueError as ve:
+        return {
+                "success":False, 
+                "error":{
+                    "name": f"Error: {ve}",
+                    "__type":"Package Entity Not Found"
+                },
+                "help": request.url
+        }, 404
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
 
 #########################################################
 ##################### RESOURCES #########################
@@ -295,7 +340,22 @@ def api_rest_delete_dataset():
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
 @auth.login_required
 def api_rest_get_dataset_resources(dataset_id: str, filter: str = None):
+    """
+    Retrieve the resources of a Dataset from the Data Catalog by its ID with full information.
 
+    This route allows clients to query the catalog and fetch details of dataset resources 
+
+    Args:
+        filter (str, Optional): __'owned'__ for resources that have the 'owned' relation with the dataset or __'profile'__ for generated profile resources.
+
+    Responses:
+        - 200: Dataset successfully retrieved.
+        - 404: Dataset not found in the catalog.
+        - 500: An unknown error occurred.
+
+    Returns:
+        dict: A JSON response containing the dataset details or error information.
+    """
     try:
         resp = cutils.get_package_resources(dataset_id, filter)
         return {
@@ -332,6 +392,24 @@ def api_rest_get_dataset_resources(dataset_id: str, filter: str = None):
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
 @auth.login_required
 def api_rest_create_resource(dataset_id: str, json_data):
+    """
+    Create a new resource associated with a dataset.
+
+    This route allows clients to create a resource in the Data Catalog associated with a dataset.
+    The resource published from here will be __owned__ by the dataset if the relation is not explicitely
+    specified in the resource JSON.
+
+    Args:
+        resource_metatada (dict): The JSON body containing the information about the new resource.
+
+    Responses:
+        - 200: Resource successfully created.
+        - 404: Package in which the resource was going to be published is not found.
+        - 500: An unknown error occurred.
+
+    Returns:
+        dict: A JSON response containing the resource details or error information.
+    """
     try:
         specs = json.loads(request.data.decode("utf-8"))
         resp = cutils.create_resource(dataset_id, specs.get("resource_metadata"))
@@ -367,6 +445,22 @@ def api_rest_create_resource(dataset_id: str, json_data):
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
 @auth.login_required
 def api_rest_get_resource(resource_id: str):
+    """
+    Retrieve a resource by its ID with full information.
+
+    This route allows clients to query the catalog and fetch details of a specific resource by UUID 
+
+    Args:
+        resource_id (str): The UUID of the resource.
+
+    Responses:
+        - 200: Resource successfully retrieved.
+        - 404: Resource with ID not found in the catalog.
+        - 500: An unknown error occurred.
+
+    Returns:
+        dict: A JSON response containing the resource details or error information.
+    """
     try:
         resp = cutils.get_resource(resource_id)
         return {
@@ -394,6 +488,57 @@ def api_rest_get_resource(resource_id: str):
             },
             "success": False
         }, 500
+
+
+@rest_catalog_bp.route("/resources/<resource_id>",methods=["DELETE"])
+@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'])
+@rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
+@auth.login_required
+def api_rest_delete_resource(resource_id: str):
+    """
+    Delete a resource by its ID.
+
+    This route allows clients to delete a specific resource by UUID 
+
+    Args:
+        resource_id (str): The UUID of the resource.
+
+    Responses:
+        - 200: Resource successfully deleted.
+        - 404: Resource with ID not found in the catalog.
+        - 500: An unknown error occurred.
+
+    Returns:
+        id (str): The ID of the deleted resource.
+    """
+    try:
+        resp = cutils.delete_resource(resource_id)
+        return {
+                "success":True, 
+                "result":{
+                    "resource": resp
+                },
+                "help": request.url
+        }, 200
+    except ValueError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {ve}",
+                '__type': 'Resource Entity Not Found',
+            },
+            "success": False
+        }, 404
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
+
 
 
 #########################################################
