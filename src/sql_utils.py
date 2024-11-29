@@ -47,6 +47,28 @@ def cast_dict(d):
     return d2
 '''
 
+def policy_version_create(policy_uuid, policy_familiar_name, active, yaml_content, user_id):
+    """Records in the database that the user-specified parameters for the given policy 
+
+    Args:
+        policy_uuid: UUID of the policy_version
+        parameters: A JSON dictionary with parametrization as (key, value) pairs.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose the SQL command using the template for recording parameters of a task execution 
+    sql = utils.sql_policy_template['policy_create_template']   
+    resp = utils.execSql(sql, (policy_uuid, policy_familiar_name, active, yaml_content, user_id))
+    if 'status' in resp:
+        if not resp.get('status'):
+            return False
+    else:
+        return False
+    
+    return True
+
 def workflow_execution_create(workflow_exec_id, start_date, state, tags=None):
     """Records metadata for a new workflow execution in the database.
 

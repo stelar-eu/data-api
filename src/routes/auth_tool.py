@@ -4,32 +4,46 @@ import mutils as mu
 import kutils as ku
 import monitor_module as mon
 import reconciliation_module as rec
-from src.auth import auth, security_doc
+from src.auth import auth, security_doc, admin_required
 import yaml
+import schema
+import sql_utils
+import uuid
+import kutils
 
+auth_tool_bp = APIBlueprint('auth_tool_blueprint', __name__, tag='Authorization Management')
 
-auth_tool_bp = APIBlueprint('auth_tool_blueprint', __name__, tag='Authorization Tool')
+@auth_tool_bp.route('/layout', methods=['POST'])
+@auth_tool_bp.doc(tags=['Authorization Management'], security=security_doc)
+@auth_tool_bp.output(schema.ResponseAmbiguous, status_code=200)
+@auth.verify_token
+@admin_required
+def create_data_layout():    
+    """
+    Accepts a YAML in the body desribing the desired layout to be applied to the MinIO instance
+    the KLMS cluster is connected to. The layout describes the bucket and the paths that the organization
+    requires. For documentation see more on: ....
 
+    Args: 
+        - layout (YAML):  In request body with header `application/x-yaml`
+    
+    Returns: 
+        - layout (JSON): The layout parsed and applied to the object store.
+    """
 
-@auth_tool_bp.route('/data_layout', methods=['POST'])
-def create_data_layout_function():
-    # Check if the request contains a file
-    if 'file' not in request.files:
-        return jsonify({"error": "No file provided"}), 400
-
-    # Retrieve the file from the request
-    file = request.files['file']
-
-    # Ensure it's a YAML file
-    if not file.filename.endswith(('.yaml', '.yml')):
-        return jsonify({"error": "File format not supported. Please upload a YAML file."}), 400
+    if request.content_type != 'application/x-yaml':
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: The 'Content-Type' header should be 'application/x-yaml'",
+                '__type': 'Incorrect Headers Error',
+            },
+            "success": False
+        }, 400
 
     try:
     
         keycloak_openid = ku.initialize_keycloak_openid()
-
-        ####### ADD ConsoleAdmin client role to service-account-minio user
-
 
         token = keycloak_openid.token(grant_type="client_credentials")
         print(token['access_token'])
@@ -39,7 +53,7 @@ def create_data_layout_function():
         minio_admin = mu.initialize_minio_admin(ac_key=credentials["AccessKeyId"],sec_key=credentials["SecretAccessKey"],token=credentials["SessionToken"])
 
         # Read the file content and load it as a dictionary
-        yaml_content = yaml.safe_load(file.read())
+        yaml_content = yaml.safe_load(request.data)
 
         resources_list = []
 
@@ -54,24 +68,47 @@ def create_data_layout_function():
         for item in resources_list:
             mu.create_bucket_and_subfolders(minio_admin,item)
 
-        
-        return jsonify({"parsed_yaml": yaml_content}), 200
+        return {
+                'help' : request.url,
+                'result': {
+                    'layout':yaml_content
+                },
+                'success': True
+            }, 200
     except yaml.YAMLError as e:
+
+
         return jsonify({"error": "Failed to parse YAML", "details": str(e)}), 400
     
     
-@auth_tool_bp.route('/create_roles', methods=['POST'])
+@auth_tool_bp.route('/policy', methods=['POST'])
+@auth_tool_bp.doc(tags=['Authorization Management'], security=security_doc)
+@auth_tool_bp.output(schema.ResponseAmbiguous, status_code=200)
+@auth.verify_token
+@admin_required
 def create_roles_function():
-    # Check if the request contains a file
-    if 'file' not in request.files:
-        return jsonify({"error": "No file provided"}), 400
+    """
+    Accepts a YAML in the body desribing the desired roles and permissions to be applied to the Keycloak instance
+    the KLMS cluster is connected to. The roles yaml representation describes which roles can perform the specified actions
+    in which resources in the MinIO instance
+    For documentation see more on: ....
 
-    # Retrieve the file from the request
-    file = request.files['file']
+    Args: 
+        - roles representation (YAML):  In request body with header `application/x-yaml`
+    
+    Returns: 
+        - policy (JSON): The policy JSON object containing the ID of the newly created policy.
+    """
 
-    # Ensure it's a YAML file
-    if not file.filename.endswith(('.yaml', '.yml')):
-        return jsonify({"error": "File format not supported. Please upload a YAML file."}), 400
+    if request.content_type != 'application/x-yaml':
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: The 'Content-Type' header should be 'application/x-yaml'",
+                '__type': 'Incorrect Headers Error',
+            },
+            "success": False
+        }, 400
 
     try:
         #initialize keycloak admin through service accounts
@@ -81,7 +118,8 @@ def create_roles_function():
         client_id = keycloak_admin.get_client_id("minio")
 
         # Read the file content and load it as a dictionary
-        yaml_content = yaml.safe_load(file.read())
+        yaml_content = yaml.safe_load(request.data)
+        yaml_str = request.data
 
         roles_list = []
 
@@ -116,6 +154,37 @@ def create_roles_function():
                 client_role_name = ku.create_client_role(keycloak_admin, "minio", client_id, policy) ##check on that
                 keycloak_admin.add_composite_realm_roles_to_role(realm_role_name,[keycloak_admin.get_client_role(client_id,client_role_name)])
         
-        return jsonify({"parsed_yaml": yaml_content}), 200
-    except yaml.YAMLError as e:
-        return jsonify({"error": "Failed to parse YAML", "details": str(e)}), 400
+        policy_id = str(uuid.uuid4())
+        user_id = ""
+
+        user = kutils.get_user_by_token(access_token=request.headers.get('Authorization').split(" ")[1])
+        if user:
+            user_id = user.get('username')
+
+        if sql_utils.policy_version_create(policy_id, "Not specified", True, str(yaml_str), user_id):
+            return {
+                'help' : request.url,
+                'result': {
+                    'policy':yaml_content
+                },
+                'success': True
+            }, 200
+        else:
+             return {
+                "help": request.url,
+                "error": {
+                    "name": f"Error: The new policy was not stored in the database",
+                    '__type': 'Policy Not Stored Error',
+                },
+                "success": False
+            }, 500
+
+    except Exception as e:
+        return {
+                "help": request.url,
+                "error": {
+                    "name": f"Error: {str(e)}",
+                    '__type': 'Unknown Error',
+                },
+                "success": False
+            }, 500

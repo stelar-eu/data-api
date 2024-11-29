@@ -91,7 +91,7 @@ app.register_blueprint(dashboard_bp, url_prefix='/console/v1')
 app.register_blueprint(publisher_bp, url_prefix='/console/v1/publisher')
 app.register_blueprint(settings_bp, url_prefix='/console/v1/settings')
 app.register_blueprint(admin_bp, url_prefix='/console/v1/admin')
-app.register_blueprint(auth_tool_bp, url_prefix='/api/v1/auth_tool')
+app.register_blueprint(auth_tool_bp, url_prefix='/api/v1/auth')
 app.register_blueprint(rest_catalog_bp, url_prefix='/api/v2')
 app.register_blueprint(rest_workflows_bp, url_prefix='/api/v2')
 ############################################################

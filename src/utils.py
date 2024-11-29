@@ -154,6 +154,14 @@ location_sql_rank_template = 'SELECT p.id, exp(-0.001 * ST_Distance(ST_centroid(
 # SQL views existing in PostgreSQL database and corresponding to facets: 
 sql_views = {'tags':'package_tag_array', 'language':'package_language_array', 'theme':'package_theme_array', 'license':'package_license_array', 'dataset_type':'package_dataset_type_array', 'format':'package_format_array', 'provider_name':'package_provider_array', 'organization':'package_organization_array', 'spatial':'package_extent', 'temporal_extent':'package_temporal_extent', 'metadata_modified':'package_metadata_modified', 'num_rows':'package_num_rows', 'days_active':'package_days_active', 'velocity':'package_velocity', 'cloud_coverage':'profile_vista_min_cloud_coverage', 'missing':'profile_vista_min_missing', 'lai':'profile_vista_max_lai'}
 
+
+# SQL commands for handling policies.
+
+sql_policy_template = {
+    'policy_create_template' : 'INSERT INTO klms.policy_history(policy_uuid, policy_familiar_name, active, yaml_content, user_id) VALUES (%s, %s, %s, %s, %s)',
+    'policy_get_all_template' : 'SELECT * FROM klms.policy_history',
+    'policy_get_by_id_template' : 'SELECT * FROM klms.policy_history WHERE policy_uuid=%s',
+}
 #########################################################
 
 # Templates of SQL queries for workflow management
