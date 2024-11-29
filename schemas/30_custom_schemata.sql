@@ -28,7 +28,7 @@ $$;
 ---------------------------------------------
 CREATE TABLE IF NOT EXISTS klms.policy_history(
     policy_uuid varchar(64) NOT NULL PRIMARY KEY,
-    policy_familiar_name varchar(100) NOT NULL,
+    policy_familiar_name varchar(100),
     active boolean NOT NULL,
     yaml_content text NOT NULL,
     created_at timestamp DEFAULT current_timestamp,
