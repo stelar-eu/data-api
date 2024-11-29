@@ -22,11 +22,13 @@ CREATE TYPE state_enum AS ENUM ('created', 'restarting', 'running', 'removing', 
 ---------------------------------------------
 --             LAYOUT & POLICIES
 ---------------------------------------------
-CREATE TABLE klms.policy_layout (
+CREATE TABLE IF NOT EXISTS klms.policy_history(
     policy_uuid varchar(64) NOT NULL PRIMARY KEY,
+    policy_familiar_name varchar(100) NOT NULL,
     active boolean NOT NULL,
     yaml_content text NOT NULL,
-    created_at timestamp DEFAULT current_timestamp
+    created_at timestamp DEFAULT current_timestamp,
+    user_id varchar(64) NOT NULL
 );
 
 
@@ -35,7 +37,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     -- If the new or updated policy is active, mark all other policies as inactive
     IF NEW.active THEN
-        UPDATE klms.policy_layout
+        UPDATE klms.policy_history
         SET active = false
         WHERE active = true AND policy_uuid != NEW.policy_uuid;
     END IF;
@@ -46,7 +48,7 @@ $$ LANGUAGE plpgsql;
 
 
 CREATE TRIGGER klms_trigger_ensure_single_active_policy
-BEFORE INSERT OR UPDATE ON klms.policy_layout
+BEFORE INSERT OR UPDATE ON klms.policy_history
 FOR EACH ROW
 EXECUTE FUNCTION klms.ensure_single_active_policy();
 
