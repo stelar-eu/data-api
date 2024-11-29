@@ -366,12 +366,6 @@ def patch_package(id: str, package_metadata: dict):
     except Exception as e:
         raise Exception from e
 
-
-def update_package(id: str, package_metadata: dict):
-
-    pass
-
-
 def delete_package(id: str):
     try:
         if id:

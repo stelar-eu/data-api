@@ -5,6 +5,7 @@ import datetime
 import uuid
 import re
 
+
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -98,6 +99,21 @@ def introspect_admin_token(access_token):
                 return False
         else:
             return False
+    except Exception as e:
+        return False
+
+def get_user_by_token(access_token):
+    """
+    Introspects the given access token to return the user information if the token is active
+    Returns the user json if the token is valid, False if the token is invalid or expired.
+    """
+    try:
+        keycloak_openid = initialize_keycloak_openid()
+        introspect_response = keycloak_openid.introspect(access_token)
+        if introspect_response.get("active", False):
+            return introspect_response
+        else:
+            return {}
     except Exception as e:
         return False
 

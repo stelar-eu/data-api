@@ -6,9 +6,8 @@ import logging
 # Input schema for validating and structuring several API requests
 import schema
 import json
-import os
-
 import cutils
+import kutils
 
 rest_catalog_bp = APIBlueprint('rest_catalog_blueprint', __name__, tag='RESTful Publishing Operations')
 
@@ -184,6 +183,13 @@ def api_rest_create_dataset(json_data):
     """
     try:
         specs = json.loads(request.data.decode("utf-8"))
+
+        if specs.get('basic_metadata'):
+            user = kutils.get_user_by_token(access_token=request.headers.get('Authorization').split(" ")[1])
+            if user:
+                specs.get('basic_metadata')['author'] = user.get('username')
+                specs.get('basic_metadata')['author_email'] = user.get('email')
+        
         resp = cutils.create_package(specs.get('basic_metadata'), specs.get('extra_metadata'), specs.get('profile_metadata'))
         return {
                 "success":True, 
@@ -220,14 +226,6 @@ def api_rest_create_dataset(json_data):
             "success": False
         }, 500
 
-
-@rest_catalog_bp.route("/datasets/<dataset_id>",methods=["PUT"])
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
-@rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-@auth.verify_token
-def api_rest_update_dataset(dataset_id: str):
-
-    print("Hello")
 
 @rest_catalog_bp.route("/datasets/<dataset_id>",methods=["PATCH"])
 @rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
