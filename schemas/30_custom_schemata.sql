@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 --           Custom schema for WORKFLOW & TASK EXECUTIONS
 --****************************************************************
 
-CREATE SCHEMA klms;
+CREATE SCHEMA IF NOT EXISTS klms;
 
 -- Execution states for workflows & tasks
 
@@ -18,26 +18,52 @@ CREATE SCHEMA klms;
 CREATE TYPE state_enum AS ENUM ('created', 'restarting', 'running', 'removing', 'paused',  'dead', 'succeeded', 'failed');
 
 
+
+---------------------------------------------
+--             LAYOUT & POLICIES
+---------------------------------------------
+CREATE TABLE klms.policy_layout (
+    policy_uuid varchar(64) NOT NULL PRIMARY KEY,
+    active boolean NOT NULL,
+    yaml_content text NOT NULL,
+    created_at timestamp DEFAULT current_timestamp
+);
+
+
+CREATE OR REPLACE FUNCTION klms.ensure_single_active_policy()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- If the new or updated policy is active, mark all other policies as inactive
+    IF NEW.active THEN
+        UPDATE klms.policy_layout
+        SET active = false
+        WHERE active = true AND policy_uuid != NEW.policy_uuid;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER klms_trigger_ensure_single_active_policy
+BEFORE INSERT OR UPDATE ON klms.policy_layout
+FOR EACH ROW
+EXECUTE FUNCTION klms.ensure_single_active_policy();
+
+
 ---------------------------------------------
 --           WORKFLOW EXECUTIONS
 ---------------------------------------------
 
--- DROP TABLE klms.workflow_execution;
-
-CREATE TABLE klms.workflow_execution
+CREATE TABLE IF NOT EXISTS klms.workflow_execution
 ( workflow_uuid varchar(64) NOT NULL,
   "state" state_enum NOT NULL, 
   start_date timestamp,
   end_date timestamp,
---  package_id text,
   PRIMARY KEY (workflow_uuid)
---,  CONSTRAINT fk_workflow_id FOREIGN KEY(package_id) REFERENCES public.package(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-
--- DROP TABLE klms.workflow_tag;
-
-CREATE TABLE klms.workflow_tag
+CREATE TABLE IF NOT EXISTS klms.workflow_tag
 ( workflow_uuid varchar(64) NOT NULL,
   "key" text NOT NULL, 
   "value" text,
@@ -45,18 +71,15 @@ CREATE TABLE klms.workflow_tag
   CONSTRAINT fk_workflow_tag_uuid FOREIGN KEY(workflow_uuid) REFERENCES klms.workflow_execution(workflow_uuid) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
--- Index key value pairs for faster search:
-
-CREATE INDEX klms_workflow_tag_idx_key ON klms.workflow_tag(key);
-CREATE INDEX klms_workflow_tag_idx_value ON klms.workflow_tag(value);
-
+CREATE INDEX IF NOT EXISTS klms_workflow_tag_idx_key ON klms.workflow_tag(key);
+CREATE INDEX IF NOT EXISTS klms_workflow_tag_idx_value ON klms.workflow_tag(value);
 ---------------------------------------------
 --           TASK EXECUTIONS
 ---------------------------------------------
 
 -- DROP TABLE klms.task_execution;
 
-CREATE TABLE klms.task_execution
+CREATE TABLE IF NOT EXISTS klms.task_execution
 ( task_uuid varchar(64) NOT NULL,
   workflow_uuid varchar(64) NOT NULL,
   "state" state_enum NOT NULL, 
@@ -71,7 +94,7 @@ CREATE TABLE klms.task_execution
 
 -- DROP TABLE klms.task_tag;
 
-CREATE TABLE klms.task_tag
+CREATE TABLE IF NOT EXISTS klms.task_tag
 ( task_uuid varchar(64) NOT NULL,
   "key" text NOT NULL, 
   "value" text,
@@ -81,13 +104,13 @@ CREATE TABLE klms.task_tag
 
 -- Index key value pairs for faster search:
 
-CREATE INDEX klms_task_tag_idx_key ON klms.task_tag(key);
-CREATE INDEX klms_task_tag_idx_value ON klms.task_tag(value);
+CREATE INDEX IF NOT EXISTS klms_task_tag_idx_key ON klms.task_tag(key);
+CREATE INDEX IF NOT EXISTS klms_task_tag_idx_value ON klms.task_tag(value);
 
 
 -- DROP TABLE klms.metrics;
 
-CREATE TABLE klms.metrics
+CREATE TABLE IF NOT EXISTS klms.metrics
 ( task_uuid varchar(64) NOT NULL,
   "key" text NOT NULL, 
   "value" text,
@@ -98,13 +121,13 @@ CREATE TABLE klms.metrics
 
 -- Index key value pairs for faster search:
 
-CREATE INDEX klms_metrics_idx_key ON klms.metrics(key);
-CREATE INDEX klms_metrics_idx_value ON klms.metrics(value);
+CREATE INDEX IF NOT EXISTS klms_metrics_idx_key ON klms.metrics(key);
+CREATE INDEX IF NOT EXISTS klms_metrics_idx_value ON klms.metrics(value);
 
 
 -- DROP TABLE klms.parameters;
 
-CREATE TABLE klms.parameters
+CREATE TABLE IF NOT EXISTS klms.parameters
 ( task_uuid varchar(64) NOT NULL,
   "key" text NOT NULL, 
   "value" text,
@@ -114,13 +137,13 @@ CREATE TABLE klms.parameters
 
 -- Index key value pairs for faster search:
 
-CREATE INDEX klms_parameters_idx_key ON klms.parameters(key);
-CREATE INDEX klms_parameters_idx_value ON klms.parameters(value);
+CREATE INDEX IF NOT EXISTS klms_parameters_idx_key ON klms.parameters(key);
+CREATE INDEX IF NOT EXISTS klms_parameters_idx_value ON klms.parameters(value);
 
 
 -- DROP TABLE klms.task_input;
 
-CREATE TABLE klms.task_input
+CREATE TABLE IF NOT EXISTS klms.task_input
 ( task_uuid varchar(64) NOT NULL,
   order_num smallint,
   dataset_id text NOT NULL, 
@@ -132,7 +155,7 @@ CREATE TABLE klms.task_input
 
 -- DROP TABLE klms.task_output;
 
-CREATE TABLE klms.task_output
+CREATE TABLE IF NOT EXISTS klms.task_output
 ( task_uuid varchar(64) NOT NULL,
   order_num smallint,
   dataset_id text NOT NULL, 
@@ -164,7 +187,7 @@ CREATE TABLE klms.task_output
 --           DISTRIBUTIONS
 --******************************************
 
-CREATE TABLE klms.categorical_distribution
+CREATE TABLE IF NOT EXISTS klms.categorical_distribution
 ( distr_id text NOT NULL,
   type text NOT NULL, 
   count double precision,
@@ -173,7 +196,7 @@ CREATE TABLE klms.categorical_distribution
 );
 
 
-CREATE TABLE klms.numerical_distribution
+CREATE TABLE IF NOT EXISTS klms.numerical_distribution
 ( distr_id text NOT NULL,
   count double precision,
   average double precision,
@@ -199,7 +222,7 @@ CREATE TABLE klms.numerical_distribution
 -- ASSUMPTION: Ingest profiling information regarding raster imagery into the database.
 -- CAUTION! Temporal-related information NOT available in currently extracted profiles from raster datasets.
 
-CREATE TABLE klms.raster
+CREATE TABLE IF NOT EXISTS klms.raster
 ( resource_id text NOT NULL,
   name text,
   format text,
@@ -218,7 +241,7 @@ CREATE TABLE klms.raster
 
 
 
-CREATE TABLE klms.tabular
+CREATE TABLE IF NOT EXISTS klms.tabular
 ( resource_id text NOT NULL,
   num_rows integer,
   num_columns integer,   -- CAUTION! called num_attributes in current profiles
@@ -228,7 +251,7 @@ CREATE TABLE klms.tabular
 
 
 
-CREATE TABLE klms.hierarchical
+CREATE TABLE IF NOT EXISTS klms.hierarchical
 ( resource_id text NOT NULL,
   num_records integer,
   num_attributes integer,
@@ -258,7 +281,7 @@ AFTER DELETE ON klms.hierarchical FOR EACH ROW EXECUTE FUNCTION klms.syncHierarc
 
 -- CAUTION! Currently extracted profiles of RDF graphs do NOT include attribute information (in variables).
 
-CREATE TABLE klms.rdfgraph
+CREATE TABLE IF NOT EXISTS klms.rdfgraph
 ( resource_id text NOT NULL,
   num_nodes integer,
   num_edges integer,
@@ -320,7 +343,7 @@ AFTER DELETE ON klms.rdfgraph FOR EACH ROW EXECUTE FUNCTION klms.syncRdfDistribu
 -- IMPORTANT! Currently, profiling assumes a collection of texts; although CKAN resource can be a single file only, in the database we keep info about each text document (distinguished by its "name" in the profile).
 -- ASSUMPTION: Ingest profiling information regarding each text document from the corpus into the database.
 
-CREATE TABLE klms.text
+CREATE TABLE IF NOT EXISTS klms.text
 ( resource_id text NOT NULL,
   name text,
   language text,
@@ -383,7 +406,7 @@ AFTER DELETE ON klms.text FOR EACH ROW EXECUTE FUNCTION klms.syncTextDistributio
 -- TODO: thematic category (dcat:theme) NOT available in currently extracted profiles.
 -- TODO: missing_ratio NOT available in currently extracted profiles; available properties are num_missing, count.
 
-CREATE TABLE klms.attribute
+CREATE TABLE IF NOT EXISTS klms.attribute
 ( resource_id text NOT NULL,
   attr_id text NOT NULL,
   attr_name text,
@@ -400,7 +423,7 @@ CREATE TABLE klms.attribute
 
 
 
-CREATE TABLE klms.categorical_attribute
+CREATE TABLE IF NOT EXISTS klms.categorical_attribute
 ( attr_id text NOT NULL,
   frequency_distribution text,
   PRIMARY KEY (attr_id),
@@ -429,7 +452,7 @@ AFTER DELETE ON klms.categorical_attribute FOR EACH ROW EXECUTE FUNCTION klms.sy
 
 
 
-CREATE TABLE klms.textual_attribute
+CREATE TABLE IF NOT EXISTS klms.textual_attribute
 ( attr_id text NOT NULL,
   ratio_uppercase double precision,
   ratio_digits double precision,
@@ -463,7 +486,7 @@ AFTER DELETE ON klms.textual_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncTe
 
 
 
-CREATE TABLE klms.numerical_attribute
+CREATE TABLE IF NOT EXISTS klms.numerical_attribute
 ( attr_id text NOT NULL,
   value_distribution text,
   PRIMARY KEY (attr_id),
@@ -491,7 +514,7 @@ AFTER DELETE ON klms.numerical_attribute FOR EACH ROW EXECUTE FUNCTION klms.sync
 
 -- Extra class specifically bands (as attributes) in rasters:
 
-CREATE TABLE klms.band_attribute
+CREATE TABLE IF NOT EXISTS klms.band_attribute
 ( raster_name text NOT NULL,
   attr_id text NOT NULL,
   value_distribution text,
@@ -529,7 +552,7 @@ AFTER DELETE ON klms.band_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncBandA
 
 
 
-CREATE TABLE klms.series_attribute
+CREATE TABLE IF NOT EXISTS klms.series_attribute
 ( attr_id text NOT NULL,
   num_peaks double precision,
   abs_energy double precision,
@@ -562,7 +585,7 @@ AFTER DELETE ON klms.series_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncSer
 -- CAUTION! Added resolution_distribution REFERENCES klms.numerical_distribution; TODO: provide resolution statistics for temporal attributes in resulting profiles
 
 
-CREATE TABLE klms.temporal_attribute
+CREATE TABLE IF NOT EXISTS klms.temporal_attribute
 ( attr_id text NOT NULL,
   start_time timestamp,
   end_time timestamp,
@@ -588,7 +611,7 @@ CREATE TRIGGER klms_trigger_TemporalResolutionDistr
 AFTER DELETE ON klms.temporal_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncResolutionDistribution();
 
 
-CREATE TABLE klms.geometry_attribute
+CREATE TABLE IF NOT EXISTS klms.geometry_attribute
 ( attr_id text NOT NULL,
   mbr geometry(Geometry,4326), 
   centroid geometry(Point,4326), 
