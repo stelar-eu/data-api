@@ -15,9 +15,13 @@ CREATE SCHEMA IF NOT EXISTS klms;
 
 -- DROP TYPE state_enum;
 
-CREATE TYPE state_enum AS ENUM ('created', 'restarting', 'running', 'removing', 'paused',  'dead', 'succeeded', 'failed');
-
-
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'state_enum') THEN
+        CREATE TYPE state_enum AS ENUM ('created', 'restarting', 'running', 'removing', 'paused',  'dead', 'succeeded', 'failed');
+    END IF;
+END
+$$;
 
 ---------------------------------------------
 --             LAYOUT & POLICIES
@@ -47,11 +51,20 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE TRIGGER klms_trigger_ensure_single_active_policy
-BEFORE INSERT OR UPDATE ON klms.policy_history
-FOR EACH ROW
-EXECUTE FUNCTION klms.ensure_single_active_policy();
-
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'klms_trigger_ensure_single_active_policy'
+    ) THEN
+        CREATE TRIGGER klms_trigger_ensure_single_active_policy
+        BEFORE INSERT OR UPDATE ON klms.policy_history
+        FOR EACH ROW
+        EXECUTE FUNCTION klms.ensure_single_active_policy();
+    END IF;
+END
+$$;
 
 ---------------------------------------------
 --           WORKFLOW EXECUTIONS
@@ -276,10 +289,19 @@ BEGIN
 END
 $funcHierDistr$ LANGUAGE plpgsql;
 
-CREATE TRIGGER klms_trigger_HierDistr
-AFTER DELETE ON klms.hierarchical FOR EACH ROW EXECUTE FUNCTION klms.syncHierarchicalDistribution();
 
-
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'klms_trigger_hierdistr'
+    ) THEN
+        CREATE TRIGGER klms_trigger_HierDistr
+        AFTER DELETE ON klms.hierarchical FOR EACH ROW EXECUTE FUNCTION klms.syncHierarchicalDistribution();
+    END IF;
+END
+$$;
 
 -- CAUTION! Currently extracted profiles of RDF graphs do NOT include attribute information (in variables).
 
@@ -337,10 +359,18 @@ BEGIN
 END
 $funcRdfDistr$ LANGUAGE plpgsql;
 
-CREATE TRIGGER klms_trigger_RdfDistr
-AFTER DELETE ON klms.rdfgraph FOR EACH ROW EXECUTE FUNCTION klms.syncRdfDistribution();
-
-
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'klms_trigger_rdfdistr'
+    ) THEN
+        CREATE TRIGGER klms_trigger_RdfDistr
+        AFTER DELETE ON klms.rdfgraph FOR EACH ROW EXECUTE FUNCTION klms.syncRdfDistribution();
+    END IF;
+END
+$$;
 
 -- IMPORTANT! Currently, profiling assumes a collection of texts; although CKAN resource can be a single file only, in the database we keep info about each text document (distinguished by its "name" in the profile).
 -- ASSUMPTION: Ingest profiling information regarding each text document from the corpus into the database.
@@ -395,10 +425,18 @@ BEGIN
 END
 $funcTextDistr$ LANGUAGE plpgsql;
 
-CREATE TRIGGER klms_trigger_TextDistr
-AFTER DELETE ON klms.text FOR EACH ROW EXECUTE FUNCTION klms.syncTextDistribution();
-
-
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'klms_trigger_textdistr'
+    ) THEN
+        CREATE TRIGGER klms_trigger_TextDistr
+        AFTER DELETE ON klms.text FOR EACH ROW EXECUTE FUNCTION klms.syncTextDistribution();
+    END IF;
+END
+$$;
 
 --******************************************
 --           ATTRIBUTES
@@ -449,9 +487,18 @@ BEGIN
 END
 $funcFreqDistr$ LANGUAGE plpgsql;
 
-CREATE TRIGGER klms_trigger_FreqDistr
-AFTER DELETE ON klms.categorical_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncFrequencyDistribution();
-
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'klms_trigger_freqdistr'
+    ) THEN
+        CREATE TRIGGER klms_trigger_FreqDistr
+        AFTER DELETE ON klms.categorical_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncFrequencyDistribution();
+    END IF;
+END
+$$;
 
 
 CREATE TABLE IF NOT EXISTS klms.textual_attribute
@@ -483,10 +530,19 @@ BEGIN
 END
 $funcTextAttrDistr$ LANGUAGE plpgsql;
 
-CREATE TRIGGER klms_trigger_TextAttrDistr
-AFTER DELETE ON klms.textual_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncTextAttrDistribution();
 
-
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'klms_trigger_textattrdistr'
+    ) THEN
+        CREATE TRIGGER klms_trigger_TextAttrDistr
+        AFTER DELETE ON klms.textual_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncTextAttrDistribution();
+    END IF;
+END
+$$;
 
 CREATE TABLE IF NOT EXISTS klms.numerical_attribute
 ( attr_id text NOT NULL,
@@ -509,10 +565,18 @@ BEGIN
 END
 $funcNumAttrDistr$ LANGUAGE plpgsql;
 
-
-CREATE TRIGGER klms_trigger_NumAttrDistr
-AFTER DELETE ON klms.numerical_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncNumAttrDistribution();
-
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'klms_trigger_numattrdistr'
+    ) THEN
+        CREATE TRIGGER klms_trigger_NumAttrDistr
+        AFTER DELETE ON klms.numerical_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncNumAttrDistribution();
+    END IF;
+END
+$$;
 
 -- Extra class specifically bands (as attributes) in rasters:
 
@@ -547,11 +611,18 @@ BEGIN
 END
 $funcBandAttrDistr$ LANGUAGE plpgsql;
 
-
-CREATE TRIGGER klms_trigger_BandAttrDistr
-AFTER DELETE ON klms.band_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncBandAttrDistribution();
-
-
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'klms_trigger_bandattrdistr'
+    ) THEN
+        CREATE TRIGGER klms_trigger_BandAttrDistr
+        AFTER DELETE ON klms.band_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncBandAttrDistribution();
+    END IF;
+END
+$$;
 
 
 CREATE TABLE IF NOT EXISTS klms.series_attribute
@@ -579,9 +650,18 @@ BEGIN
 END
 $funcSeriesValueDistr$ LANGUAGE plpgsql;
 
-
-CREATE TRIGGER klms_trigger_SeriesValueDistr
-AFTER DELETE ON klms.series_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncSeriesValueDistribution();
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'klms_trigger_seriesvaluedistr'
+    ) THEN
+        CREATE TRIGGER klms_trigger_SeriesValueDistr
+        AFTER DELETE ON klms.series_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncSeriesValueDistribution();
+    END IF;
+END
+$$;
 
 
 -- CAUTION! Added resolution_distribution REFERENCES klms.numerical_distribution; TODO: provide resolution statistics for temporal attributes in resulting profiles
@@ -609,8 +689,18 @@ END
 $funcResolutionDistr$ LANGUAGE plpgsql;
 
 
-CREATE TRIGGER klms_trigger_TemporalResolutionDistr
-AFTER DELETE ON klms.temporal_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncResolutionDistribution();
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'klms_trigger_temporalresolutiondistr'
+    ) THEN
+        CREATE TRIGGER klms_trigger_TemporalResolutionDistr
+        AFTER DELETE ON klms.temporal_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncResolutionDistribution();
+    END IF;
+END
+$$;
 
 
 CREATE TABLE IF NOT EXISTS klms.geometry_attribute
@@ -653,5 +743,15 @@ END
 $funcGeomAttrDistr$ LANGUAGE plpgsql;
 
 
-CREATE TRIGGER klms_trigger_GeomAttrDistr
-AFTER DELETE ON klms.geometry_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncGeomAttrDistribution();
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'klms_trigger_geomattrdistr'
+    ) THEN
+        CREATE TRIGGER klms_trigger_GeomAttrDistr
+        AFTER DELETE ON klms.geometry_attribute FOR EACH ROW EXECUTE FUNCTION klms.syncGeomAttrDistribution();
+    END IF;
+END
+$$;
