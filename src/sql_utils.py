@@ -6,8 +6,18 @@ from flask import current_app
 import utils
 import ast
 import pandas as pd
+import uuid
 
 
+def is_valid_uuid(s):
+    try:
+        # Try converting the string to a UUID object
+        uuid_obj = uuid.UUID(s)
+        # Check if the string matches the canonical form of the UUID (with lowercase hexadecimal and hyphens)
+        return str(uuid_obj) == s
+    except ValueError:
+        return False
+    
 def cast_dict(d):
     d2 = {}
     for key, value in d.items():
@@ -47,7 +57,7 @@ def cast_dict(d):
     return d2
 '''
 
-def policy_version_create(policy_uuid, policy_familiar_name, active, yaml_content, user_id):
+def policy_version_create(policy_uuid, policy_familiar_name, active, yaml_content, user_id) -> str:
     """Records in the database that the user-specified parameters for the given policy 
 
     Args:
@@ -68,6 +78,55 @@ def policy_version_create(policy_uuid, policy_familiar_name, active, yaml_conten
         return False
     
     return True
+
+def list_policies():
+    sql = utils.sql_policy_template['policy_get_all_info_template']
+    resp = utils.execSql(sql)
+    if resp and len(resp)>0:
+        policies = resp
+        return policies
+    else:
+        return None
+   
+        
+def policy_representation_read(filter):
+    if is_valid_uuid(filter):
+        sql = utils.sql_policy_template['policy_get_yaml_by_id_template']
+        resp = utils.execSql(sql,(filter, ))
+        if resp and len(resp)>0:
+            policy_version = resp[0]
+            return policy_version['yaml_content']
+        else:
+            return None
+    elif filter == 'active':
+        sql = utils.sql_policy_template['policy_get_yaml_by_state_template']
+        resp = utils.execSql(sql,(True, ))
+        if resp and len(resp)>0:
+            policy_version = resp[0]
+            
+            return policy_version['yaml_content']
+        else:
+            return None
+        
+def policy_info_read(filter):
+    if is_valid_uuid(filter):
+        sql = utils.sql_policy_template['policy_get_info_by_id_template']
+        resp = utils.execSql(sql,(filter, ))
+        if resp and len(resp)>0:
+            policy_version = resp[0]
+            return policy_version
+        else:
+            return None
+    elif filter == 'active':
+        sql = utils.sql_policy_template['policy_get_info_by_state_template']
+        resp = utils.execSql(sql,(True, ))
+        if resp and len(resp)>0:
+            policy_version = resp[0]
+            return policy_version
+        else:
+            return None
+    
+
 
 def workflow_execution_create(workflow_exec_id, start_date, state, tags=None):
     """Records metadata for a new workflow execution in the database.

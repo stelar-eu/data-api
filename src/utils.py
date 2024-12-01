@@ -159,8 +159,11 @@ sql_views = {'tags':'package_tag_array', 'language':'package_language_array', 't
 
 sql_policy_template = {
     'policy_create_template' : 'INSERT INTO klms.policy_history(policy_uuid, policy_familiar_name, active, yaml_content, user_id) VALUES (%s, %s, %s, %s, %s)',
-    'policy_get_all_template' : 'SELECT * FROM klms.policy_history',
-    'policy_get_by_id_template' : 'SELECT * FROM klms.policy_history WHERE policy_uuid=%s',
+    'policy_get_all_info_template' : 'SELECT policy_uuid, policy_familiar_name, active, user_id, created_at FROM klms.policy_history',
+    'policy_get_info_by_id_template' : 'SELECT policy_uuid, policy_familiar_name, active, user_id, created_at FROM klms.policy_history WHERE policy_uuid=%s',
+    'policy_get_yaml_by_id_template' : 'SELECT yaml_content FROM klms.policy_history WHERE policy_uuid=%s',
+    'policy_get_info_by_state_template' : 'SELECT policy_uuid, policy_familiar_name, active, user_id, created_at FROM klms.policy_history WHERE active=%s',
+    'policy_get_yaml_by_state_template': 'SELECT yaml_content FROM klms.policy_history WHERE active=%s'
 }
 #########################################################
 

@@ -5,7 +5,7 @@ from minio import Minio
 from minio.error import S3Error
 import os
 import mutils as mu
-from src.auth import auth, security_doc
+from src.auth import auth, security_doc, token_active
 import json
 
 """
@@ -20,7 +20,7 @@ publisher_bp = APIBlueprint('pub_blueprint', __name__, tag='Dashboard Dataset')
 logging.basicConfig(level=logging.DEBUG)
     
 @publisher_bp.route('/fetch_paths', methods=['GET'])
-@auth.verify_token
+@token_active
 def fetch_minio_paths():
 
     try:
@@ -66,7 +66,7 @@ def fetch_minio_paths():
 
 
 @publisher_bp.route('/upload_file', methods=['POST'])
-@auth.verify_token
+@token_active
 def upload_file_to_minio():
 
     try:
