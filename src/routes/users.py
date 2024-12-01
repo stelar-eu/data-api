@@ -32,7 +32,7 @@ users_bp = APIBlueprint('users_blueprint', __name__, tag={'name':'User Managemen
 @users_bp.doc(tags=['User Management'], security=security_doc)
 @users_bp.input(schema.PaginationParameters, location='query')
 @users_bp.output(schema.ResponseAmbiguous, status_code=200, example={"help":"http://klms.stelar.gr/stelar/docs","success":True,"result":{"count":2,"users":[{"active":True,"email":"user1@example.com","fullname":"User One","joined_date":"01-01-2024","roles":["admin"],"user_id":"uuid-1234","username":"userone"},{"active":True,"email":"user2@example.com","fullname":"User Two","joined_date":"01-01-2024","roles":["user"],"user_id":"uuid-5678","username":"usertwo"}]}})
-@auth.verify_token
+@token_active
 @admin_required
 def get_users(query_data):
     """
@@ -156,7 +156,6 @@ def api_token_refresh(json_data):
 @users_bp.input(schema.NewUser, location='json')
 @users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['User Management'], security=security_doc)
-@auth.verify_token
 @token_active
 @admin_required
 def api_create_user(json_data):
@@ -242,7 +241,6 @@ def api_create_user(json_data):
 @users_bp.route('/<user_id>', methods=['GET'])
 @users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['User Management'], security=security_doc)
-@auth.verify_token
 @token_active
 @admin_required
 def api_get_user(user_id):
@@ -301,7 +299,7 @@ def api_get_user(user_id):
 @users_bp.input(schema.UpdatedUser, location='json')
 @users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['User Management'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_put_user(user_id, json_data):
     """
     Update information of a specific STELAR KLMS User by ID. Requires admin role.
@@ -374,7 +372,7 @@ def api_put_user(user_id, json_data):
 @users_bp.route('/<user_id>', methods=['DELETE'])
 @users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['User Management'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_delete_user(user_id):
     """
     Delete a specific STELAR KLMS User by ID or by username. Requires admin role.
@@ -421,7 +419,8 @@ def api_delete_user(user_id):
 @users_bp.route('/roles', methods=['GET'])
 @users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['Authorization Management'], security=security_doc)
-@auth.verify_token
+@token_active
+@admin_required
 def api_get_roles():
     """
     Get roles existing in the STELAR KLMS. Requires admin role.
@@ -455,7 +454,6 @@ def api_get_roles():
 @users_bp.route('/<user_id>/roles/<role_id>', methods=['POST'])
 @users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['Authorization Management'], security=security_doc)
-@auth.verify_token
 @token_active
 @admin_required
 def api_assign_role(user_id, role_id):
@@ -510,7 +508,8 @@ def api_assign_role(user_id, role_id):
 @users_bp.route('/<user_id>/roles/<role_id>', methods=['DELETE'])
 @users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['Authorization Management'], security=security_doc)
-@auth.verify_token
+@token_active
+@admin_required
 def api_delete_role(user_id, role_id):
     """Unassign role from a specific STELAR KLMS User by ID. Requires admin role.
 
@@ -563,7 +562,8 @@ def api_delete_role(user_id, role_id):
 @users_bp.input(schema.RolesInput, location='json')
 @users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['Authorization Management'], security=security_doc)
-@auth.verify_token
+@token_active
+@admin_required
 def api_assign_roles(user_id, json_data):
     """
     Assing lot-of roles to a specific STELAR KLMS User by id. Requires admin role.
@@ -616,7 +616,8 @@ def api_assign_roles(user_id, json_data):
 @users_bp.input(schema.RolesInput, location='json')
 @users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=['Authorization Management'], security=security_doc)
-@auth.verify_token
+@token_active
+@admin_required
 def api_patch_roles(user_id, json_data):
     """Patch the roles of a user in the STELAR KLMS. Requires admin role.
        This will remove any roles not present in the input JSON and assign 

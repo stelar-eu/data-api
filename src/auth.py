@@ -13,7 +13,6 @@ auth = HTTPTokenAuth(scheme="Bearer", header="Authorization", security_scheme_na
 
 security_doc = "BearerAuth"
 
-@auth.verify_token
 def api_verify_token(token):
     """
     Verify JWT tokens issued by Keycloak for POST requests that require authentication.
@@ -26,12 +25,6 @@ def api_verify_token(token):
     """
 
     config = current_app.config['settings']
-
-    # Try to see if there is a token in the session field if not one was explicitely provided
-    if token is None or token.strip() == "":
-        token = session.get('access_token')
-        if token is None:
-            return False
 
     #logging.debug("Starting token verification")
     token = urllib.parse.unquote(token).strip()
@@ -81,8 +74,6 @@ def api_verify_token(token):
                     continue
 
     except Exception as e:
-        # Log other exceptions such as network issues
-        logging.error(f"Error during token verification: {e}")
         return False
 
     # If no valid key is found, return False
@@ -147,7 +138,19 @@ def token_active(f):
             else:
                 raise ValueError
             
-            # Check if the token is valid and corresponds to an admin user
+            # Verify the token keys.
+            if not api_verify_token(access_token):
+                response = {
+                    'success': False,
+                    'help': request.url,
+                    'error': {
+                        '__type': 'Authentication Error',
+                        'name': 'Bearer Token is not Valid'
+                    }
+                }
+                return response, 401
+
+            # Check if the token is valid
             if not kutils.introspect_token(access_token):
                 response = {
                     'success': False,

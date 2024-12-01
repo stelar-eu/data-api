@@ -16,7 +16,7 @@ import urllib
 from jose import jwt, JWTError
 from requests.models import Response
 import logging
-from src.auth import auth, security_doc
+from src.auth import auth, security_doc, token_active
 
 from psycopg2.extras import RealDictCursor
 from flask import request, jsonify, current_app, redirect, session, url_for
@@ -85,7 +85,7 @@ logging.basicConfig(level=logging.DEBUG)
 # such as User Management, Catalog Management,
 # Workflow/Execution management etc.
 
-app.register_blueprint(users_bp, url_prefix='/api/v2/users')
+app.register_blueprint(users_bp, url_prefix='/api/v1/users')
 app.register_blueprint(tasks_bp, url_prefix='/api/v1/task')
 app.register_blueprint(dashboard_bp, url_prefix='/console/v1')
 app.register_blueprint(publisher_bp, url_prefix='/console/v1/publisher')
@@ -927,7 +927,7 @@ def api_task_parameters(query_data):
 @app.input(schema.Filter, location='json', example={"q": "PREFIX dct: <http://purl.org/dc/terms/> SELECT ?uri ?title ?publisher WHERE { ?uri dct:title ?title . ?uri dct:publisher ?publisher . } LIMIT 5"})
 #@app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Search Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_sparql(json_data):
     """Submit a search request to the SPARQL endpoint.
 
@@ -967,7 +967,7 @@ def api_sparql(json_data):
 @app.input(schema.Filter, location='json', example={"q": "SELECT * FROM public.package LIMIT 5"})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Search Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_sql(json_data):
     """Submit a SELECT SQL command to the PostgreSQL database.
 
@@ -1010,7 +1010,7 @@ def api_sql(json_data):
 @app.input(schema.Filter, location='json', example={"q": "format"})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Search Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_facet_values(json_data):
     """Submit a SELECT SQL command to the PostgreSQL database.
 
@@ -1064,7 +1064,7 @@ def api_facet_values(json_data):
 @app.input(schema.Ranking, location='json', example={"rank_preferences":{"tags": ["Geospatial","POI"], "theme":["Land Use","Land Cover","Imagery"], "language":["en","el","fr"], "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]}}, "settings":{"k": 10, "algorithm": "threshold", "weights": [0.3,0.5,0.4] }})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Ranking Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_catalog_rank(json_data):
     """Submit a rank request regarding specific metadata attributes (facets) to the Data Catalog.
 
@@ -1229,7 +1229,7 @@ def api_catalog_rank(json_data):
 @app.input(schema.Dataset, location='json', example={"basic_metadata":{"title": "Test Data API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": ["STELAR","OpenStreetMap","Geospatial","Bavaria"]},"extra_metadata":{"INSPIRE theme":"Imagery", "theme": ["Earth Sciences", "Landuse", "http://eurovoc.europa.eu/4630"], "language": ["ca", "en", "es"], "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]},"temporal_start":"2023-01-31T11:33:54.132Z", "temporal_end":"2023-01-31T11:35:48.593Z"},"profile_metadata":{"url":"https://raw.githubusercontent.com/stelar-eu/data-profiler/main/examples/output/timeseries_profile.json", "name": "Time series profile in JSON", "description": "This is the profile of a time series in JSON format", "resource_type": "Tabular", "format": "JSON", "resource_tags": ["Profile", "Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseAmbiguous, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_dataset_publish(json_data):
     """Publish a new dataset in the Catalog.
 
@@ -1359,7 +1359,7 @@ def api_dataset_publish(json_data):
 @app.input(schema.Package, location='json', example={"package_metadata": {"title": "Test Data API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Berlin"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}],"name": "test_data_api_1","private": "false","version": "0.3","owner_org": "athenarc"}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_dataset_register(json_data):
     """Register a new dataset according to CKAN specifications. The user will become the publisher of this dataset.
 
@@ -1405,7 +1405,7 @@ def api_dataset_register(json_data):
 @app.input(schema.Package, location='json', example={"package_metadata": {"id": "test_data_api_1", "tags": [{"name": "Patch"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}] }})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_dataset_patch(json_data):
     """Patch more metadata to an existing dataset according to CKAN specifications. The user will become the publisher of this dataset.
 
@@ -1451,7 +1451,7 @@ def api_dataset_patch(json_data):
 @app.input(schema.Profile, location='json', example={"profile_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_type": "Raster", "resource_tags": ["Profile","Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_profile_publish(json_data):
     """Upload a profile as a resource to an existing dataset in CKAN. The user will become the publisher of this profile.
 
@@ -1517,7 +1517,7 @@ def api_profile_publish(json_data):
 @app.input(schema.Profile, location='json', example={"profile_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_type": "Raster", "resource_tags": ["Profile","Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_profile_store(json_data):
     """Store profile information directly in the PostgreSQL database. The respective resource must correspond to an existing dataset in CKAN. The user will become the publisher of this profile.
 
@@ -1567,7 +1567,7 @@ def api_profile_store(json_data):
 @app.input(schema.Resource, location='json', example={"resource_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_tags": ["Profile","Computed with STELAR Profiler"]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_resource_upload(json_data):
     """Upload a resource to an existing dataset according to CKAN specifications. The user will become the publisher of this resource.
 
@@ -1622,7 +1622,7 @@ def api_resource_upload(json_data):
 @app.input(schema.Resource, location='json', example={"resource_metadata": {"package_id": "test_data_api_1", "url":"https://data.smartdublin.ie/dataset/09870e46-26a3-4dc2-b632-4d1fba5092f9/resource/40a718a8-cb99-468d-962b-af4fed4b0def/download/bleeperbike_map.geojson", "name": "Test GeoJSON resource", "description": "This is the test resource in GeoJSON format", "format": "GeoJSON", "resource_type": "Tabular", "resource_tags": ["Link to external resource", "Found in the Web"]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_resource_link(json_data):
     """Associate a resource (with its URL) to an existing dataset in CKAN. The user will become the publisher of this resource.
 
@@ -1679,7 +1679,7 @@ def api_resource_link(json_data):
 @app.input(schema.Package, location='json', example={"package_metadata": {"title": "Test workflow", "notes": "This workflow performs entity matching", "tags": ["STELAR", "Entity matching", "Entity resolution"]}})
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Publishing Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_workflow_publish(json_data):
     """Publish a new workflow as a CKAN package. The user will become the publisher of this workflow.
 
@@ -1752,7 +1752,7 @@ def api_workflow_publish(json_data):
                                                         "tags": {}})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_workflow_execution_create(json_data):
     """Create a Workflow Execution under a specific defined workflow.
 
@@ -1789,7 +1789,7 @@ def api_workflow_execution_create(json_data):
 @app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_workflow_execution_read(query_data):
     """Return the metadata of the given Workflow Execution id.
 
@@ -1819,7 +1819,7 @@ def api_workflow_execution_read(query_data):
                                                              "state": "succeeded"})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_workflow_execution_commit(json_data):
     """Store the results of the Workflow Execution.
 
@@ -1851,7 +1851,7 @@ def api_workflow_execution_commit(json_data):
 @app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_workflow_execution_delete(query_data):
     """Delete the given Workflow Execution id.
 
@@ -1881,7 +1881,7 @@ def api_workflow_execution_delete(query_data):
                                                                  "parameters": ['k', 'model']})
 # @app.output(schema.ResponseOK, status_code=200)
 @app.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_workflow_statistics(json_data):
     """Fetch statistics for each Worfklow Execution for a specific group of 
     workflow executions.
@@ -1911,7 +1911,7 @@ def api_workflow_statistics(json_data):
 @app.route('/api/v1/workflow/tasks', methods=['GET'])
 @app.doc(tags=['Tracking Operations'], security=security_doc)
 @app.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
-@auth.verify_token
+@token_active
 def api_workflow_tasks(query_data):
     """Fetch the tasks for a given Workflow Execution 
 
@@ -1935,7 +1935,7 @@ def api_workflow_tasks(query_data):
 
 @app.route('/api/v1/workflows', methods=['GET'])
 @app.doc(tags=['Tracking Operations'], security=security_doc)
-@auth.verify_token
+@token_active
 def api_workflow_all():
     """Fetch all parameters for all workflow executions
 
