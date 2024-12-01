@@ -1,16 +1,12 @@
 import requests
 from flask import current_app
-import logging
-import datetime
-import uuid
 import re
 import json
 import utils
 from urllib.parse import urljoin, urlencode
 
 from routes.users import api_user_editor
-
-logging.basicConfig(level=logging.DEBUG)
+from datetime import datetime
 
 
 def create_CKAN_headers(API_TOKEN):
@@ -103,7 +99,7 @@ def request(method, entity_type, endpoint, params=None, data=None, headers=None,
         return response
 
 
-def list_packages(limit: int = 0, offset: int = 0):
+def list_packages(limit: int = 0, offset: int = 0, expand_mode: bool = False):
     """
     Retrieve a list of all dataset IDs from the CKAN catalog.
 
@@ -127,24 +123,65 @@ def list_packages(limit: int = 0, offset: int = 0):
     try:
         # Check if no limit is specified or if limit is greater than 0
         if limit == 0:
-            # If no limit is specified, only apply the offset
-            params = {"offset": 0}
+           pass
         elif limit > 0 and offset >= 0:
-            # If limit and offset are provided, set both
-            params = {"limit": limit, "offset": offset}
+           pass
         else:
             raise Exception("Limit must be greater than 0. Offset should be non negative")
         
         # Make the request to the CKAN API using the constructed parameters
-        response = request("GET", "package", "package_list", params=params)
-        
-        # If the request is successful (status code 200), return the dataset IDs
+        response = request("GET", "package", "package_list")        
         if response.status_code == 200:
-            return response.json()['result']  # Extract the 'result' field from the response
+            datasets = response.json()['result']
+            if expand_mode:
+                # Fetch detailed metadata for sorting
+                detailed_datasets = []
+                for dataset in datasets:
+                    dataset_info = get_package(dataset, True, True)
+                    detailed_datasets.append(dataset_info)
+
+                sorted_datasets = sorted(
+                    detailed_datasets,
+                    key=lambda x: datetime.fromisoformat(x['metadata_modified']),
+                    reverse=True
+                )
+
+                paginated_datasets = sorted_datasets[offset:offset + limit] if limit > 0 else sorted_datasets
+                return paginated_datasets
+                
+            else:
+                return datasets
+        else:
+            return None
+
     except Exception:
         # If an error occurs during the request, raise a general exception
         raise
 
+
+def count_packages()->int:
+    """
+    Returns the number of packages published in the CKAN data catalog
+    by looking at the organization parameters. 
+
+    Returns:
+        int: The count of packages or 0 if none are registered.
+
+    Raises:
+        RuntimeError: In case of error
+    """
+    try:
+        response = request("GET","package","organization_show", params={"id":"stelar-klms", "include_dataset_count":True, "include_users":False})
+        if response.status_code == 200:
+            resp = response.json()
+            org = resp.get('result', None)
+            return org.get("package_count", 0)   
+        return 0         
+    except requests.exceptions.HTTPError as he:
+        raise RuntimeError from he
+
+
+    
 
 def get_packages(limit: int = 0, offset: int = 0, tag_filter: str = None, filter_mode: str = None):
     """

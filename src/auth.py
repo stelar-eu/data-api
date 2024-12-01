@@ -130,14 +130,24 @@ def admin_required(f):
 def token_active(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        try:
-
+        try:             
             if request.headers.get('Authorization'):
                 # Extract the token from the 'Authorization' header
                 access_token = request.headers.get('Authorization').split(" ")[1]
             else:
-                raise ValueError
-            
+                # Try to extract token from session if not provided.
+                access_token = session.get('access_token')
+                if access_token is None:
+                    response = {
+                        'success': False,
+                        'help': request.url,
+                        'error': {
+                            '__type': 'Authentication Error',
+                            'name': 'Bearer Token is not Valid'
+                        }
+                    }
+                    return response, 401  
+                   
             # Verify the token keys.
             if not api_verify_token(access_token):
                 response = {

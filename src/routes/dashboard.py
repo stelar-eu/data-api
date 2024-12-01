@@ -8,13 +8,17 @@ import requests
 import kutils 
 from datetime import datetime, timedelta
 from functools import wraps
+import cutils
+import logging
+from math import ceil
+import schema
 
 #FOR TESTING ONLY!!!
 import os
 
 dashboard_bp = APIBlueprint('dashboard_blueprint', __name__, enable_openapi=False)
 
-
+logging.basicConfig(level=logging.DEBUG)
 
 # DEVELOPMENT ONLY FOR AWS CLUSTERS: Decide which partner the cluster corresponds to 
 def get_partner_logo():
@@ -233,10 +237,34 @@ def task(workflow_id, task_id):
 
 
 @dashboard_bp.route('/datasets')
+@dashboard_bp.route('/datasets/page/<page_number>')
 @dashboard_bp.doc(False)
 @session_required
-def datasets():    
-    return render_template('datasets.html', PARTNER_IMAGE_SRC=get_partner_logo())
+def datasets(page_number = None):  
+
+    # Maximum number of datasets per page
+    limit = 8
+    try:
+        if page_number is not None:
+            page_number = int(page_number)
+            if page_number>=0:
+                offset = limit*(page_number-1)
+                datasets = cutils.list_packages(limit=limit, offset=offset, expand_mode=True) 
+        else:
+            datasets = cutils.list_packages(limit=limit, offset=0, expand_mode=True) 
+    except:
+        datasets = {}
+
+    count_pkg = int(cutils.count_packages())
+
+    if count_pkg>0 and limit:
+        total_pages = ceil(count_pkg/limit)
+
+    return render_template('datasets.html', 
+                           datasets = datasets,
+                           page_number = page_number if page_number else 1,
+                           total_pages = total_pages if total_pages else 1,
+                           PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 @dashboard_bp.route('/datasets/<dataset_id>')

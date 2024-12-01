@@ -96,6 +96,19 @@ app.register_blueprint(rest_catalog_bp, url_prefix='/api/v2')
 app.register_blueprint(rest_workflows_bp, url_prefix='/api/v2')
 ############################################################
 
+
+
+
+######### JINJA ENV FILTERS ###########
+def format_datetime(value):
+    if value:
+        return datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%f").strftime("%d/%m/%Y %H:%M")
+    return "N/A"
+
+# Register the filter in your app
+app.jinja_env.filters['format_datetime'] = format_datetime
+#######################################
+
 # Custom class to retain original ISO format like 'yyyy-mm-dd hh:mm:ss.m' in date/time/timestamp values
 class CustomJSONEncoder(JSONEncoder):
     def default(self, obj):
