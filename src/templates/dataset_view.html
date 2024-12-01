@@ -25,10 +25,10 @@
                 <div class="col">
                   <!-- Page pre-title -->
                   <div class="page-pretitle">
-                    {{ dataset['result']['id'] }}
+                    {{ dataset.get('id') }}
                   </div>
                   <h2 class="page-title">
-                    {{ dataset['result']['title'] }}
+                    {{ dataset.get('title') }}
                   </h2>
                 </div>
               </div>
@@ -43,14 +43,14 @@
                       <div class="card-body">
                         <div class="card-title">Basic info</div>
                         <div class="mb-2"> <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0" /><path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0" /><path d="M3 6l0 13" /><path d="M12 6l0 13" /><path d="M21 6l0 13" /></svg>
-                          Name: <strong>{{ dataset['result']['title'] }}</strong>
+                            Title: <strong>{{ dataset.get('title') }}</strong>
                         </div>
                         <div class="mb-2">
-                            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12.75m-4 0a4 1.75 0 1 0 8 0a4 1.75 0 1 0 -8 0" />
-                                <path d="M8 12.5v3.75c0 .966 1.79 1.75 4 1.75s4 -.784 4 -1.75v-3.75" /><path d="M14 3v4a1 1 0 0 0 1 1h4" />
-                                <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /></svg>
-                            Package ID: <strong>{{ dataset['result']['id'] }}</strong>
+                          <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="text-secondary me-2 icon icon-tabler icons-tabler-outline icon-tabler-e-passport"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" /><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M9 12h-7" /><path d="M15 12h7" /></svg>
+                            ID: <strong>{{ dataset.get('id') }}</strong>
+                          </div>
+                        <div class="mb-2">
+                          <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="text-secondary me-2 icon icon-tabler icons-tabler-outline icon-tabler-user"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" /><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /></svg>                            Creator: <strong>{{ dataset.get('author') }}</strong>
                           </div>
                         <div class="mb-2">
                           <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="44" height="44" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -64,7 +64,7 @@
                             <path d="M12 14l0 3" />
                             <path d="M16 14l0 3" />
                             </svg>        
-                            Owner Organization: <strong>{{ dataset['result']['organization']['title']}}</strong>
+                            Owner Organization: <strong>{{ dataset.get('organization') }}</strong>
                         </div>
                         <div class="mb-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="44" height="44" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -81,7 +81,7 @@
                                 <path d="M7.01 17h.005" />
                                 <path d="M10.01 17h.005" />
                                 </svg>
-                            Date Created: <strong>{{ dataset['result']['metadata_created'] | datetimeformat }}</strong>
+                            Date Created: <strong>{{ dataset.get('metadata_created') | datetimeformat }}</strong>
                           </div>
                           <div class="mb-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="44" height="44" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -98,7 +98,7 @@
                                 <path d="M7.01 17h.005" />
                                 <path d="M10.01 17h.005" />
                                 </svg>
-                            Date Modified: <strong>{{ dataset['result']['metadata_modified'] | datetimeformat }}</strong>
+                            Date Modified: <strong>{{ dataset.get('metadata_modified') | datetimeformat }}</strong>
                           </div>
                           <div class="mb-2">
 
@@ -108,13 +108,41 @@
                                 <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
                             </svg>
                             Visibility: <strong>
-                                {% if dataset['result']['private'] %}
+                                {% if dataset.get('private') %}
                                     Private
                                 {% else %}
                                     Public
                                 {% endif %}
                             </strong>
                           </div>
+                      </div>
+                    </div>
+                    <div class="card mt-2">
+                      <div class="card-body">
+                        <div class="d-flex align-items-center justify-content-between">
+                          <h5 class="card-title mb-0">Tags</h5>
+                          <a href="#" class="" title="Edit Tags" data-bs-toggle="tooltip" data-bs-placement="bottom">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" /><path d="M13.5 6.5l4 4" /></svg>
+                          </a>
+                      </div>
+                        <div class="mb-2">
+                            {% for tag in dataset.get('tags') %}
+                                <span class="tag m-1 mb-0">{{ tag.get('display_name') }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="card mt-2">
+                      <div class="card-body">
+                        <div class="card-title">Dataset Description</div>
+                        <div class="mb-2">
+                          <div class="markdown">
+                              <p>
+                                {{ dataset.get('notes') }}
+                              </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
               </div>
@@ -132,6 +160,7 @@
                                 <table  class="table table-vcenter card-table">
                                 <thead>
                                     <tr>
+                                    <th style="width: 15%;">Relation</th>
                                     <th style="width: 40%;">Resource Name</th>
                                     <th style="width: 40%;">Path</th>
                                     <th style="width: 10%">Format</th>
@@ -139,13 +168,39 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for resource in dataset['result']['resources'] %}
+                                    {% for resource in dataset.get('resources') %}
                                     <tr>
+                                        <td class="text-sm">
+                                          {% if resource.get('relation') == 'owned' %}
+                                          <span class="badge bg-blue text-blue-fg">OWNED</span>
+                                          {% elif resource.get('relation') == 'profile' %}
+                                          <span class="badge bg-orange text-orange-fg">PROFILE</span>
+                                          {% else %}
+                                          <span class="badge bg-secondary text-secondary-fg">NONE</span>
+                                          {% endif %}
+                                        </td>
                                         <td class="text-sm">{{ resource['name'] }}</td>
                                         <td class="text-sm"><small>{{ resource['url'] | replace('https://minio.stelar.gr', '') }}</small></td>
                                         <td class="text-sm">{{ resource['format'] }}</td>
                                         <td>
-                                            <button class="btn btn-sm view-resource-btn" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="{{ resource['id'] }}">View ID</button>
+                                          <div class="dropdown">
+                                            <button class="btn btn-sm d-flex p-2 text-reset" data-bs-toggle="dropdown" aria-label="Open Resource Menu">
+                                              Manage
+                                              <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="currentColor"  class="ms-1 icon icon-tabler icons-tabler-filled icon-tabler-caret-down"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z" /></svg>
+                                            </button>
+                                            <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow view-resource-btn">
+                                                <a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="{{ resource['id'] }}">
+                                                  <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
+                                                  View</a>
+                                                <div class="dropdown-divider"></div>
+                                                <a edit-resource-id="{{ resource['id'] }}" class="dropdown-item edit-resource-btn">
+                                                  <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" /><path d="M13.5 6.5l4 4" /></svg>
+                                                  Edit</a>
+                                                <a  del-resource-id="{{ resource['id'] }}" class="dropdown-item del-resource-btn">
+                                                  <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-trash"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
+                                                  Delete</a>
+                                            </div>
+                                          </div>
                                         </td>
                                     </tr>                                    
                                     {% endfor %}
@@ -500,7 +555,7 @@
               const description = $('input[name="resource-description"]').val();
               const name = $('input[name="example-text-input"]').val();
               const format = $('input[name="name"]:checked').val();
-              const packageId = "{{ dataset['result']['id'] }}";
+              const packageId = "{{ dataset.get('id')}}";
               const fileInput = $('#fileInput')[0].files[0];  // Get the uploaded file
               const filename = fileInput.name;
               const url = filePath + filename;

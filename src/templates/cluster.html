@@ -185,7 +185,7 @@
             // Fetch all users at once
             function fetchAllUsers() {
                 $.ajax({
-                    url: 'admin/users?limit=1000000',
+                    url: `{{url_for('users_blueprint.get_users')}}`,
                     method: 'GET',
                     dataType: 'json',
                     success: function(users) {
@@ -383,7 +383,7 @@
             // Fetch system roles on page load
             function fetchSystemRoles() {
                 $.ajax({
-                    url: 'admin/users/roles',  // Use your correct endpoint here
+                    url: `{{url_for('users_blueprint.api_get_roles')}}`,
                     method: 'GET',
                     dataType: 'json',
                     success: function(response) {
@@ -475,10 +475,8 @@
         <script>
            // Event listener for the form submission
             $("#edit-user-form").on("submit", function(event) {
-                // Prevent the default form submission
                 event.preventDefault();
 
-                // Collect the form data
                 const userData = {
                     userId: $("#user-id").val(),
                     username: $("#edit-username").val(),
@@ -516,7 +514,6 @@
                 if (!isValid) {
                     return;
                 }
-
                 // Prevent modifications to the "admin" username
                 if (userData.username.toLowerCase() === 'admin') {
                     $("#user-modal-footer .alert").remove();
@@ -524,13 +521,10 @@
                     return;  // Stop the form submission
                 }
 
-                // Clear any previous alerts at the footer
                 $("#user-modal-footer .alert").remove();
 
-
-                // Send the data using AJAX with JSON
                 $.ajax({
-                    url: `admin/users/${userData.userId}`,
+                    url: `{{ url_for('users_blueprint.api_put_user', user_id='') }}${userData.userId}`,
                     type: 'PUT',
                     contentType: 'application/json', 
                     data: JSON.stringify(userData),

@@ -241,9 +241,13 @@ def task(workflow_id, task_id):
 @dashboard_bp.doc(False)
 @session_required
 def datasets(page_number = None):  
+    
+    if page_number is not None:
+        if type(int(page_number)) is not type(1):
+            redirect(url_for('dashboard_blueprint.datasets'))
 
     # Maximum number of datasets per page
-    limit = 8
+    limit = 10
     try:
         if page_number is not None:
             page_number = int(page_number)
@@ -270,21 +274,18 @@ def datasets(page_number = None):
 @dashboard_bp.route('/datasets/<dataset_id>')
 @session_required
 def dataset_detail(dataset_id):
-    
-    config = current_app.config['settings']
-    
-    package_metadata_url = f"{config['API_URL']}api/v1/catalog?id="
-    metadata_url = package_metadata_url + dataset_id
-    metadata_response = requests.get(metadata_url)
-    if metadata_response.status_code == 200:
-        metadata_data = metadata_response.json()
-        if metadata_data.get("success", False):
-            # Render the dataset detail page, passing the dataset object to the template
-            return render_template('dataset_view.html', dataset=metadata_data, PARTNER_IMAGE_SRC=get_partner_logo())
-        else:
-            redirect(url_for('dashboard_blueprint.login'))
-    else:
-        redirect(url_for('dashboard_blueprint.login'))
+    try:
+        metadata_data = cutils.get_package(id=dataset_id)
+    except ValueError:
+        redirect(url_for('dashboard_blueprint.datasets'))
+    except Exception:
+        redirect(url_for('dashboard_blueprint.datasets'))
+
+    if metadata_data:
+        return render_template('dataset_view.html', dataset=metadata_data, PARTNER_IMAGE_SRC=get_partner_logo())
+    else:   
+        redirect(url_for('dashboard_blueprint.datasets'))
+
     
 
 

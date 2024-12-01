@@ -114,6 +114,14 @@
                 </form>
               </div>
               <div class="col-md-9">
+                <div class="mb-4">
+                  <div class="input-icon">
+                      <span class="input-icon-addon">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" /><path d="M21 21l-6 -6" /></svg>
+                      </span>
+                      <input type="text" value="" class="form-control" placeholder="Search Datasets (ID, Tags, Keywords, etc.)" id="workflow-search-box" aria-label="Workflow Filtered Search">
+                  </div>
+                </div>
                 <ul class="pagination d-flex justify-content-end">
                   {% if page_number > 1 %}
                       <!-- Previous Button -->
@@ -188,7 +196,7 @@
                             <div class="row">
                               <div class="col">
                                 <h3 class="mb-0">
-                                  <a href="datasets/{{ dataset.get('id') }}">{{ dataset.get('title', 'Untitled Dataset') }}</a>
+                                  <a href="{{url_for('dashboard_blueprint.datasets')}}/{{ dataset.get('id') }}">{{ dataset.get('title', 'Untitled Dataset') }}</a>
                                   {% if 'Workflow' in dataset.get('tags') %}
                                     <span class="badge bg-purple-lt ms-2">WORKFLOW</span>
                                   {% else %}
@@ -451,116 +459,5 @@
         }
       });
     </script>
-    <!-- <script>
-        $(document).ready(function() {
-            $.ajax({
-                url: '/stelar/api/v1/catalog/metadata/all',
-                method: 'GET',
-                success: function(data) {
-                if (data.success && data.result) {
-                    const datasets = data.result;
-                    const container = $('#dataset-container'); 
-                    
-                    datasets.forEach(dataset => {
-
-                    const metadataDate = dataset.metadata_modified ? new Date(dataset.metadata_modified) : new Date(dataset.metadata_created);
-                    const hasWorkflowTag = dataset.tags.some(tag => tag.display_name.toLowerCase() === 'workflow');
-                    const title = `
-                      <h3 class="mb-0">
-                          <a href="datasets/${dataset.id}">${dataset.title}</a>
-                          ${hasWorkflowTag ? '<span class="badge bg-purple-lt ms-2">WORKFLOW</span>' : '<span class="badge bg-blue-lt ms-2">DATASET</span>'}
-                      </h3>
-                  `;
-
-                    const formattedDate = metadataDate.toLocaleString('en-GB', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false
-                    });
-                    // Create card structure
-                    const card = `
-                        <div class="card mb-3">
-                        <div class="row g-0">
-                            <div class="col-auto">
-                            <div class="card-body">
-                                <div class="avatar avatar-md" style="background-image: url(${getOrganizationLink(dataset.organization.title)})"></div>
-                            </div>
-                            </div>
-                            <div class="col">
-                            <div class="card-body ps-0">
-                                <div class="row">
-                                <div class="col">
-                                     ${title}
-                                    <p class="text-secondary mt-1">${dataset.notes}</p>
-                                </div>
-                                </div>
-                                <div class="row">
-                                <div class="col-md">
-                                    <div class="mt-3 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
-                                    <div class="list-inline-item">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-building-bank" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#2c3e50" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                        <path d="M3 21l18 0" />
-                                        <path d="M3 10l18 0" />
-                                        <path d="M5 6l7 -3l7 3" />
-                                        <path d="M4 10l0 11" />
-                                        <path d="M20 10l0 11" />
-                                        <path d="M8 14l0 3" />
-                                        <path d="M12 14l0 3" />
-                                        <path d="M16 14l0 3" />
-                                        </svg>                                        
-                                        ${dataset.organization.title}
-                                    </div>
-                                    <div class="list-inline-item">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-month" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#2c3e50" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                        <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
-                                        <path d="M16 3v4" />
-                                        <path d="M8 3v4" />
-                                        <path d="M4 11h16" />
-                                        <path d="M7 14h.013" />
-                                        <path d="M10.01 14h.005" />
-                                        <path d="M13.01 14h.005" />
-                                        <path d="M16.015 14h.005" />
-                                        <path d="M13.015 17h.005" />
-                                        <path d="M7.01 17h.005" />
-                                        <path d="M10.01 17h.005" />
-                                        
-                                        </svg>
-                                        ${formattedDate}
-                                    </div>
-                                    </div>
-                                    <div class="mt-3 list mb-0 text-secondary d-block d-sm-none">
-                                    <div class="list-item">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-inline" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" /></svg>
-                                        ${dataset.organization.title}
-                                    </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-auto">
-                                    <div class="mt-3 badges">
-                                    ${dataset.tags.map(tag => `<span class="tag m-1 mb-0">${tag.display_name}</span>`).join('')}
-                                    </div>
-                                </div>
-                                </div>
-                            </div>
-                            </div>
-                        </div>
-                        </div>
-                    `;
-                    // Append the card to the container
-                    container.append(card);
-                    });
-                }},
-                error: function(err) {
-                    console.error('Error fetching datasets:', err);
-                }
-            });
-            });
-
-        </script> -->
   </body>
 </html>
