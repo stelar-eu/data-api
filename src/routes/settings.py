@@ -15,7 +15,7 @@ from email_validator import validate_email, EmailNotValidError
 """
 
 # The tasks operations blueprint for all operations related to the lifecycle of `tasks
-settings_bp = APIBlueprint('settings_blueprint', __name__, tag='Dashboard Settings')
+settings_bp = APIBlueprint('settings_blueprint', __name__, enable_openapi=False)
 
 
 

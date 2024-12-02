@@ -14,7 +14,7 @@ import datetime
 logging.basicConfig(level=logging.INFO)  # Set up logging configuration
 
 
-admin_bp = APIBlueprint('admin_blueprint', __name__, tag='Cluster Administration')
+admin_bp = APIBlueprint('admin_blueprint', __name__, enable_openapi=False)
 
 @admin_bp.route('/users/roles', methods=['GET'])
 def get_realm_roles():

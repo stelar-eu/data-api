@@ -15,7 +15,7 @@ import json
 """
 
 # The tasks operations blueprint for all operations related to the lifecycle of `tasks
-publisher_bp = APIBlueprint('pub_blueprint', __name__, tag='Dashboard Dataset')
+publisher_bp = APIBlueprint('pub_blueprint', __name__, enable_openapi=False)
 
 logging.basicConfig(level=logging.DEBUG)
     
