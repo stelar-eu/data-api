@@ -267,8 +267,7 @@ def api_task_execution_create(json_data):
 
 
 @tasks_bp.route('/execution/input_json', methods=['GET'])
-@tasks_bp.input(schema.Identifier, example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
-# @tasks_bp.output(schema.ResponseOK, status_code=200)
+@tasks_bp.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
 @tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
 @token_active
 def api_task_execution_input_json(query_data):
