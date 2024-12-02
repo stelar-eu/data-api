@@ -42,17 +42,21 @@ def session_required(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Check if session is active
-        if 'ACTIVE' not in session or not session['ACTIVE']:
-            flash("Please login first to access this page.","info") 
-            return redirect(url_for('dashboard_blueprint.login', next=request.url))
-
         # Retrieve token from session
         access_token = session.get('access_token')
 
         # If token doesn't exist or is invalid, clear session and redirect to login with a message
-        if not access_token or not api_verify_token(access_token):
-            session.clear() 
+        if not access_token or not kutils.introspect_token(access_token):
+            
+            keycloak_openid = kutils.initialize_keycloak_openid()
+            # Revoke refresh token to log out
+            try:
+                keycloak_openid.logout(session['refresh_token'])
+            except Exception as e:
+                logging.debug(f"Error during logout: {e}")
+
+            session.clear()
+            # Clear local session and redirect to the login page
             flash("Session Expired, Please Login Again","warning") 
             return redirect(url_for('dashboard_blueprint.login', next=request.url))
 
