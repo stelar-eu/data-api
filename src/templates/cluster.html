@@ -188,10 +188,10 @@
                     url: `{{url_for('users_blueprint.get_users')}}`,
                     method: 'GET',
                     dataType: 'json',
-                    success: function(users) {
-                        if (users.length > 0) {
-                            allUsers = users;
-                            filteredUsers = [...allUsers]; // Initialize filtered users with all users
+                    success: function(response) {
+                        if (response.result.count > 0) {
+                            allUsers = response.result.users;
+                            filteredUsers = [...allUsers];
                             totalUsers = allUsers.length;
                             updatePagination();
                             renderTable(currentPage);
@@ -199,7 +199,7 @@
                             console.error("No users found.");
                         }
                     },
-                    error: function() {
+                    error: function(response) {
                         console.error("Error fetching users");
                     }
                 });
@@ -230,7 +230,7 @@
                             <td class="text-secondary">${roles}</td>
                             <td class="text-center">${activeStatus}</td>
                             <td>
-                                <button class="btn btn-sm edit-user-btn" data-bs-toggle="modal" data-bs-target="#modal-edit-user" data-user-id="${user.user_id}">Edit</button>
+                                <button class="btn btn-sm edit-user-btn" data-bs-toggle="modal" data-bs-target="#modal-edit-user" data-user-id="${user.id}">Edit</button>
                             </td>
                         </tr>
                     `);
@@ -387,9 +387,9 @@
                     method: 'GET',
                     dataType: 'json',
                     success: function(response) {
-                        if (response.roles && Array.isArray(response.roles)) {
+                        if (response.result.roles && Array.isArray(response.result.roles)) {
                             // Extract role names and store them
-                            systemRoles = response.roles.map(role => role.name);
+                            systemRoles = response.result.roles.map(role => role.name);
 
                             // Render checkboxes with the system roles, initially unchecked
                             renderRoleCheckboxes();
@@ -436,21 +436,17 @@
             // Fetch user data when modal opens
             function fetchUserData(userId) {
                 $.ajax({
-                    url: `admin/users/${userId}`,
+                    url: `{{ url_for('users_blueprint.api_get_user', user_id='') }}${userId}`,
                     method: 'GET',
                     dataType: 'json',
-                    success: function(user) {
-                        // Fill form fields with user data
+                    success: function(response) {
+                        user = response.result.user
                         $('#edit-username').val(user.username);
                         $('#edit-fullname').val(user.fullname);
                         $('#edit-email').val(user.email);
-                        $('#user-id').val(user.user_id);
+                        $('#user-id').val(user.id);
+                        $('#edit-active-account').prop('checked', user.active);
 
-                        // Set the Active account toggle based on the user's active status
-                        const isActive = user.active;
-                        $('#edit-active-account').prop('checked', isActive); // Update toggle state
-
-                        // Check/uncheck user roles based on the fetched data
                         populateUserRoleCheckboxes(user.roles);
                     },
                     error: function() {
@@ -461,8 +457,8 @@
 
             // Event listener for when the Edit button is clicked
             $(document).on('click', '.edit-user-btn', function() {
-                const userId = $(this).data('user-id'); // Get user ID from button
-                fetchUserData(userId); // Fetch user data and populate modal
+                const userId = $(this).data('user-id'); 
+                fetchUserData(userId); 
             });
 
             // Fetch system roles on page load
@@ -473,74 +469,68 @@
         </script>
 
         <script>
-           // Event listener for the form submission
+           // Event listener for the form submission of the edit user modal
             $("#edit-user-form").on("submit", function(event) {
                 event.preventDefault();
 
+
+                let userId = $("#user-id").val()
+
+                const fullName = $("#edit-fullname").val().trim().split(' '); 
+                const firstName = fullName[0] || ''; 
+                const lastName = fullName.slice(1).join(' ') || '';
+
                 const userData = {
-                    userId: $("#user-id").val(),
-                    username: $("#edit-username").val(),
-                    fullname: $("#edit-fullname").val(),
-                    email: $("#edit-email").val(),
-                    roles: [],  // Initialize an empty array for roles
-                    activeAccount: $("#edit-active-account").is(':checked') ? 'true' : 'false'  // Convert checkbox state to 'true' or 'false'
+                    username: $("#edit-username").val().trim(),
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: $("#edit-email").val().trim(),
+                    enabled: $("#edit-active-account").is(':checked')
                 };
 
-                // Collect the roles (checked checkboxes)
-                $('#role-checkboxes input[type="checkbox"]:checked').each(function() {
-                    userData.roles.push($(this).val());  // Push each checked value into the roles array
-                });
+                // // Collect the roles (checked checkboxes)
+                // $('#role-checkboxes input[type="checkbox"]:checked').each(function() {
+                //     userData.roles.push($(this).val()); 
+                // });
 
-                // Validate form fields (except roles)
-                let isValid = true;
+                // Validate the required fields
+                const requiredFields = ["#edit-username", "#edit-fullname", "#edit-email"];
 
-                // Function to check and toggle is-invalid class
-                function validateField(fieldId) {
+                const hasInvalidFields = requiredFields.some(fieldId => {
                     const field = $(fieldId);
                     if (field.val().trim() === '') {
                         field.addClass('is-invalid');
-                        isValid = false;
+                        return true;
                     } else {
                         field.removeClass('is-invalid');
+                        return false;
                     }
-                }
+                });
 
-                // Validate the required fields
-                validateField("#edit-username");
-                validateField("#edit-fullname");
-                validateField("#edit-email");
-
-                // Stop form submission if validation fails
-                if (!isValid) {
-                    return;
-                }
-                // Prevent modifications to the "admin" username
+                // Prevent modifications to the "admin" username, this is also ensured in the backend, dont spend time trying to modify it :)
                 if (userData.username.toLowerCase() === 'admin') {
                     $("#user-modal-footer .alert").remove();
-                    $("#user-modal-footer").prepend('<div class="alert alert-danger me-auto p-2" role="alert">Modifications to the "admin" account are not allowed here.</div>');
-                    return;  // Stop the form submission
+                    $("#user-modal-footer").prepend('<div class="alert alert-danger me-auto p-2" role="alert">Modifications to the "admin" account are not allowed.</div>');
+                    return; 
                 }
 
                 $("#user-modal-footer .alert").remove();
 
                 $.ajax({
-                    url: `{{ url_for('users_blueprint.api_put_user', user_id='') }}${userData.userId}`,
-                    type: 'PUT',
+                    url: `{{ url_for('users_blueprint.api_put_user', user_id='') }}${userId}`,
+                    type: 'PATCH',
                     contentType: 'application/json', 
                     data: JSON.stringify(userData),
                     success: function(response) {
-                        // Handle success: Append a success alert to the form footer
                         $("#user-modal-footer").prepend('<div class="alert alert-success me-auto p-2" role="alert">User updated successfully!</div>');
                         fetchAllUsers()
                     },
                     error: function(xhr, status, error) {
-                        // Clear previous alerts
+
                         $("#user-modal-footer .alert").remove();
 
-                        // Handle errors related to existing username or email
                         let errorMessage = "Failed to update user - " + xhr.status + ': ' + xhr.statusText;
 
-                        // Check for specific backend error messages and handle them
                         if (xhr.responseJSON && xhr.responseJSON.message) {
                             errorMessage = xhr.responseJSON.message;
 
@@ -553,12 +543,12 @@
                             }
                         }
 
-                        // Append an error alert to the form footer
                         $("#user-modal-footer").prepend(`<div class="alert alert-danger me-auto p-2" role="alert">${errorMessage}</div>`);
                     }
                 });
             });
 
+        
             // Event listener to remove is-invalid class when the user starts typing
             $("#edit-username, #edit-fullname, #edit-email").on("input", function() {
                 if ($(this).val().trim() !== '') {
