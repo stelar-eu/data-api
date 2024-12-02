@@ -228,11 +228,43 @@
                       <label class="form-label">Description</label>
                       <input type="text" class="form-control" name="resource-description" placeholder="Resource Description">
                     </div>
+                    <div class="col-lg-12">
+                      <div class="mb-3">
+                        <label class="form-label">Format
+                          <a id="new-format-reset" class="btn btn-sm b-0 m-1">Reset</a>
+                        </label>
+                        <div class="form-selectgroup" id="new-format-group">
+                            <label class="form-selectgroup-item">
+                                <input type="radio" name="format-sel" value="JSON" class="form-selectgroup-input">
+                                <span class="form-selectgroup-label">JSON</span>
+                            </label>
+                            <label class="form-selectgroup-item">
+                                <input type="radio" name="format-sel" value="CSV" class="form-selectgroup-input">
+                                <span class="form-selectgroup-label">CSV</span>
+                            </label>
+                            <label class="form-selectgroup-item">
+                                <input type="radio" name="format-sel" value="TXT" class="form-selectgroup-input">
+                                <span class="form-selectgroup-label">TXT</span>
+                            </label>
+                            <label class="form-selectgroup-item">
+                                <input type="radio" name="format-sel" value="PDF" class="form-selectgroup-input">
+                                <span class="form-selectgroup-label">PDF</span>
+                            </label>
+                            <label class="form-selectgroup-item">
+                                <input type="radio" name="format-sel" value="HTML" class="form-selectgroup-input">
+                                <span class="form-selectgroup-label">HTML</span>
+                            </label>                        
+                            <div class="form-group ms-1">
+                              <input type="text" id="new-custom-format" class="form-control" placeholder="Custom Format">
+                            </div>
+                          </div>
+                      </div>
+                    </div>
                     <label class="form-label">Resource Type</label>
                     <div class="form-selectgroup-boxes row mb-3">
                       <div class="col-lg-6">
                         <label class="form-selectgroup-item">
-                          <input type="radio" name="resource-type" value="external" class="form-selectgroup-input" disabled>
+                          <input type="radio" name="resource-type" value="external" class="form-selectgroup-input">
                           <span class="form-selectgroup-label d-flex align-items-center p-3">
                             <span class="me-3">
                               <span class="form-selectgroup-check"></span>
@@ -253,7 +285,7 @@
                             </span>
                             <span class="form-selectgroup-label-content">
                               <span class="form-selectgroup-title strong mb-1">Upload Resource</span>
-                              <span class="d-block text-secondary">Upload a file to MinIO that will map as path of the resource.</span>
+                              <span class="d-block text-secondary">Upload a file to MinIO and create a resource with the S3 path.</span>
                             </span>
                           </span>
                         </label>
@@ -269,33 +301,6 @@
                           <input type="text" class="form-control">
                         </div>
                       </div>
-                      <div class="col-lg-12">
-                        <div class="mb-3">
-                          <label class="form-label">Format</label>
-                            <div class="form-selectgroup">
-                              <label class="form-selectgroup-item">
-                                <input type="checkbox" name="formatType" value="JSON" class="form-selectgroup-input" checked>
-                                <span class="form-selectgroup-label">JSON</span>
-                              </label>
-                              <label class="form-selectgroup-item">
-                                <input type="checkbox" name="formatType" value="CSV" class="form-selectgroup-input">
-                                <span class="form-selectgroup-label">CSV</span>
-                              </label>
-                              <label class="form-selectgroup-item">
-                                <input type="checkbox" name="formatType" value="TXT" class="form-selectgroup-input">
-                                <span class="form-selectgroup-label">TXT</span>
-                              </label>
-                              <label class="form-selectgroup-item">
-                                <input type="checkbox" name="formatType" value="PDF" class="form-selectgroup-input">
-                                <span class="form-selectgroup-label">PDF</span>
-                              </label>
-                              <label class="form-selectgroup-item">
-                                <input type="checkbox" name="formatType" value="HTML" class="form-selectgroup-input">
-                                <span class="form-selectgroup-label">HTML</span>
-                              </label>
-                            </div>
-                        </div>
-                      </div>
                     </form>
                     </div>
                   </div>
@@ -303,7 +308,7 @@
                     <div class="row">
                       <div class="col-lg-12">
                         <div class="mb-3">
-                        <form id="uploadForm" enctype="multipart/form-data">
+                    <form id="uploadForm" enctype="multipart/form-data">
                           <div class="form-label">Select Origin File</div>
                           <input type="file" class="form-control" id="fileInput" required />
                         </div>
@@ -314,36 +319,9 @@
                           <select class="form-select" id="pathSelector" required></select>
                         </div>
                       </div>
-                      <div class="col-lg-12">
-                        <div class="mb-3">
-                          <label class="form-label">Format</label>
-                            <div class="form-selectgroup">
-                              <label class="form-selectgroup-item">
-                                <input type="checkbox" name="name" value="JSON" class="form-selectgroup-input">
-                                <span class="form-selectgroup-label">JSON</span>
-                              </label>
-                              <label class="form-selectgroup-item">
-                                <input type="checkbox" name="name" value="CSV" class="form-selectgroup-input">
-                                <span class="form-selectgroup-label">CSV</span>
-                              </label>
-                              <label class="form-selectgroup-item">
-                                <input type="checkbox" name="name" value="TXT" class="form-selectgroup-input">
-                                <span class="form-selectgroup-label">TXT</span>
-                              </label>
-                              <label class="form-selectgroup-item">
-                                <input type="checkbox" name="name" value="PDF" class="form-selectgroup-input">
-                                <span class="form-selectgroup-label">PDF</span>
-                              </label>
-                              <label class="form-selectgroup-item">
-                                <input type="checkbox" name="name" value="HTML" class="form-selectgroup-input">
-                                <span class="form-selectgroup-label">HTML</span>
-                              </label>
-                            </div>
-                        </div>
-                      </div>
                     </form>
                     <div class="col-lg-12">
-                      <div class="progress" id="progress-bar-container" style="flex-grow: 1; margin-right: 20px;">
+                      <div class="progress" id="progress-bar-container" style="flex-grow: 1; height: 20px; margin-right: 20px;">
                         <div class="progress-bar" id="progress-bar" style="width: 0%" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="0% Complete">
                           <span id="progress-text">0%</span>
                         </div>
@@ -435,6 +413,38 @@
         {% include 'footer.html'%}
       </div>
     </div>
+
+    <script>
+      document.getElementById('new-format-reset').addEventListener('click', function () {
+          const radios = document.querySelectorAll('#new-format-group input[type="radio"]');
+          radios.forEach(radio => {
+              radio.checked = false;
+          });
+          document.getElementById('new-custom-format').value='';
+      });
+
+      const form = document.getElementById('new-format-group');
+      // Clear checkboxes when typing in the custom format field
+      const customFormatInput = document.getElementById('new-custom-format');
+      customFormatInput.addEventListener('input', function() {
+        const checkboxes = form.querySelectorAll('.form-selectgroup-input');
+        checkboxes.forEach(checkbox => {
+          checkbox.checked = false;
+        });
+      });
+
+      // Clear custom format field when selecting any checkbox
+      const checkboxes = form.querySelectorAll('.form-selectgroup-input');
+      checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+          if (checkbox.checked) {
+            customFormatInput.value = '';
+          }
+        });
+      });
+    </script>
+  
+    
     <script>
         // When a view resource button is clicked show the modal with the resource info
         function attachViewIdEventListeners() {
@@ -601,7 +611,7 @@
 
               const description = $('input[name="resource-description"]').val();
               const name = $('input[name="example-text-input"]').val();
-              const format = $('input[name="name"]:checked').val();
+              const format = $('input[name="format-sel"]:checked').val();
               const packageId = "{{ dataset.get('id')}}";
               const fileInput = $('#fileInput')[0].files[0];  // Get the uploaded file
               const filename = fileInput.name;
@@ -629,7 +639,7 @@
                       $('#uploadForm')[0].reset(); 
                       $('#progress-bar').width('0%'); 
                       $('#progress-text').text('0%');
-                      appendNewResourceRow(response.result);
+                      appendNewResourceRow(response.result.resource);
                       setTimeout(function() {
                           $('#uploadStatus').fadeOut(500, function() {
                               $(this).remove();
@@ -653,7 +663,6 @@
             function appendNewResourceRow(resource) {
               // Get the resource table body
               const resourceTableBody = $('table tbody');
-
 
               // Determine the badge based on the resource relation
               let badgeHtml = '';
@@ -683,8 +692,8 @@
                                       <path d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z" />
                                   </svg>
                               </button>
-                              <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow view-resource-btn">
-                                  <a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="${resource.id}">
+                              <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+                                  <a class="dropdown-item view-resource-btn" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="${resource.id}">
                                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-eye">
                                           <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                                           <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
