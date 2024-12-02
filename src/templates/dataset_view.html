@@ -149,7 +149,7 @@
               <div class="col-md-8">
                     <div class="card">
                         <div class="card-body">
-                            <div class="card-title">Package Resources</div>
+                            <div class="card-title">Resources</div>
                             <div class="col-auto mb-3 d-flex justify-content-end">
                                 <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-new-resource">
                                   <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
@@ -188,8 +188,8 @@
                                               Manage
                                               <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="currentColor"  class="ms-1 icon icon-tabler icons-tabler-filled icon-tabler-caret-down"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z" /></svg>
                                             </button>
-                                            <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow view-resource-btn">
-                                                <a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="{{ resource['id'] }}">
+                                            <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow ">
+                                                <a class="dropdown-item view-resource-btn" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="{{ resource['id'] }}">
                                                   <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
                                                   View</a>
                                                 <div class="dropdown-divider"></div>
@@ -369,10 +369,51 @@
                 <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Resource ID</h5>
+                            <h5 class="modal-title">Manage Resource · <span id="view-resource-id-header"></span></h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
+                            <div class="mb-3">
+                              <label class="form-label">Name</label>
+                              <input type="text" class="form-control" name="view-resource-name" placeholder="Resource Name">
+                            </div>
+                            <div class="mb-3">
+                              <label class="form-label">Description</label>
+                              <input type="text" class="form-control" name="view-resource-description" placeholder="Resource Description">
+                            </div>
+                            <div class="mb-3">
+                              <label class="form-label">URL</label>
+                              <input type="text" class="form-control" name="view-resource-url" placeholder="Resource URL">
+                            </div>
+                            <div class="mb-3">
+                              <label class="form-label">Tags</label>
+                              <input type="text" class="form-control" name="view-resource-url" placeholder="Resource Tags">
+                            </div>
+                            <div class="mb-3">
+                              <label class="form-label">Format</label>
+                                <div class="form-selectgroup">
+                                  <label class="form-selectgroup-item">
+                                    <input type="checkbox" name="formatType" value="JSON" class="form-selectgroup-input" checked>
+                                    <span class="form-selectgroup-label">JSON</span>
+                                  </label>
+                                  <label class="form-selectgroup-item">
+                                    <input type="checkbox" name="formatType" value="CSV" class="form-selectgroup-input">
+                                    <span class="form-selectgroup-label">CSV</span>
+                                  </label>
+                                  <label class="form-selectgroup-item">
+                                    <input type="checkbox" name="formatType" value="TXT" class="form-selectgroup-input">
+                                    <span class="form-selectgroup-label">TXT</span>
+                                  </label>
+                                  <label class="form-selectgroup-item">
+                                    <input type="checkbox" name="formatType" value="PDF" class="form-selectgroup-input">
+                                    <span class="form-selectgroup-label">PDF</span>
+                                  </label>
+                                  <label class="form-selectgroup-item">
+                                    <input type="checkbox" name="formatType" value="HTML" class="form-selectgroup-input">
+                                    <span class="form-selectgroup-label">HTML</span>
+                                  </label>
+                                </div>
+                            </div>
                             <label class="form-label">Copy this ID and use it to tool executions as input</label>
                             <input type="text" class="form-control" id="resource-id-input" name="example-disabled-input" placeholder="Resource-ID" readonly>
                         </div>
@@ -395,14 +436,16 @@
       </div>
     </div>
     <script>
-        // When a "View ID" button is clicked
+        // When a view resource button is clicked show the modal with the resource info
         function attachViewIdEventListeners() {
             const viewButtons = document.querySelectorAll('.view-resource-btn');
             viewButtons.forEach(function(button) {
                 button.addEventListener('click', function() {
                     const resourceId = this.getAttribute('data-resource-id');
                     const inputField = document.getElementById('resource-id-input');
+                    const modalViewID = document.getElementById('view-resource-id-header');
                     inputField.value = resourceId;
+                    $('#view-resource-id-header').html(resourceId);
                 });
             });
         }
@@ -417,6 +460,8 @@
 
 
         <script>
+
+
         document.addEventListener('DOMContentLoaded', function() {
             const externalResourceForm = document.getElementById('externalResourceForm');
             const internalResourceForm = document.getElementById('uploadForm');
@@ -444,8 +489,9 @@
               // Clear upload status message
               $('#uploadStatus').html('');
 
-              // Optionally reset radio button selection to the default (if needed)
+              // Reset radio button selection to the default (if needed)
               document.querySelector('input[name="resource-type"][value="external"]').checked = true;
+              
               toggleResourceForm(); // Re-initialize form visibility
             }
 
@@ -513,13 +559,13 @@
               formData.append('bucket', bucketName);
               formData.append('path', filePath);
 
-              // Show the progress bar when uploading begins
+             
               $('#progress-bar-container').show();
-              $('#progress-bar').width('0%'); // Reset the progress bar width
+              $('#progress-bar').width('0%');
               $('#progress-text').text('0%');
 
               $.ajax({
-                  url: '/stelar/console/v1/publisher/upload_file',  // Change to your actual server-side file upload URL
+                  url: `{{url_for('pub_blueprint.upload_file_to_minio')}}`, 
                   method: 'POST',
                   data: formData,
                   contentType: false,
@@ -537,21 +583,22 @@
                   },
                   success: function(response) {
                       $('#uploadStatus').html('<div class="alert alert-success">File uploaded successfully!</div>');
-                      $('#progress-bar').width('0%'); // Reset progress bar
+                      $('#progress-bar').width('0%');
                       $('#progress-text').text('0%');
-                      $('#progress-bar-container').hide(); // Hide the progress bar after success
+                      $('#progress-bar-container').hide(); 
 
                       // Call the second AJAX function to link the resource
-                      linkResourceAfterUpload(bucketName+"/"+filePath);  // Send metadata after success
+                      linkResource(bucketName+"/"+filePath, true); 
                   },
                   error: function(error) {
                       $('#uploadStatus').html('<div class="alert alert-danger">File upload failed!</div>');
-                      $('#progress-bar-container').hide(); // Hide the progress bar after failure
+                      $('#progress-bar-container').hide(); 
                   }
               });
             }
 
-            function linkResourceAfterUpload(filePath) {
+            function linkResource(filePath, isFileResource) {
+
               const description = $('input[name="resource-description"]').val();
               const name = $('input[name="example-text-input"]').val();
               const format = $('input[name="name"]:checked').val();
@@ -566,22 +613,21 @@
                       "format": format,
                       "name": name,
                       "package_id": packageId,
-                      "resource_tags": [],
                       "resource_type": "Tabular",
                       "url": "s3://" + normalizedUrl
                   }
               };
 
               $.ajax({
-                  url: '/stelar/api/v1/resource/link',
+                  url: `{{url_for('rest_catalog_blueprint.api_rest_create_resource', dataset_id=dataset.get('id')) }}`,
                   method: 'POST',
                   contentType: 'application/json',
                   data: JSON.stringify(resourceMetadata),
                   success: function(response) {
                       $('#uploadStatus').html('<div class="alert alert-success">Resource Linked Succesfully!</div>');
-                      $('#progress-bar-container').hide(); // Hide the progress bar after success
-                      $('#uploadForm')[0].reset(); // Reset the form after successful upload
-                      $('#progress-bar').width('0%'); // Reset progress bar
+                      $('#progress-bar-container').hide();
+                      $('#uploadForm')[0].reset(); 
+                      $('#progress-bar').width('0%'); 
                       $('#progress-text').text('0%');
                       appendNewResourceRow(response.result);
                       setTimeout(function() {
@@ -591,82 +637,138 @@
                       }, 3000);
                   },
                   error: function(error) {
-                      alert('Error linking resource!');
+                      $('#uploadStatus').html('<div class="alert alert-danger">Error linking resource</div>');
+                      $('#progress-bar-container').hide(); 
+                      $('#progress-bar').width('0%'); 
+                      $('#progress-text').text('0%');
+                      setTimeout(function() {
+                          $('#uploadStatus').fadeOut(500, function() {
+                              $(this).remove();
+                          });
+                      }, 3000);
                   }
               });
             }
+
             function appendNewResourceRow(resource) {
               // Get the resource table body
               const resourceTableBody = $('table tbody');
 
+
+              // Determine the badge based on the resource relation
+              let badgeHtml = '';
+              if (resource.relation === 'owned') {
+                  badgeHtml = '<span class="badge bg-blue text-blue-fg">OWNED</span>';
+              } else if (resource.relation === 'profile') {
+                  badgeHtml = '<span class="badge bg-orange text-orange-fg">PROFILE</span>';
+              } else {
+                  badgeHtml = '<span class="badge bg-secondary text-secondary-fg">NONE</span>';
+              }
+
               // Create a new table row with the resource data
               const newRow = `
                   <tr>
+                      <td class="text-sm">
+                          ${badgeHtml}
+                      </td>
                       <td class="text-sm">${resource.name}</td>
                       <td class="text-sm"><small>${resource.url}</small></td>
                       <td class="text-sm">${resource.format}</td>
                       <td>
-                          <button class="btn btn-sm view-resource-btn" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="${resource.id}">View ID</button>
+                          <div class="dropdown">
+                              <button class="btn btn-sm d-flex p-2 text-reset" data-bs-toggle="dropdown" aria-label="Open Resource Menu">
+                                  Manage
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="ms-1 icon icon-tabler icons-tabler-filled icon-tabler-caret-down">
+                                      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                      <path d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z" />
+                                  </svg>
+                              </button>
+                              <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow view-resource-btn">
+                                  <a class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="${resource.id}">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-eye">
+                                          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                          <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+                                          <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
+                                      </svg>
+                                      View
+                                  </a>
+                                  <div class="dropdown-divider"></div>
+                                  <a edit-resource-id="${resource.id}" class="dropdown-item edit-resource-btn">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-pencil">
+                                          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                          <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+                                          <path d="M13.5 6.5l4 4" />
+                                      </svg>
+                                      Edit
+                                  </a>
+                                  <a del-resource-id="${resource.id}" class="dropdown-item del-resource-btn">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                                          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                          <path d="M4 7l16 0" />
+                                          <path d="M10 11l0 6" />
+                                          <path d="M14 11l0 6" />
+                                          <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+                                          <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                                      </svg>
+                                      Delete
+                                  </a>
+                              </div>
+                          </div>
                       </td>
-                  </tr>
-              `;
+                  </tr>`;
 
-              // Append the new row to the table
               resourceTableBody.append(newRow);
-
-              // Re-attach the event listener for the "View ID" button
+              // Make the newly added button able to open the view resource modal
               attachViewIdEventListeners();
             } 
       });
     
-
       </script>
       <script>
-        // Fetch paths on page load
+
         $(document).ready(function() {
             fetchPaths();
         });
     
-        // Fetch available paths
-        // Fetch available paths
+        // Fetch available paths for writing. The write access is checked by the API 
         function fetchPaths() {
             $.ajax({
-                url: '/stelar/console/v1/publisher/fetch_paths',
+                url: `{{url_for('pub_blueprint.fetch_minio_paths')}}`,
                 method: 'GET',
                 success: function(data) {
                     var pathSelector = $('#pathSelector');
-                    pathSelector.empty();  // Clear any existing options
-                     // Add a placeholder as the default option
+                    pathSelector.empty();  
+
                     var placeholderOption = new Option('Select Destination Path Inside MinIO', '', true, true);
-                    placeholderOption.disabled = true;  // Make it non-selectable
+                    placeholderOption.disabled = true;  
                     pathSelector.append(placeholderOption);
-                    // Iterate over the zones and paths
+
+
                     $.each(data.paths, function(zone, directories) {
-                        // Create an optgroup for each zone
                         var optGroup = $('<optgroup>', { label: zone });
-                        // If there are no directories, add the root path (zone/)
                         if (directories.length === 0) {
                             var rootPath = zone + '/';
-                            optGroup.append(new Option(rootPath, '/'));  // Add root path
+                            optGroup.append(new Option(rootPath, '/'));  
                         }
-                        // Add each subdirectory as an option within the optgroup
                         $.each(directories, function(index, directory) {
                             var fullPath = zone + '/' + directory;
-                            optGroup.append(new Option(fullPath, directory));  // Both text and value are the full path
+                            optGroup.append(new Option(fullPath, directory)); 
                         });
-                        // Append the optgroup to the selector
                         pathSelector.append(optGroup);
                     });
-                    // If no paths are available, show a message
+
                     if ($('#pathSelector option').length === 0) {
                         pathSelector.append(new Option('No available paths', ''));
                     }
                 },
                 error: function(error) {
-                    console.log("Error fetching paths:", error);
+                    if ($('#pathSelector option').length === 0) {
+                        pathSelector.append(new Option('No available paths', ''));
+                    }
                 }
             });
         }
+
       </script>
   </body>
 </html>
