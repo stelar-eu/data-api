@@ -3,11 +3,11 @@ from flask import current_app, session, jsonify, request
 import logging
 import urllib
 from jose import jwt, JWTError
-import logging
 import requests
 from functools import wraps
 import kutils
 
+logging.basicConfig(level=logging.DEBUG)
 
 auth = HTTPTokenAuth(scheme="Bearer", header="Authorization", security_scheme_name="BearerAuth", description="An OAuth2 token issued by the STELAR IDP by using endpoint or GUI issuance.")
 
@@ -87,20 +87,32 @@ def admin_required(f):
             if request.headers.get('Authorization'):
                 # Extract the token from the 'Authorization' header
                 access_token = request.headers.get('Authorization').split(" ")[1]
-                
-                # Check if the token is valid and corresponds to an admin user
-                if not kutils.introspect_admin_token(access_token):
+            else:
+                # Try to extract token from session if not provided.
+                access_token = session.get('access_token')
+                if access_token is None:
                     response = {
                         'success': False,
                         'help': request.url,
                         'error': {
-                            '__type': 'Authorization Error',
-                            'name': 'Bearer Token is not related to an admin user'
+                            '__type': 'Authentication Error',
+                            'name': 'Bearer Token is not Valid'
                         }
                     }
-                    return response, 403
-            else:
-                raise IndexError
+                    return response, 401  
+    
+            # Check if the token is valid and corresponds to an admin user
+            if not kutils.introspect_admin_token(access_token):
+                response = {
+                    'success': False,
+                    'help': request.url,
+                    'error': {
+                        '__type': 'Authorization Error',
+                        'name': 'Bearer Token is not related to an admin user'
+                    }
+                }
+                return response, 403
+            
         except (IndexError, ValueError):
             response = {
                 'success': False,
@@ -147,7 +159,7 @@ def token_active(f):
                         }
                     }
                     return response, 401  
-                   
+            
             # Verify the token keys.
             if not api_verify_token(access_token):
                 response = {
@@ -155,7 +167,7 @@ def token_active(f):
                     'help': request.url,
                     'error': {
                         '__type': 'Authentication Error',
-                        'name': 'Bearer Token is not Valid'
+                        'name': 'Bearer Token could not be verified'
                     }
                 }
                 return response, 401
