@@ -9,6 +9,7 @@ import copy
 import random
 from datetime import datetime
 import logging
+import yaml
 
 from flask import request, jsonify, current_app
 from requests.auth import HTTPBasicAuth
@@ -249,6 +250,26 @@ def construct_rsa_public_key(n, e):
     public_key = rsa.RSAPublicNumbers(e_int, n_int).public_key(default_backend())
 
     return public_key
+
+def detect_and_parse(data_string):
+    try:
+        # Try parsing as JSON
+        parsed_data = json.loads(data_string)
+        print("Detected format: JSON")
+        return parsed_data, "JSON"
+    except json.JSONDecodeError:
+        pass  # It's not JSON, so try YAML next
+
+    try:
+        # Try parsing as YAML
+        # parsed_data = yaml.safe_load(data_string)
+        # print("Detected format: YAML")
+        return data_string, "YAML"
+    except yaml.YAMLError:
+        pass  # It's not valid YAML either
+
+    # If neither parser works, raise an error
+    raise ValueError("The provided string is neither valid JSON nor YAML.")
 
 
 def create_CKAN_headers(API_TOKEN):

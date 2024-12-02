@@ -1,5 +1,6 @@
 from flask import request, jsonify, current_app, session, make_response, render_template, Response
 from apiflask import APIBlueprint
+import json
 import mutils as mu
 import kutils as ku
 import monitor_module as mon
@@ -10,6 +11,7 @@ import schema
 import sql_utils
 import uuid
 import kutils
+import utils
 
 auth_tool_bp = APIBlueprint('auth_tool_blueprint', __name__, tag='Authorization Management')
 
@@ -216,9 +218,17 @@ def get_policy_function(policy_filter):
         
         formatted_yaml_string = policy_repr.encode('utf-8').decode('unicode_escape')
 
+        parsed_data, data_format = utils.detect_and_parse(formatted_yaml_string)
+
+        if data_format == 'JSON':
+            # formatted_yaml_string = json.loads(parsed_data)
+            formatted_yaml_string = yaml.dump(parsed_data, default_flow_style=False)
+
+
         if formatted_yaml_string != None:
             return Response(formatted_yaml_string, status=200, content_type="application/x-yaml")
-
+    
+        
         else:
             return {
                 "help": request.url,
