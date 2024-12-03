@@ -218,11 +218,11 @@ def get_policy_function(policy_filter):
         
         formatted_yaml_string = policy_repr.encode('utf-8').decode('unicode_escape')
 
-        parsed_data, data_format = utils.detect_and_parse(formatted_yaml_string)
+        # parsed_data, data_format = utils.detect_and_parse(formatted_yaml_string)
 
-        if data_format == 'JSON':
-            # formatted_yaml_string = json.loads(parsed_data)
-            formatted_yaml_string = yaml.dump(parsed_data, default_flow_style=False)
+        # if data_format == 'JSON':
+        #     # formatted_yaml_string = json.loads(parsed_data)
+        #     formatted_yaml_string = yaml.dump(parsed_data, default_flow_style=False)
 
 
         if formatted_yaml_string != None:
