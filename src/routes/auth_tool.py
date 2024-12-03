@@ -113,6 +113,21 @@ def create_roles_function():
         }, 400
 
     try:
+        try:
+            access_token=request.headers.get('Authorization').split(" ")[1]
+        except:
+            try:
+                access_token = session.get('access_token')
+            except:
+                return {
+                    "help": request.url,
+                    "error": {
+                        "name": f"Error: The new policy will not be applied",
+                        '__type': 'Policy Not Stored Error',
+                    },
+                    "success": False
+                }, 401
+
         #initialize keycloak admin through service accounts
         keycloak_admin = ku.init_admin_client_with_credentials()
 
@@ -159,7 +174,7 @@ def create_roles_function():
         policy_id = str(uuid.uuid4())
         user_id = ""
 
-        user = kutils.get_user_by_token(access_token=request.headers.get('Authorization').split(" ")[1])
+        user = kutils.get_user_by_token(access_token)
         if user:
             user_id = user.get('username')
 

@@ -23,7 +23,6 @@ import os
 
 dashboard_bp = APIBlueprint('dashboard_blueprint', __name__, enable_openapi=False)
 
-logging.basicConfig(level=logging.DEBUG)
 
 # DEVELOPMENT ONLY FOR AWS CLUSTERS: Decide which partner the cluster corresponds to 
 def get_partner_logo():
@@ -58,7 +57,7 @@ def session_required(f):
             try:
                 keycloak_openid.logout(session['refresh_token'])
             except Exception as e:
-                logging.debug(f"Error during logout: {e}")
+                pass
 
             session.clear()
             # Clear local session and redirect to the login page
@@ -159,7 +158,6 @@ def verify_email():
                     if cipher == vftoken:
                         # We update the status of the email verification by updating the user in keycloak
                         kutils.update_user(user_id=uid, email_verified=True)
-                        logging.debug("Success, verified!")
                         return render_template('verify.html', VERIFY_STATUS = True)
                     else:
                         # Sadly the email wasn't verified

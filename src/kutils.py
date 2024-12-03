@@ -1,12 +1,10 @@
 from keycloak import KeycloakOpenID, KeycloakAdmin, KeycloakAuthenticationError, KeycloakGetError
 from flask import current_app, session
-import logging
 import datetime
 import uuid
 import re
 
 
-logging.basicConfig(level=logging.DEBUG)
 
 
 def is_valid_uuid(s):
@@ -317,7 +315,6 @@ def get_user_roles(user_id):
         return filtered_roles
     
     except Exception as e:
-        logging.error(f"Error fetching roles for user {user_id}: {str(e)}")
         return []
 
 def get_role(role_id):
@@ -341,7 +338,6 @@ def get_role(role_id):
         return role_rep
     
     except Exception as e:
-        logging.error(f"Error fetching role with ID or name {role_id}: {str(e)}")
         return None
 
 def get_realm_roles():
@@ -423,12 +419,10 @@ def create_user_with_password(
         
         return user_id
     except KeycloakAuthenticationError as e:
-        logging.error(f"Error updating user: {e}")
         return None
     except ValueError as ve:
         raise ValueError(ve)
     except Exception as e:
-        logging.error(f"Unexpected error: {e}")
         return None
 
 
@@ -493,12 +487,10 @@ def update_user(
         return updated_user_json
     
     except KeycloakAuthenticationError as e:
-        logging.error(f"Error updating user: {e}")
         return None
     except ValueError as ve:
         raise ValueError(ve)
     except Exception as e:
-        logging.error(f"Unexpected error: {e}")
         return None
 
 
@@ -576,11 +568,9 @@ def delete_user(user_id=None):
         if e.response_code == 404:
             raise AttributeError(f"User with ID '{user_id}' not found.") from e
         else:
-            logging.error(f"Unexpected Keycloak error: {e}")
             raise
 
     except Exception as e:
-        logging.error(f"Unexpected error: {e}")
         raise
 
 
@@ -636,10 +626,8 @@ def get_users_from_keycloak(offset, limit):
         return result
 
     except ValueError as ve:
-        logging.debug(str(ve))
         raise ValueError(f"Invalid parameter: {str(ve)}")
     except RuntimeError as re:
-        logging.debug(str(re))
         raise RuntimeError(f"Failed to fetch users from Keycloak: {str(re)}")
 
 
@@ -657,7 +645,6 @@ def fetch_user_creation_date(user_id):
         if data:
             return data
     except Exception as e:
-        logging.error(f"Error fetching user creation date: {e}")
         return None
     
 
@@ -700,8 +687,7 @@ def assign_role_to_user(user_id, role_id):
     except AttributeError as ae:
         raise AttributeError(str(ae))
     except Exception as e:
-        logging.error(f"Unexpected error occured: {e}")
-
+        pass
 
 def assign_roles_to_user(user_id, role_ids):
     """
@@ -753,13 +739,10 @@ def assign_roles_to_user(user_id, role_ids):
         return get_user(user_id)
 
     except ValueError as ve:
-        logging.error(f"ValueError: {ve}")
         raise
     except AttributeError as ae:
-        logging.error(f"AttributeError: {ae}")
         raise
     except Exception as e:
-        logging.error(f"Unexpected error occurred: {e}")
         raise
 
 
@@ -831,13 +814,10 @@ def patch_user_roles(user_id, role_ids):
         return get_user(user_id)
 
     except ValueError as ve:
-        logging.error(f"ValueError: {ve}")
         raise
     except AttributeError as ae:
-        logging.error(f"AttributeError: {ae}")
         raise
     except Exception as e:
-        logging.error(f"Unexpected error occurred: {e}")
         raise
 
 def unassign_role_from_user(user_id, role_id):
@@ -877,8 +857,7 @@ def unassign_role_from_user(user_id, role_id):
     except AttributeError as ae:
         raise AttributeError(str(ae))
     except Exception as e:
-        logging.error(f"Unexpected error occurred: {e}")
-
+        pass
 
 def create_client_role(keycloak_admin, client_name, client_id, role_name):
     print(client_id)

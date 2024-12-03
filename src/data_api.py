@@ -77,7 +77,6 @@ app.secret_key = 'secretkey123'
 
 app.config.from_prefixed_env()
 
-logging.basicConfig(level=logging.DEBUG)
 
 ################## BLUEPRINT REGISTRATION ##################
 

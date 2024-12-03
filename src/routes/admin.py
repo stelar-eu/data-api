@@ -11,8 +11,6 @@ from email_validator import validate_email, EmailNotValidError
 import kutils 
 import datetime
 
-logging.basicConfig(level=logging.INFO)  # Set up logging configuration
-
 
 admin_bp = APIBlueprint('admin_blueprint', __name__, enable_openapi=False)
 

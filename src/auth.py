@@ -1,13 +1,11 @@
 from apiflask import HTTPTokenAuth
 from flask import current_app, session, jsonify, request
-import logging
 import urllib
 from jose import jwt, JWTError
 import requests
 from functools import wraps
 import kutils
 
-logging.basicConfig(level=logging.DEBUG)
 
 auth = HTTPTokenAuth(scheme="Bearer", header="Authorization", security_scheme_name="BearerAuth", description="An OAuth2 token issued by the STELAR IDP by using endpoint or GUI issuance.")
 
@@ -26,7 +24,6 @@ def api_verify_token(token):
 
     config = current_app.config['settings']
 
-    #logging.debug("Starting token verification")
     token = urllib.parse.unquote(token).strip()
     # config = current_app.config['keycloak_settings']
     keycloak_issuer = "https://"+config['KEYCLOAK_SUBDOMAIN']+"."+config['KLMS_DOMAIN_NAME']+"/realms/"+config['REALM_NAME']  # Issuer URL from Keycloak
