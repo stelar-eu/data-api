@@ -1,4 +1,4 @@
-from flask import request, jsonify, current_app
+from flask import request, jsonify, current_app, url_for
 from apiflask import APIBlueprint
 import requests
 from src.auth import auth, security_doc, admin_required, token_active
@@ -10,7 +10,9 @@ import schema
 import xml.etree.ElementTree as ET
 import kutils
 import mutils
-
+from email_validator import validate_email, EmailNotValidError
+import smtplib
+import ssl
 
 from demo_t import get_demo_ckan_token
 
@@ -708,6 +710,80 @@ def api_acquire_s3_creds():
         }, 500
 
 
+@users_bp.route('/activation', methods=['POST'])
+@users_bp.input(schema.ActivationInput, location='json')
+@users_bp.output(schema.ResponseAmbiguous, status_code=200)
+@users_bp.doc(tags=['User Management'], security=security_doc)
+@token_active
+@admin_required
+def send_activation_email(json_data):
+
+    id = json_data.get('id')
+    try:
+        user = kutils.get_user(id)
+    except:
+        return
+    
+    fullname = user.get('fullname')
+    username = user.get('username')
+    email = user.get('email')
+     
+
+    """
+    Sends the activation email to the specified email address with a subject and sender name.
+    SMTP settings are fetched from Flask's app config.
+    """
+    config = current_app.config['settings']  # Fetch SMTP settings from app config
+
+    smtp_server = config['SMTP_SERVER']
+    smtp_port = config['SMTP_PORT']
+    sender_email = config['SMTP_EMAIL']
+    sender_password = config['SMTP_PASSWORD']
+
+    # Email subject and sender name
+    subject = "Your Account Is Activated"
+    sender_name = "STELAR KLMS"
+
+    # Plain text message without headers (headers will be handled separately)
+    plain_message = f"""\
+Dear {fullname},
+
+Your username is: {username}
+
+Your account has been activated. Visit the KLMS and sign in below using the password you set during your registration: 
+
+https://{config['MAIN_INGRESS_SUBDOMAIN']}.{config['KLMS_DOMAIN_NAME']}{url_for('dashboard_blueprint.login')}
+
+If you received this email by accident, please ignore it.
+
+Kind Regards,
+STELAR KLMS
+"""
+    # Create the full email message with subject, sender, and receiver
+    full_message = f"Subject: {subject}\nFrom: {sender_name} <{sender_email}>\nTo: {email}\n\n{plain_message}"
+
+    context = ssl.create_default_context()
+
+    try:
+        with smtplib.SMTP_SSL(smtp_server, int(smtp_port), context=context) as server:
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, email, full_message)
+            return {
+                "success":True, 
+                "result":{
+                    "id": id
+                },
+                "help": request.url
+            }, 200
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
 
 
 ##################################################################

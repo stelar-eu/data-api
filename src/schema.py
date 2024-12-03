@@ -67,7 +67,10 @@ class NewUser(Schema):
     lastName = String(required=True, validate=Length(0, 100))
     password = String(required=True, validate=Length(8, 25))
     enabled = Boolean(required=True)
-   
+
+
+class ActivationInput(Schema):
+    id = String(required=True, validate=Length(0, 50))
 
 
 class UpdatedUser(Schema):
