@@ -458,10 +458,11 @@ def update_user(
        
         # Prepare the update data dictionary with only the fields that are not None
         user_data = {}
-
+        user_repr = get_user(user_id=user_id)
         if username:
-            # Will raise ValueError if username not unique
-            username_unique(username=username)
+            # Will raise ValueError if username not unique for other users not the user being updated itself
+            if user_repr.get('username') != username:
+                username_unique(username=username)
             user_data['username'] = username
         if first_name:
             user_data['firstName'] = first_name
@@ -470,8 +471,10 @@ def update_user(
         if email:
             # Validate that an email matches the RegEx
             validate_email(email=email)
-            # Will raise ValueError if email not unique
-            email_unique(email=email)
+            # Will raise ValueError if email not unique for other users not the user being updated itself
+            if user_repr.get('email') != email:
+                email_unique(email=email)
+
             user_data['email'] = email  
         if enabled is not None:
             user_data['enabled'] = enabled
@@ -577,12 +580,11 @@ def delete_user(user_id=None):
 
 
 
-def get_users_from_keycloak(access_token, offset, limit):
+def get_users_from_keycloak(offset, limit):
     """
     Retrieves a list of users from Keycloak with pagination and additional user details.
 
     Args:
-        access_token: An admin related OAuth2.0 token
         offset (int): The starting index for the users to retrieve (default is 0).
         limit (int): The maximum number of users to retrieve (default is 50).
 
