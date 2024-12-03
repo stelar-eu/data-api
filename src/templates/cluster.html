@@ -125,7 +125,37 @@
               </div>              
           </div>
         </div>
-
+        <div class="modal modal-blur fade" id="verify-delete-user" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-status bg-danger"></div>
+                <div class="modal-body text-center py-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon mb-2 text-danger icon-lg" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24V0H0z" fill="none"/><path d="M10.24 3.957l-8.422 14.06a1.989 1.989 0 0 0 1.7 2.983h16.845a1.989 1.989 0 0 0 1.7 -2.983l-8.423 -14.06a1.989 1.989 0 0 0 -3.4 0z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
+                    <h3>Are you sure?</h3>
+                    <div class="text-secondary">
+                        Do you really wish to delete user <span id="verify-user-name" class="fw-bold"></span>? 
+                        This action is irreversible.
+                        <span hidden id="verify-user-id-del"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                  <div class="w-100">
+                    <div class="row">
+                      <div class="col"><a href="#" class="btn w-100" data-bs-dismiss="modal">
+                          Cancel
+                        </a></div>
+                        <div class="col">
+                            <button id="confirm-delete-user-btn" class="btn btn-danger w-100">
+                              Delete User
+                            </button>
+                        </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+        </div>
         <div class="modal modal-blur fade" id="modal-edit-user" tabindex="-1" role="dialog" aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
               <div class="modal-content">
@@ -138,7 +168,7 @@
                     <input type="hidden" id="user-id" name="user-id"> <!-- Hidden field for user ID -->
                     <div class="mb-3">
                       <label class="form-label">Username</label>
-                      <input type="text" class="form-control" id="edit-username" name="username" placeholder="Enter username">
+                      <input type="text" class="form-control" id="edit-username" name="username" placeholder="Enter username" disabled>
                     </div>
                     <div class="mb-3">
                       <label class="form-label">Full Name</label>
@@ -156,12 +186,19 @@
                     </div>
                     <div class="mb-3">
                       <label class="form-label">Activation Status</label>
-                      <label class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="edit-active-account">
-                        <span class="form-check-label">Active account</span>
-                      </label>
+                        <div class="d-flex">
+                        <label class="form-check form-switch mt-2">
+                            <input class="form-check-input" type="checkbox" id="edit-active-account">
+                            <span class="form-check-label">Active account</span>
+                         </label>
+                        <button class="btn btn-success ms-3" id="send-activation-email-btn" disabled>
+                        <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon text-white me-2 icon-tabler icons-tabler-outline icon-tabler-send"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 14l11 -11" /><path d="M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a.55 .55 0 0 1 0 -1l18 -6.5" /></svg>
+                          </svg>
+                        Send activation email
+                        </button>
                     </div>
-                    <small class="form-text text-muted">User must logout and login in order for any changes to take affect.</small>
+                    </div>
+                    <small class="form-text text-muted">If a user has an active session, they need to logout and login again for any changes to take effect.</small>
                   
                 </div>
                 <div class="modal-footer" id="user-modal-footer">
@@ -176,6 +213,42 @@
         {% include 'footer.html' %}
         </div>
         </div>
+
+        <script>
+        $(document).ready(function () {
+            $('#edit-active-account').change(function () {
+                if ($(this).is(':checked')) {
+                    $('#send-activation-email-btn').prop('disabled', false);
+                } else {
+                    $('#send-activation-email-btn').prop('disabled', true);
+                }
+            });
+
+            $('#send-activation-email-btn').click(function (e) {
+                e.preventDefault();
+
+                $("#user-modal-footer .alert").remove();
+
+                const userId = $('#user-id').val();
+
+                $.ajax({
+                    url: "{{ url_for('users_blueprint.send_activation_email') }}",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ id: userId }),
+                    success: function (response) {
+                        // Add success alert
+                        $("#user-modal-footer").prepend('<div class="alert alert-success me-auto p-2" role="alert">Activation Email Sent!</div>');
+                    },
+                    error: function (xhr, status, error) {
+                        // Add error alert
+                        $("#user-modal-footer").prepend('<div class="alert alert-danger me-auto p-2" role="alert">Activation Email Failed to Send!</div>');
+                    }
+                });
+            });
+        });
+
+        </script>
         <script>
             let allUsers = []; // Store all users here after fetching
             let filteredUsers = []; // Store filtered users when search is applied
@@ -221,6 +294,20 @@
                         ? `<span class="status status-green">Active</span>` 
                         : `<span class="status status-red">Inactive</span>`;
 
+                    // Action buttons (only added if username is not "admin")
+                    const actionButtons = user.username.toLowerCase() === "admin"
+                        ? ''
+                        : `
+                            <div class="d-flex">
+                                <button class="edit-user-btn btn px-2 me-2 btn-sm" data-bs-toggle="modal" data-bs-target="#modal-edit-user" data-user-id="${user.id}">
+                                    Edit
+                                </button>
+                                <button class="del-user-btn btn btn-danger btn-sm" data-user-id="${user.id}">
+                                    Delete
+                                </button>
+                            </div>
+                        `;
+
                     tableBody.append(`
                         <tr>
                             <td>${user.username}</td>
@@ -229,9 +316,7 @@
                             <td class="text-secondary">${user.joined_date || 'N/A'}</td>
                             <td class="text-secondary">${roles}</td>
                             <td class="text-center">${activeStatus}</td>
-                            <td>
-                                <button class="btn btn-sm edit-user-btn" data-bs-toggle="modal" data-bs-target="#modal-edit-user" data-user-id="${user.id}">Edit</button>
-                            </td>
+                            <td>${actionButtons}</td>
                         </tr>
                     `);
                 });
@@ -254,6 +339,8 @@
 
                 updatePageDetails(page, usersToShow.length);
             }
+
+
             // Search function to filter users by name, username, email, or role
             function searchUsers(query) {
                 if (!query) {
@@ -270,7 +357,7 @@
                     });
                 }
                 totalUsers = filteredUsers.length;
-                currentPage = 1; // Reset to the first page after search
+                currentPage = 1; 
                 updatePagination();
                 renderTable(currentPage);
             }
@@ -469,10 +556,69 @@
         </script>
 
         <script>
-           // Event listener for the form submission of the edit user modal
+
+            $(document).on("click", ".del-user-btn", function () {
+                const userId = $(this).data("user-id"); // Get the user ID from the button
+                $("#verify-user-id-del").text(userId); // Display the user ID in the modal
+                $("#verify-delete-user").modal("show"); // Show the modal
+            });
+
+            $(document).on("click", ".del-user-btn", function () {
+                const userId = $(this).data("user-id"); // Get the user ID from the button
+                const userName = $(this).closest('tr').find('td:first').text(); // Assuming the username is in the first column
+                $("#verify-user-id-del").text(userId); // Set the user ID in the hidden span
+                $("#verify-user-name").text(userName); // Display the user's name in the modal
+                $("#confirm-delete-user-btn").data("user-id", userId); // Store the user ID in the delete confirmation button
+                $("#verify-delete-user").modal("show"); // Show the modal
+            });
+
+            $("#confirm-delete-user-btn").on("click", function () {
+                const userId = $(this).data("user-id"); // Retrieve the user ID
+                if (userId) {
+                    $.ajax({
+                        url: `{{ url_for('users_blueprint.api_delete_user', user_id='') }}${userId}`,
+                        type: "DELETE",
+                        success: function (response) {
+                            alert("User deleted successfully.");
+                            $("#verify-delete-user").modal("hide"); // Hide the modal
+                        },
+                        error: function (xhr, status, error) {
+                            let errorMessage = "Failed to delete user.";
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            }
+                            alert(errorMessage);
+                        },
+                    });
+                    fetchAllUsers();
+                }
+            });
+
+
+            function patchUserRoles(userId, roles) {
+                $.ajax({
+                    url: `{{ url_for('users_blueprint.get_users')}}${userId}/roles`,
+                    type: 'PATCH',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ roles }),
+                    success: function(response) {
+                        $("#user-modal-footer .alert").remove();
+                        $("#user-modal-footer .spinner-border ").remove();
+                        $("#user-modal-footer").prepend('<div class="alert alert-success me-auto p-2" role="alert">User updated successfully</div>');
+                        fetchAllUsers();
+                    },
+                    error: function(response) {
+                        $("#user-modal-footer .alert").remove();
+                        $("#user-modal-footer .spinner-border ").remove();
+                        $("#user-modal-footer").prepend(`<div class="alert alert-danger me-auto p-2" role="alert">Failed to update user roles</div>`);
+                    }
+                });
+            }
+
+           
+            // Event listener for the form submission of the edit user modal
             $("#edit-user-form").on("submit", function(event) {
                 event.preventDefault();
-
 
                 let userId = $("#user-id").val()
 
@@ -481,20 +627,20 @@
                 const lastName = fullName.slice(1).join(' ') || '';
 
                 const userData = {
-                    username: $("#edit-username").val().trim(),
                     firstName: firstName,
                     lastName: lastName,
                     email: $("#edit-email").val().trim(),
                     enabled: $("#edit-active-account").is(':checked')
                 };
 
-                // // Collect the roles (checked checkboxes)
-                // $('#role-checkboxes input[type="checkbox"]:checked').each(function() {
-                //     userData.roles.push($(this).val()); 
-                // });
+                const roles = [];
+                $('#role-checkboxes input[type="checkbox"]:checked').each(function() {
+                    roles.push($(this).val()); 
+                });
+
 
                 // Validate the required fields
-                const requiredFields = ["#edit-username", "#edit-fullname", "#edit-email"];
+                const requiredFields = ["#edit-fullname", "#edit-email"];
 
                 const hasInvalidFields = requiredFields.some(fieldId => {
                     const field = $(fieldId);
@@ -507,14 +653,10 @@
                     }
                 });
 
-                // Prevent modifications to the "admin" username, this is also ensured in the backend, dont spend time trying to modify it :)
-                if (userData.username.toLowerCase() === 'admin') {
-                    $("#user-modal-footer .alert").remove();
-                    $("#user-modal-footer").prepend('<div class="alert alert-danger me-auto p-2" role="alert">Modifications to the "admin" account are not allowed.</div>');
-                    return; 
-                }
-
                 $("#user-modal-footer .alert").remove();
+                
+                const loader = '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
+                $("#user-modal-footer").prepend(loader)
 
                 $.ajax({
                     url: `{{ url_for('users_blueprint.api_put_user', user_id='') }}${userId}`,
@@ -522,35 +664,24 @@
                     contentType: 'application/json', 
                     data: JSON.stringify(userData),
                     success: function(response) {
-                        $("#user-modal-footer").prepend('<div class="alert alert-success me-auto p-2" role="alert">User updated successfully!</div>');
-                        fetchAllUsers()
-                    },
-                    error: function(xhr, status, error) {
-
-                        $("#user-modal-footer .alert").remove();
-
-                        let errorMessage = "Failed to update user - " + xhr.status + ': ' + xhr.statusText;
-
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-
-                            // Handle specific error for existing username or email
-                            if (errorMessage.includes("Username")) {
-                                $("#edit-username").addClass("is-invalid");
-                            }
-                            if (errorMessage.includes("Email")) {
-                                $("#edit-email").addClass("is-invalid");
-                            }
+                        if (response.result.user.warning){
+                            $("#user-modal-footer").prepend('<div class="alert alert-danger me-auto p-2" role="alert">Administrator account cannot be modified!</div>');
+                        } else {                            
+                            patchUserRoles(userId, roles); 
                         }
-
-                        $("#user-modal-footer").prepend(`<div class="alert alert-danger me-auto p-2" role="alert">${errorMessage}</div>`);
+                    },
+                    error: function(response) {
+                        $("#user-modal-footer .alert").remove();
+                        $("#user-modal-footer .spinner-border ").remove();
+                        $("#user-modal-footer").prepend(`<div class="alert alert-danger me-auto p-2" role="alert">Failed to update user</div>`);
                     }
                 });
+
             });
 
         
             // Event listener to remove is-invalid class when the user starts typing
-            $("#edit-username, #edit-fullname, #edit-email").on("input", function() {
+            $("#edit-fullname, #edit-email").on("input", function() {
                 if ($(this).val().trim() !== '') {
                     $(this).removeClass('is-invalid');
                 }

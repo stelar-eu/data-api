@@ -434,7 +434,6 @@ def create_user_with_password(
 
 def update_user(
         user_id, 
-        username=None, 
         first_name=None, 
         last_name=None, 
         email=None, 
@@ -444,7 +443,6 @@ def update_user(
     Updates a user in the Keycloak realm by the given user ID.
     
     Parameters:
-    - username (str, optional): The new username for the user.
     - first_name (str, optional): The new first name for the user.
     - last_name (str, optional): The new last name for the user.
     - email (str, optional): The new email for the user.
@@ -462,11 +460,10 @@ def update_user(
         # Prepare the update data dictionary with only the fields that are not None
         user_data = {}
         user_repr = get_user(user_id=user_id)
-        if username:
-            # Will raise ValueError if username not unique for other users not the user being updated itself
-            if user_repr.get('username') != username:
-                username_unique(username=username)
-            user_data['username'] = username
+
+        if user_repr['username'] == 'admin':
+            return {"warning":"Modifications to administrator account are not allowed"}
+
         if first_name:
             user_data['firstName'] = first_name
         if last_name:
@@ -484,7 +481,7 @@ def update_user(
             
         if email_verified is not None:
             user_data['emailVerified'] = email_verified
-    
+        
         # Support both selecting user by UUID and by Username
         if not is_valid_uuid(user_id):
             user_id = keycloak_admin.get_user_id(user_id)
@@ -570,10 +567,10 @@ def delete_user(user_id=None):
         #Support both searching by UUID and by Username
         if not is_valid_uuid(user_id):
             id = keycloak_admin.get_user_id(user_id)
-            user_id = keycloak_admin.get_user(id)
-
-        keycloak_admin.delete_user(user_id['id'])
-        return user_id['id']
+            user_id = keycloak_admin.get_user(id)['id']
+            
+        keycloak_admin.delete_user(user_id)
+        return user_id
 
     except KeycloakGetError as e:
         if e.response_code == 404:

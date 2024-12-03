@@ -74,7 +74,6 @@ class ActivationInput(Schema):
 
 
 class UpdatedUser(Schema):
-    username = String(required=False, validate=Length(0, 25))
     email = String(required=False, validate=Length(0, 100))
     firstName = String(required=False, validate=Length(0, 100))
     lastName = String(required=False, validate=Length(0, 100))

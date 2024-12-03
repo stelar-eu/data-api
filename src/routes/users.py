@@ -314,7 +314,6 @@ def api_put_user(user_id, json_data):
         - The UUID or the username of the user to be updated.
 
     JSON Fields:
-        - username (str) (Optional): The username for the new user. Should be unique.
         - email (str) (Optional): The user's email address. Should be unique.
         - firstName (str) (Optional): The user's first name.
         - lastName (str) (Optional): The user's last name.
@@ -325,14 +324,12 @@ def api_put_user(user_id, json_data):
     """
 
     try:
-        username = json_data.get("username")
         email = json_data.get("email")
         first_name = json_data.get('firstName')
         last_name = json_data.get("lastName")
         enabled = json_data.get("enabled", True)  
 
         user_upd = kutils.update_user(user_id=user_id,
-                                      username=username,
                                       first_name=first_name,
                                       last_name=last_name,
                                       email=email,
@@ -717,7 +714,10 @@ def api_acquire_s3_creds():
 @token_active
 @admin_required
 def send_activation_email(json_data):
-
+    """
+    Sends the activation email to the specified email address with a subject and sender name. Requires Admin Role
+    SMTP settings are fetched from Flask's app config.
+    """
     id = json_data.get('id')
     try:
         user = kutils.get_user(id)
@@ -729,10 +729,6 @@ def send_activation_email(json_data):
     email = user.get('email')
      
 
-    """
-    Sends the activation email to the specified email address with a subject and sender name.
-    SMTP settings are fetched from Flask's app config.
-    """
     config = current_app.config['settings']  # Fetch SMTP settings from app config
 
     smtp_server = config['SMTP_SERVER']

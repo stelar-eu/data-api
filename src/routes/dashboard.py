@@ -384,8 +384,6 @@ def dataset_detail(dataset_id):
         redirect(url_for('dashboard_blueprint.datasets'))
 
     
-
-
 @dashboard_bp.route('/admin-settings')
 @session_required
 @admin_required
