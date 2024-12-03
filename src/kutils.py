@@ -374,7 +374,8 @@ def create_user_with_password(
     password,
     enabled=True,
     temporary_password=False,
-    attributes=None
+    attributes=None,
+    email_verified = True
 ):
     """
     Create a new user in Keycloak and set a password, ensuring username and email are unique.
@@ -387,6 +388,7 @@ def create_user_with_password(
     :param enabled: Whether the user account should be enabled (default: True)
     :param temporary_password: If True, the password is marked as temporary
     :param attributes: Additional attributes to add to the user
+    :param emailVerified: Boolean to mark the verification state of the email
     :return: The ID of the created user, or None if creation failed
 
     Raises:
@@ -410,7 +412,7 @@ def create_user_with_password(
             "firstName": first_name,
             "lastName": last_name,
             "enabled": enabled,
-            "emailVerified": True,
+            "emailVerified": email_verified,
             "attributes": attributes or {}
         }
 
@@ -436,7 +438,8 @@ def update_user(
         first_name=None, 
         last_name=None, 
         email=None, 
-        enabled=None):
+        enabled=None,
+        email_verified=None):
     """
     Updates a user in the Keycloak realm by the given user ID.
     
@@ -478,6 +481,9 @@ def update_user(
             user_data['email'] = email  
         if enabled is not None:
             user_data['enabled'] = enabled
+            
+        if email_verified is not None:
+            user_data['emailVerified'] = email_verified
     
         # Support both selecting user by UUID and by Username
         if not is_valid_uuid(user_id):
@@ -527,7 +533,8 @@ def get_user(user_id=None):
             filtered_roles = get_user_roles(user_representation['id'])
             
             active_status = user_representation.get('enabled', False)
-        
+            email_verified = user_representation.get('emailVerified', False)
+
             user_info = {
                 "username": user_representation.get("username"),
                 "email": user_representation.get("email"),
@@ -535,7 +542,8 @@ def get_user(user_id=None):
                 "joined_date": creation_date,
                 "id": user_representation.get("id"),
                 "roles": filtered_roles,
-                "active": active_status  
+                "active": active_status,
+                "email_verified": email_verified
             }
 
             return user_info

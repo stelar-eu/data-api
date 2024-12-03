@@ -11,7 +11,12 @@ from functools import wraps
 import cutils
 import logging
 from math import ceil
-import schema
+import re
+import hashlib
+from email_validator import validate_email, EmailNotValidError
+import smtplib
+import ssl
+import random
 
 #FOR TESTING ONLY!!!
 import os
@@ -74,12 +79,100 @@ def dashboard_index():
 
 
 # Signup Route
-@dashboard_bp.route('/signup')
+@dashboard_bp.route('/signup', methods=['GET', 'POST'])
 def signup():
-    if 'ACTIVE' not in session or not session['ACTIVE']:
-        return redirect(url_for('dashboard_blueprint.login'))
-    return f"Welcome {session.get('USER_NAME', 'User')}"
+    # Handle signup POST request (form submitted).
+    if request.method == 'POST':
+        fullname = request.form.get('name')     
+        email = request.form.get('email')
+        password = request.form.get('passwordIn')
+        passwordRepeat = request.form.get('passwordRepeatIn')
+        
+        if not fullname or len(fullname.split()) < 2:
+            return render_template('signup.html', STATUS='ERROR', ERROR_MSG='Please provide a valid name.')
+        if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+            return render_template('signup.html', STATUS='ERROR', ERROR_MSG='Invalid email address.')
+        if password != passwordRepeat:
+            return render_template('signup.html', STATUS='ERROR', ERROR_MSG='Passwords do not match.')
+        if not re.match(r'^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$', password):
+            return render_template('signup.html', STATUS='ERROR', ERROR_MSG='Password does not meet minimum requirements.')
+        
+        try:
+            kutils.email_unique(email=email)
+        except ValueError:
+            return render_template('signup.html', STATUS='ERROR', ERROR_MSG='Mail address already in use')
+        
+        # We need to decide the user's new username based on what usernames are already present in the system.
+        username_base = re.sub(r'\d', '', email.split('@')[0])
+        username = username_base
+        counter = 0
+        while True:
+            # Should not reach this, just for safety.
+            if counter==20:
+                break
+            try:
+                # Check if the username is unique.
+                kutils.username_unique(username)
+                break
+            except ValueError:
+                # If not unique, append a counter to the base username.
+                counter += 1
+                username = f"{username_base}{counter}"
+        try:
+            new_uid = kutils.create_user_with_password(username=username, email=email, first_name=fullname.split()[0], last_name=fullname.split()[1], password=password, enabled=False, email_verified=False)
+            if new_uid:
+                # Generate the vftoken for the email verification. 
+                plain = f"{username}{email}"
+                vftoken = hashlib.sha256(plain.encode('utf-8')).hexdigest()
+                # Send verification email
+                send_verification_email(email, vftoken=vftoken, id=new_uid, fullname=fullname)
+                # Registration was succesful
+                return render_template('signup.html', STATUS='SUCCESS')
+            else:
+                return render_template('signup.html', STATUS='ERROR', ERROR_MSG='Registration could not be completed. KC Error 0x001')
+        except Exception as e:
+            return render_template('signup.html', STATUS='ERROR', ERROR_MSG=f'Registration could not be completed ML Error 0x001 {str(e)}')
+    else:        
+        return render_template('signup.html')
 
+
+# Email verification status
+@dashboard_bp.route('/verify')
+def verify_email():   
+    if request.method == 'GET':
+        if request.args.get('vftoken') and request.args.get('id'):
+            uid = request.args.get('id')
+            vftoken = request.args.get('vftoken')
+            #Token and email were given, proceed with the verification
+            try:
+                # Fetch user from keycloak to check the status of email verification
+                user = kutils.get_user(uid)
+                if not user.get('emailVerified'):
+                    email = user.get('email')
+                    username = user.get('username')
+                    
+                    # Reproduce the hash to 
+                    plain = f"{username}{email}"    
+                    cipher = hashlib.sha256(plain.encode('utf-8')).hexdigest()
+
+                    # Cool the token given and the hash match, the email of the user becomes verified
+                    if cipher == vftoken:
+                        # We update the status of the email verification by updating the user in keycloak
+                        kutils.update_user(user_id=uid, email_verified=True)
+                        logging.debug("Success, verified!")
+                        return render_template('verify.html', VERIFY_STATUS = True)
+                    else:
+                        # Sadly the email wasn't verified
+                        return render_template('verify.html', VERIFY_STATUS = False)
+                    
+                else:
+                    # If user's email is already verified do nothing 
+                    return redirect(url_for('dashboard_blueprint.login'))
+            except:
+                # Didnt no what to do?!
+                return redirect(url_for('dashboard_blueprint.login'))    
+                    
+    return redirect(url_for('dashboard_blueprint.login'))
 
 # Settings Route
 @dashboard_bp.route('/settings')
@@ -316,6 +409,7 @@ def login():
     EMPTY_EMAIL_ERROR = False
     EMPTY_PASSWORD_ERROR = False
     LOGIN_ERROR = False
+    INACTIVE_ERROR = False
 
     # Check if the user is already logged in and redirect him to console home page if so
     if request.method == 'GET':
@@ -362,19 +456,21 @@ def login():
                         return redirect(next_url)
                     else:
                         return redirect(url_for('dashboard_blueprint.dashboard_index'))
-                    
                 else:
                     LOGIN_ERROR = True
-
             except Exception as e:
                 # Handle exceptions during the token request
-                LOGIN_ERROR = True
+                if "disabled" in str(e):
+                    INACTIVE_ERROR = True
+                else:
+                    LOGIN_ERROR = True
 
     # Pass error flags to the template. This is the login page frontend
     return render_template('login.html', 
                             EMPTY_EMAIL_ERROR=EMPTY_EMAIL_ERROR, 
                             EMPTY_PASSWORD_ERROR=EMPTY_PASSWORD_ERROR, 
                             LOGIN_ERROR=LOGIN_ERROR,
+                            INACTIVE_ERROR=INACTIVE_ERROR,
                             PARTNER_IMAGE_SRC=get_partner_logo())
 
 
@@ -398,3 +494,54 @@ def logout():
     session.clear()
     return redirect(url_for('dashboard_blueprint.login'))
 
+
+
+
+
+
+
+##################################
+# this should be moved to another location....
+##################################
+
+def send_verification_email(to_email, vftoken, id, fullname):
+    """
+    Sends the email verification to the specified email address with a subject and sender name.
+    SMTP settings are fetched from Flask's app config.
+    """
+    config = current_app.config['settings']  # Fetch SMTP settings from app config
+
+    smtp_server = config['SMTP_SERVER']
+    smtp_port = config['SMTP_PORT']
+    sender_email = config['SMTP_EMAIL']
+    sender_password = config['SMTP_PASSWORD']
+
+    # Email subject and sender name
+    subject = "Verify Your Email Address"
+    sender_name = "STELAR KLMS"
+
+    # Plain text message without headers (headers will be handled separately)
+    plain_message = f"""\
+Dear {fullname},
+
+Follow this link to verify your email: 
+
+https://{config['MAIN_INGRESS_SUBDOMAIN']}.{config['KLMS_DOMAIN_NAME']}{url_for('dashboard_blueprint.verify_email')}?id={id}&vftoken={vftoken}
+
+If you received this email by accident, please ignore it.
+
+Kind Regards,
+STELAR KLMS
+"""
+    # Create the full email message with subject, sender, and receiver
+    full_message = f"Subject: {subject}\nFrom: {sender_name} <{sender_email}>\nTo: {to_email}\n\n{plain_message}"
+
+    context = ssl.create_default_context()
+
+    try:
+        with smtplib.SMTP_SSL(smtp_server, int(smtp_port), context=context) as server:
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, to_email, full_message)
+    except Exception as e:
+        # Log the error
+        raise Exception(f"Error sending verification email: {str(e)}")

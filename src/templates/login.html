@@ -51,6 +51,11 @@
                 Invalid Login Credentials
               </div>
               {% endif %}
+              {% if INACTIVE_ERROR %}
+              <div class="alert alert-warning" role="alert">
+                Your Account Is Not Active
+              </div>
+              {% endif %}
 
               {% with messages = get_flashed_messages(with_categories=true) %}
                   {% if messages %}
