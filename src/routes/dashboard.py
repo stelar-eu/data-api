@@ -3,7 +3,7 @@ from apiflask import APIBlueprint
 from keycloak import KeycloakOpenID, KeycloakAdmin
 import datetime
 import time
-from auth import api_verify_token
+from auth import admin_required
 import requests
 import kutils 
 from datetime import datetime, timedelta
@@ -388,11 +388,10 @@ def dataset_detail(dataset_id):
 
 @dashboard_bp.route('/admin-settings')
 @session_required
+@admin_required
 def adminSettings():
-    if not 'admin' in session.get('USER_ROLES', []):
-        return redirect(url_for('dashboard_blueprint.login'))
-    
     return render_template('cluster.html', PARTNER_IMAGE_SRC=get_partner_logo())
+
 
 ####################################
 # Login Route
