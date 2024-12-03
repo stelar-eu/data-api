@@ -13,6 +13,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">   
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.5/ace.js" type="text/javascript" charset="utf-8"></script>
 
     <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
     <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
@@ -95,6 +96,46 @@
                 </div>              
             </div>
           </div>
+          <div class="container container-xl mt-4">
+            <div class="card card-md">
+                <div class="card-body">
+                    <div class="row row-cards">
+                        <div class="col-lg-4">
+                             <h2 class="mb-3">Authorization Policy Management</h2>
+                             <p class="text-secondary mb-4">
+                                 Manage the authorization rules applied to MinIO resources within the KLMS cluster. 
+                             </p>
+                             <div class="card">
+                                <div class="list-group card-list-group">
+                                 
+                                    
+
+
+                                </div>
+                              </div>
+                        </div>
+
+                        <div class="col-lg-8">
+                            <div class="d-flex justify-content-end mb-3" id="editor-header">
+                                <button id="download-policy-btn" class="btn btn-primary">
+                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-white icon icon-tabler icons-tabler-outline icon-tabler-download"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" /><path d="M7 11l5 5l5 -5" /><path d="M12 4l0 12" /></svg>
+                                    Download YAML</button>
+                                <div>
+                                </div>
+                                <button id="clear-policy-btn" class="btn btn-secondary ms-2">Clear Editor</button>
+                            </div>
+                            <div id="editor" style="border-radius:5px; height: 40rem; width: 100%;">
+
+                            </div>
+                            <div class="d-flex justify-content-end mt-3" id="editor-footer">
+                                <button id="apply-policy-btn" class="btn btn-primary">Apply YAML as new Policy</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+          </div>
+
           <div class="container container-xl mt-4">
             <div class="card card-md">
               <div class="card-body">
@@ -213,7 +254,193 @@
         {% include 'footer.html' %}
         </div>
         </div>
+        <script>        
+            function downloadPolicy() {
+                const editor = ace.edit('editor');
+                const yamlContent = editor.getValue(); 
 
+                // Get the policy ID from the currently selected policy
+                const selectedPolicy = document.querySelector('.list-group-item.bg-purple-lt'); // Find the highlighted policy
+                if (!selectedPolicy) {
+                    alert('No policy selected to download.');
+                    return;
+                }
+
+                const policyId = selectedPolicy.id;
+
+                // Create a Blob object with the YAML content
+                const blob = new Blob([yamlContent], { type: 'application/x-yaml' });
+
+                // Create a temporary anchor element for downloading
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `policy_${policyId}.yaml`; // Use the policy ID in the file name
+                link.style.display = 'none'; // Hide the anchor element
+
+                // Append the anchor to the body and trigger the download
+                document.body.appendChild(link);
+                link.click();
+
+                // Clean up by removing the anchor element and revoking the Blob URL
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            }
+            // Example usage: Add this to a button's click event
+            document.getElementById('download-policy-btn').addEventListener('click', downloadPolicy);
+
+        </script>
+        <script>
+            $(document).ready(function () {
+                const apiUrl = `{{url_for('auth_tool_blueprint.api_list_all_policies')}}`;
+                const representationUrl =  `{{url_for('auth_tool_blueprint.get_policy_function', policy_filter='')}}`;
+                const listGroup = $('.list-group.card-list-group');
+                const editor = ace.edit('editor');
+        
+                function createPolicyItem(policy) {
+                    const isActive = policy.active ? 'Active' : '';
+                    const badge = policy.active
+                        ? '<span class="status status-green">Active</span>'
+                        : '';
+        
+                    return `
+                        <div class="cursor-pointer list-group-item" id="${policy.policy_uuid}">
+                            <div class="row align-items-center">
+                                <div class="col-auto">
+                                    <code>${policy.policy_uuid}</code>
+                                    <div class="text-secondary">
+                                        Name: <strong>${policy.policy_familiar_name}</strong>
+                                    </div>
+                                    <div class="text-secondary">
+                                        Date Created: <strong>${new Date(policy.created_at).toLocaleString()}</strong>
+                                    </div>
+                                    <div class="text-secondary">
+                                        Creator: <strong>${policy.user_id}</strong>
+                                    </div>
+                                </div>
+                                <div class="col-auto ms-auto">
+                                    ${badge}
+                                </div>
+                            </div>
+                        </div>`;
+                }
+        
+                // Fetch policies and populate the list
+                function fetchPolicies() {
+                    $.ajax({
+                        url: apiUrl,
+                        method: 'GET',
+                        dataType: 'json',
+                        success: function (data) {
+                            const policies = data.result.policies;
+                            policies.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                            listGroup.empty(); 
+        
+                            let activePolicyId = null;
+
+                            // Populate policies
+                            policies.forEach(function (policy) {
+                                listGroup.append(createPolicyItem(policy));
+                                if (policy.active) {
+                                    activePolicyId = policy.policy_uuid;
+                                }
+                            });
+
+                            // Add click event listeners for each item
+                            $('.list-group-item').on('click', function () {
+                                const policyId = $(this).attr('id');
+                                $('.list-group-item').removeClass('bg-purple-lt');
+                                $(this).addClass('bg-purple-lt');
+
+                                fetchPolicyRepresentation(policyId);
+                                $("#editor-footer .alert").remove();
+                                $("#editor-footer .spinner-border").remove();
+                            });
+        
+                            if (activePolicyId) {
+                                const activePolicyElement = $(`#${activePolicyId}`);
+                                activePolicyElement.addClass('bg-purple-lt');
+                                fetchPolicyRepresentation(activePolicyId);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            console.error('Error fetching policies:', error);
+                        }
+                    });
+                }
+                
+                // Fetch policy representation and update the editor
+                function fetchPolicyRepresentation(policyId) {
+                    const url = `${representationUrl}/${policyId}`;
+                    $.ajax({
+                        url: url,
+                        method: 'GET',
+                        dataType: 'text',
+                        success: function (yamlData) {
+                            editor.setValue(yamlData, -1);
+                        },
+                        error: function (xhr, status, error) {
+                            console.error(`Error fetching policy representation (${policyId}):`, error);
+                        }
+                    });
+                }
+        
+                fetchPolicies();
+
+                $('#apply-policy-btn').on('click', function () {
+                    $("#editor-footer .alert").remove();
+                    $("#editor-footer .spinner-border").remove();
+
+                    const yamlContent = editor.getValue(); 
+                    const loader = '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
+                    $("#editor-footer").prepend(loader)
+
+                    $.ajax({
+                        url: `{{url_for('auth_tool_blueprint.create_roles_function')}}`,
+                        method: 'POST',
+                        contentType: 'application/x-yaml',
+                        data: yamlContent,
+                        success: function (response) {
+                            fetchPolicies();
+                            fetchSystemRoles();
+                            $("#editor-footer .spinner-border ").remove();
+                            $("#editor-footer").prepend(`<div class="alert alert-success me-auto p-2" role="alert">Policy Applied Succesful</div>`);
+                        },
+                        error: function (xhr, status, error) {
+                            $("#editor-footer .spinner-border ").remove();
+                            $("#editor-footer").prepend(`<div class="alert alert-danger me-auto p-2" role="alert">Failed to Apply Policy</div>`);
+                        }
+                    });
+                });
+
+                $('#clear-policy-btn').on('click', function () {
+                    $('.list-group-item').removeClass('bg-purple-lt');
+                    $("#editor-footer .alert").remove();
+                    $("#editor-footer .spinner-border").remove();
+                    editor.setValue('');
+                });
+
+            });
+        </script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                var editor = ace.edit("editor");
+                editor.setTheme("ace/theme/nord_dark");
+                editor.session.setMode("ace/mode/yaml");
+                editor.setOptions({
+                    fontSize: "15px",
+                    showPrintMargin: false,
+                    wrap: true,
+                });
+        
+                // Add padding inside the editor
+                editor.renderer.setScrollMargin(10, 10, 10, 10); 
+                // Prevent page scrolling when scrolling inside the editor
+                editor.container.addEventListener('wheel', function (e) {
+                    e.stopPropagation(); // Prevent the event from propagating to parent elements
+                }, { passive: true });
+                
+            });
+        </script>
         <script>
         $(document).ready(function () {
             $('#edit-active-account').change(function () {
