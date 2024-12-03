@@ -227,17 +227,16 @@ def create_bucket_and_subfolders(minio_client, bucket_info):
 
 
 
-def generate_random_hash() -> str:
+def generate_random_hash(policy_json) -> str:
     # Generate 32 random bytes
-    random_bytes = os.urandom(32)
+    # random_bytes = os.urandom(32)
     
     # Create a SHA-256 hash object
-    hash_object = hashlib.sha256(random_bytes)
+    policy_hash = hashlib.sha256(policy_json.encode('utf-8')).hexdigest()
     
     # Get the hexadecimal representation of the hash
-    hash_hex = hash_object.hexdigest()
     
-    return hash_hex
+    return policy_hash
 
 
 
@@ -314,7 +313,7 @@ def create_policy(perm_info):
         
         policy_json = json.dumps(policy)
 
-        hashed_policy_name = generate_random_hash()
+        hashed_policy_name = generate_random_hash(policy_json)
 
         policy_file = f"{hashed_policy_name}.json"
         with open(policy_file, 'w') as file:
