@@ -46,27 +46,31 @@ def get_users(query_data):
             - offset: Offset of the result by #offset user.
     """
     try:
-        access_token = request.headers.get('Authorization').split(" ")[1]
         offset = query_data.get('offset', 0)
         limit = query_data.get('limit', 0)
         
-        users = kutils.get_users_from_keycloak(access_token, offset=offset, limit=limit)
+        users = kutils.get_users_from_keycloak(offset=offset, limit=limit)
         
-        result = {
+        return {
             'help': request.url,
             'result':  { 
                 'users': users,
                 'count': len(users)
             },
             'success': True
-        }
-
-        return result, 200    
+        }, 200    
     except ValueError as ve:
-        return jsonify({'error': str(ve)}), 400 
+        return {
+                'help' : request.url,
+                'result': {str(e)},
+                'success': False
+        }, 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+        return {
+                'help' : request.url,
+                'result': {str(e)},
+                'success': False
+        }, 500
 
 @users_bp.route('/token', methods=['POST'])
 @users_bp.input(schema.NewToken, location='json', example={"username": "dpetrou", "password": "mypassword"})
