@@ -271,13 +271,11 @@
                 // Create a Blob object with the YAML content
                 const blob = new Blob([yamlContent], { type: 'application/x-yaml' });
 
-                // Create a temporary anchor element for downloading
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
                 link.download = `policy_${policyId}.yaml`; // Use the policy ID in the file name
-                link.style.display = 'none'; // Hide the anchor element
+                link.style.display = 'none';
 
-                // Append the anchor to the body and trigger the download
                 document.body.appendChild(link);
                 link.click();
 
@@ -285,7 +283,7 @@
                 document.body.removeChild(link);
                 URL.revokeObjectURL(link.href);
             }
-            // Example usage: Add this to a button's click event
+
             document.getElementById('download-policy-btn').addEventListener('click', downloadPolicy);
 
         </script>

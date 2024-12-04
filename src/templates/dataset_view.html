@@ -169,7 +169,7 @@
                                 </thead>
                                 <tbody>
                                     {% for resource in dataset.get('resources') %}
-                                    <tr>
+                                    <tr id="{{resource.get('id')}}">
                                         <td class="text-sm">
                                           {% if resource.get('relation') == 'owned' %}
                                           <span class="badge bg-blue text-blue-fg">OWNED</span>
@@ -185,19 +185,16 @@
                                         <td>
                                           <div class="dropdown">
                                             <button class="btn btn-sm d-flex p-2 text-reset" data-bs-toggle="dropdown" aria-label="Open Resource Menu">
-                                              Manage
+                                              Actions
                                               <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="currentColor"  class="ms-1 icon icon-tabler icons-tabler-filled icon-tabler-caret-down"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z" /></svg>
                                             </button>
                                             <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow ">
-                                                <a class="dropdown-item view-resource-btn" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="{{ resource['id'] }}">
-                                                  <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
-                                                  View</a>
+                                                <a class="dropdown-item view-resource-btn cursor-pointer" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="{{ resource['id'] }}">
+                                                  <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-settings"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" /><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /></svg>
+                                                  View - Edit</a>
                                                 <div class="dropdown-divider"></div>
-                                                <a edit-resource-id="{{ resource['id'] }}" class="dropdown-item edit-resource-btn">
-                                                  <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" /><path d="M13.5 6.5l4 4" /></svg>
-                                                  Edit</a>
-                                                <a  del-resource-id="{{ resource['id'] }}" class="dropdown-item del-resource-btn">
-                                                  <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-trash"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
+                                                <a  del-resource-id="{{ resource['id'] }}" class="text-danger cursor-pointer dropdown-item del-resource-btn">
+                                                  <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-trash"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
                                                   Delete</a>
                                             </div>
                                           </div>
@@ -364,46 +361,54 @@
                               <input type="text" class="form-control" name="view-resource-url" placeholder="Resource URL">
                             </div>
                             <div class="mb-3">
-                              <label class="form-label">Tags</label>
-                              <input type="text" class="form-control" name="view-resource-url" placeholder="Resource Tags">
+                              <label class="form-label">Latest Action At</label>
+                              <input type="text" class="form-control" name="view-metadata-modified" disabled placeholder="Resource Latest Modified Time">
                             </div>
                             <div class="mb-3">
-                              <label class="form-label">Format</label>
-                                <div class="form-selectgroup">
+                              <label class="form-label">Format
+                                <a id="update-format-reset" class="btn btn-sm b-0 m-1">Reset</a>
+                              </label>
+                                <div class="form-selectgroup" id="update-format-group">
                                   <label class="form-selectgroup-item">
-                                    <input type="checkbox" name="formatType" value="JSON" class="form-selectgroup-input" checked>
-                                    <span class="form-selectgroup-label">JSON</span>
+                                      <input type="radio" name="format-sel" value="JSON" class="form-selectgroup-input">
+                                      <span class="form-selectgroup-label">JSON</span>
                                   </label>
                                   <label class="form-selectgroup-item">
-                                    <input type="checkbox" name="formatType" value="CSV" class="form-selectgroup-input">
-                                    <span class="form-selectgroup-label">CSV</span>
+                                      <input type="radio" name="format-sel" value="CSV" class="form-selectgroup-input">
+                                      <span class="form-selectgroup-label">CSV</span>
                                   </label>
                                   <label class="form-selectgroup-item">
-                                    <input type="checkbox" name="formatType" value="TXT" class="form-selectgroup-input">
-                                    <span class="form-selectgroup-label">TXT</span>
+                                      <input type="radio" name="format-sel" value="TXT" class="form-selectgroup-input">
+                                      <span class="form-selectgroup-label">TXT</span>
                                   </label>
                                   <label class="form-selectgroup-item">
-                                    <input type="checkbox" name="formatType" value="PDF" class="form-selectgroup-input">
-                                    <span class="form-selectgroup-label">PDF</span>
+                                      <input type="radio" name="format-sel" value="PDF" class="form-selectgroup-input">
+                                      <span class="form-selectgroup-label">PDF</span>
                                   </label>
                                   <label class="form-selectgroup-item">
-                                    <input type="checkbox" name="formatType" value="HTML" class="form-selectgroup-input">
-                                    <span class="form-selectgroup-label">HTML</span>
-                                  </label>
+                                      <input type="radio" name="format-sel" value="HTML" class="form-selectgroup-input">
+                                      <span class="form-selectgroup-label">HTML</span>
+                                  </label>                        
+                                  <div class="form-group ms-1">
+                                    <input type="text" id="update-custom-format" class="form-control" placeholder="Custom Format">
+                                  </div>
                                 </div>
                             </div>
                             <label class="form-label">Copy this ID and use it to tool executions as input</label>
                             <input type="text" class="form-control" id="resource-id-input" name="example-disabled-input" placeholder="Resource-ID" readonly>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
-                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="copyText()">
+                        <div class="modal-footer" id="update-modal-footer">
+                            <button type="button" class="btn btn-primary" onclick="copyText()">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copy" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#ffffff" fill="none" stroke-linecap="round" stroke-linejoin="round">
                                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                                     <path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" />
                                     <path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
                                   </svg>
                                 Copy ID</button>
+                            <button class="btn btn-success" id="update-resource-btn">
+                                Update Resource
+                              </button>
+
                         </div>
                     </div>
                 </div>
@@ -414,7 +419,87 @@
       </div>
     </div>
 
+    
     <script>
+      // When a view resource button is clicked show the modal with the resource info
+      function attachViewIdEventListeners() {
+          const viewButtons = document.querySelectorAll('.view-resource-btn');
+          viewButtons.forEach(function(button) {
+              button.addEventListener('click', function() {
+                  const resourceId = this.getAttribute('data-resource-id');
+                  const modalViewID = document.getElementById('view-resource-id-header');
+                  const inputField = document.getElementById('resource-id-input');
+
+                  // Set the header and input field with resource ID
+                  inputField.value = resourceId;
+                  modalViewID.innerHTML = resourceId;
+
+                  // Fetch the resource details via AJAX
+                  $.ajax({
+                      url: `{{url_for('rest_catalog_blueprint.api_rest_get_resource', resource_id='')}}${resourceId}`,
+                      type: 'GET',
+                      success: function(response) {
+                          if (response.success) {
+                              populateViewResourceModal(response.result.resource);
+                          } else {
+                              console.error("Failed to fetch resource details");
+                          }
+                      },
+                      error: function(err) {
+                          console.error("Error fetching resource:", err);
+                      }
+                  });
+              });
+          });
+      }
+      function populateViewResourceModal(resource) {
+          // Populate basic fields
+          $('input[name="view-resource-name"]').val(resource.name);
+          $('input[name="view-resource-description"]').val(resource.description);
+          $('input[name="view-resource-url"]').val(resource.url);
+          if (resource.metadata_modified) {
+              const modifiedDate = new Date(resource.metadata_modified);
+              const readableDate = modifiedDate.toLocaleString();
+              $('input[name="view-metadata-modified"]').val(readableDate);
+          } else {
+              $('input[name="view-metadata-modified"]').val('Not Available');
+          }
+          
+          // Populate format
+          const formatRadios = document.querySelectorAll('#update-format-group .form-selectgroup-input');
+          let formatMatched = false;
+          formatRadios.forEach(radio => {
+              if (radio.value === resource.format) {
+                  radio.checked = true;
+                  formatMatched = true;
+              }
+          });
+
+          // If no format matches, set the custom format input
+          if (!formatMatched) {
+              $('#update-custom-format').val(resource.format);
+          } else {
+              $('#update-custom-format').val('');
+          }
+      }
+      document.addEventListener('DOMContentLoaded', attachViewIdEventListeners);
+      
+      function copyText() {
+          const inputField = document.getElementById('resource-id-input');
+          navigator.clipboard.writeText(inputField.value);
+          $('#update-modal-footer').prepend('<div class="alert alert-success p-2 me-auto">Copied!</div>');
+          setTimeout(function() {
+                          $('#update-modal-footer .alert').fadeOut(500, function() {
+                              $(this).remove();
+                          });
+                      }, 3000);
+
+      }
+      </script>
+      
+
+    <script>
+      // Apply the logic of mutual exclusion to radio format buttons of the upload resource modal
       document.getElementById('new-format-reset').addEventListener('click', function () {
           const radios = document.querySelectorAll('#new-format-group input[type="radio"]');
           radios.forEach(radio => {
@@ -443,35 +528,65 @@
         });
       });
     </script>
-  
-    
+
     <script>
-        // When a view resource button is clicked show the modal with the resource info
-        function attachViewIdEventListeners() {
-            const viewButtons = document.querySelectorAll('.view-resource-btn');
-            viewButtons.forEach(function(button) {
-                button.addEventListener('click', function() {
-                    const resourceId = this.getAttribute('data-resource-id');
-                    const inputField = document.getElementById('resource-id-input');
-                    const modalViewID = document.getElementById('view-resource-id-header');
-                    inputField.value = resourceId;
-                    $('#view-resource-id-header').html(resourceId);
-                });
+      // Apply the logic of mutual exclusion to radio format buttons of the update resource modal
+      document.getElementById('update-format-reset').addEventListener('click', function () {
+          const updateradios = document.querySelectorAll('#update-format-group input[type="radio"]');
+          updateradios.forEach(radio => {
+              radio.checked = false;
+          });
+          document.getElementById('update-custom-format').value='';
+      });
+
+      const updateform = document.getElementById('update-format-group');
+      // Clear checkboxes when typing in the custom format field
+      const updatecustomFormatInput = document.getElementById('update-custom-format');
+
+      updatecustomFormatInput.addEventListener('input', function() {
+        const updatecheckboxes = updateform.querySelectorAll('.form-selectgroup-input');
+        updatecheckboxes.forEach(checkbox => {
+          checkbox.checked = false;
+        });
+      });
+
+      // Clear custom format field when selecting any checkbox
+      const updatecheckboxes = form.querySelectorAll('.form-selectgroup-input');
+      updatecheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+          if (checkbox.checked) {
+            updatecustomFormatInput.value = '';
+          }
+        });
+      });
+    </script>
+
+
+    <script>
+      $(document).ready(function() {
+        $('.del-resource-btn').on('click', function() {
+            const resourceId = $(this).attr('del-resource-id'); 
+
+            if (!confirm('Are you sure you want to delete this resource?')) {
+                return;
+            }
+
+            $.ajax({
+                url: `{{ url_for('rest_catalog_blueprint.api_rest_delete_resource', resource_id='')}}${resourceId}`, 
+                type: 'DELETE',
+                success: function(response) {
+                    $(`#${resourceId}`).remove(); // Remove the row with the ID of the resource
+                    console.log(`Resource ${resourceId} deleted successfully.`);
+                },
+                error: function(response) {
+
+                }
             });
-        }
-        document.addEventListener('DOMContentLoaded', attachViewIdEventListeners);
-        
-        function copyText() {
-            const inputField = document.getElementById('resource-id-input');
-            navigator.clipboard.writeText(inputField.value);
-        }
-        </script>
-        
+        });
+      });
+    </script>
 
-
-        <script>
-
-
+    <script>
         document.addEventListener('DOMContentLoaded', function() {
             const externalResourceForm = document.getElementById('externalResourceForm');
             const internalResourceForm = document.getElementById('uploadForm');
