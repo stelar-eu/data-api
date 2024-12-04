@@ -1,4 +1,4 @@
-from flask import request, jsonify, current_app
+from flask import request, jsonify, current_app, session
 from apiflask import APIBlueprint
 from src.auth import auth, security_doc, admin_required, token_active
 # Auxiliary custom functions & SQL query templates for ranking
@@ -185,7 +185,10 @@ def api_rest_create_dataset(json_data):
         specs = json.loads(request.data.decode("utf-8"))
 
         if specs.get('basic_metadata'):
-            user = kutils.get_user_by_token(access_token=request.headers.get('Authorization').split(" ")[1])
+            if request.headers.get('Authorization'):
+                user = kutils.get_user_by_token(access_token=request.headers.get('Authorization').split(" ")[1])
+            else:
+                user = kutils.get_user_by_token(access_token=session.get('access_token'))   
             if user:
                 specs.get('basic_metadata')['author'] = user.get('username')
                 specs.get('basic_metadata')['author_email'] = user.get('email')

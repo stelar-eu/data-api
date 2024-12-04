@@ -33,7 +33,7 @@
                   </h2>
                 </div>
                 <div class="col-auto ms-auto d-print-none">
-                    <a href="#" class="btn btn-primary disabled" data-bs-toggle="modal" data-bs-target="#modal-new-dataset">
+                    <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-new-dataset">
                       <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
                       Publish New Dataset
                     </a>
@@ -331,24 +331,30 @@
               <div class="modal-content">
                 <form>
                 <div class="modal-header">
-                  <h5 class="modal-title">New Dataset Package</h5>
+                  <h5 class="modal-title">New Dataset</h5>
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                   <div class="row">
-                    <div class="col-lg-8">
+                    <div class="col-lg-12">
+
                       <div class="mb-3">
                         <label class="form-label">Title</label>
-                        <input type="text" class="form-control" name="package-name-input" placeholder="Resource Name" required>
+                        <div class="row g-2">
+                          <div class="col">
+                            <input type="text" class="form-control" name="package-name-input" placeholder="Dataset Title" required>
+                          </div>
+                          <div class="col-auto align-self-center">
+                            <span class="form-help" data-bs-toggle="popover" data-bs-placement="top" data-bs-content="The dataset title <strong>must be unique</strong>. It serves as one of the unique identifiers of the dataset." data-bs-html="true">?</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div class="col-lg-4">
-                      <div class="mb-3">
-                        <label class="form-label">Visibility</label>
-                        <select class="form-select">
-                          <option value="1">Private</option>
-                          <option value="2" selected>Public</option>
-                        </select>
+                      <div class="d-flex">
+                        <div class="text-secondary text-start justify-content-left" id="availability-div">
+                          <a onclick="checkNameAvailability()" class="text-sm p-2 cursor-pointer link-secondary" title="Check Title Availability" data-bs-toggle="tooltip" tabindex="-1">
+                              Check title availability
+                          </a>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -358,14 +364,14 @@
                     <div class="col-lg-12">
                       <div class="mb-3">
                         <label class="form-label">Description</label>
-                        <textarea name="packageDescription" class="form-control" rows="3" required></textarea>
+                        <textarea name="packageDescription" class="form-control" rows="3" required placeholder="A nice informative description"></textarea>
                       </div>
                     </div>
                     <input type="hidden" name="packageTags" id="hiddenTagsInput" name="tags"/>
                     <div class="col-lg-12">
                       <div class="mb-3">
                         <label class="form-label">Tags</label>
-                        <input type="text" id="tagInput" class="form-control" placeholder="Type a tag and press enter" required/>
+                        <input type="text" id="tagInput" class="form-control" placeholder="Type a tag and press enter" required>
                         <div class="col tags-list mt-3" id="tagsContainer">
                             <!-- Tags will be dynamically added here -->
                         </div>
@@ -373,13 +379,10 @@
                     </div>
                   </div>
                 </div>
-                <div class="modal-footer">
-                  <a href="#" class="btn btn-link link-secondary" data-bs-dismiss="modal">
-                    Cancel
-                  </a>
-                  <a href="#" class="btn btn-primary ms-auto" data-bs-dismiss="modal">
+                <div class="modal-footer" id="new-dataset-modal-footer">
+                  <a class="cursor-pointer btn btn-primary ms-auto" id="publish-dataset-btn">
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
-                    Create new report
+                    Publish Dataset
                   </a>
                 </div>
               </form>
@@ -390,18 +393,119 @@
         {% include 'footer.html'%}
       </div>
     </div>
+
+
     <script>
-      // Get reference to the tag input, container, and hidden input
+
+      $(document).ready(function () {
+          const titleInput = $('input[name="package-name-input"]');
+
+          titleInput.on('input', function () {
+              titleInput.removeClass('is-valid is-invalid');
+          });
+
+          $('#publish-dataset-btn').on('click', function (event) {
+              event.preventDefault(); 
+
+              const title = $('input[name="package-name-input"]').val().trim();
+              const notes = $('textarea[name="packageDescription"]').val().trim();
+              const tags = $('#hiddenTagsInput').val().split(',').filter(tag => tag.trim() !== '');
+
+              if (!title || !notes || tags.length === 0) {
+                  $('#new-dataset-modal-footer').prepend('<div class="alert alert-danger p-2 me-auto">Please fill in all fields</div>');
+                  return;
+              }
+
+              const payload = {
+                  basic_metadata: {
+                      title: title,
+                      notes: notes,
+                      tags: tags
+                  }
+              };
+
+              $('#new-dataset-modal-footer .alert').remove()
+              const loader = '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
+              $("#new-dataset-modal-footer").prepend(loader)
+
+              $.ajax({
+                  url: `{{ url_for('rest_catalog_blueprint.api_rest_create_dataset') }}`,
+                  method: 'POST',
+                  contentType: 'application/json',
+                  data: JSON.stringify(payload),
+                  success: function (response) {
+                    $('#new-dataset-modal-footer .spinner-border').remove()
+                    $('#new-dataset-modal-footer').prepend('<div class="alert alert-success p-2 me-auto">Dataset Published</div>');
+                    setTimeout(function() {
+                      $('#new-dataset-modal-footer .alert').fadeOut(500, function() {
+                          $(this).remove();
+                      });
+                     }, 3000);
+                  },
+                  error: function (xhr) {
+                    $('#new-dataset-modal-footer .spinner-border').remove()
+                    $('#new-dataset-modal-footer').prepend('<div class="alert alert-danger p-2 me-auto">Dataset Failed to Publish</div>');
+                    setTimeout(function() {
+                      $('#new-dataset-modal-footer .alert').fadeOut(500, function() {
+                          $(this).remove();
+                      });
+                     }, 3000);
+                  }
+              });
+          });
+
+      });
+
+      function slugifyTitle(title) {
+          return title
+              .toLowerCase() 
+              .trim()
+              .replace(/[^a-z0-9\s]/g, '') // Remove any character that is not a letter, number, or space
+              .replace(/\s+/g, '_'); // Replace spaces with underscores
+      }
+
+      function checkNameAvailability() {
+        const titleInput = $('input[name="package-name-input"]');
+        const title = titleInput.val().trim();
+
+        if (title === '') {
+            return;
+        }
+
+        titleInput.removeClass('is-valid is-invalid');
+
+        const loader = '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
+        $("#availability-div").append(loader)
+
+        $.ajax({
+            url: `{{url_for('rest_catalog_blueprint.api_rest_get_dataset', dataset_id='')}}${slugifyTitle(title)}`,
+            method: 'GET',
+            success: function (response) {
+                // If the response is 200, a dataset already exists
+                $('#availability-div .spinner-border').remove()
+                titleInput.addClass('is-invalid');
+            },
+            error: function (xhr) {
+                if (xhr.status === 404) {
+                    // If the response is 404, a dataset doesn't exist
+                    $('#availability-div .spinner-border').remove()
+                    titleInput.addClass('is-valid');
+                } else {
+                }
+            }
+        });
+    }
+    </script>
+
+
+    <script>
       const tagInput = document.getElementById('tagInput');
       const tagsContainer = document.getElementById('tagsContainer');
       const hiddenTagsInput = document.getElementById('hiddenTagsInput');
 
-      // To store the tags
       let tags = [];
 
-      // Function to render tags in the tagsContainer
       function renderTags() {
-        // Clear the existing tags
         tagsContainer.innerHTML = '';
 
         // Add each tag as a span with a close button

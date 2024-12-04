@@ -24,6 +24,9 @@ import os
 dashboard_bp = APIBlueprint('dashboard_blueprint', __name__, enable_openapi=False)
 
 
+logging.basicConfig(level=logging.DEBUG)
+
+
 # DEVELOPMENT ONLY FOR AWS CLUSTERS: Decide which partner the cluster corresponds to 
 def get_partner_logo():
     domain = os.getenv("KLMS_DOMAIN_NAME","")
@@ -366,21 +369,37 @@ def datasets(page_number = None):
                            PARTNER_IMAGE_SRC=get_partner_logo())
 
 
-@dashboard_bp.route('/datasets/<dataset_id>')
+@dashboard_bp.route('/datasets/<dataset_id>', methods=['GET','POST'])
 @session_required
 def dataset_detail(dataset_id):
-    try:
-        metadata_data = cutils.get_package(id=dataset_id)
-    except ValueError:
-        redirect(url_for('dashboard_blueprint.datasets'))
-    except Exception:
-        redirect(url_for('dashboard_blueprint.datasets'))
+    if request.method == 'POST':
+        if request.form.get('dataset_delete'):
+            try:
+                id = request.form.get('dataset_delete')
+                if id == dataset_id:
+                    cutils.delete_package(id)
+                    return redirect(url_for('dashboard_blueprint.datasets'))
+            except:
+                return redirect(url_for('dashboard_blueprint.datasets'))
+        else:
+            return redirect(url_for('dashboard_blueprint.datasets'))
+    else:
+        metadata_data = None
+        try:
+            metadata_data = cutils.get_package(id=dataset_id)
+        except ValueError as e:
+            return redirect(url_for('dashboard_blueprint.datasets')) 
+        except Exception as e:
+            return redirect(url_for('dashboard_blueprint.datasets'))
 
-    if metadata_data:
-        return render_template('dataset_view.html', dataset=metadata_data, PARTNER_IMAGE_SRC=get_partner_logo())
-    else:   
-        redirect(url_for('dashboard_blueprint.datasets'))
-
+        if metadata_data:
+            return render_template(
+                'dataset_view.html', 
+                dataset=metadata_data, 
+                PARTNER_IMAGE_SRC=get_partner_logo()
+            )
+        else:
+            return redirect(url_for('dashboard_blueprint.datasets'))
     
 @dashboard_bp.route('/admin-settings')
 @session_required
