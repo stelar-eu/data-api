@@ -791,6 +791,10 @@
                         $('#uploadForm')[0].reset(); 
                         $('#progress-bar').width('0%'); 
                         $('#progress-text').text('0%');
+                        $('#modal-new-resource input[type="text"]').val('');
+                        $('#modal-new-resource input[type="radio"]').prop('checked', false);
+                        $('#new-custom-format').val('');
+                        document.querySelector('input[name="resource-type"][value="internal"]').checked = true;
                         appendNewResourceRow(response.result.resource);
                         setTimeout(function() {
                           $('#new-modal-footer .alert').fadeOut(500, function() {
