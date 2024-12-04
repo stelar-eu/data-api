@@ -99,6 +99,70 @@ def request(method, entity_type, endpoint, params=None, data=None, headers=None,
         return response
 
 
+def search_packages(keyword: str, limit: int = 0, offset: int = 0, expand_mode: bool = False):
+    """
+    Search for datasets in the CKAN catalog using a keyword.
+
+    This function interacts with the CKAN API to search datasets in the catalog using
+    the `package_search` endpoint. It allows filtering datasets by a keyword and can
+    return either basic or detailed package information.
+
+    Args:
+        keyword (str): The search keyword to filter datasets.
+        limit (int): The number of results to return. If 0, no limit is applied.
+        offset (int): The starting point (offset) to fetch the search results from.
+        expand_mode (bool): If True, fetch detailed metadata for each dataset.
+
+    Returns:
+        list: A list of dictionaries containing package details.
+
+    Raises:
+        Exception: If an error occurs while performing the search.
+
+    Example:
+        Response: [
+            {"id": "dataset_id_1", "name": "Dataset 1", ...},
+            {"id": "dataset_id_2", "name": "Dataset 2", ...}
+        ]
+    """
+    try:
+        # Validate limit and offset
+        if limit < 0 or offset < 0:
+            raise ValueError("Limit and offset must be non-negative integers.")
+        
+        # Prepare query parameters
+        params = {
+            "q": keyword,
+            "start": offset,
+            "rows": limit if limit > 0 else 1000,  # Default to a high limit if no limit is specified
+        }
+
+        # Make the request to the CKAN API
+        response = request("GET", "package_search", params=params)
+        
+        if response.status_code == 200:
+            results = response.json()['result']['results']
+            
+            if expand_mode:
+                # Fetch detailed metadata for sorting or further processing
+                detailed_results = []
+                for dataset in results:
+                    dataset_info = get_package(dataset['id'], include_extras=True, include_resources=True)
+                    detailed_results.append(dataset_info)
+
+                return detailed_results
+            else:
+                # Return basic search results
+                return results
+        else:
+            # Handle error responses from the API
+            raise Exception(f"CKAN API returned an error: {response.status_code} - {response.text}")
+
+    except Exception as e:
+        # Raise the exception if an error occurs during processing
+        raise Exception(f"Error while searching packages: {str(e)}")
+
+
 def list_packages(limit: int = 0, offset: int = 0, expand_mode: bool = False):
     """
     Retrieve a list of all dataset IDs from the CKAN catalog.
