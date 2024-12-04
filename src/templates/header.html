@@ -18,7 +18,39 @@
             </a>
         </h1>
         <div class="navbar-nav flex-row order-md-last">
-            <div class="nav-item d-none d-md-flex me-3"></div>
+            <div class="nav-item d-none d-md-flex me-3">
+                <div class="nav-item d-none d-md-flex me-3">
+                    <div class="btn-list">
+                        <a href="https://klms.stelar.gr/s3/login" class="btn" target="_blank" rel="noreferrer">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24"  height="24" class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-brand-metabrainz" viewBox="0 0 162.612 24.465" xmlns:v="https://vecta.io/nano"><path d="M52.751.414h9.108v23.63h-9.108zM41.711.74l-18.488 9.92a.919.919 0 0 1-.856 0L3.879.74A2.808 2.808 0 0 0 2.558.414h-.023A2.4 2.4 0 0 0 0 2.641v21.376h9.1V13.842a.918.918 0 0 1 1.385-.682l10.361 5.568a3.634 3.634 0 0 0 3.336.028l10.933-5.634a.917.917 0 0 1 1.371.69v10.205h9.1V2.641A2.4 2.4 0 0 0 43.055.414h-.023a2.808 2.808 0 0 0-1.321.326zm65.564-.326h-9.237v10.755a.913.913 0 0 1-1.338.706L72.762.675a2.824 2.824 0 0 0-1.191-.261h-.016a2.4 2.4 0 0 0-2.535 2.227v21.377h9.163V13.275a.914.914 0 0 1 1.337-.707l24.032 11.2a2.813 2.813 0 0 0 1.188.26 2.4 2.4 0 0 0 2.535-2.227zm7.161 23.63V.414h4.191v23.63zm28.856.421c-11.274 0-19.272-4.7-19.272-12.232C124.02 4.741 132.066 0 143.292 0s19.32 4.7 19.32 12.233-7.902 12.232-19.32 12.232zm0-21.333c-8.383 0-14.84 3.217-14.84 9.1 0 5.926 6.457 9.1 14.84 9.1s14.887-3.174 14.887-9.1c0-5.883-6.504-9.1-14.887-9.1z" fill="#c72c48"/></svg>                            
+                            S3 Console
+                        </a>
+                      <div class="btn dropdown p-1 px-3">
+                        <a href="#" class="nav-link d-flex lh-1 text-reset p-1" data-bs-toggle="dropdown" aria-label="Open user menu">
+                            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-script"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M17 20h-11a3 3 0 0 1 0 -6h11a3 3 0 0 0 0 6h1a3 3 0 0 0 3 -3v-11a2 2 0 0 0 -2 -2h-10a2 2 0 0 0 -2 2v8" /></svg>
+                            Documentation
+                        </a>
+                            <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+                                <a href="{{ url_for('home') }}docs"  target="_blank" class="dropdown-item">
+                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-primary icon icon-tabler icons-tabler-outline icon-tabler-api"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 13h5" /><path d="M12 16v-8h3a2 2 0 0 1 2 2v1a2 2 0 0 1 -2 2h-3" /><path d="M20 8v8" /><path d="M9 16v-5.5a2.5 2.5 0 0 0 -5 0v5.5" /></svg>                                
+                                    STELAR API Docs
+                                </a>
+                                <a href="https://stelar-client.readthedocs.io/" target="_blank" class="dropdown-item">
+                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-facebook icon icon-tabler icons-tabler-outline icon-tabler-brand-python"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 9h-7a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h3" /><path d="M12 15h7a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2h-3" /><path d="M8 9v-4a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v5a2 2 0 0 1 -2 2h-4a2 2 0 0 0 -2 2v5a2 2 0 0 0 2 2h4a2 2 0 0 0 2 -2v-4" /><path d="M11 6l0 .01" /><path d="M13 18l0 .01" /></svg>
+                                    STELAR Python SDK</a>
+                                <a href="https://min.io/docs/minio/linux/developers/minio-drivers.html" target="_blank" class="dropdown-item">
+                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-brand-metabrainz"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7v10l7 4v-18z" /><path d="M21 7v10l-7 4v-18z" /></svg>
+                                    Minio SDK</a>
+                            </div>
+                        </div>
+                      <a href="https://support.stelar.gr" class="btn" target="_blank" rel="noreferrer">
+                        <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-exclamation-circle"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 9v4" /><path d="M12 16v.01" /></svg>                        
+                        Report an Error
+                      </a>
+                    </div>
+                  </div>
+            </div>
+
             <div class="nav-item dropdown">
                 <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown" aria-label="Open user menu">
                     <span class="avatar avatar-sm" style="background-image: url('{{ url_for('static', filename='avatar.png') }}')"></span>
@@ -38,9 +70,7 @@
                     </div>
                 </a>
                 <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-                    <a href="#" class="dropdown-item">Status</a>
-                    <div class="dropdown-divider"></div>
-                    <a href="{{ url_for('dashboard_blueprint.settings') }}" class="dropdown-item">Settings</a>
+                    <a href="{{ url_for('dashboard_blueprint.settings') }}" class="dropdown-item">Account Settings</a>
                     <a href="{{ url_for('dashboard_blueprint.logout') }}" class="dropdown-item">Logout</a>
                 </div>
             </div>
