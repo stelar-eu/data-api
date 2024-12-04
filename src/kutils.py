@@ -793,7 +793,7 @@ def patch_user_roles(user_id, role_ids):
                     keycloak_admin.delete_realm_roles_of_user(user_rep.get('id'), roles_to_remove)
             else:
                 # Unassign roles not in the request
-                roles_to_remove = [role for role in current_roles if role['name'] not in roles]
+                roles_to_remove = [role for role in current_roles if role['name'] not in roles and role['name'] != 'default-roles-master']
                 if roles_to_remove:
                     keycloak_admin.delete_realm_roles_of_user(user_rep.get('id'), roles_to_remove)
 
