@@ -27,9 +27,25 @@
                   <div class="page-pretitle">
                     {{ dataset.get('id') }}
                   </div>
-                  <h2 class="page-title">
-                    {{ dataset.get('title') }}
-                  </h2>
+                  <div class="d-flex">
+                    <h2 class="page-title">
+                      {{ dataset.get('title') }}
+                    </h2>
+                    <form action="" method="POST" class="ms-auto">
+                      <input type="hidden" name="dataset_delete" value="{{ dataset.get('id') }}">
+                      <button type="submit" class="btn btn-danger ms-auto text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                          <path d="M4 7l16 0" />
+                          <path d="M10 11l0 6" />
+                          <path d="M14 11l0 6" />
+                          <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+                          <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                        </svg>
+                        Delete Dataset
+                      </button>
+                    </form>
+                  </div>
                 </div>
               </div>
             </div>
@@ -298,7 +314,7 @@
                           <div class="col-lg-12">
                             <div class="mb-3">
                               <label class="form-label">URL</label>
-                              <input type="text" class="form-control">
+                              <input type="text" name="external-url" class="form-control">
                             </div>
                           </div>
                       </div>
@@ -496,6 +512,55 @@
               $('#update-custom-format').val('');
           }
       }
+
+      $('#update-resource-btn').click(function() {
+          // Get the resource ID
+          const resourceId = $('#resource-id-input').val();
+          
+          const resourceData = {
+              resource_metadata: {
+                  url: $('input[name="view-resource-url"]').val(),
+                  name: $('input[name="view-resource-name"]').val(),
+                  format: $('input[name="format-sel"]:checked').val() || $('#update-custom-format').val(),
+                  description: $('input[name="view-resource-description"]').val()
+              }
+          };
+          
+          $.ajax({
+              url: `{{url_for('rest_catalog_blueprint.api_rest_patch_resource',resource_id='')}}${resourceId}`,
+              method: 'PATCH',
+              contentType: 'application/json',
+              data: JSON.stringify(resourceData),
+              success: function(response) {
+
+                if (response.success) {
+                      const updatedResource = response.result.resource;
+                     
+                const tableRow = $(`#${updatedResource.id}`);
+                
+                tableRow.find('td:nth-child(2)').text(updatedResource.name); 
+                tableRow.find('td:nth-child(3)').text(updatedResource.url); 
+                tableRow.find('td:nth-child(4)').text(updatedResource.format);
+
+                      $('#update-modal-footer').prepend('<div class="alert alert-success p-2 me-auto">Resource Updated Successfully!</div>');
+                      setTimeout(function() {
+                          $('#update-modal-footer .alert').fadeOut(500, function() {
+                              $(this).remove();
+                          });
+                      }, 3000);
+                  }
+              },
+              error: function(xhr, status, error) {
+                 
+                  $('#update-modal-footer').prepend('<div class="alert alert-danger p-2 me-auto">Failed to Update</div>');
+                  setTimeout(function() {
+                      $('#update-modal-footer .alert').fadeOut(500, function() {
+                          $(this).remove();
+                      });
+                  }, 3000);
+              }
+          });
+      });
       
       function copyText() {
           const inputField = document.getElementById('resource-id-input');
@@ -657,38 +722,28 @@
               if (selectedResourceType === 'external') {
                 // Serialize the external form data
                 const formData = new FormData(externalResourceForm);
-                handleExternalResourceSubmit(formData);  // Trigger external resource AJAX
+                handleExternalResourceSubmit(formData);  
 
               } else if (selectedResourceType === 'internal') {
                 // Serialize the internal form data
                 const formData = new FormData(internalResourceForm);
-                handleInternalResourceSubmit(formData);  // Trigger internal resource AJAX
+                handleInternalResourceSubmit(formData); 
               }
             });
 
             // Function to handle external resource submission (AJAX)
             function handleExternalResourceSubmit(formData) {
-              fetch('/submit-external-resource', {
-                method: 'POST',
-                body: formData
-              })
-              .then(response => response.json())
-              .then(data => {
-                console.log('External resource submitted successfully:', data);
-                alert('External resource submitted successfully!');
-              })
-              .catch(error => {
-                console.error('Error submitting external resource:', error);
-              });
+              console.log(formData.get('external-url'))
+              linkResource("none", formData.get('external-url'));    
             }
 
             // Function to handle internal resource submission with progress bar (AJAX)
             function handleInternalResourceSubmit() {
               const formData = new FormData();
 
-              const selectedOption = $('#pathSelector').find(':selected');  // Find the selected option
-              const bucketName = selectedOption.closest('optgroup').attr('label');  // Get bucket name from optgroup label
-              const filePath = selectedOption.val();  // Get full path (bucket/folder) from option value
+              const selectedOption = $('#pathSelector').find(':selected');
+              const bucketName = selectedOption.closest('optgroup').attr('label');  
+              const filePath = selectedOption.val();
               
               formData.append('file', $('#fileInput')[0].files[0]);
               formData.append('bucket', bucketName);
@@ -727,7 +782,7 @@
                       }, 3000);
 
                       // Call the second AJAX function to link the resource
-                      linkResource(bucketName+"/"+filePath, true); 
+                      linkResource(bucketName+"/"+filePath); 
                   },
                   error: function(error) {
                     $('#new-modal-footer').prepend('<div class="alert alert-danger p-2 me-auto">File upload failed</div>');
@@ -742,11 +797,10 @@
               });
             }
 
-            function linkResource(filePath, isFileResource, providedURL = null) {
+            function linkResource(filePath, providedURL = null) {
                 const description = $('input[name="resource-description"]').val();
                 const name = $('input[name="example-text-input"]').val();
 
-                // Check if any format radio button is selected
                 let format = $('input[name="format-sel"]:checked').val();
 
                 // If no radio button is selected, check the custom format input
@@ -760,10 +814,9 @@
                 let url;
 
                 if (providedURL) {
-                    // Use the provided URL as-is
+                    console.log("External URL")
                     url = providedURL;
                 } else {
-                    // Process the file path and append the filename
                     const fileInput = $('#fileInput')[0].files[0]; 
                     const filename = fileInput.name;
                     url = filePath + filename;
