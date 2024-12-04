@@ -209,6 +209,8 @@
                     </div>                
               </div>
             </div>
+
+
             <div class="modal modal-blur fade" id="modal-new-resource" tabindex="-1" role="dialog" aria-hidden="true">
               <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
                 <div class="modal-content">
@@ -216,6 +218,7 @@
                     <h5 class="modal-title">New Resource</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                   </div>
+
                   <div class="modal-body">
                     <div class="mb-3">
                       <label class="form-label">Name</label>
@@ -291,15 +294,15 @@
                   </div>
                   <div class="modal-body" id="externalResource">
                     <form id="externalResourceForm" enctype="multipart/form-data">
-                    <div class="row">
-                      <div class="col-lg-12">
-                        <div class="mb-3">
-                          <label class="form-label">URL</label>
-                          <input type="text" class="form-control">
-                        </div>
+                      <div class="row">
+                          <div class="col-lg-12">
+                            <div class="mb-3">
+                              <label class="form-label">URL</label>
+                              <input type="text" class="form-control">
+                            </div>
+                          </div>
                       </div>
                     </form>
-                    </div>
                   </div>
                   <div class="modal-body" id="internalResource" style="display:none;">
                     <div class="row">
@@ -324,22 +327,20 @@
                         </div>
                       </div>
                     </div>
-                    <!-- Upload status -->
-                    <div id="uploadStatus" class="col-lg-12"></div>
-                    </div>
                   </div>
-                  <div class="modal-footer">
-                    <a href="#" class="btn btn-link link-secondary" data-bs-dismiss="modal">
-                      Cancel
-                    </a>
+                  </div>
+                  <div class="modal-footer" id="new-modal-footer">
                     <a href="#" class="btn btn-primary ms-auto" id="submitResource">
                       <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
                       Publish New Resource
                     </a>
                   </div>
-                </div>
+              </div>
               </div>
             </div>
+
+
+
             <div class="modal modal-blur fade" id="modal-view-id" tabindex="-1" role="dialog" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
                     <div class="modal-content">
@@ -405,14 +406,13 @@
                                     <path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
                                   </svg>
                                 Copy ID</button>
-                            <button class="btn btn-success" id="update-resource-btn">
-                                Update Resource
-                              </button>
-
+                            <button class="btn btn-success" id="update-resource-btn">Update Resource</button>
                         </div>
                     </div>
                 </div>
             </div>
+
+
           </div>
         </div>
         {% include 'footer.html'%}
@@ -452,6 +452,20 @@
               });
           });
       }
+
+      function attachDeleteEventListeners() {
+          const deleteButtons = document.querySelectorAll('.del-resource-btn');
+          deleteButtons.forEach(function(button) {
+              button.removeEventListener('click', handleDeleteClick);
+              button.addEventListener('click', handleDeleteClick);
+          });
+      }
+
+      
+      document.addEventListener('DOMContentLoaded', attachViewIdEventListeners);
+      document.addEventListener('DOMContentLoaded', attachDeleteEventListeners);
+
+
       function populateViewResourceModal(resource) {
           // Populate basic fields
           $('input[name="view-resource-name"]').val(resource.name);
@@ -482,7 +496,6 @@
               $('#update-custom-format').val('');
           }
       }
-      document.addEventListener('DOMContentLoaded', attachViewIdEventListeners);
       
       function copyText() {
           const inputField = document.getElementById('resource-id-input');
@@ -493,7 +506,6 @@
                               $(this).remove();
                           });
                       }, 3000);
-
       }
       </script>
       
@@ -563,27 +575,25 @@
 
 
     <script>
-      $(document).ready(function() {
-        $('.del-resource-btn').on('click', function() {
-            const resourceId = $(this).attr('del-resource-id'); 
+      function handleDeleteClick(event) {
+          const resourceId = event.target.getAttribute('del-resource-id') || event.currentTarget.getAttribute('del-resource-id');
 
-            if (!confirm('Are you sure you want to delete this resource?')) {
-                return;
-            }
+          if (!confirm('Are you sure you want to delete this resource?')) {
+              return;
+          }
 
-            $.ajax({
-                url: `{{ url_for('rest_catalog_blueprint.api_rest_delete_resource', resource_id='')}}${resourceId}`, 
-                type: 'DELETE',
-                success: function(response) {
-                    $(`#${resourceId}`).remove(); // Remove the row with the ID of the resource
-                    console.log(`Resource ${resourceId} deleted successfully.`);
-                },
-                error: function(response) {
-
-                }
-            });
-        });
-      });
+          $.ajax({
+              url: `{{ url_for('rest_catalog_blueprint.api_rest_delete_resource', resource_id='')}}${resourceId}`, 
+              type: 'DELETE',
+              success: function(response) {
+                  $(`#${resourceId}`).remove();
+                  console.log(`Resource ${resourceId} deleted successfully.`);
+              },
+              error: function(response) {
+                  console.error(`Error deleting resource ${resourceId}`, response);
+              }
+          });
+      }
     </script>
 
     <script>
@@ -707,73 +717,102 @@
                       return xhr;
                   },
                   success: function(response) {
-                      $('#uploadStatus').html('<div class="alert alert-success">File uploaded successfully!</div>');
+                      $('#new-modal-footer').prepend('<div class="alert alert-success p-2 me-auto">File uploaded successfully</div>');
                       $('#progress-bar').width('0%');
                       $('#progress-text').text('0%');
-                      $('#progress-bar-container').hide(); 
+                      setTimeout(function() {
+                          $('#new-modal-footer .alert').fadeOut(500, function() {
+                              $(this).remove();
+                          });
+                      }, 3000);
 
                       // Call the second AJAX function to link the resource
                       linkResource(bucketName+"/"+filePath, true); 
                   },
                   error: function(error) {
-                      $('#uploadStatus').html('<div class="alert alert-danger">File upload failed!</div>');
-                      $('#progress-bar-container').hide(); 
-                  }
-              });
-            }
-
-            function linkResource(filePath, isFileResource) {
-
-              const description = $('input[name="resource-description"]').val();
-              const name = $('input[name="example-text-input"]').val();
-              const format = $('input[name="format-sel"]:checked').val();
-              const packageId = "{{ dataset.get('id')}}";
-              const fileInput = $('#fileInput')[0].files[0];  // Get the uploaded file
-              const filename = fileInput.name;
-              const url = filePath + filename;
-              let normalizedUrl = url.replace(/\/+/g, '/');
-              const resourceMetadata = {
-                  "resource_metadata": {
-                      "description": description,
-                      "format": format,
-                      "name": name,
-                      "package_id": packageId,
-                      "resource_type": "Tabular",
-                      "url": "s3://" + normalizedUrl
-                  }
-              };
-
-              $.ajax({
-                  url: `{{url_for('rest_catalog_blueprint.api_rest_create_resource', dataset_id=dataset.get('id')) }}`,
-                  method: 'POST',
-                  contentType: 'application/json',
-                  data: JSON.stringify(resourceMetadata),
-                  success: function(response) {
-                      $('#uploadStatus').html('<div class="alert alert-success">Resource Linked Succesfully!</div>');
-                      $('#progress-bar-container').hide();
-                      $('#uploadForm')[0].reset(); 
-                      $('#progress-bar').width('0%'); 
-                      $('#progress-text').text('0%');
-                      appendNewResourceRow(response.result.resource);
-                      setTimeout(function() {
-                          $('#uploadStatus').fadeOut(500, function() {
-                              $(this).remove();
-                          });
-                      }, 3000);
-                  },
-                  error: function(error) {
-                      $('#uploadStatus').html('<div class="alert alert-danger">Error linking resource</div>');
-                      $('#progress-bar-container').hide(); 
-                      $('#progress-bar').width('0%'); 
-                      $('#progress-text').text('0%');
-                      setTimeout(function() {
-                          $('#uploadStatus').fadeOut(500, function() {
+                    $('#new-modal-footer').prepend('<div class="alert alert-danger p-2 me-auto">File upload failed</div>');
+                    $('#progress-bar').width('0%');
+                    $('#progress-text').text('0%');
+                    setTimeout(function() {
+                          $('#new-modal-footer .alert').fadeOut(500, function() {
                               $(this).remove();
                           });
                       }, 3000);
                   }
               });
             }
+
+            function linkResource(filePath, isFileResource, providedURL = null) {
+                const description = $('input[name="resource-description"]').val();
+                const name = $('input[name="example-text-input"]').val();
+
+                // Check if any format radio button is selected
+                let format = $('input[name="format-sel"]:checked').val();
+
+                // If no radio button is selected, check the custom format input
+                if (!format) {
+                    const customFormat = $('#new-custom-format').val().trim();
+                    if (customFormat) {
+                        format = customFormat;
+                    }
+                }
+
+                let url;
+
+                if (providedURL) {
+                    // Use the provided URL as-is
+                    url = providedURL;
+                } else {
+                    // Process the file path and append the filename
+                    const fileInput = $('#fileInput')[0].files[0]; 
+                    const filename = fileInput.name;
+                    url = filePath + filename;
+                    url = url.replace(/\/+/g, '/'); 
+                    url = "s3://" + url;
+                }
+
+                const resourceMetadata = {
+                    "resource_metadata": {
+                        "description": description,
+                        "format": format,
+                        "name": name,
+                        "url": url
+                    }
+                };
+
+                $.ajax({
+                    url: `{{url_for('rest_catalog_blueprint.api_rest_create_resource', dataset_id=dataset.get('id')) }}`,
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(resourceMetadata),
+                    success: function(response) {
+                        $('#new-modal-footer .alert').remove()
+                        $('#new-modal-footer').prepend('<div class="alert alert-success p-2 me-auto">Resource Linked Successfully</div>');
+                        $('#uploadForm')[0].reset(); 
+                        $('#progress-bar').width('0%'); 
+                        $('#progress-text').text('0%');
+                        appendNewResourceRow(response.result.resource);
+                        setTimeout(function() {
+                          $('#new-modal-footer .alert').fadeOut(500, function() {
+                              $(this).remove();
+                          });
+                      }, 3000);
+                    },
+                    error: function(error) {
+                      $('#new-modal-footer .alert').remove()
+                      $('#new-modal-footer').prepend('<div class="alert alert-danger p-2 me-auto">Resource Linking Failed</div>');
+                      $('#progress-bar').width('0%'); 
+                      $('#progress-text').text('0%');
+                      setTimeout(function() {
+                          $('#new-modal-footer .alert').fadeOut(500, function() {
+                              $(this).remove();
+                          });
+                      }, 3000);
+                    
+                    }
+                });
+            }
+
 
             function appendNewResourceRow(resource) {
               // Get the resource table body
@@ -791,59 +830,52 @@
 
               // Create a new table row with the resource data
               const newRow = `
-                  <tr>
-                      <td class="text-sm">
-                          ${badgeHtml}
-                      </td>
-                      <td class="text-sm">${resource.name}</td>
-                      <td class="text-sm"><small>${resource.url}</small></td>
-                      <td class="text-sm">${resource.format}</td>
-                      <td>
-                          <div class="dropdown">
-                              <button class="btn btn-sm d-flex p-2 text-reset" data-bs-toggle="dropdown" aria-label="Open Resource Menu">
-                                  Manage
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="ms-1 icon icon-tabler icons-tabler-filled icon-tabler-caret-down">
-                                      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                      <path d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z" />
-                                  </svg>
-                              </button>
-                              <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-                                  <a class="dropdown-item view-resource-btn" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="${resource.id}">
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-eye">
-                                          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                          <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
-                                          <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
-                                      </svg>
-                                      View
-                                  </a>
-                                  <div class="dropdown-divider"></div>
-                                  <a edit-resource-id="${resource.id}" class="dropdown-item edit-resource-btn">
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-pencil">
-                                          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                          <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
-                                          <path d="M13.5 6.5l4 4" />
-                                      </svg>
-                                      Edit
-                                  </a>
-                                  <a del-resource-id="${resource.id}" class="dropdown-item del-resource-btn">
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-trash">
-                                          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                          <path d="M4 7l16 0" />
-                                          <path d="M10 11l0 6" />
-                                          <path d="M14 11l0 6" />
-                                          <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
-                                          <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
-                                      </svg>
-                                      Delete
-                                  </a>
-                              </div>
-                          </div>
-                      </td>
-                  </tr>`;
+                <tr id="${resource.id}">
+                    <td class="text-sm">
+                        ${badgeHtml}
+                    </td>
+                    <td class="text-sm">${resource.name}</td>
+                    <td class="text-sm"><small>${resource.url}</small></td>
+                    <td class="text-sm">${resource.format}</td>
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-sm d-flex p-2 text-reset" data-bs-toggle="dropdown" aria-label="Open Resource Menu">
+                                Actions
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="ms-1 icon icon-tabler icons-tabler-filled icon-tabler-caret-down">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                    <path d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z" />
+                                </svg>
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+                                <a class="dropdown-item view-resource-btn cursor-pointer" data-bs-toggle="modal" data-bs-target="#modal-view-id" data-resource-id="${resource.id}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-settings">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                        <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" />
+                                        <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+                                    </svg>
+                                    View - Edit
+                                </a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item del-resource-btn text-danger cursor-pointer" del-resource-id="${resource.id}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                        <path d="M4 7l16 0" />
+                                        <path d="M10 11l0 6" />
+                                        <path d="M14 11l0 6" />
+                                        <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+                                        <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                                    </svg>
+                                    Delete
+                                </a>
+                            </div>
+                        </div>
+                    </td>
+                </tr>`;
 
               resourceTableBody.append(newRow);
-              // Make the newly added button able to open the view resource modal
+              // Make the newly added button able to open the view resource modal and the button to delete the resource
               attachViewIdEventListeners();
+              attachDeleteEventListeners();
             } 
       });
     
