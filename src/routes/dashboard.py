@@ -27,6 +27,16 @@ dashboard_bp = APIBlueprint('dashboard_blueprint', __name__, enable_openapi=Fals
 logging.basicConfig(level=logging.DEBUG)
 
 
+def render_template_with_s3(template_name, **kwargs):
+    """
+    Helper function to include the S3_CONSOLE_URL in all templates.
+    """
+    config = current_app.config['settings']
+    # Add the S3_CONSOLE_URL to the kwargs
+    kwargs['S3_CONSOLE_URL'] = config.get('S3_CONSOLE_URL', '#')
+    return render_template(template_name, **kwargs)
+
+
 # DEVELOPMENT ONLY FOR AWS CLUSTERS: Decide which partner the cluster corresponds to 
 def get_partner_logo():
     domain = os.getenv("KLMS_DOMAIN_NAME","")
@@ -77,7 +87,7 @@ def session_required(f):
 @dashboard_bp.route('/')
 @session_required
 def dashboard_index():
-    return render_template('index.html', PARTNER_IMAGE_SRC=get_partner_logo())
+    return render_template_with_s3('index.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 # Signup Route
@@ -179,7 +189,7 @@ def verify_email():
 @dashboard_bp.route('/settings')
 @session_required
 def settings():    
-    return render_template('settings.html', PARTNER_IMAGE_SRC=get_partner_logo())
+    return render_template_with_s3('settings.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 @dashboard_bp.route('/workflows')
@@ -216,7 +226,7 @@ def workflows():
             # Ensure monthly_counts includes all three months (set to 0 if missing)
             monthly_counts = {month: monthly_counts.get(month, 0) for month in months_to_display}
 
-            return render_template('workflows.html', 
+            return render_template_with_s3('workflows.html', 
                                 workflows = wf_metadata['result'],
                                 status_counts=status_counts,
                                 monthly_counts=monthly_counts,
@@ -265,7 +275,7 @@ def workflow(workflow_id):
         except:
             package_id = "Not specified"
 
-        return render_template('workflow.html', workflow_id = workflow_id,
+        return render_template_with_s3('workflow.html', workflow_id = workflow_id,
                                                 PARTNER_IMAGE_SRC=get_partner_logo(),
                                                 wf_metadata = wf_metadata,
                                                 wf_tasks = wf_tasks.get('result', None),
@@ -324,7 +334,7 @@ def task(workflow_id, task_id):
 
     # Finally render the page if everything is correct
     if input_json.get("success", False):
-        return render_template('task.html', PARTNER_IMAGE_SRC=get_partner_logo(),
+        return render_template_with_s3('task.html', PARTNER_IMAGE_SRC=get_partner_logo(),
                                task_id=task_id,
                                workflow_id=workflow_id,
                                task_metadata=metadata_json['result'],
@@ -334,39 +344,55 @@ def task(workflow_id, task_id):
     return redirect(url_for('dashboard_blueprint.login'))
 
 
-@dashboard_bp.route('/datasets')
-@dashboard_bp.route('/datasets/page/<page_number>')
+@dashboard_bp.route('/datasets', methods=['GET', 'POST'])
+@dashboard_bp.route('/datasets/page/<page_number>', methods=['GET', 'POST'])
 @dashboard_bp.doc(False)
 @session_required
-def datasets(page_number = None):  
-    
-    if page_number is not None:
-        if type(int(page_number)) is not type(1):
-            redirect(url_for('dashboard_blueprint.datasets'))
-
-    # Maximum number of datasets per page
+def datasets(page_number=None):
     limit = 10
-    try:
-        if page_number is not None:
-            page_number = int(page_number)
-            if page_number>=0:
-                offset = limit*(page_number-1)
-                datasets = cutils.list_packages(limit=limit, offset=offset, expand_mode=True) 
-        else:
-            datasets = cutils.list_packages(limit=limit, offset=0, expand_mode=True) 
-    except:
-        datasets = {}
+    page_number = int(page_number) if page_number and page_number.isdigit() else 1
+    offset = limit * (page_number - 1) if page_number > 0 else 0
 
-    count_pkg = int(cutils.count_packages())
+    if request.method == 'POST':
+        keyword = request.form.get('q', '').strip()
+        
+        if not re.match(r'^\w+$', keyword):
+            return redirect(url_for('dashboard_blueprint.datasets'))
+        
+        try:
+            # Search for datasets using the keyword
+            datasets = cutils.search_packages(keyword=keyword, limit=limit, offset=offset, expand_mode=False)
+            count_pkg = len(datasets)
+            total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
+            
+            return render_template_with_s3('datasets.html',
+                                   datasets=datasets,
+                                   page_number=page_number,
+                                   total_pages=total_pages,
+                                   PARTNER_IMAGE_SRC=get_partner_logo(),
+                                   search_keyword=keyword)
+        except Exception as e:
+            flash(f"Error while searching datasets: {str(e)}", "error")
+            return redirect(url_for('dashboard_blueprint.datasets'))
+    else:
+        # Handle default GET request
+        try:
+            datasets = cutils.list_packages(limit=limit, offset=offset, expand_mode=True)
+        except Exception as e:
+            datasets = []
+            flash(f"Error loading datasets: {str(e)}", "error")
 
-    if count_pkg>0 and limit:
-        total_pages = ceil(count_pkg/limit)
+        try:
+            count_pkg = int(cutils.count_packages())
+            total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
+        except Exception:
+            total_pages = 1
 
-    return render_template('datasets.html', 
-                           datasets = datasets,
-                           page_number = page_number if page_number else 1,
-                           total_pages = total_pages if total_pages else 1,
-                           PARTNER_IMAGE_SRC=get_partner_logo())
+        return render_template_with_s3('datasets.html',
+                               datasets=datasets,
+                               page_number=page_number,
+                               total_pages=total_pages,
+                               PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 @dashboard_bp.route('/datasets/<dataset_id>', methods=['GET','POST'])
@@ -393,7 +419,7 @@ def dataset_detail(dataset_id):
             return redirect(url_for('dashboard_blueprint.datasets'))
 
         if metadata_data:
-            return render_template(
+            return render_template_with_s3(
                 'dataset_view.html', 
                 dataset=metadata_data, 
                 PARTNER_IMAGE_SRC=get_partner_logo()
@@ -405,7 +431,7 @@ def dataset_detail(dataset_id):
 @session_required
 @admin_required
 def adminSettings():
-    return render_template('cluster.html', PARTNER_IMAGE_SRC=get_partner_logo())
+    return render_template_with_s3('cluster.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 ####################################
