@@ -173,9 +173,16 @@ def callback():
 
 
 @app.route('/', methods=['GET'])
+@app.doc(tags=['KLMS Data API']) 
+def home():
+    """Entry point to the Console of Knowledge Lake Management System.
+    """
+    return redirect("/stelar/console/v1/login")
+
+@app.route('/help', methods=['GET'])
 @app.output(schema.ResponseOK, status_code=200)
 @app.doc(responses=[404], tags=['KLMS Data API']) 
-def home():
+def help():
     """Entry point to the Data API of Knowledge Lake Management System.
 
     Args:
@@ -2051,6 +2058,7 @@ def main(app):
         'MAIN_INGRESS_SUBDOMAIN' : os.getenv('MAIN_INGRESS_SUBDOMAIN', 'klms'),
         'KEYCLOAK_SUBDOMAIN' : os.getenv('KEYCLOAK_SUBDOMAIN', 'kc'),
         'MINIO_API_SUBDOMAIN' : os.getenv('MINIO_API_SUBDOMAIN', 'minio'),
+        'S3_CONSOLE_URL' : os.getenv('MINIO_CONSOLE_URL', ''),
 
         'SMTP_SERVER' : os.getenv('SMTP_SERVER','stelar.gr'),
         'SMTP_PORT' : os.getenv('SMTP_PORT', '465'),
