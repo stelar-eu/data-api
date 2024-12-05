@@ -426,7 +426,27 @@ def dataset_detail(dataset_id):
             )
         else:
             return redirect(url_for('dashboard_blueprint.datasets'))
-    
+
+@dashboard_bp.route('/resource/<resource_id>')
+@session_required
+def viewResource(resource_id):
+    config = current_app.config['settings']
+    if resource_id:
+        try:
+            minio_console_url = config.get('S3_CONSOLE_URL').replace('login','browser/')
+            resource_mtd = cutils.get_resource(id=resource_id)
+            url =  resource_mtd.get('url')
+            if url and url.startswith("s3://"):
+                url = url.replace("s3://", minio_console_url)
+                resource_mtd['url'] = url
+            return render_template_with_s3('resource.html', 
+                                        PARTNER_IMAGE_SRC=get_partner_logo(),
+                                        resource=resource_mtd)
+        except:
+            return redirect(url_for('dashboard_blueprint.datasets'))
+    else:
+        return redirect(url_for('dashboard_blueprint.datasets'))
+
 @dashboard_bp.route('/admin-settings')
 @session_required
 @admin_required

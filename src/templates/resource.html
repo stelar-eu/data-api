@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+    <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+    <title>STELAR | Resource</title>
+    <!-- CSS files -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">    
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="{{ url_for('static', filename='images.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+  </head>
+  <body >
+    <div class="page">
+      <!-- Navbar -->
+      {%  include 'header.html' %}
+      <div class="page-wrapper">
+        <div class="page-header d-print-none">
+            <div class="container-xl">
+              <div class="row g-2 align-items-center">
+                <div class="col">
+                  <div class="page-pretitle">
+                    {{ resource.get('id')}}
+                  </div>
+                  <h2 class="page-title">
+                    {{ resource.get('name', 'Name not specified')}}
+                  </h2>
+                </div>
+              </div>
+            </div>
+          </div>
+        <div class="page-body">
+          <div class="container-xl">
+            <div class="row row-cards justify-content-center">
+                <div class="col-lg-6 justify-content-center">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="card-title">Basic Information</div>
+                            <div class="mb-2">
+                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="text-secondary me-2 icon icon-tabler icons-tabler-outline icon-tabler-file-database">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12.75m-4 0a4 1.75 0 1 0 8 0a4 1.75 0 1 0 -8 0" />
+                                    <path d="M8 12.5v3.75c0 .966 1.79 1.75 4 1.75s4 -.784 4 -1.75v-3.75" /><path d="M14 3v4a1 1 0 0 0 1 1h4" />
+                                    <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /></svg>                                
+                                    Owner Package: <strong><a href="{{ url_for('dashboard_blueprint.dataset_detail', dataset_id=resource.get('package_id')) }}" target="_blank" >{{ resource.get('package_id')}}</a></strong>
+                            </div>
+                            <div class="mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-e-passport"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" /><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M9 12h-7" /><path d="M15 12h7" /></svg>                                        
+                                Resource ID: <strong>{{ resource.get('id') }}</strong>
+                            </div>
+                            <div class="mb-2">
+                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-file-description"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M9 17h6" /><path d="M9 13h6" /></svg>                                
+                                Description: <strong>{{ resource.get('description', 'Not specified') }}</strong>
+                            </div>
+                            <div class="mb-2">
+                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-link"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 15l6 -6" /><path d="M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464" /><path d="M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463" /></svg>                                
+                                URL: <a href="{{resource.get('url')}}" target="_blank"><strong>{{ resource.get('url') }}</strong></a>
+                            </div>
+                            <div class="mb-2">
+                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-calendar-bolt"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M13.5 21h-7.5a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v5" /><path d="M16 3v4" /><path d="M8 3v4" /><path d="M4 11h16" /><path d="M19 16l-2 3h4l-2 3" /></svg>                                
+                                Latest Modified at: <strong>{{ resource.get('metadata_modified') | datetimeformat }}</strong>
+                            </div>
+                            <div class="mb-2">
+                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-file-zip"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 20.735a2 2 0 0 1 -1 -1.735v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2h-1" /><path d="M11 17a2 2 0 0 1 2 2v2a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1v-2a2 2 0 0 1 2 -2z" /><path d="M11 5l-1 0" /><path d="M13 7l-1 0" /><path d="M11 9l-1 0" /><path d="M13 11l-1 0" /><path d="M11 13l-1 0" /><path d="M13 15l-1 0" /></svg>
+                                Format: <strong>{{resource.get('format')}}</strong>
+                            </div>
+                            <div class="mb-2">
+                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-relation-one-to-many"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 5m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" /><path d="M7 10h1v4" /><path d="M14 14v-4l3 4v-4" /><path d="M11 10.5l0 .01" /><path d="M11 13.5l0 .01" /></svg>                                
+                                Relation:  
+                                {% if resource.get('relation') == 'owned' %}
+                                <span class="badge bg-blue text-blue-fg">OWNED</span>
+                                {% elif resource.get('relation') == 'profile' %}
+                                <span class="badge bg-orange text-orange-fg">PROFILE</span>
+                                {% else %}
+                                <span class="badge bg-secondary text-secondary-fg">NONE</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>                 
+            </div>
+          </div>
+        </div>
+        {% include 'footer.html'%}
+      </div>
+    </div>
+</body>
+</html>
