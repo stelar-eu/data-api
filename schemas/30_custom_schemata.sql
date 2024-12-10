@@ -23,6 +23,15 @@ BEGIN
 END
 $$;
 
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'wfx_state_enum') THEN
+        CREATE TYPE wfx_state_enum AS ENUM ('open','locked','transitioning','committed');
+    END IF;
+END
+$$;
+
 ---------------------------------------------
 --             LAYOUT & POLICIES
 ---------------------------------------------
@@ -73,9 +82,13 @@ $$;
 CREATE TABLE IF NOT EXISTS klms.workflow_execution
 ( workflow_uuid varchar(64) NOT NULL,
   "state" state_enum NOT NULL, 
+  creator_user_id varchar(50) NOT NULL,
   start_date timestamp,
   end_date timestamp,
-  PRIMARY KEY (workflow_uuid)
+  wf_package_id  varchar(64),
+  PRIMARY KEY (workflow_uuid),
+  CONSTRAINT fk_package_id FOREIGN KEY(wf_package_id) REFERENCES public.package(id) ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT fk_user_id FOREIGN KEY(creator_user_id) REFERENCES keycloak.user_entity(username) ON UPDATE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS klms.workflow_tag
@@ -92,22 +105,22 @@ CREATE INDEX IF NOT EXISTS klms_workflow_tag_idx_value ON klms.workflow_tag(valu
 --           TASK EXECUTIONS
 ---------------------------------------------
 
--- DROP TABLE klms.task_execution;
 
 CREATE TABLE IF NOT EXISTS klms.task_execution
 ( task_uuid varchar(64) NOT NULL,
   workflow_uuid varchar(64) NOT NULL,
+  creator_user_id varchar(50) NOT NULL,
   "state" state_enum NOT NULL, 
   start_date timestamp,
   end_date timestamp,
   next_task_uuid varchar(64),
   PRIMARY KEY (task_uuid),
   CONSTRAINT fk_workflow_uuid FOREIGN KEY(workflow_uuid) REFERENCES klms.workflow_execution(workflow_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_next_task_uuid FOREIGN KEY(next_task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE SET NULL
+  CONSTRAINT fk_next_task_uuid FOREIGN KEY(next_task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT fk_user_id FOREIGN KEY(creator_user_id) REFERENCES keycloak.user_entity(username) ON UPDATE CASCADE
 );
 
 
--- DROP TABLE klms.task_tag;
 
 CREATE TABLE IF NOT EXISTS klms.task_tag
 ( task_uuid varchar(64) NOT NULL,
@@ -123,7 +136,6 @@ CREATE INDEX IF NOT EXISTS klms_task_tag_idx_key ON klms.task_tag(key);
 CREATE INDEX IF NOT EXISTS klms_task_tag_idx_value ON klms.task_tag(value);
 
 
--- DROP TABLE klms.metrics;
 
 CREATE TABLE IF NOT EXISTS klms.metrics
 ( task_uuid varchar(64) NOT NULL,
@@ -140,8 +152,6 @@ CREATE INDEX IF NOT EXISTS klms_metrics_idx_key ON klms.metrics(key);
 CREATE INDEX IF NOT EXISTS klms_metrics_idx_value ON klms.metrics(value);
 
 
--- DROP TABLE klms.parameters;
-
 CREATE TABLE IF NOT EXISTS klms.parameters
 ( task_uuid varchar(64) NOT NULL,
   "key" text NOT NULL, 
@@ -156,19 +166,24 @@ CREATE INDEX IF NOT EXISTS klms_parameters_idx_key ON klms.parameters(key);
 CREATE INDEX IF NOT EXISTS klms_parameters_idx_value ON klms.parameters(value);
 
 
--- DROP TABLE klms.task_input;
-
 CREATE TABLE IF NOT EXISTS klms.task_input
-( task_uuid varchar(64) NOT NULL,
+(
+  task_uuid varchar(64) NOT NULL,
   order_num smallint,
-  dataset_id text NOT NULL, 
+  dataset_id varchar(64),
+  resource_id varchar(64), 
+  input_path text,
   PRIMARY KEY (task_uuid, dataset_id),
-  CONSTRAINT fk_task_input_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_task_input_dataset FOREIGN KEY(dataset_id) REFERENCES public.resource(id) ON UPDATE CASCADE ON DELETE CASCADE
+  CONSTRAINT fk_task_input_uuid FOREIGN KEY (task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT fk_task_input_dataset FOREIGN KEY (dataset_id) REFERENCES public.package(id) ON UPDATE CASCADE ON DELETE SET NULL, 
+  CONSTRAINT fk_task_input_resource FOREIGN KEY (resource_id) REFERENCES public.resource(id) ON UPDATE CASCADE ON DELETE SET NULL, 
+  CONSTRAINT chk_task_input_one_id CHECK (
+    (dataset_id IS NOT NULL AND resource_id IS NULL AND input_path IS NULL) OR
+    (dataset_id IS NULL AND resource_id IS NOT NULL AND input_path IS NULL) OR
+    (dataset_id IS NULL AND resource_id IS NULL AND input_path IS NOT NULL)
+  )
 );
 
-
--- DROP TABLE klms.task_output;
 
 CREATE TABLE IF NOT EXISTS klms.task_output
 ( task_uuid varchar(64) NOT NULL,
