@@ -32,6 +32,14 @@ BEGIN
 END
 $$;
 
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tskx_action_enum') THEN
+        CREATE TYPE tskx_action_enum AS ENUM ('REPLACE','KEEP','TRUNCATE');
+    END IF;
+END
+$$;
+
 ---------------------------------------------
 --             LAYOUT & POLICIES
 ---------------------------------------------
@@ -170,19 +178,18 @@ CREATE TABLE IF NOT EXISTS klms.task_input
 (
   task_uuid varchar(64) NOT NULL,
   order_num smallint,
-  dataset_id varchar(64),
   resource_id varchar(64), 
   input_path text,
-  PRIMARY KEY (task_uuid, dataset_id),
+  input_group_name varchar(50) NOT NULL,
+  PRIMARY KEY (task_uuid),
   CONSTRAINT fk_task_input_uuid FOREIGN KEY (task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_task_input_dataset FOREIGN KEY (dataset_id) REFERENCES public.package(id) ON UPDATE CASCADE ON DELETE SET NULL, 
   CONSTRAINT fk_task_input_resource FOREIGN KEY (resource_id) REFERENCES public.resource(id) ON UPDATE CASCADE ON DELETE SET NULL, 
   CONSTRAINT chk_task_input_one_id CHECK (
-    (dataset_id IS NOT NULL AND resource_id IS NULL AND input_path IS NULL) OR
-    (dataset_id IS NULL AND resource_id IS NOT NULL AND input_path IS NULL) OR
-    (dataset_id IS NULL AND resource_id IS NULL AND input_path IS NOT NULL)
+    (resource_id IS NOT NULL AND input_path IS NULL) OR
+    (resource_id IS NULL AND input_path IS NOT NULL)
   )
 );
+
 
 
 CREATE TABLE IF NOT EXISTS klms.task_output
