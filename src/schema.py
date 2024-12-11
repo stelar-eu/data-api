@@ -216,6 +216,31 @@ class Task_Input(Schema):
     package_id = String(required = True)
     tags = Dict()
 
+# class Task_Input_v2(Schema):
+#     workflow_exec_id = String(required = True)
+#     tool_name = String(required = False)
+#     docker_image = String(required = False)
+#     inputs = Dict(keys=String(),values=List(String),required=False)
+#     parameters = Dict(required = True)
+#     datasets = Dict(keys=String(),values=String())
+
+class StringOrDictField(fields.Field):
+    def _deserialize(self, value, attr, data, **kwargs):
+        if isinstance(value, str):
+            return value
+        elif isinstance(value, dict):
+            return value
+        raise ValidationError("Field must be either a string or a dictionary.")
+
+class Task_Input_v2(Schema):
+    workflow_exec_id = fields.String(required=True)
+    tool_name = fields.String(required=False)
+    docker_image = fields.String(required=False)
+    inputs = Dict(keys=fields.String(),values=fields.List(String),required=False)
+    datasets = fields.Dict(keys=fields.String(), values=StringOrDictField(), required=True)
+    parameters = fields.Dict(required=True)
+    package_id = fields.String(required=True)
+    tags = fields.Dict()
 
 class Task_Output(Schema):
     task_exec_id = String(required = True)

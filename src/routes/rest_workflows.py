@@ -10,6 +10,7 @@ import json
 import schema
 import cutils
 import kutils
+import wxutils
 
 rest_workflows_bp = APIBlueprint('rest_workflows_blueprint', __name__, tag='RESTful Workflow Operations')
 
@@ -167,3 +168,15 @@ def api_rest_update_dataset(wid):
     print("Hello")
 
 
+@rest_workflows_bp.route("/tasks",methods=["POST"])
+@rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
+@rest_workflows_bp.input(schema.Task_Input, location='json')
+@rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
+@token_active
+def api_rest_create_task(json_data):
+    try:
+        # specs = json.loads(request.data.decode('utf-8'))
+        resp = wxutils.create_task(json_data)
+    except:
+        pass
+           
