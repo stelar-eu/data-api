@@ -99,6 +99,54 @@ def request(method, entity_type, endpoint, params=None, data=None, headers=None,
         return response
 
 
+def is_package(id: str):
+    """Checks if a given ID corresponds a valid existing dataset in CKAN.
+
+    Args:
+      id: The ID under examination.
+    
+    Returns:
+        bool: true/false depending to the validity of the ID as package.
+    """
+    try:
+        if id:
+            response = request("GET","package","package_show", params={"id": id})
+            if response.status_code == 200:
+                return True
+        else:
+            return False
+    except requests.exceptions.HTTPError as he:
+        if he.response.status_code == 404:
+            return False
+        else:
+            return False
+    except Exception as e:
+        return False
+        
+    
+def is_resource(id: str):
+    """Checks if a given ID corresponds a valid existing resource in CKAN.
+
+    Args:
+      id: The ID under examination.
+    
+    Returns:
+        bool: true/false depending to the validity of the ID as resource.
+    """
+    try:
+        if id:           
+            response = request("GET","resource",'resource_show', params={"id":id})
+            if response.status_code == 200:
+                return True
+        else:
+            return False
+    except requests.exceptions.HTTPError as he:
+        if he.response.status_code == 404:
+            return False
+    except Exception as e:
+        return False
+    
+
 def search_packages(keyword: str, limit: int = 0, offset: int = 0, expand_mode: bool = False):
     """
     Search for datasets in the CKAN catalog using a keyword.
