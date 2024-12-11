@@ -96,7 +96,6 @@ CREATE TABLE IF NOT EXISTS klms.workflow_execution
   wf_package_id  varchar(64),
   PRIMARY KEY (workflow_uuid),
   CONSTRAINT fk_package_id FOREIGN KEY(wf_package_id) REFERENCES public.package(id) ON UPDATE CASCADE ON DELETE SET NULL,
-  CONSTRAINT fk_user_id FOREIGN KEY(creator_user_id) REFERENCES keycloak.user_entity(username) ON UPDATE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS klms.workflow_tag
@@ -125,7 +124,6 @@ CREATE TABLE IF NOT EXISTS klms.task_execution
   PRIMARY KEY (task_uuid),
   CONSTRAINT fk_workflow_uuid FOREIGN KEY(workflow_uuid) REFERENCES klms.workflow_execution(workflow_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
   CONSTRAINT fk_next_task_uuid FOREIGN KEY(next_task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE SET NULL,
-  CONSTRAINT fk_user_id FOREIGN KEY(creator_user_id) REFERENCES keycloak.user_entity(username) ON UPDATE CASCADE
 );
 
 
@@ -138,11 +136,18 @@ CREATE TABLE IF NOT EXISTS klms.task_tag
   CONSTRAINT fk_task_tag_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS klms.task_output_packages
+( task_uuid varchar(64) NOT NULL,
+  package_uuid varchar(64) NOT NULL,
+  PRIMARY KEY (task_uuid, package_uuid),
+  CONSTRAINT fk_task_tag_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT fk_package_uuid FOREIGN KEY(package_uuid) REFERENCES public.package(id) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
 -- Index key value pairs for faster search:
 
 CREATE INDEX IF NOT EXISTS klms_task_tag_idx_key ON klms.task_tag(key);
 CREATE INDEX IF NOT EXISTS klms_task_tag_idx_value ON klms.task_tag(value);
-
 
 
 CREATE TABLE IF NOT EXISTS klms.metrics

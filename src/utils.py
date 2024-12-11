@@ -171,13 +171,14 @@ sql_policy_template = {
 # Templates of SQL queries for workflow management
 # FIXME: Remove fixed parameters from SQL query for 'workflow_read_statistics'
 sql_workflow_execution_templates = {
-    'workflow_create_template': 'INSERT INTO klms.workflow_execution(workflow_uuid, state, start_date) VALUES (%s, %s, %s)',
+    'workflow_create_template': 'INSERT INTO klms.workflow_execution(workflow_uuid, state, creator_user_id, start_date, wf_package_id) VALUES (%s, %s, %s, %s, %s)',
     'workflow_update_template': 'UPDATE klms.workflow_execution SET state = %s WHERE workflow_uuid = %s',  
     'workflow_commit_template': 'UPDATE klms.workflow_execution SET state = %s, end_date = %s WHERE workflow_uuid = %s',  
     'workflow_insert_tags_template': 'INSERT INTO klms.workflow_tag VALUES (%s, %s, %s)',
     'workflow_state_template': 'SELECT workflow_uuid AS workflow_exec_id, state FROM klms.workflow_execution WHERE workflow_uuid = %s',
+    'workflow_get_context_package': 'SELECT wf_package_id AS context_package FROM klms.workflow_execution WHERE workflow_uuid = %s',
     'workflow_delete_template': 'DELETE FROM klms.workflow_execution WHERE workflow_uuid = %s',
-    'workflow_read_template': 'SELECT workflow_uuid AS workflow_exec_id, state, start_date, end_date FROM klms.workflow_execution WHERE workflow_uuid = %s',
+    'workflow_read_template': 'SELECT workflow_uuid AS workflow_exec_id, creator_user_id as creator, state, start_date, end_date, wf_package_id FROM klms.workflow_execution WHERE workflow_uuid = %s',
     'workflow_get_tasks': """SELECT tsk.task_uuid, tsk.state, tsk.start_date, tsk.end_date, tsk_tg.value as tool_image 
                              FROM klms.workflow_execution as wf 
                              JOIN klms.task_execution as tsk ON wf.workflow_uuid=tsk.workflow_uuid 
@@ -190,17 +191,28 @@ sql_workflow_execution_templates = {
                            (SELECT DISTINCT workflow_uuid, value FROM klms.workflow_tag WHERE key='package_id') as tg
                            ON ex.workflow_uuid=tg.workflow_uuid LEFT JOIN public.package as pkg ON tg.value=pkg.id;""",
     'workflow_read_tags_template': 'SELECT key, value FROM klms.workflow_tag WHERE workflow_uuid = %s',
-    'task_create_template': 'INSERT INTO klms.task_execution(task_uuid, workflow_uuid, state, start_date) VALUES (%s, %s, %s, %s)',
+    'task_create_template': 'INSERT INTO klms.task_execution(task_uuid, workflow_uuid, creator_user_id, state, start_date) VALUES (%s, %s, %s, %s, %s)',
     'task_update_template': 'UPDATE klms.task_execution SET state = %s WHERE task_uuid = %s',
     'task_commit_template': 'UPDATE klms.task_execution SET state = %s, end_date = %s WHERE task_uuid = %s',
     'task_create_connection_template': 'UPDATE klms.task_execution SET next_task_uuid = %s WHERE task_uuid = %s',
     'task_delete_template': 'DELETE FROM klms.task_execution WHERE task_uuid = %s',
-    'task_read_template': 'SELECT task_uuid AS task_exec_id, workflow_uuid AS workflow_exec_id, state, start_date, end_date FROM klms.task_execution WHERE task_uuid = %s',
+    'task_read_template': 'SELECT task_uuid AS task_exec_id, creator_user_id as creator, workflow_uuid AS workflow_exec_id, state, start_date, end_date FROM klms.task_execution WHERE task_uuid = %s',
     'task_read_tags_template': 'SELECT key, value FROM klms.task_tag WHERE task_uuid = %s',
+    'task_read_input_group_names_by': 'SELECT DISTINCT input_group_name FROM klms.task_input WHERE task_uuid = %s',
+    'task_read_uuid_inputs' : 'SELECT resource_id FROM klms.task_input WHERE task_uuid= %s AND input_path IS NULL',
+    'task_read_path_inputs' : 'SELECT input_path FROM klms.task_input WHERE task_uuid= %s AND resource_id IS NULL',
+    'task_read_inputs_by_group_name' : 'SELECT * FROM klms.task_input WHERE task_uuid= %s AND input_group_name = %s',
+    #
     'task_read_input_dataset_template': 'SELECT * FROM klms.task_input WHERE task_uuid = %s',
     'task_read_output_dataset_template': 'SELECT * FROM klms.task_output WHERE task_uuid = %s',
+    #
     'task_insert_input_dataset_template': 'INSERT INTO klms.task_input(task_uuid, order_num, dataset_id) VALUES (%s, %s, %s)',
     'task_insert_output_dataset_template': 'INSERT INTO klms.task_output(task_uuid, order_num, dataset_id) VALUES (%s, %s, %s)',
+    #
+    'task_insert_input_by_uuid_template': 'INSERT INTO klms.task_input(task_uuid, order_num, resource_id, input_group_name) VALUES (%s, %s, %s, %s)',
+    'task_insert_input_by_path_template': 'INSERT INTO klms.task_input(task_uuid, order_num, input_path, input_group_name) VALUES (%s, %s, %s, %s',
+    'task_insert_output_package' : 'INSERT INTO klms.task_output_package(task_uuid, package_uuid) VALUES (%s, %s)',
+    #
     'task_insert_tags_template': 'INSERT INTO klms.task_tag VALUES (%s, %s, %s)',
     'task_insert_parameters_template': 'INSERT INTO klms.parameters VALUES (%s, %s, %s)',
     'task_insert_metrics_template': 'INSERT INTO klms.metrics VALUES (%s, %s, %s, now())',

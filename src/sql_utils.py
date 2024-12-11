@@ -7,7 +7,7 @@ import utils
 import ast
 import pandas as pd
 import uuid
-
+import re
 
 def is_valid_uuid(s):
     try:
@@ -18,6 +18,13 @@ def is_valid_uuid(s):
     except ValueError:
         return False
     
+
+def is_valid_url(url):
+    pattern = re.compile(
+        r'^(s3|https|http|tcp|smb|ftp)://[a-zA-Z0-9.-]+(?:/[^\s]*)?$'
+    )
+    return bool(pattern.match(url))
+
 def cast_dict(d):
     d2 = {}
     for key, value in d.items():
@@ -128,13 +135,15 @@ def policy_info_read(filter):
     
 
 
-def workflow_execution_create(workflow_exec_id, start_date, state, tags=None):
+def workflow_execution_create(workflow_exec_id, start_date, state, creator_user_id, wf_package_id=None, tags=None):
     """Records metadata for a new workflow execution in the database.
 
     Args:
         workflow_exec_id: UUID of the new workflow execution.
         start_date: Start timestamp of the new workflow execution.
         state: Initial state of the new workflow execution.
+        creator_user_id: The unique username of the user creating the workflow.
+        wf_package_id: Optionally the package which will be used as context for the workflow.
         tags: A JSON dictionary with workflow execution metadata as (key, value) pairs.
 
     Returns:
@@ -145,7 +154,7 @@ def workflow_execution_create(workflow_exec_id, start_date, state, tags=None):
     sql = utils.sql_workflow_execution_templates['workflow_create_template']   
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (workflow_exec_id, state, start_date))
+    resp = utils.execSql(sql, (workflow_exec_id, state, creator_user_id, start_date, wf_package_id))
     if resp and 'status' in resp:
         if not resp.get('status'):
             return False
@@ -227,7 +236,7 @@ def workflow_execution_read(workflow_exec_id):
     """Returns metadata recorded in the database about the given workflow execution. User-specified tags are included in the returned response.
 
     Args:
-        task_exec_id: UUID of the workflow execution.
+        workflow_exec_id: UUID of the workflow execution.
 
     Returns:
         A JSON with the workflow execution metadata.
@@ -244,6 +253,30 @@ def workflow_execution_read(workflow_exec_id):
         # Also include any user-specified tags in the response
         workflow_specs['tags'] = workflow_execution_tags_read(workflow_exec_id)
         return workflow_specs
+    else:
+        return None
+
+
+def workflow_execution_context_read(workflow_exec_id):
+    """Returns the ID of the contextual package corresponding to the working during its creation. 
+       If not specified returns null
+
+    Args:
+        workflow_exec_id: UUID of the workflow execution.
+
+    Returns:
+        A JSON with the ID of the package if specified.
+    """
+
+    # Compose the SQL command using the template for reading metadata about a workflow execution
+    sql = utils.sql_workflow_execution_templates['workflow_get_context_package']   
+
+    # Execute the SQL command in the database
+    resp = utils.execSql(sql, (workflow_exec_id, ))
+
+    if resp and len(resp)>0:
+        workflow_context = resp[0]  
+        return workflow_context
     else:
         return None
 
@@ -272,7 +305,7 @@ def workflow_execution_tags_read(workflow_exec_id):
 
 
 
-def task_execution_create(task_exec_id, workflow_exec_id, start_date, state, tags=None, prev_task_exec_id=None):
+def task_execution_create(task_exec_id, workflow_exec_id, start_date, state, creator_user_id, tags=None, prev_task_exec_id=None):
     """Records metadata for a new task execution in the database.
 
     Args:
@@ -280,6 +313,7 @@ def task_execution_create(task_exec_id, workflow_exec_id, start_date, state, tag
         task_exec_id: UUID of the new task execution.
         start_date: Start timestamp of the new task execution.
         state: Initial state of the new task execution.
+        creator_user_id: The unique username of the user creating the task.
         tags: A JSON dictionary with task execution metadata as (key, value) pairs.
         prev_task_exec_id: UUID of the exexcution of the previous task in the workflow pipeline.
 
@@ -291,7 +325,7 @@ def task_execution_create(task_exec_id, workflow_exec_id, start_date, state, tag
     sql = utils.sql_workflow_execution_templates['task_create_template']   
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id, workflow_exec_id, state, start_date))
+    resp = utils.execSql(sql, (task_exec_id, workflow_exec_id, creator_user_id, state, start_date))
     if resp and 'status' in resp:
         if not resp.get('status'):
             return False
@@ -420,29 +454,43 @@ def task_execution_insert_log(task_exec_id, log):
 
 
 
-def task_execution_insert_input(task_exec_id, resource_ids):
+def task_execution_insert_input(task_exec_id, inputs, input_group_name):
     """Records in the database that the given dataset id was used as input in the given task execution.
+    The input will be inserted with the order the were provided in the inputs array.
 
     Args:
         task_exec_id: UUID of the task execution.
-        resource_ids: Array of UUIDs of the dataset(s) (CKAN resources) used as input in this task execution.
+        inputs: Array of UUIDs mixed in with Paths to be used as input in this task execution.
+        input_group_name: The key of the JSON field mapping to the array/list of inputs.
 
     Returns:
         A boolean: True, if the statement executed successfully; otherwise, False.
     """
 
     # Compose the SQL command using the template for recording input datasets
-    for idx, res_id in enumerate(resource_ids):
-        sql = utils.sql_workflow_execution_templates['task_insert_input_dataset_template']   
+    for idx, inp in enumerate(inputs):
 
-        # Execute the SQL command in the database
-        resp = utils.execSql(sql, (task_exec_id, idx, res_id))
-        print(res_id, resp)
-        if resp and 'status' in resp:
-            if not resp.get('status'):
+        # In case we get a UUID as input we pass it as is
+        if is_valid_uuid(inp):
+            sql = utils.sql_workflow_execution_templates['task_insert_input_by_uuid_template']   
+            # Execute the SQL command in the database
+            resp = utils.execSql(sql, (task_exec_id, idx, inp, input_group_name))
+            if resp and 'status' in resp:
+                if not resp.get('status'):
+                    return False
+            else:
                 return False
-        else:
-            return False
+        
+        # In case we get a Path as input we pass it as is if it acceptable
+        elif is_valid_url(inp):
+            sql = utils.sql_workflow_execution_templates['task_insert_input_by_path_template']   
+            # Execute the SQL command in the database
+            resp = utils.execSql(sql, (task_exec_id, idx, inp, input_group_name))
+            if resp and 'status' in resp:
+                if not resp.get('status'):
+                    return False
+            else:
+                return False
 
     return True
 
