@@ -11,6 +11,22 @@ from datetime import datetime
 import execution
 
 
+def is_valid_url(url):
+    pattern = re.compile(
+        r'^(s3|https|http|tcp|smb|ftp)://[a-zA-Z0-9.-]+(?:/[^\s]*)?$'
+    )
+    return bool(pattern.match(url))
+
+
+def is_valid_uuid(s):
+    try:
+        # Try converting the string to a UUID object
+        uuid_obj = uuid.UUID(s)
+        # Check if the string matches the canonical form of the UUID (with lowercase hexadecimal and hyphens)
+        return str(uuid_obj) == s
+    except ValueError:
+        return False
+
 
 def create_task(json_data):
     # config = current_app.config['settings']
@@ -43,6 +59,8 @@ def create_task(json_data):
         if not response:
             return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
         # response = task_execution_insert_input(task_exec_id, input_json.get('input', []))
+        for key in input:
+            for i in len(key)
         response = sql_utils.task_execution_insert_input(task_exec_id, input)
         if not response:
             return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500        
