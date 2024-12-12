@@ -11,7 +11,8 @@ from datetime import datetime
 import execution
 import kutils
 import cutils
-
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 def is_valid_url(url):
     pattern = re.compile(
@@ -41,22 +42,22 @@ def create_task(json_data, token):
     
     try:
         userinfo = kutils.get_user_by_token(token)
-        creator_user_id = userinfo.get('username',None)
+        creator_user_id = userinfo.get('preferred_username',None)
     except Exception as e:
         raise ValueError
 
     tags = {}
     # Check if 'docker image' or 'tool name' fields exists inside json_data
-    if json_data['docker_image']:
-        docker_image = json_data.get('docker_image')
+    if json_data.get('docker_image'):
+        docker_image = json_data.get('docker_image', None)
 
-    if json_data['tool_name']:
-        tags['tool_name'] = json_data.get('tool_name')
+    if json_data.get('tool_name'):
+        tags['tool_name'] = json_data.get('tool_name', None)
 
     workflow_exec_id = json_data['workflow_exec_id']
-    input = json_data['inputs']
-    parameters = json_data['parameters']
-    datasets = json_data['datasets']
+    input = json_data.get('inputs')
+    parameters = json_data.get('parameters')
+    datasets = json_data.get('datasets')
     
 
     try :
@@ -77,20 +78,26 @@ def create_task(json_data, token):
             resources = []
             input_group_name = key
             for val in input[key]:
-
                 # Initialize dataset_uuid and filter
                 dataset_uuid, filter = None, None
                 # Extract possible filter from val
                 if "::" in val:
                     dataset_uuid, filter = val.split("::", 1)
-                if is_valid_uuid(dataset_uuid or val) and cutils.is_package(dataset_uuid or val):
-                    # Pass dataset_uuid and filter_ to get_package_resources
-                    resources.append(cutils.get_package_resources(dataset_uuid or val, filter))
-                elif is_valid_uuid(val) and cutils.is_resource(val):
-                    resources.append(dataset_uuid or val)
+
+                if is_valid_uuid(dataset_uuid or val):
+                    if cutils.is_package(dataset_uuid or val):
+                        # Pass dataset_uuid and filter_ to get_package_resources
+                        dataset_resources = []
+                        dataset_resources = [resource['id'] for resource in cutils.get_package_resources(dataset_uuid or val, filter)]
+                        # Merge the arrays
+                        resources = resources + dataset_resources
+                elif is_valid_uuid(val):
+                    if cutils.is_resource(val):
+                        resources.append(val)
                 elif is_valid_url(val):
                     resources.append(val)
 
+            logging.debug(f"inserting {key}: {resources}")
             response = sql_utils.task_execution_insert_input(task_exec_id, resources, input_group_name)
 
         if not response:
@@ -104,7 +111,7 @@ def create_task(json_data, token):
 
         # Task can also be executed outside the cluster, in that case image was specified so we create
         # a job conditionally.
-        if docker_image:
+        if docker_image is not None:
             engine = execution.exec_engine()        
             tags['container_id'], tags['job_id'] = engine.create_task(docker_image, token, task_exec_id)
             tags['tool_image'] = docker_image
@@ -115,4 +122,4 @@ def create_task(json_data, token):
         return {'task_exec_id': task_exec_id, 'job_id': tags.get('job_id','Remote Task Mode')}
     
     except Exception as e:
-        raise RuntimeError("Task could not be created. Please validate your input.")
+        raise RuntimeError(f"Task could not be created. Please validate your input. {e}")

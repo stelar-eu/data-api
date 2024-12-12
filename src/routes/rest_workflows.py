@@ -12,6 +12,9 @@ import cutils
 import kutils
 import wxutils
 
+logging.basicConfig(level=logging.DEBUG)
+
+
 rest_workflows_bp = APIBlueprint('rest_workflows_blueprint', __name__, tag='RESTful Workflow Operations')
 
 #########################################################

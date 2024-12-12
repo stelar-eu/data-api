@@ -8,6 +8,7 @@ import ast
 import pandas as pd
 import uuid
 import re
+import logging
 
 def is_valid_uuid(s):
     try:
@@ -151,10 +152,14 @@ def workflow_execution_create(workflow_exec_id, start_date, state, creator_user_
     """
 
     # Compose the SQL command using the template for creating a new workflow execution
-    sql = utils.sql_workflow_execution_templates['workflow_create_template']   
+    if wf_package_id:
+        sql = utils.sql_workflow_execution_templates['workflow_create_template']
+        resp = utils.execSql(sql, (workflow_exec_id, state, creator_user_id, start_date, wf_package_id))   
+    else:
+        sql = utils.sql_workflow_execution_templates['workflow_create_template_empty_package']
+        resp = utils.execSql(sql, (workflow_exec_id, state, creator_user_id, start_date))   
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (workflow_exec_id, state, creator_user_id, start_date, wf_package_id))
     if resp and 'status' in resp:
         if not resp.get('status'):
             return False

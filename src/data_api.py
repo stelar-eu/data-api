@@ -38,6 +38,8 @@ import execution
 #Import demo token creator
 from demo_t import get_demo_ckan_token
 
+import kutils
+
 # Input schemata for validating several API requests
 import schema
 
@@ -76,6 +78,7 @@ app = APIFlask(__name__, spec_path='/specs', docs_path ='/docs')
 app.secret_key = 'secretkey123'
 
 app.config.from_prefixed_env()
+logging.basicConfig(level=logging.DEBUG)
 
 
 ################## BLUEPRINT REGISTRATION ##################
@@ -1781,21 +1784,20 @@ def api_workflow_execution_create(json_data):
     Returns:
         A JSON with the Workflow Execution ID.
     """
-    
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/workflow/execution/create -d '{"tags": {}}'
-
-    # workflow_id = json_data['workflow_id']
-    tags = json_data['tags']
+    try:
+        userinfo = kutils.get_user_by_token(request.headers.get('Authorization').split(" ")[1])
+        if userinfo:
+            user_id = userinfo.get('preferred_username')
+        else:
+            return jsonify({'success': False, 'message': str(e)}), 500
+    except:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
     try :
-        #### UPDATE KG
         workflow_exec_id = str(uuid.uuid4())
         start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         state = 'running'
-        
-        #TODO: Add workflow_id
-        # response = workflow_execution_create(workflow_id, workflow_exec_id, start_date, state, tags)
-        response = sql_utils.workflow_execution_create(workflow_exec_id, start_date, state, tags)
+        response = sql_utils.workflow_execution_create(workflow_exec_id, start_date, state, user_id, json_data.get('package_id', None), json_data.get('tags', None))
         if not response:
             return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
         

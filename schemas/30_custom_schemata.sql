@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS klms.workflow_execution
   end_date timestamp,
   wf_package_id  varchar(64),
   PRIMARY KEY (workflow_uuid),
-  CONSTRAINT fk_package_id FOREIGN KEY(wf_package_id) REFERENCES public.package(id) ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT fk_package_id FOREIGN KEY(wf_package_id) REFERENCES public.package(id) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS klms.workflow_tag
@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS klms.task_execution
   next_task_uuid varchar(64),
   PRIMARY KEY (task_uuid),
   CONSTRAINT fk_workflow_uuid FOREIGN KEY(workflow_uuid) REFERENCES klms.workflow_execution(workflow_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_next_task_uuid FOREIGN KEY(next_task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT fk_next_task_uuid FOREIGN KEY(next_task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE SET NULL
 );
 
 
