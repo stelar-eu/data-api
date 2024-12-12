@@ -9,6 +9,8 @@ import uuid
 from routes.users import api_user_editor
 from datetime import datetime
 import execution
+import kutils
+import cutils
 
 
 def is_valid_url(url):
@@ -28,62 +30,89 @@ def is_valid_uuid(s):
         return False
 
 
-def create_task(json_data):
-    # config = current_app.config['settings']
+def create_task(json_data, token):
+
+    # retrieve creator's user id from the access token
+    # access_token = req_headers.get('Authorization').split(" ")[1]
+    # kopenid = kutils.initialize_keycloak_openid()
+    # userinfo = kopenid.introspect(access_token)
+    # creator_user_id = userinfo.get('preferred_username')
+
+    
+    try:
+        userinfo = kutils.get_user_by_token(token)
+        creator_user_id = userinfo.get('username',None)
+    except Exception as e:
+        raise ValueError
+
+    tags = {}
+    # Check if 'docker image' or 'tool name' fields exists inside json_data
     if json_data['docker_image']:
-        docker_image = json_data['docker_image']
+        docker_image = json_data.get('docker_image')
 
     if json_data['tool_name']:
-        tool_name = json_data['tool_name']
+        tags['tool_name'] = json_data.get('tool_name')
 
     workflow_exec_id = json_data['workflow_exec_id']
-    docker_image = json_data['docker_image']
-    # input_json = json_data['input_json']
     input = json_data['inputs']
     parameters = json_data['parameters']
     datasets = json_data['datasets']
+    
 
     try :
         #### CHECK WORKFLOW EXECUTION STATE
-        # status = check_workflow_status(workflow_exec_id)
         state = sql_utils.workflow_execution_read(workflow_exec_id)['state']
         if state != 'running':
-            return jsonify({'success': False, 'message': 'This workflow no longer accepts tasks'}), 500 
+            raise AttributeError("Workflow is committed and will not accept tasks!")
          
-        #### UPDATE KG
         start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         state = 'running'
         task_exec_id = str(uuid.uuid4())
         
-        response = sql_utils.task_execution_create(task_exec_id, workflow_exec_id, start_date, state, datasets)
+        response = sql_utils.task_execution_create(task_exec_id, workflow_exec_id, start_date, state, creator_user_id)
         if not response:
             return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
-        # response = task_execution_insert_input(task_exec_id, input_json.get('input', []))
+
         for key in input:
-            for i in len(key)
-        response = sql_utils.task_execution_insert_input(task_exec_id, input)
+            resources = []
+            input_group_name = key
+            for val in input[key]:
+
+                # Initialize dataset_uuid and filter
+                dataset_uuid, filter = None, None
+                # Extract possible filter from val
+                if "::" in val:
+                    dataset_uuid, filter = val.split("::", 1)
+                if is_valid_uuid(dataset_uuid or val) and cutils.is_package(dataset_uuid or val):
+                    # Pass dataset_uuid and filter_ to get_package_resources
+                    resources.append(cutils.get_package_resources(dataset_uuid or val, filter))
+                elif is_valid_uuid(val) and cutils.is_resource(val):
+                    resources.append(dataset_uuid or val)
+                elif is_valid_url(val):
+                    resources.append(val)
+
+            response = sql_utils.task_execution_insert_input(task_exec_id, resources, input_group_name)
+
         if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500        
-        # response = task_execution_insert_parameters(task_exec_id, input_json.get('parameters', {}))
+            raise RuntimeError("Task could not be created due to a database error.")
+      
         parameters = {k: str(v) for k, v in parameters.items()}
         response = sql_utils.task_execution_insert_parameters(task_exec_id, parameters)
-        if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
-
-        engine = execution.exec_engine()
-        tags['container_id'], tags['job_id'] = engine.create_task(docker_image, request.headers.get('Authorization'), task_exec_id)
-
-        tags['package_id'] = package_id
-        tags['tool_image'] = docker_image
-        response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
-        if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
-
         
-        return jsonify({'success': True, 'task_exec_id': task_exec_id, 'job_id': tags['job_id']}), 200
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        if not response:
+            raise RuntimeError("Task could not be created due to a database error regarding parameters.")
 
-        pass
-    except:
-        pass
+        # Task can also be executed outside the cluster, in that case image was specified so we create
+        # a job conditionally.
+        if docker_image:
+            engine = execution.exec_engine()        
+            tags['container_id'], tags['job_id'] = engine.create_task(docker_image, token, task_exec_id)
+            tags['tool_image'] = docker_image
+            response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
+            if not response:
+                raise RuntimeError("Task could not be created due to an execution engine error.")
+
+        return {'task_exec_id': task_exec_id, 'job_id': tags.get('job_id','Remote Task Mode')}
+    
+    except Exception as e:
+        raise RuntimeError("Task could not be created. Please validate your input.")

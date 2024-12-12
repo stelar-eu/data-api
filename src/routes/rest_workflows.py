@@ -168,15 +168,48 @@ def api_rest_update_dataset(wid):
     print("Hello")
 
 
-@rest_workflows_bp.route("/tasks",methods=["POST"])
+@rest_workflows_bp.route("/tasks", methods=["POST"])
 @rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
-@rest_workflows_bp.input(schema.Task_Input, location='json')
+@rest_workflows_bp.input(schema.Task_Input_v2, location='json')
 @rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
 def api_rest_create_task(json_data):
     try:
-        # specs = json.loads(request.data.decode('utf-8'))
-        resp = wxutils.create_task(json_data)
-    except:
-        pass
+        access_token = request.headers.get('Authorization').split(" ")[1]
+        resp = wxutils.create_task(json_data,access_token)
+        return {
+                "success":True, 
+                "result":{
+                    "task": resp
+                },
+                "help": request.url
+            }, 200
+
+    except ValueError as ve:
+        return {
+                "success":False, 
+                "error":{
+                    "name": f"Error: {ve}",
+                    "__type":"Use could not be registered as task creator due to token error."
+                },
+                "help": request.url
+        }, 400
+    except AttributeError as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Workflow Already Committed Error',
+            },
+            "success": False
+        }, 403
+    except RuntimeError as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Task Creation Runtime Error',
+            },
+            "success": False
+        }, 500
            
