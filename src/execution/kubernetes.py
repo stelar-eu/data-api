@@ -93,7 +93,7 @@ def configure(cfg: dict, client_config=True) -> ExecEngineFactory:
     # Define the factory function in here
     def factory() -> ExecEngine:
         # The api_url is available in cfg
-        logger.info("Createed kubernetes task execution engine.")
+        logger.info("Created kubernetes task execution engine.")
         return K8sExecEngine(api_url=cfg['API_URL'], namespace=nspace)
 
     logger.info("Created kubernetes exec engine factory")

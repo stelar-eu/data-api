@@ -50,7 +50,7 @@ def test_kubernetes_create_task(testcluster_kubernetes):
     task_id = str(uuid.uuid4())
 
     # Create the job
-    job_uid = engine.create_task(tool_name, token, task_id)
+    job_uid,_ = engine.create_task(tool_name, token, task_id)
 
     # try to read the job by name
     job_obj = kube_get_job(engine.namespace, task_id)
