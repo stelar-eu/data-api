@@ -533,13 +533,15 @@ def get_package_resources(package_id: str, relation_filter: str = None):
 
     try:
         package = get_package(package_id)
-        if relation_filter and relation_filter == 'owned':
-            package['resources'] = [ resource for resource in package['resources'] if resource.get('relation', '') == 'owned' ] 
+        
+        if relation_filter and isinstance(relation_filter, str):
+            package['resources'] = [ resource for resource in package['resources'] if resource.get('relation', '') == relation_filter ] 
     
         return package['resources']
 
-    except ValueError as ve:
-        raise ValueError(f"Package with ID: {package_id} was not found")
+    except requests.exceptions.HTTPError as he:
+        if he.response.status_code == 404:
+            raise ValueError(f"Package with ID: {package_id} was not found")
     except Exception as e:
         raise Exception from e
     

@@ -47,12 +47,6 @@ def create_task(json_data, token):
         raise ValueError
 
     tags = {}
-    # Check if 'docker image' or 'tool name' fields exists inside json_data
-    if json_data.get('docker_image'):
-        docker_image = json_data.get('docker_image', None)
-
-    if json_data.get('tool_name'):
-        tags['tool_name'] = json_data.get('tool_name', None)
 
     workflow_exec_id = json_data['workflow_exec_id']
     input = json_data.get('inputs')
@@ -78,22 +72,22 @@ def create_task(json_data, token):
             resources = []
             input_group_name = key
             for val in input[key]:
-                # Initialize dataset_uuid and filter
-                dataset_uuid, filter = None, None
+                dataset_uuid, filter_value = None, None
                 # Extract possible filter from val
                 if "::" in val:
-                    dataset_uuid, filter = val.split("::", 1)
+                    dataset_uuid, filter_value = val.split("::", 1)
 
+                # Check if the value is a valid UUID
                 if is_valid_uuid(dataset_uuid or val):
                     if cutils.is_package(dataset_uuid or val):
-                        # Pass dataset_uuid and filter_ to get_package_resources
-                        dataset_resources = []
-                        dataset_resources = [resource['id'] for resource in cutils.get_package_resources(dataset_uuid or val, filter)]
-                        # Merge the arrays
-                        resources = resources + dataset_resources
-                elif is_valid_uuid(val):
-                    if cutils.is_resource(val):
-                        resources.append(val)
+                        # Pass dataset_uuid and filter_value to get_package_resources
+                        dataset_resources = [
+                            resource['id'] for resource in cutils.get_package_resources(dataset_uuid or val, filter_value)
+                        ]
+
+                        resources.extend(dataset_resources)
+                    elif cutils.is_resource(dataset_uuid or val):
+                        resources.append(dataset_uuid or val)
                 elif is_valid_url(val):
                     resources.append(val)
 
@@ -111,13 +105,19 @@ def create_task(json_data, token):
 
         # Task can also be executed outside the cluster, in that case image was specified so we create
         # a job conditionally.
-        if docker_image is not None:
+
+        # Check if 'docker image' or 'tool name' fields exists inside json_data
+        if json_data.get('tool_name'):
+            tags['tool_name'] = json_data.get('tool_name', None)
+            
+        if json_data.get('docker_image'):
             engine = execution.exec_engine()        
-            tags['container_id'], tags['job_id'] = engine.create_task(docker_image, token, task_exec_id)
-            tags['tool_image'] = docker_image
-            response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
-            if not response:
-                raise RuntimeError("Task could not be created due to an execution engine error.")
+            tags['container_id'], tags['job_id'] = engine.create_task(json_data.get('docker_image'), token, task_exec_id)
+            tags['tool_image'] = json_data.get('docker_image')
+        
+        response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
+        if not response:
+            raise RuntimeError("Task could not be created due to an execution engine error.")
 
         return {'task_exec_id': task_exec_id, 'job_id': tags.get('job_id','Remote Task Mode')}
     

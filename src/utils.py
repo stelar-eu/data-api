@@ -180,12 +180,26 @@ sql_workflow_execution_templates = {
     'workflow_get_context_package': 'SELECT wf_package_id AS context_package FROM klms.workflow_execution WHERE workflow_uuid = %s',
     'workflow_delete_template': 'DELETE FROM klms.workflow_execution WHERE workflow_uuid = %s',
     'workflow_read_template': 'SELECT workflow_uuid AS workflow_exec_id, creator_user_id as creator, state, start_date, end_date, wf_package_id FROM klms.workflow_execution WHERE workflow_uuid = %s',
-    'workflow_get_tasks': """SELECT tsk.task_uuid, tsk.state, tsk.start_date, tsk.end_date, tsk_tg.value as tool_image 
-                             FROM klms.workflow_execution as wf 
-                             JOIN klms.task_execution as tsk ON wf.workflow_uuid=tsk.workflow_uuid 
-                             JOIN klms.task_tag as tsk_tg ON tsk.task_uuid=tsk_tg.task_uuid 
-                             WHERE wf.workflow_uuid= %s
-                             AND tsk_tg.key='tool_image';""",
+    'workflow_get_tasks': """SELECT 
+                                    tsk.task_uuid, 
+                                    tsk.state, 
+                                    tsk.start_date, 
+                                    tsk.end_date, 
+                                    tsk_tg.value AS tool_image
+                                FROM 
+                                    klms.workflow_execution AS wf
+                                JOIN 
+                                    klms.task_execution AS tsk 
+                                    ON wf.workflow_uuid = tsk.workflow_uuid
+                                LEFT JOIN 
+                                    klms.task_tag AS tsk_tg 
+                                    ON tsk.task_uuid = tsk_tg.task_uuid AND tsk_tg.key = 'tool_image'
+                                WHERE 
+                                    wf.workflow_uuid = %s
+                                    AND (
+                                        tsk_tg.key IS NULL OR tsk_tg.key = 'tool_image'
+                                    );
+                            """,
     'workflow_get_all': """SELECT pkg.title as package_title, ex.workflow_uuid as id, ex.state, start_date, end_date, value as package_id 
                            FROM klms.workflow_execution as ex
                            LEFT JOIN
