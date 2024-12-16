@@ -32,8 +32,21 @@ if [ "$1" = 'start-server' ]; then
 
 # Check if the first argument is 'setup-db'
 elif [ "$1" = 'setup-db' ]; then
-    echo "Setting up the database..."
 
+    echo "Creating Organization in CKAN..."
+
+    # Create an organization in CKAN
+    curl -X POST http://ckan:5000/api/3/action/organization_create \
+    -H "Authorization: $CKAN_ADMIN_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "name": "stelar-klms",
+        "title": "STELAR KLMS",
+        "description": "Organization for STELAR KLMS",
+        "state": "active"
+    }'
+
+    echo "Setting up the database..."
     # Construct the PostgreSQL URL
     psql='/usr/bin/psql'  # psql executable
     URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}/${POSTGRES_DB}"  # Constructing the db URI
