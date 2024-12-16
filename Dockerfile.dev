@@ -19,3 +19,4 @@ RUN chmod +x /app/entrypoint.sh
 
 # Command to run the Flask application
 ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["start-server"]
