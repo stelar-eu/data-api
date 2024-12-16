@@ -12,8 +12,14 @@ if [ "$1" = 'start-server' ]; then
         exit 1
     fi
 
-    mc alias set myminio $MINIO_DOMAIN $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
-    
+    # Check if the MINIO_INSECURE_MC environment variable is set to True
+    if [ "$MINIO_INSECURE_MC" = "true" ]; then
+        echo 'Entering insecure mode for mc'
+        mc alias set myminio $MINIO_DOMAIN $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD --insecure
+    else
+        mc alias set myminio $MINIO_DOMAIN $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
+    fi    
+
     if [ $? -ne 0 ]; then
         echo "Error: Failed to configure MinIO client alias."
         exit 1
