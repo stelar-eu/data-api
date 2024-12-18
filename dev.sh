@@ -25,15 +25,8 @@ if [ "$1" = 'start-server' ]; then
     else
         echo "MinIO client alias 'myminio' configured successfully."
     fi
-    
-    echo "Starting the server with Flask in Debug Mode..."
-    # Start Flask application
-    flask run
 
-# Check if the first argument is 'setup-db'
-elif [ "$1" = 'setup-db' ]; then
-
-    echo "Creating Organization in CKAN..."
+    echo "Creating Organization (If Not Already Exists) in CKAN..."
 
     # Create an organization in CKAN
     curl -X POST http://ckan:5000/api/3/action/organization_create \
@@ -45,6 +38,13 @@ elif [ "$1" = 'setup-db' ]; then
         "description": "Organization for STELAR KLMS",
         "state": "active"
     }'
+    
+    echo "Starting the server with Flask in Debug Mode..."
+    # Start Flask application
+    flask run
+
+# Check if the first argument is 'setup-db'
+elif [ "$1" = 'setup-db' ]; then
 
     echo "Setting up the database..."
     # Construct the PostgreSQL URL
