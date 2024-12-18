@@ -15,16 +15,19 @@ def get_demo_ckan_token():
     config = current_app.config['settings']
 
     #EXAMPLE: curl -X POST --header 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/catalog/user/token/create -d '{"user": "test_user5", "name": "test5_API_token"}'
-    stelarapi_token = config['CKAN_ADMIN_TOKEN']
-    package_headers, resource_headers = utils.create_CKAN_headers(stelarapi_token)
+    stelarapi_token = config.get('CKAN_ADMIN_TOKEN', 'No CKAN token provided to ENV')
 
-    data = '{"user":"ckan_admin","name":"demoStelarToken"}'
+    return stelarapi_token
 
-    if data:
-        token_metadata = json.loads(data)
+    # package_headers, resource_headers = utils.create_CKAN_headers(stelarapi_token)
 
-    # Make a POST request to the CKAN API with the parameters
-    response = requests.post("https://"+config['MAIN_INGRESS_SUBDOMAIN']+"."+config['KLMS_DOMAIN_NAME']+"/dc/api/3/action/"+'api_token_create', json=token_metadata, headers=package_headers)  # auth=HTTPBasicAuth(config.username, config.password))
+    # data = '{"user":"ckan_admin","name":"demoStelarToken"}'
 
-    if response.json()['success']:
-        return response.json()['result']['token']
+    # if data:
+    #     token_metadata = json.loads(data)
+
+    # # Make a POST request to the CKAN API with the parameters
+    # response = requests.post("https://"+config['MAIN_INGRESS_SUBDOMAIN']+"."+config['KLMS_DOMAIN_NAME']+"/dc/api/3/action/"+'api_token_create', json=token_metadata, headers=package_headers, verify=False)  #auth=HTTPBasicAuth(config.username, config.password))
+
+    # if response.json()['success']:
+    #     return response.json()['result']['token']
