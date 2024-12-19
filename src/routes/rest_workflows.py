@@ -164,7 +164,7 @@ def api_rest_get_dataset(workflow_id: str):
             "success": False
         }, 500
 
-@rest_workflows_bp.route("/workflows/<wid>",methods=["PUT"])
+@rest_workflows_bp.route("/workflows/<wid>", methods=["PUT"])
 @rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
 @token_active
 def api_rest_update_dataset(wid):
@@ -216,3 +216,14 @@ def api_rest_create_task(json_data):
             "success": False
         }, 500
            
+
+
+@rest_workflows_bp.route("/tasks/<task_id>/logs", methods=["GET"])
+@rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
+@rest_workflows_bp.input(schema.Identifier)
+@rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
+@token_active
+def api_rest_get_task_logs(task_id):
+    pass
+
+

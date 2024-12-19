@@ -123,3 +123,9 @@ def create_task(json_data, token):
     
     except Exception as e:
         raise RuntimeError(f"Task could not be created. Please validate your input. {e}")
+    
+
+
+def get_task_logs(task_id):
+    pass
+
