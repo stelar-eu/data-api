@@ -3,9 +3,11 @@ from flask import current_app, session
 import datetime
 import uuid
 import re
-
-
-
+import sql_utils
+import pyotp
+import qrcode
+from io import BytesIO
+import base64
 
 def is_valid_uuid(s):
     try:
@@ -131,6 +133,119 @@ def introspect_token(access_token):
             return False
     except Exception as e:
         return False
+    
+
+def user_has_2fa(user_id):
+    if is_valid_uuid(user_id):
+        return sql_utils.two_factor_user_has_2fa(user_id=user_id)
+    
+def generate_2fa_token(user_id):
+    """
+    Generates a 2FA token for a given user and returns the secret and QR code in Base64 format.
+    Args:
+        user_id (str): The UUID of the user for whom the 2FA token is being generated.
+    Returns:
+        tuple: A tuple containing the secret key (str) and the QR code image in Base64 format (str).
+    Raises:
+        AttributeError: If the user is not valid.
+        ValueError: If the provided user_id is not a valid UUID.
+    """
+    if is_valid_uuid(user_id):
+        try:
+            secret = pyotp.random_base32()
+            otp_uri = pyotp.totp.TOTP(secret).provisioning_uri(name=get_user(user_id).get('username'), issuer_name="STELAR KLMS")
+
+            # Generate QR Code
+            qr = qrcode.QRCode()
+            qr.add_data(otp_uri)
+            qr.make(fit=True)
+            qr_img = qr.make_image(fill="black", back_color="white")
+
+            # Convert to Base64
+            buffer = BytesIO()
+            qr_img.save(buffer, format="PNG")
+            qr_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            
+            return secret, qr_base64
+        except:
+            raise AttributeError("User Not Valid")
+    else:
+        raise ValueError("Not valid UUID")
+    
+
+def activate_2fa(user_id, secret):
+    """
+    Activates two-factor authentication for a user.
+
+    Args:
+        user_id (str): The UUID of the user.
+        secret (str): The secret key for two-factor authentication.
+
+    Returns:
+        bool: True if the operation is successful.
+
+    Raises:
+        ValueError: If the user_id is not a valid UUID or the user is not found.
+    """
+    if is_valid_uuid(user_id) and get_user(user_id):
+        sql_utils.two_factor_auth_create(user_id=user_id, secret=secret)
+        return True
+    else:
+        raise ValueError("Not valid UUID or User not found")
+
+
+def validate_2fa_otp(user_id, token):
+    """
+    Validate a 2FA (Two-Factor Authentication) OTP (One-Time Password) for a given user.
+
+    This function checks if the provided user ID is a valid UUID and if the user has 2FA enabled.
+    If both conditions are met, it retrieves the user's 2FA secret and validates the provided OTP token.
+
+    Args:
+        user_id (str): The UUID of the user.
+        token (str): The OTP token to be validated.
+
+    Returns:
+        bool: True if the OTP token is valid, False otherwise.
+
+    Raises:
+        ValueError: If the provided user_id is not a valid UUID.
+    """
+    if is_valid_uuid(user_id):
+        if sql_utils.two_factor_user_has_2fa(user_id=user_id):
+            secret = sql_utils.two_factor_auth_retrieve(user_id=user_id)
+            if is_2fa_otp_valid(secret, token):
+                return True
+            else:
+                return False
+    else:
+        raise ValueError("Not valid UUID")
+    
+
+def is_2fa_otp_valid(secret, token):
+    """
+    Validate a 2FA OTP token for a given secret
+
+    Args:
+        secret (str): The secret key for the user.
+        token (str): The OTP token to be validated.
+
+    Returns:
+        bool: True if the token is valid, False otherwise.
+    """
+    totp = pyotp.TOTP(secret)
+    if totp.verify(token):
+        return True
+    else:
+        return False
+
+
+def disable_2fa(user_id):
+    if is_valid_uuid(user_id):
+        if sql_utils.two_factor_revoke(user_id=user_id):
+            return True
+    else:
+        raise ValueError("Not valid UUID")
 
 def refresh_access_token(refresh_token):
     """
