@@ -65,6 +65,10 @@ def cast_dict(d):
     return d2
 '''
 
+
+##########################################################
+## Policy Management
+##########################################################
 def policy_version_create(policy_uuid, policy_familiar_name, active, yaml_content, user_id) -> str:
     """Records in the database that the user-specified parameters for the given policy 
 
@@ -133,9 +137,95 @@ def policy_info_read(filter):
             return policy_version
         else:
             return None
+        
+
+##########################################################
+## 2FA Management
+##########################################################
+def two_factor_auth_create(user_id, secret) -> str:
+    """
+    Creates a two-factor authentication entry for a user.
+
+    Args:
+        user_id (str): The unique identifier of the user.
+        secret (str): The secret key for two-factor authentication.
+
+    Returns:
+        str: Returns a status string indicating the result of the operation.
+             Returns False if the operation fails.
+    """
+    if user_id and secret:
+        sql = utils.sql_2fa_template['two_factor_create_template']
+        resp = utils.execSql(sql, (user_id, secret))
+        if 'status' in resp:
+            if not resp.get('status'):
+                return False
+        else:
+            return False
     
+def two_factor_revoke(user_id) -> str:
+    """
+    Revokes two-factor authentication for a given user.
+
+    Args:
+        user_id (int): The ID of the user for whom two-factor authentication should be revoked.
+
+    Returns:
+        str: Returns 'False' if the revocation was unsuccessful, otherwise returns the response status.
+    """
+    if user_id:
+        sql = utils.sql_2fa_template['two_factor_revoke_template']
+        resp = utils.execSql(sql, (user_id, ))
+        if 'status' in resp:
+            if not resp.get('status'):
+                return False
+        else:
+            return False
+
+def two_factor_auth_retrieve(user_id) -> str:
+    """
+    Retrieve the two-factor authentication secret key for a given user.
+
+    Args:
+        user_id (str): The unique identifier of the user.
+
+    Returns:
+        str: The two-factor authentication secret key associated with the user.
+
+    Note:
+        This function queries the database using a predefined SQL template to 
+        retrieve the secret key for the specified user. If the user exists and 
+        has a secret key, it returns the key; otherwise, it returns None.
+    """
+    if user_id:
+        sql = utils.sql_2fa_template['two_factor_retrieve_skey_template']
+        resp = utils.execSql(sql, (user_id, ))
+        if resp and len(resp)>0:
+            secret = resp[0]
+            return secret
 
 
+def two_factor_user_has_2fa(user_id) -> str:
+    """Check if a user has two-factor authentication enabled.
+
+    Args:
+        user_id: The unique identifier of the user.
+
+    Returns:
+        A boolean: True if the user has two-factor authentication enabled, otherwise False.
+    """
+    
+    if user_id:
+        sql = utils.sql_2fa_template['two_factor_check_template']
+        resp = utils.execSql(sql, (user_id, ))
+        if resp and len(resp)>0:
+            return True
+        else:
+            return False
+        
+##########################################################
+## Workflow Execution Metadata Management
+##########################################################
 def workflow_execution_create(workflow_exec_id, start_date, state, creator_user_id, wf_package_id=None, tags=None):
     """Records metadata for a new workflow execution in the database.
 

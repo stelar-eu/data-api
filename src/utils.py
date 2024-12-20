@@ -166,6 +166,14 @@ sql_policy_template = {
     'policy_get_info_by_state_template' : 'SELECT policy_uuid, policy_familiar_name, active, user_id, created_at FROM klms.policy_history WHERE active=%s',
     'policy_get_yaml_by_state_template': 'SELECT yaml_content FROM klms.policy_history WHERE active=%s'
 }
+
+sql_2fa_template = {
+    'two_factor_create_template' : 'INSERT INTO klms.secret_2fa_keys(user_uuid, secret_key) VALUES (%s, %s, %s)',
+    'two_factor_revoke_template' : 'DELETE FROM klms.secret_2fa_keys WHERE user_uuid=%s',
+    'two_factor_check_template' : 'SELECT user_uuid, created_at FROM klms.secret_2fa_keys WHERE user_uuid = %s',
+    'two_factor_retrieve_skey_template' : 'SELECT user_uuid, secret_key FROM klms.secret_2fa_keys WHERE user_uuid = %s',
+}
+
 #########################################################
 
 # Templates of SQL queries for workflow management
