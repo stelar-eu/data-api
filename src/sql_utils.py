@@ -171,7 +171,7 @@ def two_factor_revoke(user_id) -> str:
         user_id (int): The ID of the user for whom two-factor authentication should be revoked.
 
     Returns:
-        str: Returns 'False' if the revocation was unsuccessful, otherwise returns the response status.
+        bool: Returns 'False' if the revocation was unsuccessful, otherwise returns the response status.
     """
     if user_id:
         sql = utils.sql_2fa_template['two_factor_revoke_template']

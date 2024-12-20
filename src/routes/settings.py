@@ -4,10 +4,15 @@ from src.auth import auth, security_doc
 import re
 from keycloak import KeycloakAdmin
 from keycloak.exceptions import KeycloakAuthenticationError
-import kutils
+import kutils, sql_utils
 import smtplib, ssl
 from email_validator import validate_email, EmailNotValidError
-
+from dashboard import session_required
+import random
+import pyotp
+import qrcode
+from io import BytesIO
+import base64
 """
     This .py file contains the endpoints attached to the blueprint
     responsible for all operations related to configuring the settings
@@ -16,7 +21,6 @@ from email_validator import validate_email, EmailNotValidError
 
 # The tasks operations blueprint for all operations related to the lifecycle of `tasks
 settings_bp = APIBlueprint('settings_blueprint', __name__, enable_openapi=False)
-
 
 
 # Function to validate password strength
@@ -45,6 +49,7 @@ def validate_password_strength(password):
 
 # Change password route (POST-only)
 @settings_bp.route('/change-password', methods=['POST'])
+@session_required
 def change_password():
     """
     POST-only route to change the user's password.
@@ -111,10 +116,7 @@ def change_password():
         return jsonify({'success': False, 'message': 'An error occurred during the password change process', 'error_code': 500}), 500
 
 
-import smtplib
-import ssl
-import random
-from flask import current_app, session
+
 
 def send_otp_email(to_email):
     """
@@ -167,6 +169,7 @@ STELAR KLMS
 
 
 @settings_bp.route('/request-email-change', methods=['POST'])
+@session_required
 def request_email_change():
     """
     Send an OTP to the user's new email address for verification.
@@ -174,8 +177,6 @@ def request_email_change():
     """
 
     # Fetch Keycloak configuration from Flask app config
-    config = current_app.config['settings']
-
    
     # Get the new email from the form data
     new_email = request.form.get('newEmail')
@@ -208,9 +209,8 @@ def request_email_change():
     # Store the new email in the session (for simplicity, also no database is needed)
     session['new_email'] = new_email
 
-    # Send the OTP via email
     try:
-        otp = send_otp_email(new_email)  # Implement this function to send the email
+        otp = send_otp_email(new_email) # Send the OTP email
         session['email_change_otp'] = otp
         return jsonify({'success': True, 'message': 'OTP sent to your new email address.'})
     except Exception as e:
@@ -218,6 +218,7 @@ def request_email_change():
     
 
 @settings_bp.route('/verify-email-otp', methods=['POST'])
+@session_required
 def verify_email_otp():
     """
     Verify the OTP entered by the user. If valid, update the user's email in Keycloak.
@@ -256,3 +257,108 @@ def verify_email_otp():
     
     except Exception as e:
         return jsonify({'success': False, 'message': f'An error occurred: {str(e)}', 'error_code': 500}), 500
+    
+
+@settings_bp.route('/generate-2fa', methods=['GET'])
+@session_required
+def generate_2fa_key():
+    if kutils.user_has_2fa(session.get('KEYCLOAK_USER_ID')):
+        return jsonify({"success": False, "message": "2FA is already enabled for this user."})
+    
+    secret, qrcode = kutils.generate_2fa_token(session.get('KEYCLOAK_USER_ID'))
+
+    if secret and qrcode:
+        session['TWO_FACTOR_TEMP_SECRET'] = secret
+        return jsonify({"success": True, "qr": qrcode})
+   
+
+
+@settings_bp.route('/validate-2fa-activation', methods=['POST'])
+@session_required
+def validate_2fa_activation():
+    """
+        Validate the activation of 2FA (Two-Factor Authentication) for the user.
+
+        This endpoint expects a POST request with a JSON body containing a "token" field.
+        It verifies the provided token against the temporary 2FA secret stored in the session.
+        If the token is valid, it stores the 2FA secret in the database and updates the session.
+
+        Returns:
+            JSON response indicating the success or failure of the 2FA activation process.
+            - If successful: {"success": True, "message": "2FA activated successfully."}
+            - If failed to activate: {"success": False, "message": "Failed to activate 2FA."}
+            - If no temp secret in session: {"success": False, "message": "No 2FA activation in progress."}    
+    """
+    if session.get('TWO_FACTOR_TEMP_SECRET'):
+        token = request.json.get("token", "").strip()
+        totp = pyotp.TOTP(session.get('TWO_FACTOR_TEMP_SECRET'))
+        if kutils.is_2fa_otp_valid(totp, token):
+            kutils.activate_2fa(session.get('KEYCLOAK_USER_ID'), session.get('TWO_FACTOR_TEMP_SECRET'))
+            return jsonify({"success": True, "message": "2FA activated successfully."})
+        else:
+            return jsonify({"success": False, "message": "Failed to activate 2FA."})
+    else:
+        return jsonify({"success": False, "message": "No 2FA activation in progress."})
+
+
+
+@settings_bp.route('/check-2fa-state', methods=['GET'])
+@session_required
+def check_2fa_state():
+    """
+    Validates the 2FA state for the current user session.
+    This endpoint checks whether two-factor authentication (2FA) is enabled for the user associated with the current session.
+    It does not validate an OTP token but rather checks the 2FA status.
+    
+    Returns:
+        JSON response indicating whether 2FA is enabled for the user or if there is no valid session.
+    """
+    if session.get('KEYCLOAK_USER_ID'):
+
+        if kutils.user_has_2fa(session.get('KEYCLOAK_USER_ID')):
+            return jsonify({"success": True, "message": "2FA is enabled for this user."})
+        else:
+            return jsonify({"success": False, "message": "2FA is not enabled for this user."})
+        
+    else:
+        return jsonify({"success": False, "message": "No valid session."})
+    
+
+
+@settings_bp.route('/validate-2fa-otp', methods=['POST'])
+@session_required
+def validate_2fa_otp():
+    """
+    Validates the 2FA OTP token provided by the user.
+
+    This endpoint is used to validate the One-Time Password (OTP) token for two-factor authentication (2FA).
+    It expects a JSON payload with the OTP token.
+
+    Returns:
+        JSON response indicating whether the OTP token is valid or not.
+    """
+    token = request.json.get("token", "").strip()
+
+    if kutils.validate_2fa_otp(session.get('KEYCLOAK_USER_ID'), token):
+        return jsonify({"success": True, "message": "2FA OTP is valid."})
+    else:
+        return jsonify({"success": False, "message": "Invalid 2FA OTP."})
+    
+
+@settings_bp.route('/disable-2fa', methods=['POST'])
+@session_required
+def disable_2fa():
+    """
+    Disable 2FA for the current user.
+
+    This endpoint disables two-factor authentication (2FA) for the user associated with the current session.
+    It does not require any additional data in the request, as it only disables 2FA for the current user.
+
+    Returns:
+        JSON response indicating the success or failure of the 2FA deactivation process.
+    """
+    if kutils.disable_2fa(session.get('KEYCLOAK_USER_ID')):
+        return jsonify({"success": True, "message": "2FA disabled successfully."})
+    else:
+        return jsonify({"success": False, "message": "Failed to disable 2FA."})
+    
