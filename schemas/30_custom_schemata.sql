@@ -83,6 +83,41 @@ BEGIN
 END
 $$;
 
+
+---------------------------------------------
+--            2FA AUTHENTICATION
+---------------------------------------------
+CREATE TABLE IF NOT EXISTS klms.secret_2fa_keys (
+    user_uuid varchar(64) NOT NULL,
+    two_factor_key TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT current_timestamp,
+    PRIMARY KEY (user_uuid)
+);
+
+CREATE OR REPLACE FUNCTION klms.enforce_single_2fa_key()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Ensure no duplicate user_uuid in the table
+    IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
+        DELETE FROM klms.secret_2fa_keys WHERE user_uuid = NEW.user_uuid;
+    END IF;
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'klms_check_single_2fa_key'
+    ) THEN
+        CREATE TRIGGER klms_check_single_2fa_key
+        BEFORE INSERT OR UPDATE ON klms.secret_2fa_keys
+        FOR EACH ROW
+        EXECUTE FUNCTION klms.enforce_single_2fa_key();
+    END IF;
+END;
+$$;
 ---------------------------------------------
 --           WORKFLOW EXECUTIONS
 ---------------------------------------------

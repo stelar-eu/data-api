@@ -454,6 +454,11 @@ def adminSettings():
     return render_template_with_s3('cluster.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 
+@dashboard_bp.route('/login/verify')
+def verify_2fa():
+    return render_template('2fa.html', PARTNER_IMAGE_SRC=get_partner_logo())
+
+
 ####################################
 # Login Route
 ####################################
