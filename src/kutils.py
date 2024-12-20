@@ -640,8 +640,8 @@ def fetch_user_creation_date(user_id):
     keycloak_admin = init_admin_client_with_credentials()
 
     try:
-        user = keycloak_admin.get_user(user_id)
-        data = convert_iat_to_date(user.get("creadedTimestamp"))
+        user = get_user(user_id)
+        data = user.get('joined_date')
         if data:
             return data
     except Exception as e:
