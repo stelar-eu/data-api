@@ -3,6 +3,9 @@ FROM petroud/stelar-tuc:data-api-prod
 ENV PYTHONPATH=/app/src
 COPY ./src/ /app/src/
 
+# Copy schemas into a separate directory in the image
+COPY ./schemas /schemas
+
 # Set environment variables for Flask
 ENV FLASK_APP=data_api:create_app
 ENV FLASK_DEBUG=true
