@@ -98,9 +98,7 @@ CREATE OR REPLACE FUNCTION klms.enforce_single_2fa_key()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Ensure no duplicate user_uuid in the table
-    IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
-        DELETE FROM klms.secret_2fa_keys WHERE user_uuid = NEW.user_uuid;
-    END IF;
+    DELETE FROM klms.secret_2fa_keys WHERE user_uuid = NEW.user_uuid;
     RETURN NEW;
 
 END;
@@ -112,7 +110,7 @@ BEGIN
         SELECT 1 FROM pg_trigger WHERE tgname = 'klms_check_single_2fa_key'
     ) THEN
         CREATE TRIGGER klms_check_single_2fa_key
-        BEFORE INSERT OR UPDATE ON klms.secret_2fa_keys
+        BEFORE INSERT ON klms.secret_2fa_keys
         FOR EACH ROW
         EXECUTE FUNCTION klms.enforce_single_2fa_key();
     END IF;
