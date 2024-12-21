@@ -189,7 +189,17 @@ def verify_email():
 @dashboard_bp.route('/settings')
 @session_required
 def settings():    
-    return render_template_with_s3('settings.html', PARTNER_IMAGE_SRC=get_partner_logo())
+    TWO_FACTOR_AUTH = {}
+    try:
+        # Fetch user's 2FA status
+        TWO_FACTOR_AUTH = kutils.stat_user_2fa(session.get('KEYCLOAK_ID_USER'))
+        created_at = TWO_FACTOR_AUTH.get('created_at')
+        if created_at:
+            TWO_FACTOR_AUTH['created_at'] = created_at.strftime("%d-%m-%Y %H:%M:%S")
+    except:
+        pass
+    return render_template_with_s3('settings.html', PARTNER_IMAGE_SRC=get_partner_logo(),
+                                                    TWO_FACTOR_AUTH = TWO_FACTOR_AUTH)
 
 
 @dashboard_bp.route('/workflows')
@@ -454,9 +464,29 @@ def adminSettings():
     return render_template_with_s3('cluster.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 
-@dashboard_bp.route('/login/verify')
-def verify_2fa():
-    return render_template('2fa.html', PARTNER_IMAGE_SRC=get_partner_logo())
+@dashboard_bp.route('/login/verify', methods=['GET', 'POST'])
+def verify_2fa(next_url=None):
+    if request.method == 'GET':
+        if 'ACTIVE' in session and session['ACTIVE']:
+            return redirect(url_for('dashboard_blueprint.dashboard_index'))
+        else:
+            return render_template('2fa.html', PARTNER_IMAGE_SRC=get_partner_logo())
+    elif request.method == 'POST':
+        token = request.form.get('token')
+        if token:
+            try:
+                kutils.validate_2fa_otp(session.get('KEYCLOAK_ID_USER'), token)
+                session['ACTIVE'] = True
+                if next_url:
+                    return redirect(next_url)
+                else:
+                    return redirect(url_for('dashboard_blueprint.dashboard_index'))
+            except Exception as e:
+                flash(f"OTP is not valid", "danger")
+                return render_template('2fa.html', PARTNER_IMAGE_SRC=get_partner_logo())
+        else:
+            flash("Please provide a valid OTP", "warning")
+            return render_template('2fa.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 ####################################
@@ -506,7 +536,6 @@ def login():
                     session['USER_NAME'] = userinfo.get('name')
                     session['USER_EMAIL'] = userinfo.get('email')
                     session['USER_USERNAME'] = userinfo.get('preferred_username')
-                    session['ACTIVE'] = True
                     session['USER_ROLES'] = userinfo.get('realm_access', {}).get('roles', [])
                     session['KEYCLOAK_ID_USER'] = userinfo.get('sub')
 
@@ -514,9 +543,14 @@ def login():
                     creation_date = kutils.fetch_user_creation_date(session['KEYCLOAK_ID_USER'])
                     if creation_date:
                         session['USER_CREATION_DATE'] = creation_date
-
+                    
                     # After login, redirect to the original page (if provided)
                     next_url = request.args.get('next')
+
+                    if kutils.user_has_2fa(session['KEYCLOAK_ID_USER']):
+                        return redirect(url_for('dashboard_blueprint.verify_2fa'))
+                    
+                    session['ACTIVE'] = True
                     if next_url:
                         return redirect(next_url)
                     else:

@@ -123,13 +123,6 @@
                                     </div>
                                 </div>
                             </div>
-                    
-                            <!-- OTP Input -->
-                            <div id="otpSection" style="display:none;" class="mt-4">
-                                <label>Enter OTP</label>
-                                <input type="text" id="otpInput" class="form-control w-25" placeholder="Enter OTP">
-                                <a href="#" class="btn btn-primary mt-2" id="otpSubmitButton">Verify OTP</a>
-                            </div>
                         </div>
 
                         <div class="col-md">
@@ -160,7 +153,7 @@
                             <h3 class="card-title mt-4">Two-Factor Authentication (2FA)</h3>
                             <p class="card-subtitle">Configure the 2FA for your account by clicking the button below.</p>
                             <div>
-                                <a href="#" class="btn" data-bs-toggle="modal" data-bs-target="#modal-123">
+                                <a href="#" class="btn" data-bs-toggle="modal" data-bs-target="#modal-2fa">
                                     Manage 2FA
                                 </a>
                             </div>
@@ -226,8 +219,72 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="modal modal-blur fade" id="modal-2fa" tabindex="-1" role="dialog" aria-hidden="true">
+                        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                          <div class="modal-content">
+                            <div class="modal-header">
+                              <h5 class="modal-title">2FA Configuration</h5>
+                              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                              <div class="row">
+                                {% if TWO_FACTOR_AUTH.get('created_at') %}
+                                <div class="col-lg-12 text-center mb-4">
+                                    <div class="datagrid-item">
+                                        <div class="datagrid-title">Status</div>
+                                        <div class="datagrid-content">
+                                            <span class="status status-green">
+                                            Active
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-12 text-center">
+                                    <p>You have set up 2FA successfully at <strong> {{ TWO_FACTOR_AUTH.get('created_at') }}</strong>.</p>
+                                </div>
+                                <div class="col-lg-12 text-center">
+                                    <button class="btn btn-danger mt-2" id='disable-2fa'>Disable 2FA</button>
+                                </div>
+                                <div class="col-8 ms-auto me-auto text-center mt-4">
+                                    <p class="text text-secondary"><strong>It is strongly suggested that you keep 2FA enabled at all times for security reasons.<strong></p>  
+                                </div>
+                                {% else %}
+                                <div class="col-lg-12 text-center mb-4">
+                                    <div class="datagrid-item">
+                                        <div class="datagrid-title">Status</div>
+                                        <div class="datagrid-content">
+                                            <span class="status status-red">
+                                            Inactive
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-12 text-center">
+                                    <p>2FA <strong>is not </strong> set up for your account.</p>
+                                </div>
+                                <div class="col-lg-12 text-center">
+                                    <button class="btn btn-primary mt-2" id='enable-2fa'>Enable 2FA</button>
+                                </div>
+
+                                <div class="col-lg-12 text-center" id="step-2fa">
+                                    <img id="qr-code" src="" class="w-50" alt="QR Code" style="display: none; margin: 0 auto;">
+                                    <p id="qr-instructions" style="display: none;">Scan this QR code with your authenticator app and click <strong>Next</strong>.<br><span class="text-secondary"><strong>Make sure to add the 2FA to your app. You will not be able to see this QR code again!</strong><span></p>
+                                </div>
+                                {% endif %}
+                              </div>
+                            </div>
+                            <div class="modal-footer" id="footer-2fa" >
+                              <a href="#" class="btn btn-secondary ms-auto" data-bs-dismiss="modal">
+                                Close
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                     <div class="modal modal-blur fade" id="modal-danger" tabindex="-1" role="dialog" aria-hidden="true" style="display: none;">
-                    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+                        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
                             <div class="modal-content">
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                 <div class="modal-status bg-danger"></div>
@@ -278,6 +335,137 @@
         {% include 'footer.html' %}
       </div>
     </div>
+    <script>
+        $(document).ready(function() {
+            const loader = '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
+
+            $('#enable-2fa').on('click', function() {
+                $('#footer-2fa').prepend(loader)
+                $.ajax({
+                    url: `{{ url_for('settings_blueprint.generate_2fa_key') }}`,
+                    type: 'GET',
+                    success: function(data) {
+                        if (data.success) {
+                            $('#enable-2fa').remove();
+                            $('#footer-2fa .spinner-border').remove()
+                            $("#qr-code").attr("src", "data:image/png;base64," + data.qr).show();
+                            $("#qr-instructions").show();
+                            $("#step-2fa").append(`<button class="btn btn-primary mt-2" id="enable-2fa-next">Next</button>`);
+                            // When clicking Next the OTP input should appear
+                            $('#enable-2fa-next').on('click', function() {
+                                $('#enable-2fa-next').remove();
+                                $("#qr-code").remove();
+                                $("#qr-instructions").remove();
+                                $("#step-2fa").append(`
+                                    <div class="card-body m-auto col-8">
+                                        <p class="my-4 text-center">Please confirm the 2FA activation by entering an authorization code from your authenticator app.</p>
+                                        <div class="my-5">
+                                            <div class="row g-4">
+                                                <div class="col">
+                                                    <div class="row g-2">
+                                                        <div class="col">
+                                                            <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
+                                                        </div>
+                                                        <div class="col">
+                                                            <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
+                                                        </div>
+                                                        <div class="col">
+                                                            <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col">
+                                                    <div class="row g-2">
+                                                        <div class="col">
+                                                            <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
+                                                        </div>
+                                                        <div class="col">
+                                                            <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
+                                                        </div>
+                                                        <div class="col">
+                                                            <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-primary mt-3" id="verify-2fa-activation">Verify OTP & Enable 2FA</button>
+                                    </div>
+                                `);
+
+                                $('#verify-2fa-activation').on('click', function() {
+                                    $('#footer-2fa').prepend(loader);
+                                    document.querySelectorAll('[data-code-input]').forEach(input => input.setAttribute('disabled', 'disabled'));
+                                    const otp = Array.from(document.querySelectorAll('[data-code-input]')).map(input => input.value).join('');
+                                    const payload = {token: otp};
+                                    $.ajax({
+                                        url: `{{ url_for('settings_blueprint.validate_2fa_activation') }}`,
+                                        type: 'POST',
+                                        contentType: 'application/json',
+                                        data: JSON.stringify(payload),
+                                        success: function(data) {
+                                            if (data.success) {
+                                                $('#modal-2fa').modal('hide');
+                                                location.reload();
+                                            }
+                                        },
+                                        error: function() {
+                                            document.querySelectorAll('[data-code-input]').forEach(input => input.setAttribute('disabled', 'enabled'));
+                                            $('#footer-2fa .spinner-border').remove()
+                                            $('#footer-2fa').prepend('<div class="alert alert-danger p-2 me-auto">Dataset Failed to Publish</div>');
+                                            setTimeout(function() {
+                                            $('#footer-2fa .alert').fadeOut(500, function() {
+                                                $(this).remove();
+                                            });
+                                            }, 3000);
+                                        }
+                                    });
+                                });
+                                var inputs = document.querySelectorAll('[data-code-input]');
+                                // Attach an event listener to each input element
+                                for (let i = 0; i < inputs.length; i++) {
+                                inputs[i].addEventListener('input', function(e) {
+                                    // If the input field has a character, and there is a next input field, focus it
+                                    if (e.target.value.length === e.target.maxLength && i + 1 < inputs.length) {
+                                    inputs[i + 1].focus();
+                                    }
+                                });
+                                inputs[i].addEventListener('keydown', function(e) {
+                                    // If the input field is empty and the keyCode for Backspace (8) is detected, and there is a previous input field, focus it
+                                    if (e.target.value.length === 0 && e.keyCode === 8 && i > 0) {
+                                    inputs[i - 1].focus();
+                                    }
+                                });
+                                // Ensure only numbers can be entered
+                                inputs[i].addEventListener('keypress', function(e) {
+                                    if (!/[0-9]/.test(e.key)) {
+                                    e.preventDefault();
+                                    }
+                                });
+                                }
+                                
+                                document.addEventListener('paste', function(e) {
+                                let pasteData = (e.clipboardData || window.clipboardData).getData('text');
+                                if (/^\d+$/.test(pasteData)) {
+                                    for (let i = 0; i < inputs.length && i < pasteData.length; i++) {
+                                    inputs[i].value = pasteData[i];
+                                    }
+                                }
+                                e.preventDefault();
+                                });                              
+                            });
+
+                        } else {
+                            alert('Failed to generate 2FA QR code. Please try again.');
+                        }
+                    },
+                    error: function() {
+                        alert('An error occurred while generating the 2FA QR code. Please try again.');
+                    }
+                });
+            });
+        });
+    </script>
     <script>
       $(document).ready(function() {
           const $newPasswordField = $('input[name="newPassword"]');

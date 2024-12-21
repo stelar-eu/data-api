@@ -3,6 +3,9 @@ FROM petroud/stelar-tuc:data-api-prod
 ENV PYTHONPATH=/app/src
 COPY ./src/ /app/src/
 
+COPY ./requirements.txt /app
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Copy schemas into a separate directory in the image
 COPY ./schemas /schemas
 

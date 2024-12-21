@@ -168,10 +168,10 @@ sql_policy_template = {
 }
 
 sql_2fa_template = {
-    'two_factor_create_template' : 'INSERT INTO klms.secret_2fa_keys(user_uuid, secret_key) VALUES (%s, %s, %s)',
+    'two_factor_create_template' : 'INSERT INTO klms.secret_2fa_keys(user_uuid, two_factor_key) VALUES (%s, %s)',
     'two_factor_revoke_template' : 'DELETE FROM klms.secret_2fa_keys WHERE user_uuid=%s',
     'two_factor_check_template' : 'SELECT user_uuid, created_at FROM klms.secret_2fa_keys WHERE user_uuid = %s',
-    'two_factor_retrieve_skey_template' : 'SELECT user_uuid, secret_key FROM klms.secret_2fa_keys WHERE user_uuid = %s',
+    'two_factor_retrieve_skey_template' : 'SELECT user_uuid, two_factor_key FROM klms.secret_2fa_keys WHERE user_uuid = %s',
 }
 
 #########################################################

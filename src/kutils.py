@@ -139,6 +139,10 @@ def user_has_2fa(user_id):
     if is_valid_uuid(user_id):
         return sql_utils.two_factor_user_has_2fa(user_id=user_id)
     
+def stat_user_2fa(user_id):
+    if is_valid_uuid(user_id):
+        return sql_utils.stat_two_factor_for_user(user_id=user_id)
+    
 def generate_2fa_token(user_id):
     """
     Generates a 2FA token for a given user and returns the secret and QR code in Base64 format.
@@ -167,8 +171,8 @@ def generate_2fa_token(user_id):
             qr_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
             
             return secret, qr_base64
-        except:
-            raise AttributeError("User Not Valid")
+        except Exception as e:
+            raise AttributeError(f"Failed to generate 2FA token: {str(e)}")
     else:
         raise ValueError("Not valid UUID")
     
@@ -188,8 +192,10 @@ def activate_2fa(user_id, secret):
         ValueError: If the user_id is not a valid UUID or the user is not found.
     """
     if is_valid_uuid(user_id) and get_user(user_id):
-        sql_utils.two_factor_auth_create(user_id=user_id, secret=secret)
-        return True
+        if sql_utils.two_factor_auth_create(user_id=user_id, secret=secret):
+            return True
+        else:
+            return False
     else:
         raise ValueError("Not valid UUID or User not found")
 

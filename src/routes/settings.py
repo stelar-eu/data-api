@@ -7,12 +7,9 @@ from keycloak.exceptions import KeycloakAuthenticationError
 import kutils, sql_utils
 import smtplib, ssl
 from email_validator import validate_email, EmailNotValidError
-from dashboard import session_required
+from routes.dashboard import session_required
 import random
 import pyotp
-import qrcode
-from io import BytesIO
-import base64
 """
     This .py file contains the endpoints attached to the blueprint
     responsible for all operations related to configuring the settings
@@ -262,10 +259,10 @@ def verify_email_otp():
 @settings_bp.route('/generate-2fa', methods=['GET'])
 @session_required
 def generate_2fa_key():
-    if kutils.user_has_2fa(session.get('KEYCLOAK_USER_ID')):
+    if kutils.user_has_2fa(session.get('KEYCLOAK_ID_USER')):
         return jsonify({"success": False, "message": "2FA is already enabled for this user."})
     
-    secret, qrcode = kutils.generate_2fa_token(session.get('KEYCLOAK_USER_ID'))
+    secret, qrcode = kutils.generate_2fa_token(session.get('KEYCLOAK_ID_USER'))
 
     if secret and qrcode:
         session['TWO_FACTOR_TEMP_SECRET'] = secret
@@ -289,12 +286,17 @@ def validate_2fa_activation():
             - If failed to activate: {"success": False, "message": "Failed to activate 2FA."}
             - If no temp secret in session: {"success": False, "message": "No 2FA activation in progress."}    
     """
+    if kutils.user_has_2fa(session.get('KEYCLOAK_ID_USER')):
+        return jsonify({"success": False, "message": "2FA is already enabled for this user."})
+    
     if session.get('TWO_FACTOR_TEMP_SECRET'):
         token = request.json.get("token", "").strip()
-        totp = pyotp.TOTP(session.get('TWO_FACTOR_TEMP_SECRET'))
-        if kutils.is_2fa_otp_valid(totp, token):
-            kutils.activate_2fa(session.get('KEYCLOAK_USER_ID'), session.get('TWO_FACTOR_TEMP_SECRET'))
-            return jsonify({"success": True, "message": "2FA activated successfully."})
+        secret = session.get('TWO_FACTOR_TEMP_SECRET')
+        if kutils.is_2fa_otp_valid(secret, token):
+            if kutils.activate_2fa(session.get('KEYCLOAK_ID_USER'), session.get('TWO_FACTOR_TEMP_SECRET')):
+                return jsonify({"success": True, "message": "2FA activated successfully."})
+            else:
+                return jsonify({"success": False, "message": "Failed to activate 2FA."})
         else:
             return jsonify({"success": False, "message": "Failed to activate 2FA."})
     else:
@@ -313,9 +315,8 @@ def check_2fa_state():
     Returns:
         JSON response indicating whether 2FA is enabled for the user or if there is no valid session.
     """
-    if session.get('KEYCLOAK_USER_ID'):
-
-        if kutils.user_has_2fa(session.get('KEYCLOAK_USER_ID')):
+    if session.get('KEYCLOAK_ID_USER'):
+        if kutils.user_has_2fa(session.get('KEYCLOAK_ID_USER')):
             return jsonify({"success": True, "message": "2FA is enabled for this user."})
         else:
             return jsonify({"success": False, "message": "2FA is not enabled for this user."})
@@ -339,7 +340,7 @@ def validate_2fa_otp():
     """
     token = request.json.get("token", "").strip()
 
-    if kutils.validate_2fa_otp(session.get('KEYCLOAK_USER_ID'), token):
+    if kutils.validate_2fa_otp(session.get('KEYCLOAK_ID_USER'), token):
         return jsonify({"success": True, "message": "2FA OTP is valid."})
     else:
         return jsonify({"success": False, "message": "Invalid 2FA OTP."})
@@ -357,7 +358,7 @@ def disable_2fa():
     Returns:
         JSON response indicating the success or failure of the 2FA deactivation process.
     """
-    if kutils.disable_2fa(session.get('KEYCLOAK_USER_ID')):
+    if kutils.disable_2fa(session.get('KEYCLOAK_ID_USER')):
         return jsonify({"success": True, "message": "2FA disabled successfully."})
     else:
         return jsonify({"success": False, "message": "Failed to disable 2FA."})

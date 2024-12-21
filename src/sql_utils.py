@@ -157,11 +157,14 @@ def two_factor_auth_create(user_id, secret) -> str:
     if user_id and secret:
         sql = utils.sql_2fa_template['two_factor_create_template']
         resp = utils.execSql(sql, (user_id, secret))
-        if 'status' in resp:
+        if resp and 'status' in resp:
             if not resp.get('status'):
                 return False
+            else:
+                return True
         else:
             return False
+
     
 def two_factor_revoke(user_id) -> str:
     """
@@ -222,6 +225,25 @@ def two_factor_user_has_2fa(user_id) -> str:
             return True
         else:
             return False
+        
+def stat_two_factor_for_user(user_id) -> str:
+    """Check if a user has two-factor authentication enabled.
+
+    Args:
+        user_id: The unique identifier of the user.
+
+    Returns:
+        A boolean: True if the user has two-factor authentication enabled, otherwise False.
+    """
+    
+    if user_id:
+        sql = utils.sql_2fa_template['two_factor_check_template']
+        resp = utils.execSql(sql, (user_id, ))
+        if resp and len(resp)>0:
+            secret = resp[0]
+            return secret
+        else:
+            return None
         
 ##########################################################
 ## Workflow Execution Metadata Management
