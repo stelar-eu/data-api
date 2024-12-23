@@ -241,6 +241,32 @@ def get_task_logs(task_id):
     pass
 
 
+def delete_task(task_id):
+    """Delete a task execution.
+
+       Deletes a task execution based on the input task id provided. The task execution is removed from the database 
+       and the deletion cascades to the associated input groups, parameters, and outputs (specs).
+       
+       Args:
+              task_id: The unique identifier of the task execution.
+       Returns:
+              A boolean value indicating whether the task execution was successfully deleted.
+    """
+    try :
+        # Check if the task exists. Throws an exception if it does not.
+        get_task_metadata(task_id)
+
+        response = sql_utils.task_execution_delete(task_id)
+        if not response:
+            return False
+            
+        return True
+    except ValueError as e:
+        raise  
+    except Exception:
+        return False
+
+
 def get_task_input_json(task_id, access_token=None):
     """Retrieve the input JSON for a task execution. This is the JSON the tool finally receives.
 

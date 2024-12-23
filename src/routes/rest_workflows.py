@@ -2,8 +2,6 @@ from flask import request, jsonify, current_app, session
 from apiflask import APIBlueprint
 import requests
 from src.auth import auth, security_doc, admin_required, token_active
-# Auxiliary custom functions & SQL query templates for ranking
-import utils
 import logging 
 import json
 # Input schema for validating and structuring several API requests
@@ -11,8 +9,6 @@ import schema
 import cutils
 import kutils
 import wxutils
-import sql_utils 
-from sql_utils import is_valid_uuid
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -30,18 +26,19 @@ rest_workflows_bp = APIBlueprint('rest_workflows_blueprint', __name__, tag='REST
 @token_active
 def api_rest_create_workflow(json_data):
     """
-    Endpoint to create and publish a workflow in the Data Catalog.
+    Endpoint to create and publish a workflow in the Data Catalog and the Workflow Metadata Database.
 
     This route allows clients to publish workflows by sending metadata in the request body.
-    It supports only basic metadata
+
 
     Request Body:
-        - basic_metadata: Mandatory metadata for the workflow (e.g., title, notes, tags).
+        - workflow_metadata: Mandatory metadata for the workflow (e.g., title, notes, tags).
+        - workflow: Optional metadata for the workflow (e.g., tags).
 
     Responses:
-        - 200: Dataset successfully created and returned.
+        - 200: Workflow successfully created and returned.
         - 400: Missing required metadata or invalid parameters.
-        - 409: Dataset name already exists in the catalog.
+        - 409: Package name already exists in the catalog.
         - 500: An unknown error occurred.
 
     Args:
@@ -122,7 +119,7 @@ def api_rest_create_workflow(json_data):
 @rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
 @rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
 @token_active
-def api_rest_get_datasets():
+def api_get_workflows():
     try:
         resp = cutils.get_packages(tag_filter="Workflow", filter_mode='keep')
         return {
@@ -355,6 +352,58 @@ def api_rest_get_task_input(task_id):
             "error": {
                 "name": f"Error: {e}",
                 '__type': 'Task Fetch Runtime Error',
+            },
+            "success": False
+        }, 500
+    
+@rest_workflows_bp.route("/tasks/<task_id>/logs", methods=["GET"])
+@rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
+@rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
+@token_active
+def api_get_task_logs(task_id):
+    pass
+
+    
+
+@rest_workflows_bp.route("/tasks/<task_id>", methods=["DELETE"])
+@rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
+@rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
+@token_active
+def api_delete_task(task_id):
+    """Delete a Task Execution from the Workflow Execution Engine.
+    Args:
+        task_id: The unique identifier of the Task Execution.
+    Returns:
+        A JSON response containing success status, or error
+    Responses:
+        - 200: Task successfully deleted.
+        - 404: Task not found.
+        - 500: An unknown error occurred.
+    """
+    try:
+        resp = wxutils.delete_task(task_id)
+        return {
+                "success":True, 
+                "result": {
+                    task_id: resp
+                },
+                "help": request.url
+        }, 200
+    except ValueError as ve:
+        return {
+                "success":False, 
+                "error":{
+                    "name": f"Error: {ve}",
+                    "__type":"Task Not Found Error"
+                },
+                "help": request.url
+        }, 404 
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
             },
             "success": False
         }, 500

@@ -373,41 +373,7 @@ def api_task_execution_output_json(json_data):
                         'metrics': metrics}), 200
     except Exception as e:
         return jsonify({'success': False, 'message': traceback.format_exc()}), 500  
-
-
-
-@tasks_bp.route('/execution/read', methods=['GET'])
-@tasks_bp.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
-# @tasks_bp.output(schema.ResponseOK, status_code=200)
-@tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
-@token_active
-def api_task_execution_read(query_data):
-    """Return the metadata of the task execution.
-
-    Args:
-        id: The unique identifier of the Task Exection.
-
-    Returns:
-        A JSON with the task execution metadata.
-    """
-    
-    #EXAMPLE: curl -X GET http://127.0.0.1:9055/execution/read?id=24a976c4-fd84-47ef-92cc-5d5582bcaf41
-
-    task_exec_id = query_data['id']
-    
-    try :
-        #### GET METADATA FROM KG
-        d = {}
-        d['metadata'] = sql_utils.task_execution_read(task_exec_id)
-        state = d['metadata']['state']
-        if state != 'failed' and state != 'succeeded':
-            return jsonify({'success': True, 'result': d}), 200    
-        d['output'] = sql_utils.task_execution_output_read(task_exec_id)
-        d['metrics'] = sql_utils.task_execution_metrics_read(task_exec_id)
-            
-        return jsonify({'success': True, 'result': d}), 200
-    except Exception as e:
-        return jsonify({'success': False, 'message': traceback.format_exc()}), 500  
+ 
 
 
 @tasks_bp.route('/read/logs', methods=['GET'])
@@ -458,31 +424,3 @@ def api_task_runtime_read(query_data):
     
     except Exception as e:
         return jsonify({'success': False, 'message': traceback.format_exc()}), 500  
-
-
-@tasks_bp.route('/execution/delete', methods=['GET'])
-@tasks_bp.input(schema.Identifier, location='query', example="4a142419-2342-4495-bfa3-9b4b3c2cad2a")
-# @tasks_bp.output(schema.ResponseOK, status_code=200)
-@tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
-@token_active
-def api_task_execution_delete(query_data):
-    """Delete the given Task Execution id.
-
-    Args:
-        id: The unique identifier of the Task Exection.
-
-    Returns:
-        A JSON with the corresponding message.
-    """
-    
-    #EXAMPLE: curl -X GET http://127.0.0.1:9055/execution/delete?id=4a142419-2342-4495-bfa3-9b4b3c2cad2a
-
-    # task_exec_id = request.args.id
-    task_exec_id = query_data['id']
-    try :
-        response = sql_utils.task_execution_delete(task_exec_id)
-        if not response:
-            return jsonify({'success': True, 'message': f'The Task {task_exec_id} could not be deleted.'}), 500
-        return jsonify({'success': True, 'message': f'The Task {task_exec_id} was deleted successfully'}), 200
-    except Exception as e:
-        return jsonify({'success': True, 'message': str(e)}), 500
