@@ -1,22 +1,24 @@
 import requests
 from flask import current_app,jsonify
 import re
-import json
 import utils
-from urllib.parse import urljoin, urlencode
 import sql_utils
 import uuid
-from routes.users import api_user_editor
 from datetime import datetime
 import execution
 import kutils
 import cutils
 import xml.etree.ElementTree as ET
+import traceback
 
-import logging
-logging.basicConfig(level=logging.DEBUG)
 
 def is_valid_url(url):
+    """Check if a string is a valid URL. Valid URLs are of the form 'protocol://hostname[:port]/path'.
+    Args:
+        url: The string to be checked.
+    Returns:
+        A boolean value indicating whether the string is a valid
+    """
     pattern = re.compile(
         r'^(s3|https|http|tcp|smb|ftp)://[a-zA-Z0-9.-]+(?:/[^\s]*)?$'
     )
@@ -24,6 +26,12 @@ def is_valid_url(url):
 
 
 def is_valid_uuid(s):
+    """Check if a string is a valid UUID. Valid UUIDs are of the form 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.
+    Args:
+        s: The string to be checked.
+    Returns:
+        A boolean value indicating whether the string is a valid UUID.
+    """
     try:
         # Try converting the string to a UUID object
         uuid_obj = uuid.UUID(s)
@@ -157,7 +165,6 @@ def create_task(json_data, token):
                 elif is_valid_url(val):
                     resources.append(val)
 
-            logging.debug(f"inserting {key}: {resources}")
             response = sql_utils.task_execution_insert_input(task_exec_id, resources, input_group_name)
 
         if not response:
@@ -237,9 +244,42 @@ def get_task_metadata(task_id):
     
 
 
-def get_task_logs(task_id):
-    pass
+def get_task_logs(task_id):    
+    """Retrieve the logs for a task execution.
 
+       Provides the logs for a task execution. The logs are used to monitor the progress of a task execution and to debug issues.
+
+       Args:
+              task_id: The unique identifier of the task execution.
+       Returns:
+              A JSON with the logs for the specified task
+    """
+    try :
+        engine = execution.exec_engine()
+        logs = engine.fetch_task_logs(task_id)
+        return logs
+    except Exception as e:
+        raise
+
+
+def get_task_info(task_id):    
+    """Retrieve the info for a task execution.
+
+       Provides the state, logs for a task execution. The logs are used to monitor the progress of a task execution and to debug issues.
+
+       Args:
+              task_id: The unique identifier of the task execution.
+       Returns:
+              A JSON with the logs for the specified task
+    """
+    try :
+        engine = execution.exec_engine()
+        logs = engine.get_task_info(task_id)
+        return logs
+    except Exception as e:
+        raise
+
+    
 
 def delete_task(task_id):
     """Delete a task execution.

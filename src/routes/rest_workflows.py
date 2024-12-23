@@ -361,7 +361,64 @@ def api_rest_get_task_input(task_id):
 @rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
 def api_get_task_logs(task_id):
-    pass
+    """Return the logs of the specific Task Execution. This JSON contains the logs of the task fetched from the Execution Engine. (e.g., Kubernetes)
+    Args:
+        task_id: The unique identifier of the Task Execution.
+    Returns:
+        A JSON with the logs of the task.
+    Responses:
+        - 200: Task logs successfully returned.
+        - 500: An unknown error occurred.
+    """
+    try:
+        logs = wxutils.get_task_logs(task_id)
+        return {
+                "success":True, 
+                "result": {"logs": logs},
+                "help": request.url
+        }, 200
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
+
+
+@rest_workflows_bp.route("/tasks/<task_id>/jobs", methods=["GET"])
+@rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
+@rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
+@token_active
+def api_get_task_jobs(task_id):
+    """Return the information of jobs for a specific task. This JSON contains the logs, status and other information of the task fetched from the Execution Engine. (e.g., Kubernetes)
+    Args:
+        task_id: The unique identifier of the Task Execution.
+    Returns:
+        A JSON with the runtime info of the task.
+    Responses:
+        - 200: Task logs successfully returned.
+        - 500: An unknown error occurred.
+    """
+    try:
+        logs = wxutils.get_task_info(task_id)
+        return {
+                "success":True, 
+                "result": {"jobs": logs},
+                "help": request.url
+        }, 200
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Unknown Error',
+            },
+            "success": False
+        }, 500
+    
 
     
 
