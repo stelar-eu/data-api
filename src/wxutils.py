@@ -69,6 +69,16 @@ def api_artifact_id(resource_id):
         return None
 
 
+def get_workflows():
+    """ Retrieve all workflows.
+    """
+    try:
+        response = sql_utils.workflow_get_all()
+        return response if response else "No workflows submitted yet."
+    except Exception as e:
+        raise RuntimeError(f"Workflows Could Not Be Retrieved. {e}")
+
+
 def create_workflow_process(creator_user, package_id, tags):
     """Create a new workflow process.
 
@@ -98,6 +108,115 @@ def create_workflow_process(creator_user, package_id, tags):
     
     except Exception as e:
         raise RuntimeError(f"Workflow could not be created. {e}")
+
+
+def get_workflow_process(workflow_id):
+    """Retrieve the metadata for a workflow process.
+
+    Provides the metadata for a workflow process, including the state, start and end time, and the tags. The metadata is used to monitor the progress of a workflow process.
+
+    Args:
+        workflow_id: The unique identifier of the workflow process.
+    Returns:
+        A JSON with the metadata for the specified workflow process.
+    """
+    if not is_valid_uuid(workflow_id):
+        raise AttributeError("Invalid Workflow ID provided.")
+        
+    try :
+        w = sql_utils.workflow_execution_read(workflow_id)
+        if w:
+            return w
+        else:
+            raise ValueError("Workflow does not exist.")            
+    except ValueError as e:
+        raise
+    except Exception as e:
+        raise RuntimeError(f"Workflow Process Could Not Be Retrieved. {e}")
+
+
+def get_workflow_tasks(workflow_id):
+    """Retrieve the tasks for a workflow process.
+    Args:
+        workflow_id: The unique identifier of the workflow process.
+    Returns:
+        A JSON with the tasks for the specified workflow.
+    Raises:
+        AttributeError: If the workflow ID is not provided or is invalid.
+        ValueError: If the workflow does not exist.
+        RuntimeError: If the tasks could not be retrieved.
+    """
+    if not workflow_id:
+        raise AttributeError("Workflow ID is required.")
+    
+    if not is_valid_uuid(workflow_id):
+        raise AttributeError("Invalid Workflow ID provided.")
+    
+    if sql_utils.workflow_execution_read(workflow_id) is None:
+        raise ValueError("Workflow does not exist.")
+
+    try:
+        response = sql_utils.workflow_get_tasks(workflow_id)
+        return response if response else "No tasks submitted for this workflow."
+    
+    except Exception as e:
+        raise RuntimeError(f"Workflow Tasks Could Not Be Retrieved. {e}")
+    
+
+def update_workflow_state(workflow_id, state):
+    """Update the state of a workflow process. If the state is 'failed' or 'succeeded', the end date is also updated to the current time.
+
+    Args:
+        workflow_id: The unique identifier of the workflow process.
+        state: The new state of the workflow process. ('running', 'failed', 'succeeded')
+    Returns:
+        A boolean value indicating whether the state was successfully updated.
+    Raises:
+    """
+    if not workflow_id:
+        raise AttributeError("Workflow ID is required.")
+    
+    try:
+        if get_workflow_process(workflow_id) is None:
+            raise ValueError("Workflow does not exist.")
+        
+        if state in ['failed', 'succeeded']:
+            end_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            response = sql_utils.workflow_execution_update(workflow_id, state, end_date)
+            if not response:
+                return False
+        else:
+            response = sql_utils.workflow_execution_update(workflow_id, state, "1970-01-01 00:00:01")
+            if not response:
+                return False
+            
+        return True, state
+    except Exception as e:
+        raise RuntimeError(f"Workflow State Could Not Be Updated. {e}")
+
+
+def delete_workflow_process(workflow_id):
+    """Delete a workflow process.
+    Args:
+        workflow_id: The unique identifier of the workflow process.
+    Returns:   
+        A boolean value indicating whether the workflow process was successfully deleted.
+    Raises:
+        RuntimeError: If the workflow process could not be deleted.
+    """
+    try :
+        if not is_valid_uuid(workflow_id):
+            raise AttributeError("Invalid Workflow ID provided.")
+        
+        if sql_utils.workflow_execution_read(workflow_id) is None:
+            raise ValueError("Workflow does not exist.")
+        
+        response = sql_utils.workflow_execution_delete(workflow_id)
+        if not response:       
+            return False
+        return True
+    except Exception as e:
+        raise RuntimeError(f"Workflow Process Could Not Be Deleted. {e}")
 
 def create_task(json_data, token):
     """Create a new task execution.

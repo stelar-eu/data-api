@@ -161,6 +161,12 @@ class Workflow(Schema):
     workflow_metadata = Dict(required=True)
     workflow = Dict(required=False)
 
+class WorkflowProcess(Schema):
+    tags = Dict(required=False)
+    package_id = String(required=True)
+
+class WorkflowState(Schema):
+    state = String(required=True, validate=OneOf(['running', 'failed', 'succeeded']))
 
 class Resource(Schema):
     resource_metadata = Dict(required=True)
