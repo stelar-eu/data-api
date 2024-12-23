@@ -1,4 +1,4 @@
-from flask import request, jsonify, current_app
+from flask import request, jsonify, current_app, session
 from apiflask import APIBlueprint
 import requests
 from src.auth import auth, security_doc, admin_required, token_active
@@ -51,6 +51,16 @@ def api_rest_create_workflow(json_data):
     try:
         specs = json.loads(request.data.decode("utf-8"))
         wf = specs.get('workflow_metadata')
+
+        if specs.get('workflow_metadata'):
+            if request.headers.get('Authorization'):
+                user = kutils.get_user_by_token(access_token=request.headers.get('Authorization').split(" ")[1])
+            else:
+                user = kutils.get_user_by_token(access_token=session.get('access_token'))   
+            if user:
+                specs.get('workflow_metadata')['author'] = user.get('username')
+                specs.get('workflow_metadata')['author_email'] = user.get('email')
+
         wf["tags"].append("Workflow")
         resp = cutils.create_package(specs.get('workflow_metadata'))
         return {
@@ -179,7 +189,7 @@ def api_rest_update_dataset(wid):
 def api_rest_create_task(json_data):
     try:
         access_token = request.headers.get('Authorization').split(" ")[1]
-        resp = wxutils.create_task(json_data,access_token)
+        resp = wxutils.create_task(json_data, access_token)
         return {
                 "success":True, 
                 "result":{
