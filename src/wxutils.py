@@ -32,13 +32,6 @@ def is_valid_uuid(s):
 
 
 def create_task(json_data, token):
-
-    # retrieve creator's user id from the access token
-    # access_token = req_headers.get('Authorization').split(" ")[1]
-    # kopenid = kutils.initialize_keycloak_openid()
-    # userinfo = kopenid.introspect(access_token)
-    # creator_user_id = userinfo.get('preferred_username')
-
     
     try:
         userinfo = kutils.get_user_by_token(token)
@@ -111,7 +104,8 @@ def create_task(json_data, token):
             tags['tool_name'] = json_data.get('tool_name', None)
             
         if json_data.get('docker_image'):
-            engine = execution.exec_engine()        
+            engine = execution.exec_engine()
+            token = 'Bearer ' + token
             tags['container_id'], tags['job_id'] = engine.create_task(json_data.get('docker_image'), token, task_exec_id)
             tags['tool_image'] = json_data.get('docker_image')
         
