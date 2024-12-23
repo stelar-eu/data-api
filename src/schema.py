@@ -159,6 +159,7 @@ class Package(Schema):
 
 class Workflow(Schema):
     workflow_metadata = Dict(required=True)
+    workflow = Dict(required=False)
 
 
 class Resource(Schema):

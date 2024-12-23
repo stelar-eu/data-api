@@ -189,7 +189,7 @@ def verify_email():
 @dashboard_bp.route('/settings')
 @session_required
 def settings():    
-    TWO_FACTOR_AUTH = {}
+    TWO_FACTOR_AUTH = dict()
     try:
         # Fetch user's 2FA status
         TWO_FACTOR_AUTH = kutils.stat_user_2fa(session.get('KEYCLOAK_ID_USER'))

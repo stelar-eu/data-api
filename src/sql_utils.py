@@ -9,6 +9,8 @@ import pandas as pd
 import uuid
 import re
 import logging
+logging.basicConfig(level=logging.DEBUG)
+
 
 def is_valid_uuid(s):
     try:
@@ -816,6 +818,37 @@ def task_execution_output_read(task_exec_id):
     #     return None
     
     return res_ids
+
+
+def task_execution_input_read_sql(task_exec_id):
+    """Submit a request to the DB to retrieve the parameters specified for the task execution.
+
+    Args:
+        id: The identifier (UUID) assigned to the task execution in MLFlow.
+
+    Returns:
+        A JSON with the input resourced ids or path grouped by input group name.
+    """
+
+    config = current_app.config['settings']
+
+    sql_groups = utils.sql_workflow_execution_templates['task_read_input_group_names_by']
+    resp = utils.execSql(sql_groups, (task_exec_id, ))
+
+    logging.debug(resp)
+    inputs = dict()
+
+    if resp and len(resp)>0:
+        for group in resp:
+            list_of_inputs = list()
+            sql_inputs = utils.sql_workflow_execution_templates['task_read_inputs_by_group_name']
+            resp = utils.execSql(sql_inputs, (task_exec_id, group['input_group_name'], ))
+            if resp and len(resp)>0:
+                for input in resp:
+                    list_of_inputs.append(input['resource_id'] or input['input_path'])
+                inputs[group['input_group_name']] = list_of_inputs
+
+    return inputs
 
 
 def task_execution_parameters_read(task_exec_id):

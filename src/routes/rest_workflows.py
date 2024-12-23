@@ -11,6 +11,8 @@ import schema
 import cutils
 import kutils
 import wxutils
+import sql_utils 
+from sql_utils import is_valid_uuid
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -52,7 +54,7 @@ def api_rest_create_workflow(json_data):
         specs = json.loads(request.data.decode("utf-8"))
         wf = specs.get('workflow_metadata')
 
-        if specs.get('workflow_metadata'):
+        if wf:
             if request.headers.get('Authorization'):
                 user = kutils.get_user_by_token(access_token=request.headers.get('Authorization').split(" ")[1])
             else:
@@ -61,15 +63,33 @@ def api_rest_create_workflow(json_data):
                 specs.get('workflow_metadata')['author'] = user.get('username')
                 specs.get('workflow_metadata')['author_email'] = user.get('email')
 
-        wf["tags"].append("Workflow")
-        resp = cutils.create_package(specs.get('workflow_metadata'))
-        return {
+            wf["tags"].append("Workflow")
+            # Create the package in the Data Catalog
+            package = cutils.create_package(specs.get('workflow_metadata'))
+
+            # Fetch the ID of the newly created package to link it with the process created afterwards.
+            package_id = package.get('id')
+
+            process_tags = dict()
+            
+            if specs.get('workflow'):
+                process_tags.update(specs.get('workflow').get('tags'))
+                
+            process_tags['package_id'] = package_id
+            # Create the workflow process in the workflow metadata database.
+            process_id = wxutils.create_workflow_process(user.get('username'), package_id, process_tags)
+
+            resp = dict()
+            resp['workflow_process_id'] = process_id
+            resp['workflow_package_id'] = package_id
+            return {
                 "success":True, 
                 "result":{
                     "workflow": resp
                 },
                 "help": request.url
-        }, 200
+            }, 200        
+               
     except ValueError as ve:
         return {
             "help": request.url,
@@ -173,13 +193,57 @@ def api_rest_get_dataset(workflow_id: str):
             },
             "success": False
         }, 500
-
-@rest_workflows_bp.route("/workflows/<wid>", methods=["PUT"])
+    
+    
+    
+#########################################################
+######################## TASKS ##########################
+#########################################################
+@rest_workflows_bp.route("/tasks/<task_id>", methods=["GET"])
 @rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
+@rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
-def api_rest_update_dataset(wid):
-    print("Hello")
+def api_get_task_metadata(task_id):
+    """Return the metadata of the specific Task Execution. This JSON contains the task's state, metrics, messages, image, and other details.
 
+    Args:
+        task_id: The unique identifier of the Task Execution.
+    Returns:
+        A JSON with the task metadata
+    Responses:
+        - 200: Task metadata successfully returned.
+        - 404: Task is not found
+        - 500: An unknown error occurred
+    """
+    try:
+        resp = wxutils.get_task_metadata(task_id)
+        return {
+                "success":True, 
+                "result":{
+                    "task": resp
+                },
+                "help": request.url
+            }, 200
+
+    except ValueError as ve:
+        return {
+                "success":False, 
+                "error":{
+                    "name": f"Error: {ve}",
+                    "__type":"Task Not Found Error"
+                },
+                "help": request.url
+        }, 404
+    except RuntimeError as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Task Creation Runtime Error',
+            },
+            "success": False
+        }, 500
+    
 
 @rest_workflows_bp.route("/tasks", methods=["POST"])
 @rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
@@ -187,6 +251,18 @@ def api_rest_update_dataset(wid):
 @rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
 def api_rest_create_task(json_data):
+    """Create a new Task Execution in the Workflow Execution Engine.
+        Args:
+            task_spec: The validated JSON input containing task metadata.
+
+        Returns:
+            A JSON response containing success status, the newly created task, or error details.
+        Responses:
+            - 200: Task successfully created and returned.
+            - 400: Missing required metadata or invalid parameters.
+            - 403: Workflow already committed.
+            - 500: An unknown error occurred.
+    """
     try:
         access_token = request.headers.get('Authorization').split(" ")[1]
         resp = wxutils.create_task(json_data, access_token)
@@ -203,7 +279,7 @@ def api_rest_create_task(json_data):
                 "success":False, 
                 "error":{
                     "name": f"Error: {ve}",
-                    "__type":"Use could not be registered as task creator due to token error."
+                    "__type":"Task Creation Error"
                 },
                 "help": request.url
         }, 400
@@ -228,12 +304,57 @@ def api_rest_create_task(json_data):
            
 
 
-@rest_workflows_bp.route("/tasks/<task_id>/logs", methods=["GET"])
+@rest_workflows_bp.route("/tasks/<task_id>/input", methods=["GET"])
 @rest_workflows_bp.doc(tags=['RESTful Workflow Operations'])
-@rest_workflows_bp.input(schema.Identifier)
 @rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
-def api_rest_get_task_logs(task_id):
-    pass
+def api_rest_get_task_input(task_id):
+    """Return the input JSON of the specific Task Execution. This JSON is given to the tool during its initialization.
 
+    Args:
+        id: The unique identifier of the Task Execution.
 
+    Returns:
+        A JSON with the inputs, parameters & MinIO credentials
+    
+    Responses:
+        - 200: Task input JSON successfully returned.
+        - 400: Task ID is not valid.
+        - 404: Task is not found.
+        - 500: An unknown error occurred.
+    """
+    try:
+        access_token = request.headers.get('Authorization').split(" ")[1]
+        resp = wxutils.get_task_input_json(task_id=task_id, access_token=access_token)
+        return {
+                "success":True, 
+                "result": resp,
+                "help": request.url
+            }, 200
+    except ValueError as ve:
+        return {
+                "success":False, 
+                "error":{
+                    "name": f"Error: {ve}",
+                    "__type":"Task Not Found"
+                },
+                "help": request.url
+        }, 404
+    except AttributeError as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Not valid Task ID',
+            },
+            "success": False
+        }, 400
+    except RuntimeError as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                '__type': 'Task Fetch Runtime Error',
+            },
+            "success": False
+        }, 500

@@ -163,108 +163,6 @@ def api_artifact_publish(json_data, headers):
 
 ############################## TASK OPERATIONS ################################
 
-@tasks_bp.route('/execution/create', methods=['POST'])
-@tasks_bp.input(schema.Task_Input, location='json', example={"workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41",
-                                                        "docker_image": "alzeakis/pytokenjoin:v3",
-                                                       "input": [  "0059004a-67b8-4445-b9d6-5b0475784c49",
-                                                                   "2350a24b-87af-4505-aafb-72a15e0c118c"],
-                                                       "parameters": {
-                                                           "col_id_left": 1,
-                                                           "col_text_left": 2,
-                                                           "separator_left": " ",
-                                                           "col_id_right": 0,
-                                                           "col_text_right": 1,
-                                                           "separator_right": " ",
-                                                           "k": 1,
-                                                           "delta_alg": "1",
-                                                           "output_file": "out.csv",
-                                                           "method": "knn",
-                                                           "similarity": "jaccard",
-                                                           "foreign": "foreign"
-                                                       },
-                                                       'package_id': '0f55380a-78ff-413e-9a99-3d214766f563',
-                                                       "tags": {}})
-# @tasks_bp.output(schema.ResponseOK, status_code=200)
-@tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
-@token_active
-def api_task_execution_create(json_data):
-    """Create a Task Execution that will run a docker image with the provided
-    parameters.
-
-    Args:
-        data: A JSON with the ID of the Workflow Execution, the docker image to run
-        and the corresponding input to the tool.
-
-    Returns:
-        A JSON with the Minio response to the uploading request.
-    """
-    
-    #EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/execution/create -d '{"workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41", "docker_image": "alzeakis/pytokenjoin:v3", "input": [  "0059004a-67b8-4445-b9d6-5b0475784c49", "2350a24b-87af-4505-aafb-72a15e0c118c"],"parameters": {"col_id_left": 1, "col_text_left": 2, "separator_left": " ", "col_id_right": 0, "col_text_right": 1, "separator_right": " ", "k": 1, "delta_alg": "1", "output_file": "out.csv", "method": "knn", "similarity": "jaccard", "foreign": "foreign" }, 'package_id': '0f55380a-78ff-413e-9a99-3d214766f563', "tags": {}}'
-
-    config = current_app.config['settings']
-    workflow_exec_id = json_data['workflow_exec_id']
-    docker_image = json_data['docker_image']
-    # input_json = json_data['input_json']
-    input = json_data['input']
-    parameters = json_data['parameters']
-    package_id = json_data['package_id']
-    tags = json_data['tags']
-
-    try :
-        #### CHECK WORKFLOW EXECUTION STATE
-        # status = check_workflow_status(workflow_exec_id)
-        state = sql_utils.workflow_execution_read(workflow_exec_id)['state']
-        if state != 'running':
-            return jsonify({'success': False, 'message': 'This workflow no longer accepts tasks'}), 500 
-        
-        
-        
-        
-        # #### GET FILE PATHS
-        # input_paths = []
-        # res_ids = input
-        # for res_id in res_ids:
-        #     path = api_artifact_id (res_id, headers=request.headers)
-        #     if path is None:
-        #         return jsonify({'success': False, 'message': f'This resource {res_id} cannot be fetched by CKAN'}), 500 
-        #     input_paths.append(path)
-            
-            
-            
-            
-        
-        #### UPDATE KG
-        start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        state = 'running'
-        task_exec_id = str(uuid.uuid4())
-        
-        response = sql_utils.task_execution_create(task_exec_id, workflow_exec_id, start_date, state, tags)
-        if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
-        # response = task_execution_insert_input(task_exec_id, input_json.get('input', []))
-        response = sql_utils.task_execution_insert_input(task_exec_id, input)
-        if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500        
-        # response = task_execution_insert_parameters(task_exec_id, input_json.get('parameters', {}))
-        parameters = {k: str(v) for k, v in parameters.items()}
-        response = sql_utils.task_execution_insert_parameters(task_exec_id, parameters)
-        if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
-
-        engine = execution.exec_engine()
-        tags['container_id'], tags['job_id'] = engine.create_task(docker_image, request.headers.get('Authorization'), task_exec_id)
-
-        tags['package_id'] = package_id
-        tags['tool_image'] = docker_image
-        response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
-        if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
-
-        
-        return jsonify({'success': True, 'task_exec_id': task_exec_id, 'job_id': tags['job_id']}), 200
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
-
 
 @tasks_bp.route('/execution/input_json', methods=['GET'])
 @tasks_bp.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
@@ -285,11 +183,10 @@ def api_task_execution_input_json(query_data):
     
     config = current_app.config['settings']
     # input = json_data['input']
-    input = sql_utils.task_execution_input_read(task_exec_id)
+    input = sql_utils.task_execution_input_read_sql(task_exec_id)
     print(input)
     # parameters = json_data['parameters']
     parameters = sql_utils.task_execution_parameters_read(task_exec_id)
-
 
 
     if request.headers:
@@ -311,7 +208,8 @@ def api_task_execution_input_json(query_data):
     # Properly make a POST request to MinIO's STS endpoint
     response = requests.post(
         url=minio_url, 
-        params=minio_body
+        params=minio_body,
+        verify=False
     )
 
         # Handle the response, parse XML if successful
@@ -334,17 +232,18 @@ def api_task_execution_input_json(query_data):
     
     
     try :
-        #### GET FILE PATHS
-        input_paths = []
-        res_ids = input
-        for res_id in res_ids:
-            path = api_artifact_id (res_id, headers=request.headers)
-            if path is None:
-                return jsonify({'success': False, 'message': f'This resource {res_id} cannot be fetched by CKAN'}), 500 
-            input_paths.append(path)
-        
+        #### GET FILE PATHS BY LOOKING INTO THE DATABASE
+        input_paths = dict()
+        for group in input:
+            input_paths[group] = list()
+            for artifact in input[group]:
+                if sql_utils.is_valid_uuid(artifact):
+                    artifact = api_artifact_id(artifact, headers=request.headers)
+                    if artifact is None:
+                        return jsonify({'success': False, 'message': f'This resource {artifact} cannot be fetched by CKAN'}), 500 
+                input_paths[group].append(artifact)
 
-            # # Check if all required values are not None
+        # # Check if all required values are not None
         if access_key and secret_key and session_token:
             # Constructing the JSON
             result = {
@@ -511,9 +410,8 @@ def api_task_execution_read(query_data):
         return jsonify({'success': False, 'message': traceback.format_exc()}), 500  
 
 
-@tasks_bp.route('/logs/read', methods=['GET'])
+@tasks_bp.route('/read/logs', methods=['GET'])
 @tasks_bp.input(schema.Identifier, location='query', example="24a976c4-fd84-47ef-92cc-5d5582bcaf41")
-# @tasks_bp.output(schema.ResponseOK, status_code=200)
 @tasks_bp.doc(tags=['Tracking Operations'], security=security_doc)
 @token_active
 def api_task_log_read(query_data):
