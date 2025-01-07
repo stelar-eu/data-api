@@ -215,15 +215,16 @@ def validate_2fa_otp(user_id, token):
         bool: True if the OTP token is valid, False otherwise.
 
     Raises:
+        ValueError: If the OTP does not match the secret key
         ValueError: If the provided user_id is not a valid UUID.
     """
     if is_valid_uuid(user_id):
         if sql_utils.two_factor_user_has_2fa(user_id=user_id):
-            secret = sql_utils.two_factor_auth_retrieve(user_id=user_id)
+            secret = sql_utils.two_factor_auth_retrieve(user_id=user_id).get('two_factor_key')
             if is_2fa_otp_valid(secret, token):
                 return True
             else:
-                return False
+                raise ValueError("Not valid OTP")
     else:
         raise ValueError("Not valid UUID")
     

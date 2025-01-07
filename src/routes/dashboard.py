@@ -481,8 +481,11 @@ def verify_2fa(next_url=None):
                     return redirect(next_url)
                 else:
                     return redirect(url_for('dashboard_blueprint.dashboard_index'))
+            except ValueError:
+                flash("OTP is not valid", "danger")
+                return render_template('2fa.html', PARTNER_IMAGE_SRC=get_partner_logo())
             except Exception as e:
-                flash(f"OTP is not valid", "danger")
+                flash("An error occurred", "danger")
                 return render_template('2fa.html', PARTNER_IMAGE_SRC=get_partner_logo())
         else:
             flash("Please provide a valid OTP", "warning")
