@@ -492,6 +492,55 @@ def verify_2fa(next_url=None):
             return render_template('2fa.html', PARTNER_IMAGE_SRC=get_partner_logo())
 
 
+@dashboard_bp.route('/login/forgot', methods=['GET', 'POST'])
+def forgot_password(next_url=None):
+    if request.method == 'GET':
+        if 'ACTIVE' in session and session['ACTIVE']:
+            return redirect(url_for('dashboard_blueprint.dashboard_index'))
+        else:
+            return render_template('forgot.html')
+    elif request.method == 'POST': 
+        account = request.form.get('account')
+        if account:
+            try:
+                kutils.reset_password_init_flow(email=account)
+                session['PASSWORD_RESET_FLOW'] = True
+                return redirect(url_for('dashboard_blueprint.forgot_password_sent_email'))
+            except Exception as e:
+                pass
+        return render_template('forgot.html')
+
+
+@dashboard_bp.route('/login/forgot/next')
+def forgot_password_sent_email():
+    if request.method == 'GET':
+        if 'ACTIVE' in session and session['ACTIVE']:
+            return redirect(url_for('dashboard_blueprint.dashboard_index'))
+        if 'PASSWORD_RESET_FLOW' in session and session['PASSWORD_RESET_FLOW']:
+            return render_template('reset_email_sent.html')
+        else:
+            return redirect(url_for('dashboard_blueprint.login'))
+           
+      
+@dashboard_bp.route('/login/reset/<rs_token>/<user_id>', methods=['GET', 'POST'])
+def reset_password(rs_token, user_id):
+    if 'ACTIVE' in session and session['ACTIVE']:
+            return redirect(url_for('dashboard_blueprint.dashboard_index'))
+    
+    if request.method == 'GET' and rs_token and user_id:
+        payload = kutils.verify_reset_token(rs_token, user_id)
+
+        if payload:
+            if payload.get('exp'):
+                expiration_time = datetime.fromtimestamp(payload.get('exp'))
+                if expiration_time < datetime.now():
+                    return redirect(url_for('dashboard_blueprint.login'))
+                else:
+                    return render_template('reset_password.html')
+            else:
+                return redirect(url_for('dashboard_blueprint.login'))
+
+
 ####################################
 # Login Route
 ####################################
@@ -511,6 +560,7 @@ def login():
 
     # Check if the user is already logged in and redirect him to console home page if so
     if request.method == 'GET':
+        session['PASSWORD_RESET_FLOW'] = False
         if 'ACTIVE' in session and session['ACTIVE']:
             return redirect(url_for('dashboard_blueprint.dashboard_index'))
 

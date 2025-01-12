@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+        <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+        <title>STELAR | Reset Email Sent</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">    
+        <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+        <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+        <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+      </head>
+  <body  class=" d-flex flex-column">
+    <div class="page page-center">
+      <div class="container container-tight py-4">
+        <div class="text-center mb-4">
+            <a href="{{ url_for('dashboard_blueprint.dashboard_index') }}" class="navbar-brand navbar-brand-autodark">
+                <div class="d-flex align-items-center justify-content-center mb-4">
+                  <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR" class="me-3">     
+              </a>
+          </div>
+        <div class="card card-md">
+          <div class="card-body">
+            <h2 class="mb-3">
+                <span class="col-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon me-1 text-success" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>
+                  </span>
+                A password reset email was sent</h2>
+            <p class="text-secondary mb-4">
+              You will receive an email from STELAR KLMS with a link to set a new password for your account. 
+            </p>
+            <div class="my-4">
+              <a href="{{ url_for('dashboard_blueprint.login') }}" class="btn btn-primary w-100">
+                Go back to the login page
+              </a>
+            </div>
+            <p class="text-secondary">
+              If you encountered an error during the reset process feel free to <a href="https://support.stelar.gr" target="_blank">open a ticket.</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

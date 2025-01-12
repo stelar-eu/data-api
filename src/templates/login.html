@@ -29,7 +29,7 @@
             <h2 class="h2 text-center mb-4">Login to your account</h2>
             <form method="POST" autocomplete="off" novalidate>
               <div class="mb-3">
-                <label class="form-label">Email address</label>
+                <label class="form-label">Email Address</label>
                 <input type="email" name="email" class="form-control {% if EMPTY_EMAIL_ERROR %}is-invalid{% endif %}"
                        placeholder="your@email.com" autocomplete="off">
               </div>
@@ -37,7 +37,7 @@
                 <label class="form-label">
                   Password
                   <span class="form-label-description" tabindex="-1">
-                    <a href="./forgot-password.html" tabindex="-1">I forgot password</a>
+                    <a href="{{ url_for('dashboard_blueprint.forgot_password') }}" tabindex="-1">I forgot my password</a>
                   </span>
                 </label>
                 <div class="input-group input-group-flat">

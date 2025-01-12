@@ -16,3 +16,4 @@ email-validator
 pyotp==2.9.0
 qrcode==8.0
 Pillow==11.0.0
+pyjwt==2.10.1

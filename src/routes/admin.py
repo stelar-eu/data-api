@@ -1,12 +1,6 @@
 from flask import request, jsonify, current_app, session
 from apiflask import APIBlueprint
-from src.auth import auth, security_doc
-import re
-from keycloak import KeycloakAdmin
-from keycloak.exceptions import KeycloakAuthenticationError, KeycloakPutError
-import random
-import smtplib, ssl
-import logging
+from keycloak.exceptions import KeycloakPutError
 from email_validator import validate_email, EmailNotValidError
 import kutils 
 import datetime

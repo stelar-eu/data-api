@@ -1,5 +1,6 @@
+import logging.config
 from keycloak import KeycloakOpenID, KeycloakAdmin, KeycloakAuthenticationError, KeycloakGetError
-from flask import current_app, session
+from flask import current_app, session, url_for
 import datetime
 import uuid
 import re
@@ -8,6 +9,13 @@ import pyotp
 import qrcode
 from io import BytesIO
 import base64
+import logging
+import smtplib
+import ssl
+import jwt
+
+logging.basicConfig(level=logging.DEBUG)
+
 
 def is_valid_uuid(s):
     try:
@@ -55,6 +63,61 @@ def username_unique(username):
     if existing_users:
         raise ValueError(f"A user with the username '{username}' already exists.")
   
+
+def reset_password_init_flow(email):
+    """Sends an email with a reset link for the account linked with the
+    given email address. Initiates the flow for reseting the password.
+    
+    Args:
+        - email: The address of the account
+    Returns:
+        - True: if the initialization of the reset process was succesful 
+
+    Raises:
+        -
+    """
+    keycloak_admin = init_admin_client_with_credentials()
+
+    user_rep = keycloak_admin.get_users(query={'email': email})
+    if user_rep:
+        try:
+            kuuid = user_rep[0].get('id')
+            if is_valid_uuid(kuuid):
+                send_reset_password_email(to_email=email, rstoken=generate_reset_token(user_rep[0].get('id')), user_id= user_rep[0].get('id'), fullname=user_rep[0].get('firstName') + ' ' + user_rep[0].get('lastName'))
+                return True
+
+        except Exception as e:
+            raise 
+
+def verify_reset_token(token, user_id):
+    """
+    Verifies the JWT token and extracts the payload.
+    :param token: The JWT token to verify.
+    :param user_id: The id of the user to verify the token for.
+    :return: Decoded payload if valid, None if invalid or expired.
+    """
+    try:
+        payload = jwt.decode(token, user_id, algorithms=["HS256"])
+        return payload
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+
+
+def generate_reset_token(user_id, expiration_minutes=30):
+    """
+    Generates a JWT token with an expiration.
+    :param user_id: The unique identifier for the user.
+    :param expiration_minutes: Token validity period in minutes.
+    :return: Encoded JWT token as a string.
+    """
+    payload = {
+        "user_id": user_id,
+        "exp": datetime.datetime.now() + datetime.timedelta(minutes=expiration_minutes),
+    }
+    token = jwt.encode(payload, user_id, algorithm="HS256")
+    return token
 
 def email_unique(email):
     keycloak_admin = init_admin_client_with_credentials()
@@ -1015,3 +1078,53 @@ def delete_realm_roles(keycloak_admin,roles_to_delete):
 def delete_client_roles(keycloak_admin,client_roles_to_delete):
     for client_role in client_roles_to_delete:
         keycloak_admin.delete_client_role(keycloak_admin.get_client_id('minio'),client_role)
+
+
+
+##################################
+# this should be moved to another location....
+##################################
+
+def send_reset_password_email(to_email, rstoken, user_id, fullname):
+    """
+    Sends the reset password email to the specified email address with a subject and sender name.
+    SMTP settings are fetched from Flask's app config.
+    """
+    config = current_app.config['settings']  # Fetch SMTP settings from app config
+
+    smtp_server = config['SMTP_SERVER']
+    smtp_port = config['SMTP_PORT']
+    sender_email = config['SMTP_EMAIL']
+    sender_password = config['SMTP_PASSWORD']
+
+    # Email subject and sender name
+    subject = "Reset your STELAR account password"
+    sender_name = "STELAR KLMS"
+
+    # Plain text message without headers (headers will be handled separately)
+    plain_message = f"""\
+Dear {fullname},
+
+Follow this link to reset your password: 
+
+https://{config['MAIN_INGRESS_SUBDOMAIN']}.{config['KLMS_DOMAIN_NAME']}{url_for('dashboard_blueprint.reset_password', rs_token=rstoken, user_id=user_id)}
+
+The link will be valid for the next 30 minutes.
+
+If you didn't request a password reset, consider changing your password and enabling 2FA for your account.
+
+Kind Regards,
+STELAR KLMS
+"""
+    # Create the full email message with subject, sender, and receiver
+    full_message = f"Subject: {subject}\nFrom: {sender_name} <{sender_email}>\nTo: {to_email}\n\n{plain_message}"
+
+    context = ssl.create_default_context()
+
+    try:
+        with smtplib.SMTP_SSL(smtp_server, int(smtp_port), context=context) as server:
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, to_email, full_message)
+    except Exception as e:
+        # Log the error
+        raise Exception(f"Error sending verification email: {str(e)}")
