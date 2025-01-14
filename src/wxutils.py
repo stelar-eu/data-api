@@ -451,6 +451,8 @@ def get_task_input_json(task_id, access_token=None):
         input = sql_utils.task_execution_input_read_sql(task_exec_id)
         parameters = sql_utils.task_execution_parameters_read(task_exec_id)
 
+        access_key = secret_key = session_token = None
+
         if access_token:
             # Produce STS Token for MinIO Access 
             minio_body = {      
@@ -517,7 +519,10 @@ def get_task_input_json(task_id, access_token=None):
                 result = {
                     'input': input_paths, 
                     'parameters': parameters,  
-                    'output':{}
+                    'output':{},
+                    'minio':{
+                        'endpoint_url': "https://"+config['MINIO_API_SUBDOMAIN']+"."+config['KLMS_DOMAIN_NAME']
+                    }
                 }
                 
             return result

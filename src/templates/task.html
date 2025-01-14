@@ -39,28 +39,28 @@
                                 <div class="card-title">Basic Information</div>
                                 <div class="mb-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0" /><path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0" /><path d="M3 6l0 13" /><path d="M12 6l0 13" /><path d="M21 6l0 13" /></svg>
-                                    Owner Workflow: <strong><a href="/stelar/console/v1/workflows/{{ task_metadata['metadata']['workflow_exec_id'] }}" target="_blank" >{{ task_metadata['metadata']['workflow_exec_id'] }}</a></strong>
+                                    Owner Workflow: <strong><a href="{{ url_for('dashboard_blueprint.workflow', workflow_id=task_metadata['workflow_exec_id'] )}}" target="_blank" >{{ task_metadata['workflow_exec_id'] }}</a></strong>
                                 </div>
                                 <div class="mb-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-e-passport"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" /><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M9 12h-7" /><path d="M15 12h7" /></svg>                                        
-                                    Task ID: <strong>{{ task_metadata['metadata']['task_exec_id'] }}</strong>
+                                    Task ID: <strong>{{ task_metadata['task_exec_id'] }}</strong>
                                 </div>
                                 <div class="mb-2">
                                     <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-tool"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" /></svg>
-                                    Tool: <strong>{{ task_metadata['metadata']['tags'].get('tool_image', 'Image Name Not Available')}}</strong>
+                                    Tool: <strong>{{ task_metadata.get('tool_image', 'Image Name Not Available')}}</strong>
                                 </div>
                                 <div class="mb-2">
                                     <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-player-play"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 4v16l13 -8z" /></svg>                                        
-                                    Started at: <strong>{{ task_metadata['metadata'].get('start_date', 'Not available') | replace("T", " ") }}</strong>
+                                    Started at: <strong>{{ task_metadata.get('start_date', 'Not available') | replace("T", " ") }}</strong>
                                 </div>
                                 <div class="mb-2">
                                     <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-hand-stop"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8 13v-7.5a1.5 1.5 0 0 1 3 0v6.5" /><path d="M11 5.5v-2a1.5 1.5 0 1 1 3 0v8.5" /><path d="M14 5.5a1.5 1.5 0 0 1 3 0v6.5" /><path d="M17 7.5a1.5 1.5 0 0 1 3 0v8.5a6 6 0 0 1 -6 6h-2h.208a6 6 0 0 1 -5.012 -2.7a69.74 69.74 0 0 1 -.196 -.3c-.312 -.479 -1.407 -2.388 -3.286 -5.728a1.5 1.5 0 0 1 .536 -2.022a1.867 1.867 0 0 1 2.28 .28l1.47 1.47" /></svg>                                 
-                                    Finished at: <strong>{{ task_metadata['metadata'].get('end_date', 'Not finished') | replace("T", " ")  }}</strong>
+                                    Finished at: <strong>{{ task_metadata.get('end_date', 'Not finished') | replace("T", " ")  }}</strong>
                                 </div>
                                 <div>
                                     <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-brand-redux"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M16.54 7c-.805 -2.365 -2.536 -4 -4.54 -4c-2.774 0 -5.023 2.632 -5.023 6.496c0 1.956 1.582 4.727 2.512 6" /><path d="M4.711 11.979c-1.656 1.877 -2.214 4.185 -1.211 5.911c1.387 2.39 5.138 2.831 8.501 .9c1.703 -.979 2.875 -3.362 3.516 -4.798" /><path d="M15.014 19.99c2.511 0 4.523 -.438 5.487 -2.1c1.387 -2.39 -.215 -5.893 -3.579 -7.824c-1.702 -.979 -4.357 -1.235 -5.927 -1.07" /><path d="M10.493 9.862c.48 .276 1.095 .112 1.372 -.366a1 1 0 0 0 -.367 -1.365a1.007 1.007 0 0 0 -1.373 .366a1 1 0 0 0 .368 1.365z" /><path d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /></svg>                                        
-                                    Task state: <span id="task-state-badge-{{ task_metadata['metadata']['task_exec_id'] }}" class="badge me-1 {% if task_metadata['metadata']['state'] == 'succeeded' %}bg-green{% elif task_metadata['metadata']['state'] == 'failed' %}bg-danger{% else %}bg-warning{% endif %}"></span>
-                                    <span id="task-state-text-{{ task_metadata['metadata']['task_exec_id'] }}">{{ task_metadata['metadata']['state'] | capitalize }}</span>
+                                    Task state: <span id="task-state-badge-{{ task_metadata['task_exec_id'] }}" class="badge me-1 {% if task_metadata['state'] == 'succeeded' %}bg-green{% elif task_metadata['state'] == 'failed' %}bg-danger{% else %}bg-warning{% endif %}"></span>
+                                    <span id="task-state-text-{{ task_metadata['task_exec_id'] }}">{{ task_metadata['state'] | capitalize }}</span>
                                 </div>
                             </div>
                         </div>
@@ -71,11 +71,11 @@
                                 <div class="card-title">Execution Parameters & Information</div>
                                 <div class="mb-2">
                                     <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-secondary icon icon-tabler icons-tabler-outline icon-tabler-brand-metabrainz"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7v10l7 4v-18z" /><path d="M21 7v10l-7 4v-18z" /></svg>
-                                    MinIO API Endpoint: <strong>{{ task_input['minio']['endpoint_url'] }}</strong>
+                                    MinIO API Endpoint: <strong>{{ task_input.get('minio')['endpoint_url'] }}</strong>
                                 </div>
                                 <div class="mb-2">
                                     <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-secondary icon icon-tabler icons-tabler-outline icon-tabler-brand-docker"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 12.54c-1.804 -.345 -2.701 -1.08 -3.523 -2.94c-.487 .696 -1.102 1.568 -.92 2.4c.028 .238 -.32 1 -.557 1h-14c0 5.208 3.164 7 6.196 7c4.124 .022 7.828 -1.376 9.854 -5c1.146 -.101 2.296 -1.505 2.95 -2.46z" /><path d="M5 10h3v3h-3z" /><path d="M8 10h3v3h-3z" /><path d="M11 10h3v3h-3z" /><path d="M8 7h3v3h-3z" /><path d="M11 7h3v3h-3z" /><path d="M11 4h3v3h-3z" /><path d="M4.571 18c1.5 0 2.047 -.074 2.958 -.78" /><path d="M10 16l0 .01" /></svg>
-                                    Tool Image: <strong>{{ task_metadata['metadata']['tags'].get('tool_image', 'Image Name Not Available')}}</strong>
+                                    Tool Image: <strong>{{ task_metadata['tags'].get('tool_image', 'Image Name Not Available')}}</strong>
                                 </div>
                                 <div class="mb-2">
                                     <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-secondary icon icon-tabler icons-tabler-outline icon-tabler-file-import"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M5 13v-8a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2h-5.5m-9.5 -2h7m-3 -3l3 3l-3 3" /></svg>
@@ -207,7 +207,7 @@
                                             <div>{{ item }}</div>
                                         </td>
                                         <td class="w-1 fw-bold text-end">
-                                            <a href="/stelar/console/v1/resource/{{ item }}" target="_blank">View</a>
+                                            <a href="{{url_for('dashboard_blueprint.viewResource', resource_id = item)}}" target="_blank">View</a>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -269,7 +269,7 @@
                             <h5 class="modal-title">Tool Messages</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <div class="modal-body"><p>{{ task_metadata['metadata']['tags'].get('log','No Messages Available') }}</p></div>
+                        <div class="modal-body"><p>{{ task_metadata['tags'].get('log','No Messages Available') }}</p></div>
                         <div class="modal-footer">
                             <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
                         </div>
@@ -285,18 +285,23 @@
 
         function fetchTaskData() {
             $.ajax({
-                url: '/stelar/api/v1/task/runtime/read?id={{task_id}}', 
-                method: 'GET',  
-                success: function(response) {
-                    updateTaskTable(response);
-                },
-                error: function() {
+            url: `{{ url_for('rest_workflows_blueprint.api_get_task_jobs', task_id=task_id) }}`, 
+            method: 'GET',  
+            success: function(response) {
+                updateTaskTable(response);
+            },
+            error: function(xhr) {
+                if (xhr.status === 401) {
+                    window.location.href = '/';
+                } else {
                     console.error("Error fetching task data.");
                 }
+            }
             });
         }
 
         function updateTaskTable(data) {
+            data = data.result.jobs
             for (const task_id in data) {
                 const preElement = $(`#task-${task_id}-logs`);
                 const statusTextElement = $(`#task-${task_id}-status`);
@@ -369,31 +374,29 @@
     <script>
         function loadTaskMetadata(id) {
             $.ajax({
-                url: '/stelar/api/v1/task/execution/read?id={{task_id}}',
-                data: { id: id },
-                method: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        // Update Output Resources Modal
-                        updateOutputModal(response.result.output);
+            url: `{{ url_for('rest_workflows_blueprint.api_get_task_metadata', task_id=task_id) }}`,
+            method: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                // Update Output Resources Modal
+                updateOutputModal(response.result.output);
 
-                        // Update Metrics Modal
-                        updateMetricsModal(response.result.metrics);
+                // Update Metrics Modal
+                updateMetricsModal(response.result.metrics);
 
-                        // Update Logs Modal
-                        updateLogsModal(response.result.metadata.tags.log);
+                // Update Logs Modal
+                updateLogsModal(response.result.metadata.tags.log);
 
-                        // Update the task state
-                        updateTaskState(response.result.metadata.state);
-                    } else {
-                        alert("Failed to fetch task data");
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error("AJAX Error:", status, error);
-                    alert("Error fetching task data.");
+                // Update the task state
+                updateTaskState(response.result.metadata.state);
                 }
+            },
+            error: function(xhr, status, error) {
+                if (xhr.status === 401) {
+                    window.location.href = '/';
+                }
+            }
             });
         }
 

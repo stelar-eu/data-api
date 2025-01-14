@@ -18,6 +18,8 @@ import smtplib
 import ssl
 import random
 
+import wxutils
+
 #FOR TESTING ONLY!!!
 import os
 
@@ -302,57 +304,28 @@ def task(workflow_id, task_id):
     # Basic input validation
     if not workflow_id or not task_id:
         return redirect(url_for('dashboard_blueprint.login'))
+
+    try:
+        task_metadata = wxutils.get_task_metadata(task_id=task_id)
+
+        # Do not allow mismatch between given wf and actual wf
+        if task_metadata.get('workflow_exec_id') != workflow_id:
+            return redirect(url_for('dashboard_blueprint.login'))
+        
+        input_metadata = wxutils.get_task_input_json(task_id=task_id)
+
+        logs_metadata = wxutils.get_task_info(task_id=task_id)
     
-    headers = {
-        'Authorization': f"Bearer {session.get('access_token')}"
-    }
-
-    # Request to fetch task metadata with authorization token
-    task_metadata_url = f"{config['API_URL']}api/v1/task/execution/read?id="
-    metadata_url = task_metadata_url + task_id
-    metadata_response = requests.get(metadata_url, headers=headers)
-    if metadata_response.status_code != 200:
-        return redirect(url_for('dashboard_blueprint.login'))
-
-    metadata_json = metadata_response.json()
-
-    # Check if metadata is valid
-    if not metadata_json.get("success", False):
-        return redirect(url_for('dashboard_blueprint.login'))
-
-    # Check if the metadata corresponds to the correct workflow
-    if metadata_json.get('result').get('metadata').get('workflow_exec_id') != workflow_id:
-        return redirect(url_for('dashboard_blueprint.login'))
-
-    # Request to fetch task input data with authorization token
-    task_input_url = f"{config['API_URL']}api/v1/task/execution/input_json?id="
-    input_url = task_input_url + task_id
-    input_response = requests.get(input_url, headers=headers)
-    if input_response.status_code != 200:
-        return redirect(url_for('dashboard_blueprint.login'))
-
-    input_json = input_response.json()
-
-    # Request to fetch task logs with authorization token
-    job_logs_url = f"{config['API_URL']}api/v1/task/runtime/read?id="
-    logs_url = job_logs_url + task_id
-    logs_response = requests.get(logs_url, headers=headers)
-    if logs_response.status_code != 200:
-        return redirect(url_for('dashboard_blueprint.login'))
-
-    logs_json = logs_response.json()
-
-    # Finally render the page if everything is correct
-    if input_json.get("success", False):
         return render_template_with_s3('task.html', PARTNER_IMAGE_SRC=get_partner_logo(),
-                               task_id=task_id,
-                               workflow_id=workflow_id,
-                               task_metadata=metadata_json['result'],
-                               task_input=input_json['result'],
-                               logs=logs_json)
+                                task_id=task_id,
+                                workflow_id=workflow_id,
+                                task_metadata=task_metadata,
+                                task_input=input_metadata,
+                                logs=logs_metadata)
+    except Exception as e:
+        logging.debug(e)
+        return redirect(url_for('dashboard_blueprint.login'))
     
-    return redirect(url_for('dashboard_blueprint.login'))
-
 
 @dashboard_bp.route('/datasets', methods=['GET', 'POST'])
 @dashboard_bp.route('/datasets/page/<page_number>', methods=['GET', 'POST'])
