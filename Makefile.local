@@ -1,0 +1,13 @@
+
+DOCKER=docker
+IMGTAG=localhost/vsam/stelarapi:dev-0.0.1
+IMGPATH=.
+DOCKERFILE=$(IMGPATH)/Dockerfile.dev
+MINIKUBE=minikube
+
+.PHONY: all
+
+all:
+	$(MINIKUBE) image build -f $(DOCKERFILE) $(IMGPATH) -t $(IMGTAG)
+
+

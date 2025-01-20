@@ -1,0 +1,44 @@
+FROM python:3.11
+
+WORKDIR /app
+
+# Install PostgreSQL client for running the db init scripts
+RUN apt-get update && \
+    apt-get install -y postgresql-client && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install the MinIO client
+RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc \
+&& chmod +x mc \
+&& mv mc /usr/local/bin/
+
+# Copy schemas into a separate directory in the image
+COPY ./schemas /schemas
+# Copy the entrypoint script
+COPY dev.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+ENV PYTHONPATH=/app/src
+
+# First copy the requirements, which will not change too often
+COPY ./requirements.txt /app
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Now copy everything else
+COPY ./src/ /app/src/
+
+# Set environment variables for Flask
+ENV FLASK_APP=data_api:create_app
+ENV FLASK_DEBUG=true
+ENV FLASK_RUN_HOST=0.0.0.0
+ENV FLASK_RUN_PORT=80
+
+# Expose the port Flask will run on
+EXPOSE 80
+
+# Set the entrypoint to the entrypoint.sh script
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+# Default to 'start-server' if no arguments are provided
+CMD ["start-server"]
