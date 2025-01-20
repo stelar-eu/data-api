@@ -1,1 +1,6 @@
-max-line-length=99
+
+[flake8]
+max-line-length=109
+exclude = .git,__pycache__,docs/source/conf.py,old,build,dist
+per-file-ignores=
+    src/data_api.py:E501 E266

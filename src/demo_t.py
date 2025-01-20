@@ -1,7 +1,5 @@
-from flask import request, jsonify, current_app
-import requests
-import utils
-import json
+from flask import current_app
+
 
 def get_demo_ckan_token():
     """Generate an API token for an existing user in CKAN. Requires authentication of the user in CKAN to generate a token.
@@ -12,10 +10,10 @@ def get_demo_ckan_token():
     Returns:
         A JSON with the response to this request, containing the generated API token.
     """
-    config = current_app.config['settings']
+    config = current_app.config["settings"]
 
-    #EXAMPLE: curl -X POST --header 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/catalog/user/token/create -d '{"user": "test_user5", "name": "test5_API_token"}'
-    stelarapi_token = config.get('CKAN_ADMIN_TOKEN', 'No CKAN token provided to ENV')
+    # EXAMPLE: curl -X POST --header 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/catalog/user/token/create -d '{"user": "test_user5", "name": "test5_API_token"}'
+    stelarapi_token = config.get("CKAN_ADMIN_TOKEN", "No CKAN token provided to ENV")
 
     return stelarapi_token
 

@@ -1,23 +1,30 @@
-from flask import request, jsonify, current_app, session
-from apiflask import APIBlueprint
-from src.auth import auth, security_doc, admin_required, token_active
-# Auxiliary custom functions & SQL query templates for ranking
-import logging 
-# Input schema for validating and structuring several API requests
-import schema
 import json
+
+# Auxiliary custom functions & SQL query templates for ranking
+import logging
+
+from apiflask import APIBlueprint
+from flask import current_app, jsonify, request, session
+
 import cutils
 import kutils
 
-rest_catalog_bp = APIBlueprint('rest_catalog_blueprint', __name__, tag='RESTful Publishing Operations')
+# Input schema for validating and structuring several API requests
+import schema
+from src.auth import admin_required, auth, security_doc, token_active
+
+rest_catalog_bp = APIBlueprint(
+    "rest_catalog_blueprint", __name__, tag="RESTful Publishing Operations"
+)
 
 #########################################################
 ##################### DATASETS ##########################
 #########################################################
 
+
 @rest_catalog_bp.route("/datasets", methods=["GET"])
-@rest_catalog_bp.doc(tags=['RESTful Search Operations'], security=security_doc)
-@rest_catalog_bp.input(schema.PaginationParameters, location='query')
+@rest_catalog_bp.doc(tags=["RESTful Search Operations"], security=security_doc)
+@rest_catalog_bp.input(schema.PaginationParameters, location="query")
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
 def api_rest_get_datasets(query_data):
@@ -39,40 +46,38 @@ def api_rest_get_datasets(query_data):
         dict: A JSON response containing the dataset details or error information.
     """
     try:
-        offset = query_data.get('offset', 0)
-        limit = query_data.get('limit', 0)
+        offset = query_data.get("offset", 0)
+        limit = query_data.get("limit", 0)
 
-        resp = cutils.get_packages(limit=limit, offset=offset, tag_filter="Workflow", filter_mode='discard')
+        resp = cutils.get_packages(
+            limit=limit, offset=offset, tag_filter="Workflow", filter_mode="discard"
+        )
         return {
-                "success":True, 
-                "result":{
-                    "count": len(resp),
-                    "datasets": resp
-                },
-                "help": request.url
+            "success": True,
+            "result": {"count": len(resp), "datasets": resp},
+            "help": request.url,
         }, 200
     except Exception as e:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {e}",
-                '__type': 'Unknown Error',
+                "__type": "Unknown Error",
             },
-            "success": False
+            "success": False,
         }, 500
 
 
-
 @rest_catalog_bp.route("/datasets/list", methods=["GET"])
-@rest_catalog_bp.doc(tags=['RESTful Search Operations'], security=security_doc)
+@rest_catalog_bp.doc(tags=["RESTful Search Operations"], security=security_doc)
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
 def api_rest_list_datasets():
     """
     List all dataset IDs in the CKAN catalog.
 
-    This function retrieves a list of dataset identifiers from the Data Catalog. 
-    It is designed to be used for exploratory or bulk operations where only the 
+    This function retrieves a list of dataset identifiers from the Data Catalog.
+    It is designed to be used for exploratory or bulk operations where only the
     IDs of datasets are required.
 
     Responses:
@@ -84,32 +89,27 @@ def api_rest_list_datasets():
     """
     try:
         resp = cutils.list_packages()
-        return {
-                "success":True, 
-                "result":{
-                    "datasets": resp
-                },
-                "help": request.url
-        }, 200
+        return {"success": True, "result": {"datasets": resp}, "help": request.url}, 200
     except Exception as e:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {e}",
-                '__type': 'Unknown Error',
+                "__type": "Unknown Error",
             },
-            "success": False
+            "success": False,
         }, 500
 
+
 @rest_catalog_bp.route("/datasets/<dataset_id>", methods=["GET"])
-@rest_catalog_bp.doc(tags=['RESTful Search Operations'], security=security_doc)
+@rest_catalog_bp.doc(tags=["RESTful Search Operations"], security=security_doc)
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
 def api_rest_get_dataset(dataset_id: str):
     """
     Retrieve a dataset from the Data Catalog by its ID with full information.
 
-    This route allows clients to query the catalog and fetch details of a dataset 
+    This route allows clients to query the catalog and fetch details of a dataset
     using its unique dataset ID (`dataset_id`).
 
     Args:
@@ -125,37 +125,29 @@ def api_rest_get_dataset(dataset_id: str):
     """
     try:
         resp = cutils.get_package(dataset_id)
-        return {
-                "success":True, 
-                "result":{
-                    "dataset": resp
-                },
-                "help": request.url
-        }, 200
-    
+        return {"success": True, "result": {"dataset": resp}, "help": request.url}, 200
+
     except ValueError as ve:
         return {
-                "success":False, 
-                "error":{
-                    "name": f"Error: {ve}",
-                    "__type":"Dataset Entity Not Found"
-                },
-                "help": request.url
+            "success": False,
+            "error": {"name": f"Error: {ve}", "__type": "Dataset Entity Not Found"},
+            "help": request.url,
         }, 404
     except Exception as e:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {e}",
-                '__type': 'Unknown Error',
+                "__type": "Unknown Error",
             },
-            "success": False
+            "success": False,
         }, 500
 
+
 @rest_catalog_bp.route("/datasets", methods=["POST"])
-@rest_catalog_bp.input(schema.Dataset, location='json')
+@rest_catalog_bp.input(schema.Dataset, location="json")
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
+@rest_catalog_bp.doc(tags=["RESTful Publishing Operations"], security=security_doc)
 @token_active
 def api_rest_create_dataset(json_data):
     """
@@ -184,62 +176,64 @@ def api_rest_create_dataset(json_data):
     try:
         specs = json.loads(request.data.decode("utf-8"))
 
-        if specs.get('basic_metadata'):
-            if request.headers.get('Authorization'):
-                user = kutils.get_user_by_token(access_token=request.headers.get('Authorization').split(" ")[1])
+        if specs.get("basic_metadata"):
+            if request.headers.get("Authorization"):
+                user = kutils.get_user_by_token(
+                    access_token=request.headers.get("Authorization").split(" ")[1]
+                )
             else:
-                user = kutils.get_user_by_token(access_token=session.get('access_token'))   
+                user = kutils.get_user_by_token(
+                    access_token=session.get("access_token")
+                )
             if user:
-                specs.get('basic_metadata')['author'] = user.get('username')
-                specs.get('basic_metadata')['author_email'] = user.get('email')
-        
-        resp = cutils.create_package(specs.get('basic_metadata'), specs.get('extra_metadata'), specs.get('profile_metadata'))
-        return {
-                "success":True, 
-                "result":{
-                    "dataset": resp
-                },
-                "help": request.url
-        }, 200
+                specs.get("basic_metadata")["author"] = user.get("username")
+                specs.get("basic_metadata")["author_email"] = user.get("email")
+
+        resp = cutils.create_package(
+            specs.get("basic_metadata"),
+            specs.get("extra_metadata"),
+            specs.get("profile_metadata"),
+        )
+        return {"success": True, "result": {"dataset": resp}, "help": request.url}, 200
     except ValueError as ve:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {ve}",
-                '__type': 'Missing Parameters Error',
+                "__type": "Missing Parameters Error",
             },
-            "success": False
+            "success": False,
         }, 400
     except AttributeError as ae:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {ae}",
-                '__type': 'Package Name Already Exists Error',
+                "__type": "Package Name Already Exists Error",
             },
-            "success": False
+            "success": False,
         }, 409
     except Exception as e:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {e}",
-                '__type': 'Unknown Error',
+                "__type": "Unknown Error",
             },
-            "success": False
+            "success": False,
         }, 500
 
 
-@rest_catalog_bp.route("/datasets/<dataset_id>",methods=["PATCH"])
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
-@rest_catalog_bp.input(schema.Package, location='json')
+@rest_catalog_bp.route("/datasets/<dataset_id>", methods=["PATCH"])
+@rest_catalog_bp.doc(tags=["RESTful Publishing Operations"], security=security_doc)
+@rest_catalog_bp.input(schema.Package, location="json")
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
 def api_rest_patch_dataset(dataset_id: str, json_data):
     """
     Patch a dataset in the Data Catalog by its ID.
     The dataset metadata (e.g., name, description, tags) is passed in the request body.
-    Any existing attributes that are excluded but their respective fields are included 
+    Any existing attributes that are excluded but their respective fields are included
     in the body WILL BE REMOVED.
 
     Args:
@@ -256,41 +250,35 @@ def api_rest_patch_dataset(dataset_id: str, json_data):
     try:
         specs = json.loads(request.data.decode("utf-8"))
         resp = cutils.patch_package(dataset_id, specs.get("package_metadata"))
-        return {
-                "success":True, 
-                "result":{
-                    "dataset": resp
-                },
-                "help": request.url
-        }, 200
+        return {"success": True, "result": {"dataset": resp}, "help": request.url}, 200
     except ValueError as ve:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {ve}",
-                '__type': 'Dataset Entity Not Found',
+                "__type": "Dataset Entity Not Found",
             },
-            "success": False
+            "success": False,
         }, 404
     except Exception as e:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {e}",
-                '__type': 'Unknown Error',
+                "__type": "Unknown Error",
             },
-            "success": False
+            "success": False,
         }, 500
 
 
-@rest_catalog_bp.route("/datasets/<dataset_id>",methods=["DELETE"])
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
+@rest_catalog_bp.route("/datasets/<dataset_id>", methods=["DELETE"])
+@rest_catalog_bp.doc(tags=["RESTful Publishing Operations"], security=security_doc)
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
 def api_rest_delete_dataset(dataset_id):
     """
     Delete a dataset in the Data Catalog by its ID.
-    Any catalog resources associated with the dataset will also be deleted. 
+    Any catalog resources associated with the dataset will also be deleted.
     ! ATTENTION ! This action performs a hard-delete and the dataset will no longer be retrievable.
 
     Args:
@@ -303,50 +291,43 @@ def api_rest_delete_dataset(dataset_id):
     Returns:
         - id (str): The ID of the deleted dataset when the action was performed succesfully.
     """
-    
+
     try:
         resp = cutils.delete_package(dataset_id)
-        return {
-                "success":True, 
-                "result":{
-                    "dataset": resp
-                },
-                "help": request.url
-        }, 200
-    
+        return {"success": True, "result": {"dataset": resp}, "help": request.url}, 200
+
     except ValueError as ve:
         return {
-                "success":False, 
-                "error":{
-                    "name": f"Error: {ve}",
-                    "__type":"Package Entity Not Found"
-                },
-                "help": request.url
+            "success": False,
+            "error": {"name": f"Error: {ve}", "__type": "Package Entity Not Found"},
+            "help": request.url,
         }, 404
     except Exception as e:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {e}",
-                '__type': 'Unknown Error',
+                "__type": "Unknown Error",
             },
-            "success": False
+            "success": False,
         }, 500
+
 
 #########################################################
 ##################### RESOURCES #########################
 #########################################################
 
+
 @rest_catalog_bp.route("/datasets/<dataset_id>/resources", methods=["GET"])
 @rest_catalog_bp.route("/datasets/<dataset_id>/resources/<filter>", methods=["GET"])
-@rest_catalog_bp.doc(tags=['RESTful Search Operations'], security=security_doc)
+@rest_catalog_bp.doc(tags=["RESTful Search Operations"], security=security_doc)
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
 def api_rest_get_dataset_resources(dataset_id: str, filter: str = None):
     """
     Retrieve the resources of a Dataset from the Data Catalog by its ID with full information.
 
-    This route allows clients to query the catalog and fetch details of dataset resources 
+    This route allows clients to query the catalog and fetch details of dataset resources
 
     Args:
         filter (str, Optional): __'owned'__ for resources that have the 'owned' relation with the dataset or __'profile'__ for generated profile resources.
@@ -362,36 +343,31 @@ def api_rest_get_dataset_resources(dataset_id: str, filter: str = None):
     try:
         resp = cutils.get_package_resources(dataset_id, filter)
         return {
-                "success":True, 
-                "result":{
-                    "count": len(resp),
-                    "resources": resp
-                },
-                "help": request.url
+            "success": True,
+            "result": {"count": len(resp), "resources": resp},
+            "help": request.url,
         }, 200
-    
+
     except ValueError as ve:
         return {
-                "success":False, 
-                "error":{
-                    "name": f"Error: {ve}",
-                    "__type":"Package Entity Not Found"
-                },
-                "help": request.url
+            "success": False,
+            "error": {"name": f"Error: {ve}", "__type": "Package Entity Not Found"},
+            "help": request.url,
         }, 404
     except Exception as e:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {e}",
-                '__type': 'Unknown Error',
+                "__type": "Unknown Error",
             },
-            "success": False
+            "success": False,
         }, 500
 
+
 @rest_catalog_bp.route("/datasets/<dataset_id>/resource", methods=["POST"])
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
-@rest_catalog_bp.input(schema.Resource, location='json')
+@rest_catalog_bp.doc(tags=["RESTful Publishing Operations"], security=security_doc)
+@rest_catalog_bp.input(schema.Resource, location="json")
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
 def api_rest_create_resource(dataset_id: str, json_data):
@@ -416,42 +392,36 @@ def api_rest_create_resource(dataset_id: str, json_data):
     try:
         specs = json.loads(request.data.decode("utf-8"))
         resp = cutils.create_resource(dataset_id, specs.get("resource_metadata"))
-        return {
-                "success":True, 
-                "result":{
-                    "resource": resp
-                },
-                "help": request.url
-        }, 200
+        return {"success": True, "result": {"resource": resp}, "help": request.url}, 200
     except ValueError as ve:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {ve}",
-                '__type': 'Dataset Entity Not Found',
+                "__type": "Dataset Entity Not Found",
             },
-            "success": False
+            "success": False,
         }, 404
     except Exception as e:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {e}",
-                '__type': 'Unknown Error',
+                "__type": "Unknown Error",
             },
-            "success": False
+            "success": False,
         }, 500
 
 
-@rest_catalog_bp.route("/resources/<resource_id>",methods=["GET"])
-@rest_catalog_bp.doc(tags=['RESTful Search Operations'], security=security_doc)
+@rest_catalog_bp.route("/resources/<resource_id>", methods=["GET"])
+@rest_catalog_bp.doc(tags=["RESTful Search Operations"], security=security_doc)
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
 def api_rest_get_resource(resource_id: str):
     """
     Retrieve a resource by its ID with full information.
 
-    This route allows clients to query the catalog and fetch details of a specific resource by UUID 
+    This route allows clients to query the catalog and fetch details of a specific resource by UUID
 
     Args:
         resource_id (str): The UUID of the resource.
@@ -466,42 +436,36 @@ def api_rest_get_resource(resource_id: str):
     """
     try:
         resp = cutils.get_resource(resource_id)
-        return {
-                "success":True, 
-                "result":{
-                    "resource": resp
-                },
-                "help": request.url
-        }, 200
+        return {"success": True, "result": {"resource": resp}, "help": request.url}, 200
     except ValueError as ve:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {ve}",
-                '__type': 'Resource Entity Not Found',
+                "__type": "Resource Entity Not Found",
             },
-            "success": False
+            "success": False,
         }, 404
     except Exception as e:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {e}",
-                '__type': 'Unknown Error',
+                "__type": "Unknown Error",
             },
-            "success": False
+            "success": False,
         }, 500
 
 
-@rest_catalog_bp.route("/resources/<resource_id>",methods=["DELETE"])
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
+@rest_catalog_bp.route("/resources/<resource_id>", methods=["DELETE"])
+@rest_catalog_bp.doc(tags=["RESTful Publishing Operations"], security=security_doc)
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
 def api_rest_delete_resource(resource_id: str):
     """
     Delete a resource by its ID.
 
-    This route allows clients to delete a specific resource by UUID 
+    This route allows clients to delete a specific resource by UUID
 
     Args:
         resource_id (str): The UUID of the resource.
@@ -516,42 +480,37 @@ def api_rest_delete_resource(resource_id: str):
     """
     try:
         resp = cutils.delete_resource(resource_id)
-        return {
-                "success":True, 
-                "result":{
-                    "resource": resp
-                },
-                "help": request.url
-        }, 200
+        return {"success": True, "result": {"resource": resp}, "help": request.url}, 200
     except ValueError as ve:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {ve}",
-                '__type': 'Resource Entity Not Found',
+                "__type": "Resource Entity Not Found",
             },
-            "success": False
+            "success": False,
         }, 404
     except Exception as e:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {e}",
-                '__type': 'Unknown Error',
+                "__type": "Unknown Error",
             },
-            "success": False
+            "success": False,
         }, 500
 
-@rest_catalog_bp.route("/resources/<resource_id>",methods=["PATCH"])
-@rest_catalog_bp.doc(tags=['RESTful Publishing Operations'], security=security_doc)
-@rest_catalog_bp.input(schema.Resource, location='json')
+
+@rest_catalog_bp.route("/resources/<resource_id>", methods=["PATCH"])
+@rest_catalog_bp.doc(tags=["RESTful Publishing Operations"], security=security_doc)
+@rest_catalog_bp.input(schema.Resource, location="json")
 @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
 def api_rest_patch_resource(resource_id: str, json_data):
     """
     Patch a resource's fields without deleting any omitted ones by its ID.
 
-    This route allows clients to edit a specific resource by UUID 
+    This route allows clients to edit a specific resource by UUID
 
     Args:
         resource_id (str): The UUID of the resource.
@@ -568,37 +527,31 @@ def api_rest_patch_resource(resource_id: str, json_data):
     try:
         specs = json.loads(request.data.decode("utf-8"))
         resp = cutils.patch_resource(resource_id, specs.get("resource_metadata"))
-        return {
-                "success":True, 
-                "result":{
-                    "resource": resp
-                },
-                "help": request.url
-        }, 200
+        return {"success": True, "result": {"resource": resp}, "help": request.url}, 200
     except ValueError as ve:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {ve}",
-                '__type': 'Resource Entity Not Found',
+                "__type": "Resource Entity Not Found",
             },
-            "success": False
+            "success": False,
         }, 404
     except AttributeError as ae:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {ae}",
-                '__type': 'Resource Parameters Missing',
+                "__type": "Resource Parameters Missing",
             },
-            "success": False
+            "success": False,
         }, 400
     except Exception as e:
         return {
             "help": request.url,
             "error": {
                 "name": f"Error: {e}",
-                '__type': 'Unknown Error',
+                "__type": "Unknown Error",
             },
-            "success": False
+            "success": False,
         }, 500

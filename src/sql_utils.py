@@ -1,14 +1,16 @@
-import requests
+import ast
 import json
+import logging
+import re
+import uuid
 
+import pandas as pd
+import requests
 from flask import current_app
+
 # Auxiliary custom functions & SQL query templates for ranking
 import utils
-import ast
-import pandas as pd
-import uuid
-import re
-import logging
+
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -20,13 +22,12 @@ def is_valid_uuid(s):
         return str(uuid_obj) == s
     except ValueError:
         return False
-    
+
 
 def is_valid_url(url):
-    pattern = re.compile(
-        r'^(s3|https|http|tcp|smb|ftp)://[a-zA-Z0-9.-]+(?:/[^\s]*)?$'
-    )
+    pattern = re.compile(r"^(s3|https|http|tcp|smb|ftp)://[a-zA-Z0-9.-]+(?:/[^\s]*)?$")
     return bool(pattern.match(url))
+
 
 def cast_dict(d):
     d2 = {}
@@ -37,6 +38,7 @@ def cast_dict(d):
             d2[key] = value
     return d2
 
+
 def convert_datatype(df):
     df2 = df.copy()
     for column in df.columns:
@@ -46,10 +48,11 @@ def convert_datatype(df):
             df2[column] = df[column].astype(dtype)
         except (ValueError, TypeError):
             df2[column] = df[column].astype(str)
-                
+
     return df2
 
-'''
+
+"""
 def cast_dict(d):
     d2 = {}
     for key, value in d.items():
@@ -65,14 +68,16 @@ def cast_dict(d):
                 d2[key] = value
 
     return d2
-'''
+"""
 
 
 ##########################################################
 ## Policy Management
 ##########################################################
-def policy_version_create(policy_uuid, policy_familiar_name, active, yaml_content, user_id) -> str:
-    """Records in the database that the user-specified parameters for the given policy 
+def policy_version_create(
+    policy_uuid, policy_familiar_name, active, yaml_content, user_id
+) -> str:
+    """Records in the database that the user-specified parameters for the given policy
 
     Args:
         policy_uuid: UUID of the policy_version
@@ -82,64 +87,68 @@ def policy_version_create(policy_uuid, policy_familiar_name, active, yaml_conten
         A boolean: True, if the statement executed successfully; otherwise, False.
     """
 
-    # Compose the SQL command using the template for recording parameters of a task execution 
-    sql = utils.sql_policy_template['policy_create_template']   
-    resp = utils.execSql(sql, (policy_uuid, policy_familiar_name, active, yaml_content, user_id))
-    if 'status' in resp:
-        if not resp.get('status'):
+    # Compose the SQL command using the template for recording parameters of a task execution
+    sql = utils.sql_policy_template["policy_create_template"]
+    resp = utils.execSql(
+        sql, (policy_uuid, policy_familiar_name, active, yaml_content, user_id)
+    )
+    if "status" in resp:
+        if not resp.get("status"):
             return False
     else:
         return False
-    
+
     return True
 
+
 def list_policies():
-    sql = utils.sql_policy_template['policy_get_all_info_template']
+    sql = utils.sql_policy_template["policy_get_all_info_template"]
     resp = utils.execSql(sql)
-    if resp and len(resp)>0:
+    if resp and len(resp) > 0:
         policies = resp
         return policies
     else:
         return None
-   
-        
+
+
 def policy_representation_read(filter):
     if is_valid_uuid(filter):
-        sql = utils.sql_policy_template['policy_get_yaml_by_id_template']
-        resp = utils.execSql(sql,(filter, ))
-        if resp and len(resp)>0:
+        sql = utils.sql_policy_template["policy_get_yaml_by_id_template"]
+        resp = utils.execSql(sql, (filter,))
+        if resp and len(resp) > 0:
             policy_version = resp[0]
-            return policy_version['yaml_content']
+            return policy_version["yaml_content"]
         else:
             return None
-    elif filter == 'active':
-        sql = utils.sql_policy_template['policy_get_yaml_by_state_template']
-        resp = utils.execSql(sql,(True, ))
-        if resp and len(resp)>0:
+    elif filter == "active":
+        sql = utils.sql_policy_template["policy_get_yaml_by_state_template"]
+        resp = utils.execSql(sql, (True,))
+        if resp and len(resp) > 0:
             policy_version = resp[0]
-            
-            return policy_version['yaml_content']
+
+            return policy_version["yaml_content"]
         else:
             return None
-        
+
+
 def policy_info_read(filter):
     if is_valid_uuid(filter):
-        sql = utils.sql_policy_template['policy_get_info_by_id_template']
-        resp = utils.execSql(sql,(filter, ))
-        if resp and len(resp)>0:
+        sql = utils.sql_policy_template["policy_get_info_by_id_template"]
+        resp = utils.execSql(sql, (filter,))
+        if resp and len(resp) > 0:
             policy_version = resp[0]
             return policy_version
         else:
             return None
-    elif filter == 'active':
-        sql = utils.sql_policy_template['policy_get_info_by_state_template']
-        resp = utils.execSql(sql,(True, ))
-        if resp and len(resp)>0:
+    elif filter == "active":
+        sql = utils.sql_policy_template["policy_get_info_by_state_template"]
+        resp = utils.execSql(sql, (True,))
+        if resp and len(resp) > 0:
             policy_version = resp[0]
             return policy_version
         else:
             return None
-        
+
 
 ##########################################################
 ## 2FA Management
@@ -157,17 +166,17 @@ def two_factor_auth_create(user_id, secret) -> str:
              Returns False if the operation fails.
     """
     if user_id and secret:
-        sql = utils.sql_2fa_template['two_factor_create_template']
+        sql = utils.sql_2fa_template["two_factor_create_template"]
         resp = utils.execSql(sql, (user_id, secret))
-        if resp and 'status' in resp:
-            if not resp.get('status'):
+        if resp and "status" in resp:
+            if not resp.get("status"):
                 return False
             else:
                 return True
         else:
             return False
 
-    
+
 def two_factor_revoke(user_id) -> str:
     """
     Revokes two-factor authentication for a given user.
@@ -179,13 +188,14 @@ def two_factor_revoke(user_id) -> str:
         bool: Returns 'False' if the revocation was unsuccessful, otherwise returns the response status.
     """
     if user_id:
-        sql = utils.sql_2fa_template['two_factor_revoke_template']
-        resp = utils.execSql(sql, (user_id, ))
-        if 'status' in resp:
-            if not resp.get('status'):
+        sql = utils.sql_2fa_template["two_factor_revoke_template"]
+        resp = utils.execSql(sql, (user_id,))
+        if "status" in resp:
+            if not resp.get("status"):
                 return False
         else:
             return False
+
 
 def two_factor_auth_retrieve(user_id) -> str:
     """
@@ -198,14 +208,14 @@ def two_factor_auth_retrieve(user_id) -> str:
         str: The two-factor authentication secret key associated with the user.
 
     Note:
-        This function queries the database using a predefined SQL template to 
-        retrieve the secret key for the specified user. If the user exists and 
+        This function queries the database using a predefined SQL template to
+        retrieve the secret key for the specified user. If the user exists and
         has a secret key, it returns the key; otherwise, it returns None.
     """
     if user_id:
-        sql = utils.sql_2fa_template['two_factor_retrieve_skey_template']
-        resp = utils.execSql(sql, (user_id, ))
-        if resp and len(resp)>0:
+        sql = utils.sql_2fa_template["two_factor_retrieve_skey_template"]
+        resp = utils.execSql(sql, (user_id,))
+        if resp and len(resp) > 0:
             secret = resp[0]
             return secret
 
@@ -219,15 +229,16 @@ def two_factor_user_has_2fa(user_id) -> str:
     Returns:
         A boolean: True if the user has two-factor authentication enabled, otherwise False.
     """
-    
+
     if user_id:
-        sql = utils.sql_2fa_template['two_factor_check_template']
-        resp = utils.execSql(sql, (user_id, ))
-        if resp and len(resp)>0:
+        sql = utils.sql_2fa_template["two_factor_check_template"]
+        resp = utils.execSql(sql, (user_id,))
+        if resp and len(resp) > 0:
             return True
         else:
             return False
-        
+
+
 def stat_two_factor_for_user(user_id) -> str:
     """Check if a user has two-factor authentication enabled.
 
@@ -237,20 +248,23 @@ def stat_two_factor_for_user(user_id) -> str:
     Returns:
         A boolean: True if the user has two-factor authentication enabled, otherwise False.
     """
-    
+
     if user_id:
-        sql = utils.sql_2fa_template['two_factor_check_template']
-        resp = utils.execSql(sql, (user_id, ))
-        if resp and len(resp)>0:
+        sql = utils.sql_2fa_template["two_factor_check_template"]
+        resp = utils.execSql(sql, (user_id,))
+        if resp and len(resp) > 0:
             secret = resp[0]
             return secret
         else:
             return None
-        
+
+
 ##########################################################
 ## Workflow Execution Metadata Management
 ##########################################################
-def workflow_execution_create(workflow_exec_id, start_date, state, creator_user_id, wf_package_id=None, tags=None):
+def workflow_execution_create(
+    workflow_exec_id, start_date, state, creator_user_id, wf_package_id=None, tags=None
+):
     """Records metadata for a new workflow execution in the database.
 
     Args:
@@ -267,29 +281,36 @@ def workflow_execution_create(workflow_exec_id, start_date, state, creator_user_
 
     # Compose the SQL command using the template for creating a new workflow execution
     if wf_package_id:
-        sql = utils.sql_workflow_execution_templates['workflow_create_template']
-        resp = utils.execSql(sql, (workflow_exec_id, state, creator_user_id, start_date, wf_package_id))   
+        sql = utils.sql_workflow_execution_templates["workflow_create_template"]
+        resp = utils.execSql(
+            sql, (workflow_exec_id, state, creator_user_id, start_date, wf_package_id)
+        )
     else:
-        sql = utils.sql_workflow_execution_templates['workflow_create_template_empty_package']
-        resp = utils.execSql(sql, (workflow_exec_id, state, creator_user_id, start_date))   
+        sql = utils.sql_workflow_execution_templates[
+            "workflow_create_template_empty_package"
+        ]
+        resp = utils.execSql(
+            sql, (workflow_exec_id, state, creator_user_id, start_date)
+        )
 
     # Execute the SQL command in the database
-    if resp and 'status' in resp:
-        if not resp.get('status'):
+    if resp and "status" in resp:
+        if not resp.get("status"):
             return False
     else:
         return False
-        
 
-    # Compose the SQL command using the template for assigning tags to the new workflow execution 
+    # Compose the SQL command using the template for assigning tags to the new workflow execution
     if tags:
         for key, value in tags.items():
-            sql = utils.sql_workflow_execution_templates['workflow_insert_tags_template']   
+            sql = utils.sql_workflow_execution_templates[
+                "workflow_insert_tags_template"
+            ]
 
             # Execute the SQL command in the database
             resp = utils.execSql(sql, (workflow_exec_id, key, value))
-            if resp and 'status' in resp:
-                if not resp.get('status'):
+            if resp and "status" in resp:
+                if not resp.get("status"):
                     return False
             else:
                 return False
@@ -311,14 +332,14 @@ def workflow_execution_update(workflow_exec_id, state, end_date=None):
 
     # Compose and execute the SQL command using the template for updating/commiting a workflow execution
     if not end_date is None:
-        sql = utils.sql_workflow_execution_templates['workflow_commit_template']  
+        sql = utils.sql_workflow_execution_templates["workflow_commit_template"]
         resp = utils.execSql(sql, (state, end_date, workflow_exec_id))
     else:
-        sql = utils.sql_workflow_execution_templates['workflow_update_template']  
+        sql = utils.sql_workflow_execution_templates["workflow_update_template"]
         resp = utils.execSql(sql, (state, workflow_exec_id))
 
-    if resp and 'status' in resp:
-        if not resp.get('status'):
+    if resp and "status" in resp:
+        if not resp.get("status"):
             return False
     else:
         return False
@@ -337,13 +358,13 @@ def workflow_execution_delete(workflow_exec_id):
     """
 
     # Compose the SQL command using the template for deleting a workflow execution
-    sql = utils.sql_workflow_execution_templates['workflow_delete_template']   
+    sql = utils.sql_workflow_execution_templates["workflow_delete_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (workflow_exec_id, ))
+    resp = utils.execSql(sql, (workflow_exec_id,))
 
-    if resp and 'status' in resp:
-        if not resp.get('status'):
+    if resp and "status" in resp:
+        if not resp.get("status"):
             return False
     else:
         return False
@@ -362,22 +383,24 @@ def workflow_execution_read(workflow_exec_id):
     """
 
     # Compose the SQL command using the template for reading metadata about a workflow execution
-    sql = utils.sql_workflow_execution_templates['workflow_read_template']   
+    sql = utils.sql_workflow_execution_templates["workflow_read_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (workflow_exec_id, ))
+    resp = utils.execSql(sql, (workflow_exec_id,))
 
-    if resp and len(resp)>0:
-        workflow_specs = resp[0]  # List should contain specification of a single workflow execution (unique UUID)
+    if resp and len(resp) > 0:
+        workflow_specs = resp[
+            0
+        ]  # List should contain specification of a single workflow execution (unique UUID)
         # Also include any user-specified tags in the response
-        workflow_specs['tags'] = workflow_execution_tags_read(workflow_exec_id)
+        workflow_specs["tags"] = workflow_execution_tags_read(workflow_exec_id)
         return workflow_specs
     else:
         return None
 
 
 def workflow_execution_context_read(workflow_exec_id):
-    """Returns the ID of the contextual package corresponding to the working during its creation. 
+    """Returns the ID of the contextual package corresponding to the working during its creation.
        If not specified returns null
 
     Args:
@@ -388,13 +411,13 @@ def workflow_execution_context_read(workflow_exec_id):
     """
 
     # Compose the SQL command using the template for reading metadata about a workflow execution
-    sql = utils.sql_workflow_execution_templates['workflow_get_context_package']   
+    sql = utils.sql_workflow_execution_templates["workflow_get_context_package"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (workflow_exec_id, ))
+    resp = utils.execSql(sql, (workflow_exec_id,))
 
-    if resp and len(resp)>0:
-        workflow_context = resp[0]  
+    if resp and len(resp) > 0:
+        workflow_context = resp[0]
         return workflow_context
     else:
         return None
@@ -411,20 +434,27 @@ def workflow_execution_tags_read(workflow_exec_id):
     """
 
     # Compose the SQL command using the template for reading tags about a workflow execution
-    sql = utils.sql_workflow_execution_templates['workflow_read_tags_template']   
+    sql = utils.sql_workflow_execution_templates["workflow_read_tags_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (workflow_exec_id, ))
+    resp = utils.execSql(sql, (workflow_exec_id,))
 
-    if resp and len(resp)>0:
-        tag_dict = {tag['key']: tag['value'] for tag in resp}
+    if resp and len(resp) > 0:
+        tag_dict = {tag["key"]: tag["value"] for tag in resp}
         return tag_dict
     else:
         return None
 
 
-
-def task_execution_create(task_exec_id, workflow_exec_id, start_date, state, creator_user_id, tags=None, prev_task_exec_id=None):
+def task_execution_create(
+    task_exec_id,
+    workflow_exec_id,
+    start_date,
+    state,
+    creator_user_id,
+    tags=None,
+    prev_task_exec_id=None,
+):
     """Records metadata for a new task execution in the database.
 
     Args:
@@ -441,37 +471,39 @@ def task_execution_create(task_exec_id, workflow_exec_id, start_date, state, cre
     """
 
     # Compose the SQL command using the template for creating a new task execution
-    sql = utils.sql_workflow_execution_templates['task_create_template']   
+    sql = utils.sql_workflow_execution_templates["task_create_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id, workflow_exec_id, creator_user_id, state, start_date))
-    if resp and 'status' in resp:
-        if not resp.get('status'):
+    resp = utils.execSql(
+        sql, (task_exec_id, workflow_exec_id, creator_user_id, state, start_date)
+    )
+    if resp and "status" in resp:
+        if not resp.get("status"):
             return False
     else:
         return False
 
     # Compose the SQL command using the template for specifying the previously executed task
     if prev_task_exec_id:
-        sql = utils.sql_workflow_execution_templates['task_create_connection_template']   
+        sql = utils.sql_workflow_execution_templates["task_create_connection_template"]
 
         # Execute the SQL command in the database
         resp = utils.execSql(sql, (task_exec_id, prev_task_exec_id))
-        if resp and 'status' in resp:
-            if not resp.get('status'):
+        if resp and "status" in resp:
+            if not resp.get("status"):
                 return False
         else:
             return False
 
-    # Compose the SQL command using the template for assigning tags to the new task execution 
+    # Compose the SQL command using the template for assigning tags to the new task execution
     if tags:
         for key, value in tags.items():
-            sql = utils.sql_workflow_execution_templates['task_insert_tags_template']   
+            sql = utils.sql_workflow_execution_templates["task_insert_tags_template"]
 
             # Execute the SQL command in the database
             resp = utils.execSql(sql, (task_exec_id, key, value))
-            if resp and 'status' in resp:
-                if not resp.get('status'):
+            if resp and "status" in resp:
+                if not resp.get("status"):
                     return False
             else:
                 return False
@@ -493,27 +525,27 @@ def task_execution_update(task_exec_id, state, end_date=None, tags=None):
 
     # Compose and execute the SQL command using the template for updating a task execution
     if not end_date is None:
-        sql = utils.sql_workflow_execution_templates['task_commit_template']  
+        sql = utils.sql_workflow_execution_templates["task_commit_template"]
         resp = utils.execSql(sql, (state, end_date, task_exec_id))
     else:
-        sql = utils.sql_workflow_execution_templates['task_update_template']  
+        sql = utils.sql_workflow_execution_templates["task_update_template"]
         resp = utils.execSql(sql, (state, task_exec_id))
 
-    if resp and 'status' in resp:
-        if not resp.get('status'):
+    if resp and "status" in resp:
+        if not resp.get("status"):
             return False
     else:
         return False
-    
-    # Compose the SQL command using the template for assigning tags to the new task execution 
+
+    # Compose the SQL command using the template for assigning tags to the new task execution
     if tags:
         for key, value in tags.items():
-            sql = utils.sql_workflow_execution_templates['task_insert_tags_template']   
+            sql = utils.sql_workflow_execution_templates["task_insert_tags_template"]
 
             # Execute the SQL command in the database
             resp = utils.execSql(sql, (task_exec_id, key, value))
-            if resp and 'status' in resp:
-                if not resp.get('status'):
+            if resp and "status" in resp:
+                if not resp.get("status"):
                     return False
             else:
                 return False
@@ -532,19 +564,18 @@ def task_execution_delete(task_exec_id):
     """
 
     # Compose the SQL command using the template for deleting a task execution
-    sql = utils.sql_workflow_execution_templates['task_delete_template']   
+    sql = utils.sql_workflow_execution_templates["task_delete_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id, ))
+    resp = utils.execSql(sql, (task_exec_id,))
 
-    if resp and 'status' in resp:
-        if not resp.get('status'):
+    if resp and "status" in resp:
+        if not resp.get("status"):
             return False
     else:
         return False
 
     return True
-
 
 
 def task_execution_insert_log(task_exec_id, log):
@@ -558,19 +589,18 @@ def task_execution_insert_log(task_exec_id, log):
         A boolean: True, if the statement executed successfully; otherwise, False.
     """
 
-    # Compose the SQL command using the template for inserting the log under tag "log" for this task execution 
-    sql = utils.sql_workflow_execution_templates['task_insert_tags_template']   
+    # Compose the SQL command using the template for inserting the log under tag "log" for this task execution
+    sql = utils.sql_workflow_execution_templates["task_insert_tags_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id, 'log', log))
-    if resp and 'status' in resp:
-        if not resp.get('status'):
+    resp = utils.execSql(sql, (task_exec_id, "log", log))
+    if resp and "status" in resp:
+        if not resp.get("status"):
             return False
     else:
         return False
 
     return True
-
 
 
 def task_execution_insert_input(task_exec_id, inputs, input_group_name):
@@ -588,25 +618,28 @@ def task_execution_insert_input(task_exec_id, inputs, input_group_name):
 
     # Compose the SQL command using the template for recording input datasets
     for idx, inp in enumerate(inputs):
-
         # In case we get a UUID as input we pass it as is
         if is_valid_uuid(inp):
-            sql = utils.sql_workflow_execution_templates['task_insert_input_by_uuid_template']   
+            sql = utils.sql_workflow_execution_templates[
+                "task_insert_input_by_uuid_template"
+            ]
             # Execute the SQL command in the database
             resp = utils.execSql(sql, (task_exec_id, idx, inp, input_group_name))
-            if resp and 'status' in resp:
-                if not resp.get('status'):
+            if resp and "status" in resp:
+                if not resp.get("status"):
                     return False
             else:
                 return False
-        
+
         # In case we get a Path as input we pass it as is if it acceptable
         elif is_valid_url(inp):
-            sql = utils.sql_workflow_execution_templates['task_insert_input_by_path_template']   
+            sql = utils.sql_workflow_execution_templates[
+                "task_insert_input_by_path_template"
+            ]
             # Execute the SQL command in the database
             resp = utils.execSql(sql, (task_exec_id, idx, inp, input_group_name))
-            if resp and 'status' in resp:
-                if not resp.get('status'):
+            if resp and "status" in resp:
+                if not resp.get("status"):
                     return False
             else:
                 return False
@@ -627,12 +660,14 @@ def task_execution_insert_output(task_exec_id, resource_ids):
 
     # Compose the SQL command using the template for recording output datasets
     for idx, res_id in enumerate(resource_ids):
-        sql = utils.sql_workflow_execution_templates['task_insert_output_dataset_template']   
+        sql = utils.sql_workflow_execution_templates[
+            "task_insert_output_dataset_template"
+        ]
 
         # Execute the SQL command in the database
         resp = utils.execSql(sql, (task_exec_id, idx, res_id))
-        if resp and 'status' in resp:
-            if not resp.get('status'):
+        if resp and "status" in resp:
+            if not resp.get("status"):
                 return False
         else:
             return False
@@ -651,15 +686,17 @@ def task_execution_insert_parameters(task_exec_id, parameters):
         A boolean: True, if the statement executed successfully; otherwise, False.
     """
 
-    # Compose the SQL command using the template for recording parameters of a task execution 
+    # Compose the SQL command using the template for recording parameters of a task execution
     if parameters:
         for key, value in parameters.items():
-            sql = utils.sql_workflow_execution_templates['task_insert_parameters_template']   
+            sql = utils.sql_workflow_execution_templates[
+                "task_insert_parameters_template"
+            ]
 
             # Execute the SQL command in the database
             resp = utils.execSql(sql, (task_exec_id, key, value))
-            if 'status' in resp:
-                if not resp.get('status'):
+            if "status" in resp:
+                if not resp.get("status"):
                     return False
             else:
                 return False
@@ -678,21 +715,20 @@ def task_execution_insert_metrics(task_exec_id, metrics):
         A boolean: True, if the statement executed successfully; otherwise, False.
     """
 
-    # Compose the SQL command using the template for recording metrics about a task execution 
+    # Compose the SQL command using the template for recording metrics about a task execution
     if metrics:
         for key, value in metrics.items():
-            sql = utils.sql_workflow_execution_templates['task_insert_metrics_template']   
+            sql = utils.sql_workflow_execution_templates["task_insert_metrics_template"]
 
             # Execute the SQL command in the database
             resp = utils.execSql(sql, (task_exec_id, key, value))
-            if 'status' in resp:
-                if not resp.get('status'):
+            if "status" in resp:
+                if not resp.get("status"):
                     return False
             else:
                 return False
 
     return True
-
 
 
 def task_execution_read(task_exec_id):
@@ -706,15 +742,17 @@ def task_execution_read(task_exec_id):
     """
 
     # Compose the SQL command using the template for reading metadata about a task execution
-    sql = utils.sql_workflow_execution_templates['task_read_template']   
+    sql = utils.sql_workflow_execution_templates["task_read_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id, ))
+    resp = utils.execSql(sql, (task_exec_id,))
 
-    if resp and len(resp)>0:
-        task_specs = resp[0]  # List should contain specification of a single task execution (unique UUID)
+    if resp and len(resp) > 0:
+        task_specs = resp[
+            0
+        ]  # List should contain specification of a single task execution (unique UUID)
         # Also include any user-specified tags in the response
-        task_specs['tags'] = task_execution_tags_read(task_exec_id)
+        task_specs["tags"] = task_execution_tags_read(task_exec_id)
         return task_specs
     else:
         return None
@@ -731,18 +769,18 @@ def task_execution_tags_read(task_exec_id):
     """
 
     # Compose the SQL command using the template for reading tags about a task execution
-    sql = utils.sql_workflow_execution_templates['task_read_tags_template']   
+    sql = utils.sql_workflow_execution_templates["task_read_tags_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id, ))
+    resp = utils.execSql(sql, (task_exec_id,))
 
-    if resp and len(resp)>0:
-        tag_dict = {tag['key']: tag['value'] for tag in resp}
+    if resp and len(resp) > 0:
+        tag_dict = {tag["key"]: tag["value"] for tag in resp}
         return tag_dict
     else:
         return None
-    
-    
+
+
 def task_execution_input_read(task_exec_id):
     """Submit a request to the Knowledge Graph to retrieve the identifiers of dataset(s) given as input to the specified task execution.
 
@@ -753,21 +791,26 @@ def task_execution_input_read(task_exec_id):
         A JSON with the list of dataset identifiers (CKAN resources) collected in MLFlow for the specified task execution.
     """
 
-    config = current_app.config['settings']
-    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    config = current_app.config["settings"]
+    sparql_headers = {
+        "Content-Type": "application/sparql-query",
+        "Accept": "application/json",
+    }
     # Formulate the SPARQL query with the given identifier
-    sparql = utils.format_sparql_filter('task_execution_input_template', task_exec_id)
-#    print(sparql)
+    sparql = utils.format_sparql_filter("task_execution_input_template", task_exec_id)
+    #    print(sparql)
     # Make a POST request to the Ontop API with the given query
     # IMPORTANT! NO authentication required by public SPARQL endpoints
-    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+    response = requests.post(
+        config["SPARQL_ENDPOINT"], headers=sparql_headers, data=sparql
+    )
 
     j = json.loads(response.text)
     print(j)
-    res_ids = [res['resource_id']['value'] for res in j['results']['bindings']]
-    
+    res_ids = [res["resource_id"]["value"] for res in j["results"]["bindings"]]
+
     # # Compose the SQL command using the template for reading tags about a task execution
-    # sql = utils.sql_workflow_execution_templates['task_read_input_dataset_template']   
+    # sql = utils.sql_workflow_execution_templates['task_read_input_dataset_template']
 
     # # Execute the SQL command in the database
     # resp = utils.execSql(sql, (task_exec_id, ))
@@ -777,9 +820,9 @@ def task_execution_input_read(task_exec_id):
     #     return res_ids
     # else:
     #     return None
-    
+
     # print(res_ids)
-    
+
     return res_ids
 
 
@@ -793,21 +836,26 @@ def task_execution_output_read(task_exec_id):
         A JSON with the list of dataset identifiers (CKAN resources) collected as output in MLFlow for the specified task execution.
     """
 
-    config = current_app.config['settings']
+    config = current_app.config["settings"]
 
-    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    sparql_headers = {
+        "Content-Type": "application/sparql-query",
+        "Accept": "application/json",
+    }
     # Formulate the SPARQL query with the given identifier
-    sparql = utils.format_sparql_filter('task_execution_output_template', task_exec_id)
-#    print(sparql)
+    sparql = utils.format_sparql_filter("task_execution_output_template", task_exec_id)
+    #    print(sparql)
     # Make a POST request to the Ontop API with the given query
     # IMPORTANT! NO authentication required by public SPARQL endpoints
-    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+    response = requests.post(
+        config["SPARQL_ENDPOINT"], headers=sparql_headers, data=sparql
+    )
 
     j = json.loads(response.text)
-    res_ids = [res['resource_id']['value'] for res in j['results']['bindings']]
+    res_ids = [res["resource_id"]["value"] for res in j["results"]["bindings"]]
 
     # # Compose the SQL command using the template for reading tags about a task execution
-    # sql = utils.sql_workflow_execution_templates['task_read_output_dataset_template']   
+    # sql = utils.sql_workflow_execution_templates['task_read_output_dataset_template']
 
     # # Execute the SQL command in the database
     # resp = utils.execSql(sql, (task_exec_id, ))
@@ -816,7 +864,7 @@ def task_execution_output_read(task_exec_id):
     #     return res_ids
     # else:
     #     return None
-    
+
     return res_ids
 
 
@@ -830,23 +878,33 @@ def task_execution_input_read_sql(task_exec_id):
         A JSON with the input resourced ids or path grouped by input group name.
     """
 
-    config = current_app.config['settings']
+    config = current_app.config["settings"]
 
-    sql_groups = utils.sql_workflow_execution_templates['task_read_input_group_names_by']
-    resp = utils.execSql(sql_groups, (task_exec_id, ))
+    sql_groups = utils.sql_workflow_execution_templates[
+        "task_read_input_group_names_by"
+    ]
+    resp = utils.execSql(sql_groups, (task_exec_id,))
 
     logging.debug(resp)
     inputs = dict()
 
-    if resp and len(resp)>0:
+    if resp and len(resp) > 0:
         for group in resp:
             list_of_inputs = list()
-            sql_inputs = utils.sql_workflow_execution_templates['task_read_inputs_by_group_name']
-            resp = utils.execSql(sql_inputs, (task_exec_id, group['input_group_name'], ))
-            if resp and len(resp)>0:
+            sql_inputs = utils.sql_workflow_execution_templates[
+                "task_read_inputs_by_group_name"
+            ]
+            resp = utils.execSql(
+                sql_inputs,
+                (
+                    task_exec_id,
+                    group["input_group_name"],
+                ),
+            )
+            if resp and len(resp) > 0:
                 for input in resp:
-                    list_of_inputs.append(input['resource_id'] or input['input_path'])
-                inputs[group['input_group_name']] = list_of_inputs
+                    list_of_inputs.append(input["resource_id"] or input["input_path"])
+                inputs[group["input_group_name"]] = list_of_inputs
 
     return inputs
 
@@ -861,19 +919,29 @@ def task_execution_parameters_read(task_exec_id):
         A JSON with the parameters specified in MLFlow for the specified task execution.
     """
 
-    config = current_app.config['settings']
+    config = current_app.config["settings"]
 
-    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    sparql_headers = {
+        "Content-Type": "application/sparql-query",
+        "Accept": "application/json",
+    }
     # Formulate the SPARQL query with the given identifier
-    sparql = utils.format_sparql_filter('task_execution_parameters_template', task_exec_id)
-#    print(sparql)
+    sparql = utils.format_sparql_filter(
+        "task_execution_parameters_template", task_exec_id
+    )
+    #    print(sparql)
     # Make a POST request to the Ontop API with the given query
     # IMPORTANT! NO authentication required by public SPARQL endpoints
-    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+    response = requests.post(
+        config["SPARQL_ENDPOINT"], headers=sparql_headers, data=sparql
+    )
 
     # return json.loads(response.text)
     j = json.loads(response.text)
-    parameters = {res['parameter']['value']: res['value']['value'] for res in j['results']['bindings']}
+    parameters = {
+        res["parameter"]["value"]: res["value"]["value"]
+        for res in j["results"]["bindings"]
+    }
     parameters = cast_dict(parameters)
     return parameters
 
@@ -888,74 +956,80 @@ def task_execution_metrics_read(task_exec_id):
         A JSON with the metrics collected in MLFlow for the specified task execution.
     """
 
-    config = current_app.config['settings']
+    config = current_app.config["settings"]
 
-    sparql_headers = {'Content-Type':'application/sparql-query', 'Accept':'application/json'}
+    sparql_headers = {
+        "Content-Type": "application/sparql-query",
+        "Accept": "application/json",
+    }
     # Formulate the SPARQL query with the given identifier
-    sparql = utils.format_sparql_filter('task_execution_metrics_template', task_exec_id)
-#    print(sparql)
+    sparql = utils.format_sparql_filter("task_execution_metrics_template", task_exec_id)
+    #    print(sparql)
     # Make a POST request to the Ontop API with the given query
     # IMPORTANT! NO authentication required by public SPARQL endpoints
-    response = requests.post(config['SPARQL_ENDPOINT'], headers=sparql_headers, data=sparql)
+    response = requests.post(
+        config["SPARQL_ENDPOINT"], headers=sparql_headers, data=sparql
+    )
 
     # return jsonify(json.loads(response.text))
     j = json.loads(response.text)
-    metrics = {res['metric']['value']: res['value']['value'] for res in j['results']['bindings']}
+    metrics = {
+        res["metric"]["value"]: res["value"]["value"]
+        for res in j["results"]["bindings"]
+    }
     metrics = cast_dict(metrics)
 
     return metrics
 
 
 def workflow_get_tasks(workflow_exec_id):
-    """Submit a request to the Metadata Database to retrieve information about all tasks 
+    """Submit a request to the Metadata Database to retrieve information about all tasks
         belonging to a workflow execution with given id
 
     Args:
         id: The identifier (UUID) assigned to a worfklow execution
 
     Returns:
-        A JSON with the tasks, if any, belonging to the workflow 
+        A JSON with the tasks, if any, belonging to the workflow
     """
 
     if workflow_exec_id:
-          
-        sql = utils.sql_workflow_execution_templates['workflow_get_tasks']   
+        sql = utils.sql_workflow_execution_templates["workflow_get_tasks"]
 
         # Execute the SQL command in the database
-        resp = utils.execSql(sql, (workflow_exec_id, ))
+        resp = utils.execSql(sql, (workflow_exec_id,))
 
-        if resp and len(resp)>0:
-            wf_tasks = resp          
+        if resp and len(resp) > 0:
+            wf_tasks = resp
             return wf_tasks
         else:
             return None
-        
+
+
 def workflow_get_all():
     """
         Submit a request to the Metadata Database to retrieve information about all workflow
-        executions. If an execution contains a reference to the package_id, it will be available 
+        executions. If an execution contains a reference to the package_id, it will be available
         in the result.
 
     Returns:
         A JSON with the workflows, if any.
     """
 
-    sql = utils.sql_workflow_execution_templates['workflow_get_all']   
+    sql = utils.sql_workflow_execution_templates["workflow_get_all"]
 
     # Execute the SQL command in the database
     resp = utils.execSql(sql)
 
-    if resp and len(resp)>0:
-        wf_tasks = resp          
+    if resp and len(resp) > 0:
+        wf_tasks = resp
         return wf_tasks
     else:
         return None
 
 
-
-
 def workflow_statistics(workflow_tags, parameters, metrics):
-    """Fetch statistics for each Worfklow Execution for a specific group of 
+    """Fetch statistics for each Worfklow Execution for a specific group of
     workflow executions.
 
     Args:
@@ -967,27 +1041,34 @@ def workflow_statistics(workflow_tags, parameters, metrics):
         A JSON dictionary containing statistics per workflow execution.
     """
 
-    workflow_tags = ','.join([f"'{x}'" for x in workflow_tags])
-    parameters = ','.join([f"'{x}'" for x in parameters])
-    metrics = ','.join([f"'{x}'" for x in metrics])
-    
+    workflow_tags = ",".join([f"'{x}'" for x in workflow_tags])
+    parameters = ",".join([f"'{x}'" for x in parameters])
+    metrics = ",".join([f"'{x}'" for x in metrics])
+
     # Compose the SQL command using the template for reading tags about a task execution
-    sql = utils.sql_workflow_execution_templates['workflow_read_statistics']   
+    sql = utils.sql_workflow_execution_templates["workflow_read_statistics"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (workflow_tags, parameters, metrics, ))
+    resp = utils.execSql(
+        sql,
+        (
+            workflow_tags,
+            parameters,
+            metrics,
+        ),
+    )
 
-    if resp and len(resp)>0:
+    if resp and len(resp) > 0:
         df = pd.DataFrame(resp)
-        df = df.pivot(index='workflow_uuid', columns='key', values='value')
+        df = df.pivot(index="workflow_uuid", columns="key", values="value")
         df = convert_datatype(df)
-        df = df.reset_index(drop=False) # avoid casting hash ids
+        df = df.reset_index(drop=False)  # avoid casting hash ids
         # print(df)
         # print(df.dtypes)
         # print(df.dtypes)
         # df = df.T
         # print(df)
-        resp = df.to_dict(orient='dict')
+        resp = df.to_dict(orient="dict")
         return resp
     else:
         return None

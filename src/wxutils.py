@@ -1,15 +1,16 @@
-import requests
-from flask import current_app,jsonify
 import re
-import utils
-import sql_utils
 import uuid
+import xml.etree.ElementTree as ET
 from datetime import datetime
+
+import requests
+from flask import current_app, jsonify
+
+import cutils
 import execution
 import kutils
-import cutils
-import xml.etree.ElementTree as ET
-import traceback
+import sql_utils
+import utils
 
 
 def is_valid_url(url):
@@ -19,9 +20,7 @@ def is_valid_url(url):
     Returns:
         A boolean value indicating whether the string is a valid
     """
-    pattern = re.compile(
-        r'^(s3|https|http|tcp|smb|ftp)://[a-zA-Z0-9.-]+(?:/[^\s]*)?$'
-    )
+    pattern = re.compile(r"^(s3|https|http|tcp|smb|ftp)://[a-zA-Z0-9.-]+(?:/[^\s]*)?$")
     return bool(pattern.match(url))
 
 
@@ -53,25 +52,27 @@ def api_artifact_id(resource_id):
         A JSON with the file path for the specified resource as maintained in CKAN.
     """
 
-    config = current_app.config['settings']
+    config = current_app.config["settings"]
 
-  
-    package_headers, resource_headers = utils.create_CKAN_headers(config['CKAN_ADMIN_TOKEN'])
- 
+    package_headers, resource_headers = utils.create_CKAN_headers(
+        config["CKAN_ADMIN_TOKEN"]
+    )
+
     # Make a GET request to the CKAN API with the parameters
     # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(config['CKAN_API']+'resource_show?id='+resource_id, headers=package_headers)  #auth=HTTPBasicAuth(config.username, config.password))  
+    response = requests.get(
+        config["CKAN_API"] + "resource_show?id=" + resource_id, headers=package_headers
+    )  # auth=HTTPBasicAuth(config.username, config.password))
 
-    # Get the path of this artifact 
+    # Get the path of this artifact
     if response.status_code == 200:
-        return response.json()['result']['url']
+        return response.json()["result"]["url"]
     else:
         return None
 
 
 def get_workflows():
-    """ Retrieve all workflows.
-    """
+    """Retrieve all workflows."""
     try:
         response = sql_utils.workflow_get_all()
         return response if response else "No workflows submitted yet."
@@ -82,7 +83,7 @@ def get_workflows():
 def create_workflow_process(creator_user, package_id, tags):
     """Create a new workflow process.
 
-    Creates a new workflow process based on the input parameters provided. The workflow process is used to manage 
+    Creates a new workflow process based on the input parameters provided. The workflow process is used to manage
     and monitor the execution of tasks. The workflow process is associated with a package in CKAN and can have additional metadata.
     The workflow acts as a shared context for the tasks belonging to it.
 
@@ -95,17 +96,19 @@ def create_workflow_process(creator_user, package_id, tags):
     Returns:
         The unique identifiers of the created workflow process and its linked package.
     """
-    try :
+    try:
         workflow_exec_id = str(uuid.uuid4())
         start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        state = 'running'
-        tags['package_id'] = package_id
+        state = "running"
+        tags["package_id"] = package_id
 
-        response = sql_utils.workflow_execution_create(workflow_exec_id, start_date, state, creator_user, package_id, tags)
+        response = sql_utils.workflow_execution_create(
+            workflow_exec_id, start_date, state, creator_user, package_id, tags
+        )
         if not response:
             return None
         return workflow_exec_id
-    
+
     except Exception as e:
         raise RuntimeError(f"Workflow could not be created. {e}")
 
@@ -122,13 +125,13 @@ def get_workflow_process(workflow_id):
     """
     if not is_valid_uuid(workflow_id):
         raise AttributeError("Invalid Workflow ID provided.")
-        
-    try :
+
+    try:
         w = sql_utils.workflow_execution_read(workflow_id)
         if w:
             return w
         else:
-            raise ValueError("Workflow does not exist.")            
+            raise ValueError("Workflow does not exist.")
     except ValueError as e:
         raise
     except Exception as e:
@@ -148,20 +151,20 @@ def get_workflow_tasks(workflow_id):
     """
     if not workflow_id:
         raise AttributeError("Workflow ID is required.")
-    
+
     if not is_valid_uuid(workflow_id):
         raise AttributeError("Invalid Workflow ID provided.")
-    
+
     if sql_utils.workflow_execution_read(workflow_id) is None:
         raise ValueError("Workflow does not exist.")
 
     try:
         response = sql_utils.workflow_get_tasks(workflow_id)
         return response if response else "No tasks submitted for this workflow."
-    
+
     except Exception as e:
         raise RuntimeError(f"Workflow Tasks Could Not Be Retrieved. {e}")
-    
+
 
 def update_workflow_state(workflow_id, state):
     """Update the state of a workflow process. If the state is 'failed' or 'succeeded', the end date is also updated to the current time.
@@ -175,21 +178,23 @@ def update_workflow_state(workflow_id, state):
     """
     if not workflow_id:
         raise AttributeError("Workflow ID is required.")
-    
+
     try:
         if get_workflow_process(workflow_id) is None:
             raise ValueError("Workflow does not exist.")
-        
-        if state in ['failed', 'succeeded']:
+
+        if state in ["failed", "succeeded"]:
             end_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             response = sql_utils.workflow_execution_update(workflow_id, state, end_date)
             if not response:
                 return False
         else:
-            response = sql_utils.workflow_execution_update(workflow_id, state, "1970-01-01 00:00:01")
+            response = sql_utils.workflow_execution_update(
+                workflow_id, state, "1970-01-01 00:00:01"
+            )
             if not response:
                 return False
-            
+
         return True, state
     except Exception as e:
         raise RuntimeError(f"Workflow State Could Not Be Updated. {e}")
@@ -199,67 +204,77 @@ def delete_workflow_process(workflow_id):
     """Delete a workflow process.
     Args:
         workflow_id: The unique identifier of the workflow process.
-    Returns:   
+    Returns:
         A boolean value indicating whether the workflow process was successfully deleted.
     Raises:
         RuntimeError: If the workflow process could not be deleted.
     """
-    try :
+    try:
         if not is_valid_uuid(workflow_id):
             raise AttributeError("Invalid Workflow ID provided.")
-        
+
         if sql_utils.workflow_execution_read(workflow_id) is None:
             raise ValueError("Workflow does not exist.")
-        
+
         response = sql_utils.workflow_execution_delete(workflow_id)
-        if not response:       
+        if not response:
             return False
         return True
     except Exception as e:
         raise RuntimeError(f"Workflow Process Could Not Be Deleted. {e}")
 
+
 def create_task(json_data, token):
     """Create a new task execution.
-    
-       Creates a new task execution based on the input JSON provided. The task execution is associated with a workflow execution 
-       which is used to monitor the progress of the tasks belonging to it and acting as a shared context for the tasks.
 
-       Args:
-              json_data: The input JSON for the task execution.
-              token: The access token for the user.
-       Returns:
-              A JSON with the task execution ID and the job ID (if the task is executed in the cluster).
+    Creates a new task execution based on the input JSON provided. The task execution is associated with a workflow execution
+    which is used to monitor the progress of the tasks belonging to it and acting as a shared context for the tasks.
+
+    Args:
+           json_data: The input JSON for the task execution.
+           token: The access token for the user.
+    Returns:
+           A JSON with the task execution ID and the job ID (if the task is executed in the cluster).
     """
     try:
         userinfo = kutils.get_user_by_token(token)
-        creator_user_id = userinfo.get('preferred_username',None)
-    except Exception as e:
+        creator_user_id = userinfo.get("preferred_username", None)
+    except Exception:
         raise ValueError
 
     try:
         tags = {}
 
-        workflow_exec_id = json_data['workflow_exec_id']
-        input = json_data.get('inputs')
-        parameters = json_data.get('parameters')
-        datasets = json_data.get('datasets')
-        
+        workflow_exec_id = json_data["workflow_exec_id"]
+        input = json_data.get("inputs")
+        parameters = json_data.get("parameters")
+        datasets = json_data.get("datasets")
 
         #### CHECK WORKFLOW EXECUTION STATE AND EXISTENCE
         workflow = sql_utils.workflow_execution_read(workflow_exec_id)
         if workflow is None:
             raise RuntimeError("Workflow does not exist!")
-        
-        if workflow.get('state') != 'running':
+
+        if workflow.get("state") != "running":
             raise AttributeError("Workflow is committed and will not accept tasks!")
-            
+
         start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        state = 'running'
+        state = "running"
         task_exec_id = str(uuid.uuid4())
-        
-        response = sql_utils.task_execution_create(task_exec_id, workflow_exec_id, start_date, state, creator_user_id)
+
+        response = sql_utils.task_execution_create(
+            task_exec_id, workflow_exec_id, start_date, state, creator_user_id
+        )
         if not response:
-            return jsonify({'success': False, 'message': 'Workflow Execution could not be created.'}), 500
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Workflow Execution could not be created.",
+                    }
+                ),
+                500,
+            )
 
         for key in input:
             resources = []
@@ -275,7 +290,10 @@ def create_task(json_data, token):
                     if cutils.is_package(dataset_uuid or val):
                         # Pass dataset_uuid and filter_value to get_package_resources
                         dataset_resources = [
-                            resource['id'] for resource in cutils.get_package_resources(dataset_uuid or val, filter_value)
+                            resource["id"]
+                            for resource in cutils.get_package_resources(
+                                dataset_uuid or val, filter_value
+                            )
                         ]
 
                         resources.extend(dataset_resources)
@@ -284,144 +302,146 @@ def create_task(json_data, token):
                 elif is_valid_url(val):
                     resources.append(val)
 
-            response = sql_utils.task_execution_insert_input(task_exec_id, resources, input_group_name)
+            response = sql_utils.task_execution_insert_input(
+                task_exec_id, resources, input_group_name
+            )
 
         if not response:
             raise RuntimeError("Task could not be created due to a database error.")
-        
+
         parameters = {k: str(v) for k, v in parameters.items()}
         response = sql_utils.task_execution_insert_parameters(task_exec_id, parameters)
-        
+
         if not response:
-            raise RuntimeError("Task could not be created due to a database error regarding parameters.")
+            raise RuntimeError(
+                "Task could not be created due to a database error regarding parameters."
+            )
 
         # Task can also be executed outside the cluster, in that case image was specified so we create
         # a job conditionally.
 
         # Check if 'docker image' or 'tool name' fields exists inside json_data
-        if json_data.get('tool_name'):
-            tags['tool_name'] = json_data.get('tool_name', None)
-            
-        if json_data.get('docker_image'):
+        if json_data.get("tool_name"):
+            tags["tool_name"] = json_data.get("tool_name", None)
+
+        if json_data.get("docker_image"):
             engine = execution.exec_engine()
-            token = 'Bearer ' + token
-            tags['container_id'], tags['job_id'] = engine.create_task(json_data.get('docker_image'), token, task_exec_id)
-            tags['tool_image'] = json_data.get('docker_image')
-        
+            token = "Bearer " + token
+            tags["container_id"], tags["job_id"] = engine.create_task(
+                json_data.get("docker_image"), token, task_exec_id
+            )
+            tags["tool_image"] = json_data.get("docker_image")
+
         response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
         if not response:
-            raise RuntimeError("Task could not be created due to an execution engine error.")
+            raise RuntimeError(
+                "Task could not be created due to an execution engine error."
+            )
 
-        return {'task_exec_id': task_exec_id, 'job_id': tags.get('job_id','Remote Task Mode')}
+        return {
+            "task_exec_id": task_exec_id,
+            "job_id": tags.get("job_id", "Remote Task Mode"),
+        }
     except Exception as e:
         raise RuntimeError(f"Task could not be created. {e}")
 
 
 def get_task_metadata(task_id):
     """Retrieve the metadata for a task execution.
-    
-       Provides the metadata for a task execution, including the state, start and end time, and the tags. 
-       The metadata is used to monitor the progress of a task execution.
 
-       Args:
-              task_id: The unique identifier of the task execution.
-       Returns:
-              A JSON with the metadata for the specified task id.
+    Provides the metadata for a task execution, including the state,
+    start and end time, and the tags. The metadata is used to monitor
+    the progress of a task execution.
+
+    Args:
+           task_id: The unique identifier of the task execution.
+    Returns:
+           A JSON with the metadata for the specified task id.
     """
 
-    try :
+    try:
         d = dict()
 
         t = sql_utils.task_execution_read(task_id)
         if t:
             d.update(sql_utils.task_execution_read(task_id))
 
-            if d['tags'].get('tool_image'):
-                d['tool_image'] = d['tags']['tool_image']
+            if d["tags"].get("tool_image"):
+                d["tool_image"] = d["tags"]["tool_image"]
 
-            if d['tags'].get('tool_name'):
-                d['tool_name'] = d['tags']['tool_name']
+            if d["tags"].get("tool_name"):
+                d["tool_name"] = d["tags"]["tool_name"]
 
-            state = d['state']
+            state = d["state"]
 
-            if state != 'failed' and state != 'succeeded':
+            if state != "failed" and state != "succeeded":
                 return d
-            
-            d['messages'] = d['tags']['log']
-            
-            d['output'] = sql_utils.task_execution_output_read(task_id)
-            d['metrics'] = sql_utils.task_execution_metrics_read(task_id)
 
-            return d            
+            d["messages"] = d["tags"]["log"]
+
+            d["output"] = sql_utils.task_execution_output_read(task_id)
+            d["metrics"] = sql_utils.task_execution_metrics_read(task_id)
+
+            return d
         else:
             raise ValueError("Task does not exist.")
-    except ValueError as e:
+    except ValueError:
         raise
     except Exception as e:
         raise RuntimeError(f"Task Metadata Could Not Be Retrieved. {e}")
 
-    
 
-
-def get_task_logs(task_id):    
+def get_task_logs(task_id):
     """Retrieve the logs for a task execution.
 
-       Provides the logs for a task execution. The logs are used to monitor the progress of a task execution and to debug issues.
+    Provides the logs for a task execution. The logs are used to monitor the progress of a
+    task execution and to debug issues.
 
-       Args:
-              task_id: The unique identifier of the task execution.
-       Returns:
-              A JSON with the logs for the specified task
+    Args:
+           task_id: The unique identifier of the task execution.
+    Returns:
+           A JSON with the logs for the specified task
     """
-    try :
-        engine = execution.exec_engine()
-        logs = engine.fetch_task_logs(task_id)
-        return logs
-    except Exception as e:
-        raise
+    engine = execution.exec_engine()
+    logs = engine.fetch_task_logs(task_id)
+    return logs
 
 
-def get_task_info(task_id):    
+def get_task_info(task_id):
     """Retrieve the info for a task execution.
 
-       Provides the state, logs for a task execution. The logs are used to monitor the progress of a task execution and to debug issues.
+    Provides the state, logs for a task execution. The logs are used to monitor the progress
+    of a task execution and to debug issues.
 
-       Args:
-              task_id: The unique identifier of the task execution.
-       Returns:
-              A JSON with the logs for the specified task
+    Args:
+           task_id: The unique identifier of the task execution.
+    Returns:
+           A JSON with the logs for the specified task
     """
-    try :
-        engine = execution.exec_engine()
-        logs = engine.get_task_info(task_id)
-        return logs
-    except Exception as e:
-        raise
+    engine = execution.exec_engine()
+    logs = engine.get_task_info(task_id)
+    return logs
 
-    
 
 def delete_task(task_id):
     """Delete a task execution.
 
-       Deletes a task execution based on the input task id provided. The task execution is removed from the database 
-       and the deletion cascades to the associated input groups, parameters, and outputs (specs).
-       
-       Args:
-              task_id: The unique identifier of the task execution.
-       Returns:
-              A boolean value indicating whether the task execution was successfully deleted.
+    Deletes a task execution based on the input task id provided. The task execution is removed from the database
+    and the deletion cascades to the associated input groups, parameters, and outputs (specs).
+
+    Args:
+           task_id: The unique identifier of the task execution.
+    Returns:
+           A boolean value indicating whether the task execution was successfully deleted.
     """
-    try :
+    try:
         # Check if the task exists. Throws an exception if it does not.
         get_task_metadata(task_id)
-
         response = sql_utils.task_execution_delete(task_id)
-        if not response:
-            return False
-            
-        return True
-    except ValueError as e:
-        raise  
+        return bool(response)
+
+    except ValueError:
+        raise
     except Exception:
         return False
 
@@ -429,22 +449,24 @@ def delete_task(task_id):
 def get_task_input_json(task_id, access_token=None):
     """Retrieve the input JSON for a task execution. This is the JSON the tool finally receives.
 
-       Provides the input JSON for a task execution, including the input groups and the parameters. The input JSON is used to create a task execution.
+    Provides the input JSON for a task execution, including the input groups and the parameters.
+    The input JSON is used to create a task execution.
 
-       Args:
-              task_id: The unique identifier of the task execution.
-              access_token: The access token for MinIO. (Default is None)
-       Returns:
-              A JSON with the input groups, parameters and MinIO credentials (if access_token was provided and was valid) for the specified task id.
+    Args:
+           task_id: The unique identifier of the task execution.
+           access_token: The access token for MinIO. (Default is None)
+    Returns:
+           A JSON with the input groups, parameters and MinIO credentials (if access_token was
+           provided and was valid) for the specified task id.
     """
     if is_valid_uuid(task_id):
         task_exec_id = task_id
-        config = current_app.config['settings']
-        
+        config = current_app.config["settings"]
+
         # Check if the task exists
         try:
             get_task_metadata(task_exec_id)
-        except ValueError as e:
+        except ValueError:
             raise ValueError("Task does not exist.")
 
         # Fetch the input groups and the parameters for the task execution from the database
@@ -454,22 +476,23 @@ def get_task_input_json(task_id, access_token=None):
         access_key = secret_key = session_token = None
 
         if access_token:
-            # Produce STS Token for MinIO Access 
-            minio_body = {      
-                'Action':'AssumeRoleWithWebIdentity',
-                'WebIdentityToken': access_token, 
-                'Version' : '2011-06-15',
-                'DurationSeconds' : '86000'
+            # Produce STS Token for MinIO Access
+            minio_body = {
+                "Action": "AssumeRoleWithWebIdentity",
+                "WebIdentityToken": access_token,
+                "Version": "2011-06-15",
+                "DurationSeconds": "86000",
             }
-            minio_url = "https://"+config['MINIO_API_SUBDOMAIN']+"."+config['KLMS_DOMAIN_NAME']
+            minio_url = (
+                "https://"
+                + config["MINIO_API_SUBDOMAIN"]
+                + "."
+                + config["KLMS_DOMAIN_NAME"]
+            )
 
             # Make a POST request to MinIO's STS endpoint to retrieve credentials, if any.
             try:
-                response = requests.post(
-                    url=minio_url, 
-                    params=minio_body,
-                    verify=False
-                )
+                response = requests.post(url=minio_url, params=minio_body, verify=False)
             except requests.exceptions.RequestException:
                 pass
 
@@ -478,16 +501,25 @@ def get_task_input_json(task_id, access_token=None):
                 try:
                     root = ET.fromstring(response.text)
                     # Extracting relevant information from the XML
-                    credentials = root.find('.//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials')
+                    credentials = root.find(
+                        ".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials"
+                    )
                     if credentials is not None:
-                        access_key = credentials.find('{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId').text if credentials.find('{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId') is not None else None
-                        secret_key = credentials.find('{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey').text if credentials.find('{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey') is not None else None
-                        session_token = credentials.find('{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken').text if credentials.find('{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken') is not None else None
-                except ET.ParseError as e:
+
+                        def credentials_field(name):
+                            el = credentials.find(
+                                f"{https://sts.amazonaws.com/doc/2011-06-15/}{name}"
+                            )
+                            return el.text if el is not None else None
+
+                        access_key = credentials_field("AccessKeyId")
+                        secret_key = credentials_field("SecretAccessKey")
+                        session_token = credentials_field("SessionToken")
+                except ET.ParseError:
                     pass
-                    
-        try :
-            # Fetch the URL/Path pointed by each artifact in the inputs spec (or pass it as plain path) 
+
+        try:
+            # Fetch the URL/Path pointed by each artifact in the inputs spec (or pass it as plain path)
             input_paths = dict()
             # We allow grouping of inputs in the JSON tool spec. For each group, we fetch the paths of the artifacts or URLs.
             for group in input:
@@ -502,33 +534,24 @@ def get_task_input_json(task_id, access_token=None):
                     input_paths[group].append(artifact)
 
             # Check if credentials are not None, else we return the input paths and parameters only.
+            minio_data = {"endpoint_url": minio_url}
             if access_key and secret_key and session_token:
-                result = {
-                    'input': input_paths,
-                    'parameters': parameters, 
-                    'minio': {
-                        'endpoint_url': minio_url,
-                        'id': access_key,
-                        'key': secret_key,
-                        'skey': session_token
-                    },
-                    # This should be populated in a later stage.
-                    'output':{}
+                minio_data |= {
+                    "id": access_key,
+                    "key": secret_key,
+                    "skey": session_token,
                 }
-            else:
-                result = {
-                    'input': input_paths, 
-                    'parameters': parameters,  
-                    'output':{},
-                    'minio':{
-                        'endpoint_url': "https://"+config['MINIO_API_SUBDOMAIN']+"."+config['KLMS_DOMAIN_NAME']
-                    }
-                }
-                
+            result = {
+                "input": input_paths,
+                "parameters": parameters,
+                "minio": minio_data,
+                # This should be populated in a later stage.
+                "output": {},
+            }
+
             return result
-        
+
         except Exception as e:
             raise RuntimeError(f"Task Input Could Not Be Retrieved. {e}")
     else:
         raise AttributeError("Invalid Task ID provided.")
-
