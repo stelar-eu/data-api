@@ -116,20 +116,14 @@ app.json_encoder = CustomJSONEncoder
 def login():
     config = current_app.config["settings"]
     keycloak_login_url = (
-        "https://"
-        + config["KEYCLOAK_SUBDOMAIN"]
-        + "."
-        + config["KLMS_DOMAIN_NAME"]
-        + "/realms/"
-        + config["REALM_NAME"]
+        config["KEYCLOAK_ISSUER_URL"]
         + "/protocol/openid-connect/auth"
         + "?client_id="
         + config["KEYCLOAK_CLIENT_ID"]
         + "&response_type=code"
-        + "&redirect_uri=https://"
-        + config["MAIN_INGRESS_SUBDOMAIN"]
-        + "."
-        + config["KLMS_DOMAIN_NAME"]
+        + "&redirect_uri="
+        # The callback url
+        + config["MAIN_EXT_URL"]
         + "/stelar/callback"
         + "&scope=openid"
     )
@@ -158,11 +152,7 @@ def callback():
         "client_id": config["KEYCLOAK_CLIENT_ID"],
         "client_secret": config["KEYCLOAK_CLIENT_SECRET"],
         "code": code,
-        "redirect_uri": "https://"
-        + config["MAIN_INGRESS_SUBDOMAIN"]
-        + "."
-        + config["KLMS_DOMAIN_NAME"]
-        + "/stelar/callback",
+        "redirect_uri": config["MAIN_EXT_URL"] + "/stelar/callback",
     }
 
     response = requests.post(token_url, data=payload)
@@ -3287,6 +3277,10 @@ def main(app):
         "MAIN_INGRESS_SUBDOMAIN": os.getenv("MAIN_INGRESS_SUBDOMAIN", "klms"),
         "KEYCLOAK_SUBDOMAIN": os.getenv("KEYCLOAK_SUBDOMAIN", "kc"),
         "MINIO_API_SUBDOMAIN": os.getenv("MINIO_API_SUBDOMAIN", "minio"),
+        "MINIO_API_EXT_URL": os.getenv("MINIO_API_EXT_URL", "***MISSING***"),
+        "KEYCLOAK_EXT_URL": os.getenv("KEYCLOAK_EXT_URL", "***MISSING***"),
+        "KEYCLOAK_ISSUER_URL": os.getenv("KEYCLOAK_ISSUER_URL", "***MISSING***"),
+        "MAIN_EXT_URL": os.getenv("MAIN_EXT_URL", "***MISSING***"),
         "S3_CONSOLE_URL": os.getenv("MINIO_CONSOLE_URL", ""),
         "SMTP_SERVER": os.getenv("SMTP_SERVER", "stelar.gr"),
         "SMTP_PORT": os.getenv("SMTP_PORT", "465"),

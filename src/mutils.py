@@ -54,9 +54,7 @@ def get_temp_minio_credentials(access_token):
         "Version": "2011-06-15",
         "DurationSeconds": "86000",
     }
-    minio_url = (
-        "https://" + config["MINIO_API_SUBDOMAIN"] + "." + config["KLMS_DOMAIN_NAME"]
-    )
+    minio_url = config["MINIO_API_EXT_URL"]
 
     # Properly make a POST request to MinIO's STS endpoint
     response = requests.post(url=minio_url, params=minio_body)
