@@ -262,7 +262,7 @@ def list_packages(limit: int = 0, offset: int = 0, expand_mode: bool = False):
         elif limit > 0 and offset >= 0:
             pass
         else:
-            raise Exception(
+            raise ValueError(
                 "Limit must be greater than 0. Offset should be non negative"
             )
 
