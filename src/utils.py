@@ -219,6 +219,8 @@ sql_workflow_execution_templates = {
     'task_commit_template': 'UPDATE klms.task_execution SET state = %s, end_date = %s WHERE task_uuid = %s',
     'task_create_connection_template': 'UPDATE klms.task_execution SET next_task_uuid = %s WHERE task_uuid = %s',
     'task_delete_template': 'DELETE FROM klms.task_execution WHERE task_uuid = %s',
+    'task_insert_secret_template': 'INSERT INTO klms.task_secret(task_uuid, key, value) VALUES (%s, %s, %s)',
+    'task_read_secret_template': 'SELECT key, value FROM klms.task_secret WHERE task_uuid = %s',
     'task_read_template': 'SELECT task_uuid AS task_exec_id, creator_user_id as creator, workflow_uuid AS workflow_exec_id, state, start_date, end_date FROM klms.task_execution WHERE task_uuid = %s',
     'task_read_tags_template': 'SELECT key, value FROM klms.task_tag WHERE task_uuid = %s',
     'task_read_input_group_names_by': 'SELECT DISTINCT input_group_name FROM klms.task_input WHERE task_uuid = %s',

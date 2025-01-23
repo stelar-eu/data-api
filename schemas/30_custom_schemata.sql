@@ -169,6 +169,14 @@ CREATE TABLE IF NOT EXISTS klms.task_tag
   CONSTRAINT fk_task_tag_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS klms.task_secret
+( task_uuid varchar(64) NOT NULL,
+  "key" text NOT NULL, 
+  "value" text,
+  PRIMARY KEY (task_uuid, "key"),
+  CONSTRAINT fk_task_secret_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
 
 CREATE TABLE IF NOT EXISTS klms.task_output_spec
 (

@@ -270,6 +270,7 @@ def create_task(json_data, token):
         input = json_data.get("inputs")
         parameters = json_data.get("parameters")
         datasets = json_data.get("datasets")
+        secrets = json_data.get("secrets")
 
         #### CHECK WORKFLOW EXECUTION STATE AND EXISTENCE
         workflow = sql_utils.workflow_execution_read(workflow_exec_id)
@@ -337,6 +338,13 @@ def create_task(json_data, token):
             raise RuntimeError(
                 "Task could not be created due to a database error regarding parameters."
             )
+        
+        if secrets:
+            response = sql_utils.task_execution_insert_secrets(task_exec_id, secrets)
+            if not response:
+                raise RuntimeError(
+                    "Task could not be created due to a database error regarding secrets."
+                )
 
         # Task can also be executed outside the cluster, in that case image was specified so we create
         # a job conditionally.
@@ -505,12 +513,7 @@ def get_task_input_json(task_id, signature=None, access_token=None):
                 "Version": "2011-06-15",
                 "DurationSeconds": "86000",
             }
-            minio_url = (
-                "https://"
-                + config["MINIO_API_SUBDOMAIN"]
-                + "."
-                + config["KLMS_DOMAIN_NAME"]
-            )
+            minio_url = config["MINIO_API_EXT_URL"]
 
             # Make a POST request to MinIO's STS endpoint to retrieve credentials, if any.
             try:
@@ -576,24 +579,40 @@ def get_task_input_json(task_id, signature=None, access_token=None):
                     input_paths[group].append(artifact)
 
             # Check if credentials are not None, else we return the input paths and parameters only.
-            minio_data = {"endpoint_url": minio_url}
             if access_key and secret_key and session_token:
-                minio_data |= {
-                    "id": access_key,
-                    "key": secret_key,
-                    "skey": session_token,
+                result = {
+                    'input': input_paths,
+                    'parameters': parameters, 
+                    'minio': {
+                        'endpoint_url': minio_url,
+                        'id': access_key,
+                        'key': secret_key,
+                        'skey': session_token
+                    },
+                    # This should be populated in a later stage.
+                    'output':{}
                 }
-            result = {
-                "input": input_paths,
-                "parameters": parameters,
-                "minio": minio_data,
-                # This should be populated in a later stage.
-                "output": {},
-            }
+            else:
+                result = {
+                    'input': input_paths, 
+                    'parameters': parameters,  
+                    'output':{},
+                    'minio':{
+                        'endpoint_url': config["MINIO_API_EXT_URL"]
+                    }
+                }
+                
 
             # If the request is signed, we verify the signature to include secret information.
             if signature:
                 if verify_task_signature(task_exec_id, signature):
+                    # Fetch the secrets for the task execution from the database
+                    secrets = sql_utils.task_execution_read_secrets(task_exec_id)
+                    if secrets:
+                        secrets_dict = {}
+                        # Iterate over the list of secrets and add key-value pairs to the new dictionary
+                        secrets_dict = {secret["key"]: secret["value"] for secret in secrets}
+                        result.update({"secrets": secrets_dict})
                     result["signature_verified"] = True
 
             return result

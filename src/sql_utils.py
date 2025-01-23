@@ -704,6 +704,55 @@ def task_execution_insert_parameters(task_exec_id, parameters):
     return True
 
 
+def task_execution_insert_secrets(task_exec_id, secrets):
+    """Records in the database that the user-specified secrets for the given task execution.
+
+    Args:
+        task_exec_id: UUID of the task execution.
+        secrets: A JSON dictionary with the task execution secrets as (key, value) pairs.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose the SQL command using the template for recording parameters of a task execution
+    if secrets:
+        for key, value in secrets.items():
+            sql = utils.sql_workflow_execution_templates[
+                "task_insert_secret_template"
+            ]
+
+            # Execute the SQL command in the database
+            resp = utils.execSql(sql, (task_exec_id, key, value))
+            if "status" in resp:
+                if not resp.get("status"):
+                    return False
+            else:
+                return False
+
+    return True
+
+
+def task_execution_read_secrets(task_exec_id):
+    """
+        Submit a request to the Metadata Database to retrieve information about the secrets 
+        of a task execution with given id
+
+    Returns:
+        A JSON with the secrets, if any.
+    """
+
+    sql = utils.sql_workflow_execution_templates["task_read_secret_template"]
+
+    # Execute the SQL command in the database
+    resp = utils.execSql(sql, (task_exec_id,))
+
+    if resp and len(resp) > 0:
+        task_secs = resp
+        return task_secs
+    else:
+        return None
+
 def task_execution_insert_metrics(task_exec_id, metrics):
     """Records in the database that the metrics collected for the given task execution.
 
