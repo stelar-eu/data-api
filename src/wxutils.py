@@ -1,3 +1,4 @@
+import hashlib
 import re
 import uuid
 import xml.etree.ElementTree as ET
@@ -38,6 +39,26 @@ def is_valid_uuid(s):
         return str(uuid_obj) == s
     except ValueError:
         return False
+
+
+def generate_task_signature(task_id):
+    """Generates a signature for a given task_id by salting it with the secret key of the flask app
+    and hashing it with SHA256.
+    """
+    secret_key = current_app.secret_key
+
+    if not secret_key:
+        raise RuntimeError("Secret key is not set in the Flask app.")
+
+    # Salting the task_id with the secret key
+    salted_task_id = task_id + secret_key
+    return hashlib.sha256(salted_task_id.encode()).hexdigest()
+
+
+def verify_task_signature(task_id, signature):
+    """Verifies the signature of a given task_id by comparing it with the signature generated using the secret key of the flask app."""
+    return signature == generate_task_signature(task_id)
+    
 
 
 def api_artifact_id(resource_id):
@@ -132,7 +153,7 @@ def get_workflow_process(workflow_id):
             return w
         else:
             raise ValueError("Workflow does not exist.")
-    except ValueError as e:
+    except ValueError:
         raise
     except Exception as e:
         raise RuntimeError(f"Workflow Process Could Not Be Retrieved. {e}")
@@ -341,6 +362,7 @@ def create_task(json_data, token):
         return {
             "task_exec_id": task_exec_id,
             "job_id": tags.get("job_id", "Remote Task Mode"),
+            "signature": generate_task_signature(task_exec_id),
         }
     except Exception as e:
         raise RuntimeError(f"Task could not be created. {e}")
@@ -446,7 +468,7 @@ def delete_task(task_id):
         return False
 
 
-def get_task_input_json(task_id, access_token=None):
+def get_task_input_json(task_id, signature=None, access_token=None):
     """Retrieve the input JSON for a task execution. This is the JSON the tool finally receives.
 
     Provides the input JSON for a task execution, including the input groups and the parameters.
@@ -505,17 +527,37 @@ def get_task_input_json(task_id, access_token=None):
                         ".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials"
                     )
                     if credentials is not None:
-
-                        def credentials_field(name):
-                            el = credentials.find(
-                                f"{https://sts.amazonaws.com/doc/2011-06-15/}{name}"
+                        access_key = (
+                            credentials.find(
+                                "{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId"
+                            ).text
+                            if credentials.find(
+                                "{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId"
                             )
-                            return el.text if el is not None else None
-
-                        access_key = credentials_field("AccessKeyId")
-                        secret_key = credentials_field("SecretAccessKey")
-                        session_token = credentials_field("SessionToken")
-                except ET.ParseError:
+                            is not None
+                            else None
+                        )
+                        secret_key = (
+                            credentials.find(
+                                "{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey"
+                            ).text
+                            if credentials.find(
+                                "{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey"
+                            )
+                            is not None
+                            else None
+                        )
+                        session_token = (
+                            credentials.find(
+                                "{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken"
+                            ).text
+                            if credentials.find(
+                                "{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken"
+                            )
+                            is not None
+                            else None
+                        )
+                except ET.ParseError as e:
                     pass
 
         try:
@@ -548,6 +590,11 @@ def get_task_input_json(task_id, access_token=None):
                 # This should be populated in a later stage.
                 "output": {},
             }
+
+            # If the request is signed, we verify the signature to include secret information.
+            if signature:
+                if verify_task_signature(task_exec_id, signature):
+                    result["signature_verified"] = True
 
             return result
 
