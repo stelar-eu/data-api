@@ -13,8 +13,15 @@ if [ "$1" = 'start-server' ]; then
     fi
 
     # Check if the MC_INSECURE environment variable is set to True
-    if [ "$MC_INSECURE" = "true" ]; then
-        echo 'Entering insecure mode for mc'
+    if [ "${MC_INSECURE,,}" = "true" ]; then
+        echo "Entering insecure mode for mc"
+    elif [ "${MC_INSECURE,,}" = "false" ]; then
+        echo "Operating in secure mode for mc"
+    else
+        echo "Invalid value for MC_INSECURE. Please set it to true or false."
+        exit 1
+    fi
+    
     
     mc alias set myminio $MINIO_DOMAIN $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD  
 
