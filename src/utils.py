@@ -220,6 +220,12 @@ sql_workflow_execution_templates = {
     'task_create_connection_template': 'UPDATE klms.task_execution SET next_task_uuid = %s WHERE task_uuid = %s',
     'task_delete_template': 'DELETE FROM klms.task_execution WHERE task_uuid = %s',
     'task_insert_secret_template': 'INSERT INTO klms.task_secret(task_uuid, key, value) VALUES (%s, %s, %s)',
+    'task_insert_existing_future_package': 'INSERT INTO klms.task_future_output_packages(task_uuid, package_uuid, package_friendly_name) VALUES(%s, %s, %s)',
+    'task_insert_future_package_details': 'INSERT INTO klms.task_future_output_packages(task_uuid, package_details, package_friendly_name) VALUES(%s, %s, %s)',
+    'task_insert_output_spec_new_resource': 'INSERT INTO klms.task_output_spec(task_uuid, output_name, output_address, dataset_friendly_name, resource_name, resource_label) VALUES(%s, %s, %s, %s, %s, %s)',
+    'task_insert_output_spec_existing_resource': 'INSERT INTO klms.task_output_spec(task_uuid, output_name, output_address, resource_id, resource_action) VALUES(%s, %s, %s, %s, %s)',
+    'task_insert_output_spec_plain_path': 'INSERT INTO klms.task_output_spec(task_uuid, output_name, output_address) VALUES(%s, %s, %s)',
+    'task_read_output_spec_for_tool': 'SELECT output_name, output_address FROM klms.task_output_spec WHERE task_uuid = %s',
     'task_read_secret_template': 'SELECT key, value FROM klms.task_secret WHERE task_uuid = %s',
     'task_read_template': 'SELECT task_uuid AS task_exec_id, creator_user_id as creator, workflow_uuid AS workflow_exec_id, state, start_date, end_date FROM klms.task_execution WHERE task_uuid = %s',
     'task_read_tags_template': 'SELECT key, value FROM klms.task_tag WHERE task_uuid = %s',
@@ -477,6 +483,41 @@ def read_list_json(json_arr, col_id='id', col_score='score'):
     
     return df
 
+def encode_to_base64(json_data):
+    """
+    Encodes a JSON object to Base64 format.
+
+    Args:
+        json_data (dict): JSON object to encode.
+
+    Returns:
+        str: Base64 encoded string.
+    """
+    # Convert JSON object to a JSON string
+    json_string = json.dumps(json_data)
+    # Encode the JSON string to Base64
+    base64_bytes = base64.b64encode(json_string.encode('utf-8'))
+    return base64_bytes.decode('utf-8')
+
+def decode_from_base64(base64_string):
+    """
+    Decodes a Base64 string back to its original JSON object.
+
+    Args:
+        base64_string (str): Base64 encoded string.
+
+    Returns:
+        dict: Decoded JSON object.
+    """
+    # Decode the Base64 string to a JSON string
+    json_string = base64.b64decode(base64_string).decode('utf-8')
+    # Convert the JSON string back to a JSON object
+    return json.loads(json_string)
+
+
+def is_valid_package_dict(obj):
+    required_keys = {"name", "tags", "notes"}
+    return isinstance(obj, dict) and required_keys.issubset(obj.keys())
 
 def assign_scores(response, df_scores, dict_df_facet_scores, facet_specs, profile_attributes):
     """Assign scores to the search results; also include any key-value pairs regarding facet specifications for ranking.

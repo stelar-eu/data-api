@@ -295,6 +295,7 @@ class Task_Input_v2(Schema):
     tool_name = fields.String(required=False)
     docker_image = fields.String(required=False)
     inputs = Dict(keys=fields.String(), values=fields.List(String), required=False)
+    outputs = Dict(keys=fields.String(), required=False)
     secrets = Dict(required=False)
     datasets = fields.Dict(
         keys=fields.String(), values=StringOrDictField(), required=False
