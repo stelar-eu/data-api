@@ -35,7 +35,7 @@ $$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tskx_action_enum') THEN
-        CREATE TYPE tskx_action_enum AS ENUM ('REPLACE','KEEP','TRUNCATE');
+        CREATE TYPE tskx_action_enum AS ENUM ('REPLACE', 'KEEP', 'TRUNCATE', 'UPDATE', 'COPY');
     END IF;
 END
 $$;
@@ -168,6 +168,44 @@ CREATE TABLE IF NOT EXISTS klms.task_tag
   PRIMARY KEY (task_uuid, "key"),
   CONSTRAINT fk_task_tag_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE
 );
+
+
+CREATE TABLE IF NOT EXISTS klms.task_output_spec
+(
+    task_uuid varchar(64) NOT NULL,
+    output_name varchar(100) NOT NULL,
+    output_address text NOT NULL,
+    dataset_id varchar(64),
+    dataset_friendly_name varchar(64),
+    resource_name text,
+    resource_id varchar(64),
+    resource_label text,
+    resouce_action tskx_action_enum, 
+    PRIMARY KEY (task_uuid),
+    CONSTRAINT fk_task_output_spec_task_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE,
+    CONSTRAINT fk_package_uuid FOREIGN KEY(dataset_id) REFERENCES public.package(id) ON UPDATE CASCADE,
+    CONSTRAINT chk_dataset_id_or_friendly_name CHECK (
+        (resource_name IS NOT NULL OR resource_id IS NOT NULL) AND (dataset_id IS NOT NULL OR dataset_friendly_name IS NOT NULL)
+    ),
+    CONSTRAINT chk_resource_id_or_name CHECK (
+        resource_id IS NOT NULL OR resource_name IS NOT NULL
+    )
+);
+
+CREATE TABLE IF NOT EXISTS klms.task_future_output_packages
+( task_uuid varchar(64) NOT NULL,
+    package_uuid varchar(64),
+    package_friendly_name text NOT NULL,
+    package_details TEXT,
+    PRIMARY KEY (task_uuid, package_uuid),
+    CONSTRAINT fk_task_tag_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_package_uuid FOREIGN KEY(package_uuid) REFERENCES public.package(id) ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT chk_package_uuid_or_details CHECK (
+        (package_uuid IS NOT NULL AND package_details IS NULL) OR
+        (package_uuid IS NULL AND package_details IS NOT NULL)
+    )
+);
+
 
 CREATE TABLE IF NOT EXISTS klms.task_output_packages
 ( task_uuid varchar(64) NOT NULL,
