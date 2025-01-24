@@ -891,6 +891,23 @@ def task_read_output_spec(task_exec_id):
         return None
 
 
+def task_read_output_spec_of_file(task_exec_id, file_key):
+    """
+    Retrieves the full specification regarding the handling of a tool output file. Both metadata
+    and data handling.
+    """
+    sql  = utils.sql_workflow_execution_templates["task_read_output_spec_of_file"]
+
+    resp = utils.execSql(sql, (task_exec_id, file_key))
+
+    if resp and len(resp) > 0:
+        output_spec = resp[0]
+        return output_spec
+    else:
+        return None
+    
+
+
 def task_execution_read(task_exec_id):
     """Returns metadata recorded in the database about the given task execution. User-specified tags are included in the returned response.
 

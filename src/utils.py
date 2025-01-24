@@ -233,6 +233,21 @@ sql_workflow_execution_templates = {
     'task_read_uuid_inputs' : 'SELECT resource_id FROM klms.task_input WHERE task_uuid= %s AND input_path IS NULL',
     'task_read_path_inputs' : 'SELECT input_path FROM klms.task_input WHERE task_uuid= %s AND resource_id IS NULL',
     'task_read_inputs_by_group_name' : 'SELECT * FROM klms.task_input WHERE task_uuid= %s AND input_group_name = %s',
+    'task_read_output_spec_of_file': """SELECT out_spec.task_uuid as task_uuid, 
+                                             output_name, 
+                                             output_address, 
+                                             dataset_friendly_name, 
+                                             package_uuid, 
+                                             package_details, 
+                                             resource_id, 
+                                             resource_name, 
+                                             resource_label, 
+                                             resource_action 
+                                      FROM klms.task_output_spec AS out_spec 
+                                      LEFT JOIN klms.task_future_output_packages AS tsk_pkgs 
+                                      ON out_spec.task_uuid=tsk_pkgs.task_uuid 
+                                      AND tsk_pkgs.package_friendly_name=out_spec.dataset_friendly_name 
+                                      WHERE out_spec.task_uuid=%s AND out_spec.output_name=%s""",
     #
     'task_read_input_dataset_template': 'SELECT * FROM klms.task_input WHERE task_uuid = %s',
     'task_read_output_dataset_template': 'SELECT * FROM klms.task_output WHERE task_uuid = %s',
@@ -516,7 +531,7 @@ def decode_from_base64(base64_string):
 
 
 def is_valid_package_dict(obj):
-    required_keys = {"name", "tags", "notes"}
+    required_keys = {"title", "tags", "notes"}
     return isinstance(obj, dict) and required_keys.issubset(obj.keys())
 
 def assign_scores(response, df_scores, dict_df_facet_scores, facet_specs, profile_attributes):

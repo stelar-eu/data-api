@@ -305,8 +305,8 @@ class Task_Input_v2(Schema):
 
 
 class Task_Output(Schema):
-    task_exec_id = String(required=True)
-    output_json = Dict()
+    signature = String(required=True),
+    output = Dict(keys=fields.String(), values=fields.String(), required=True)
 
 
 class Workflow_Input(Schema):

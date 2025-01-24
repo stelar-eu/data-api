@@ -704,3 +704,91 @@ def get_task_input_json(task_id, signature=None, access_token=None):
             raise RuntimeError(f"Task Input Could Not Be Retrieved. {e}")
     else:
         raise AttributeError("Invalid Task ID provided.")
+
+
+def get_task_output_json(task_id, signature, output_json):
+    """
+    Update the task execution with the output JSON provided. The output JSON includes the state, metrics, messages, and the output files.
+    Args:
+        task_id: The unique identifier of the task execution.
+        signature: The signature of the task execution.
+        output_json: The output JSON for the task execution.
+    Returns:
+        A boolean value indicating whether the output JSON was successfully updated.
+    Raises:
+        AssertionError: If the task signature is invalid.
+        AttributeError: If the task ID is invalid.
+        ValueError: If the task does not exist.
+    """
+
+    if verify_task_signature(task_id, signature) is False:
+        raise AssertionError("Invalid Task Signature.")
+        
+    if not is_valid_uuid(task_id):
+        raise AttributeError("Invalid Task ID provided.")
+    
+    if sql_utils.task_execution_read(task_id) is None:
+        raise ValueError("Task does not exist.")    
+
+    outputs = output_json["output"]
+    for output in outputs:
+        output_url = outputs[output]
+        output_spec = sql_utils.task_read_output_spec_of_file(task_id, output)
+        
+        if output_spec:
+            if output_url == output_spec.get("output_address",""):
+
+                # Handle the case where an existing resource should be updated with the new output path of the tool output.
+                if output_spec.get("resource_id"):
+                    updated_metadata = {}
+                    if output_spec.get("resource_name"):
+                        updated_metadata["name"] = output_spec.get("resource_name")
+                    if output_spec.get("resource_label"):
+                        updated_metadata["relation"] = output_spec.get("resource_label")
+                    updated_metadata["url"] = output_url
+                    try:
+                        result = cutils.patch_resource(output_spec.get("resource_id"), updated_metadata)
+                    except Exception:
+                        pass
+                
+                # Handle the case where a refenence to a dataset is included in the spec and we need to create a new resource in that dataset.
+                # or also create the dataset itself.
+                
+                if output_spec.get("dataset_friendly_name"):
+                    # Package does not exist should be created
+                    if output_spec.get("package_details"):
+                        try:
+                            decoded_package = utils.decode_from_base64(output_spec.get("package_details"))
+                            decoded_package["tags"].append("Workflow")
+                            cutils.create_package(basic_metadata=decoded_package)
+                        except Exception:
+                            continue
+                    # Package exists, we should create a resource inside it
+                    elif output_spec.get("package_id"):
+                        try:
+                            resource_metadata = {}
+                            resource_metadata["name"] = output_spec.get("resource_name")
+                            resource_metadata["url"] = output_url
+                            cutils.create_resource(output_spec.get("package_id"), resource_metadata, output_spec.get("resource_label"))
+                        except Exception:
+                            continue
+
+                        
+
+
+    # Now handle the metrics, messages and state of the task.
+    state = output_json.get("state")
+    messages = output_json.get("messages")
+    metrics = output_json.get("metrics")
+
+
+    if metrics:
+        sql_utils.task_execution_insert_metrics(task_id, metrics)
+    
+    if messages:
+        sql_utils.task_execution_insert_log(task_id, messages)
+    
+    if state:
+        sql_utils.task_execution_update(task_id, state, end_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+    return True
