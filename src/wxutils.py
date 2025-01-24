@@ -320,7 +320,6 @@ def create_task(json_data, token):
                                 dataset_uuid or val, filter_value
                             )
                         ]
-
                         resources.extend(dataset_resources)
                     elif cutils.is_resource(dataset_uuid or val):
                         resources.append(dataset_uuid or val)
@@ -356,7 +355,9 @@ def create_task(json_data, token):
                 value = datasets[dataset]
                 # Handle the case where the value is a package_id
                 if is_valid_uuid(value):
-                    responses = sql_utils.task_execution_insert_future_package_existing(task_exec_id=task_exec_id, package_id=value, package_friendly_name=dataset)
+                    responses = sql_utils.task_execution_insert_future_package_existing(task_exec_id=task_exec_id, 
+                                                                                        package_id=value, 
+                                                                                        package_friendly_name=dataset)
                     if not responses:
                         raise RuntimeError(
                             "Task could not be created due to a database error regarding future datasets."
@@ -364,7 +365,9 @@ def create_task(json_data, token):
                 # Handle the case where the value is a package_dict
                 elif utils.is_valid_package_dict(value):
                     encoded_details = utils.encode_to_base64(value)
-                    responses = sql_utils.task_execution_insert_future_package_details(task_exec_id=task_exec_id, package_details=encoded_details, package_friendly_name=dataset)
+                    responses = sql_utils.task_execution_insert_future_package_details(task_exec_id=task_exec_id, 
+                                                                                       package_details=encoded_details, 
+                                                                                       package_friendly_name=dataset)
                     if not responses:
                         raise RuntimeError(
                             "Task could not be created due to a database error regarding future datasets."
@@ -387,7 +390,9 @@ def create_task(json_data, token):
                             # Case where there is an existing resource that we want to overwrite its data
                             resource = output_spec.get('resource')
                             if is_valid_uuid(resource):
-                                response = sql_utils.task_execution_insert_output_spec_existing_resource(task_exec_id, output, url, resource, output_spec.get('resource_action','REPLACE'))
+                                response = sql_utils.task_execution_insert_output_spec_existing_resource(task_exec_id, output, 
+                                                                                                         url, resource, 
+                                                                                                         output_spec.get('resource_action','REPLACE'))
                                 if not response:
                                     raise RuntimeError(
                                         "Task could not be created due to a database error regarding output spec at output: " + output
@@ -397,7 +402,12 @@ def create_task(json_data, token):
                             elif isinstance(resource, dict) and output_spec.get('dataset', None):
                                 dataset_friendly_name = output_spec.get('dataset')
                                 if dataset_friendly_name in datasets.keys():
-                                    response = sql_utils.task_execution_insert_output_spec_new_resource(task_exec_id, output, url, dataset_friendly_name, resource.get('name',''), resource.get('label',''))
+                                    response = sql_utils.task_execution_insert_output_spec_new_resource(task_exec_id, 
+                                                                                                        output, 
+                                                                                                        url, 
+                                                                                                        dataset_friendly_name, 
+                                                                                                        resource.get('name',''), 
+                                                                                                        resource.get('label',''))
                                     if not response:
                                         raise RuntimeError(
                                             "Task could not be created due to a database error regarding output spec at output: " + output
@@ -424,8 +434,12 @@ def create_task(json_data, token):
         if json_data.get("docker_image"):
             engine = execution.exec_engine()
             token = "Bearer " + token
+            task_signature = generate_task_signature(task_exec_id)
             tags["container_id"], tags["job_id"] = engine.create_task(
-                json_data.get("docker_image"), token, task_exec_id
+                json_data.get("docker_image"), 
+                token, 
+                task_exec_id,
+                task_signature
             )
             tags["tool_image"] = json_data.get("docker_image")
 

@@ -210,7 +210,7 @@ class K8sExecEngine(ExecEngine):
         # Return the task info as a dictionary
         return task_info
 
-    def _create_job_manifest(self, tool_name: str, token: str, task_id: str):
+    def _create_job_manifest(self, tool_name: str, token: str, task_id: str, signature: str):
         # Create the resource for given tool
         from kubernetes.client import V1Container, V1PodSpec, V1ObjectMeta, V1JobSpec, V1Job
         from kubernetes.client import V1PodTemplateSpec
@@ -242,7 +242,7 @@ class K8sExecEngine(ExecEngine):
                                 name="main",
                                 image=tool_name,
                                 image_pull_policy='Always',
-                                args=[token, self.api_url, task_id]
+                                args=[token, self.api_url, task_id, signature],
                                 ),
                         ],
                         restart_policy="Never"
