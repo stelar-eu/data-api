@@ -53,7 +53,7 @@ from src.auth import security_doc, token_active
 # will be generated under folder /specs
 app = APIFlask(__name__, spec_path="/specs", docs_path="/docs")
 
-app.secret_key = "secretkey123"
+app.secret_key = os.getenv("SESSION_SECRET_KEY","None")
 
 app.config.from_prefixed_env()
 logging.basicConfig(level=logging.DEBUG)
@@ -3217,6 +3217,7 @@ def yaml_config(config_file):
 
 
 def main(app):
+    
     app.config["settings"] = {
         "FLASK_RUN_HOST": os.getenv("FLASK_RUN_HOST", "0.0.0.0"),
         "FLASK_RUN_PORT": os.getenv("FLASK_RUN_PORT", "80"),
