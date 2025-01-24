@@ -610,7 +610,7 @@ def api_rest_get_task_input(task_id, signature=None):
 @rest_workflows_bp.doc(tags=["RESTful Workflow Operations"])
 @rest_workflows_bp.input(schema.Task_Output, location="json")
 @rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
-def api_rest_post_task_output(task_id, signature, output_json):
+def api_rest_post_task_output(task_id, signature, json_data):
     """
     Handles the output of a task execution. Accepts the output files created by the tool, the metrics
     and the logs generated during the execution. The files are validated and metadata are generated
@@ -630,9 +630,16 @@ def api_rest_post_task_output(task_id, signature, output_json):
     """
     try:
         resp = wxutils.get_task_output_json(
-            task_id=task_id, signature=signature, output_json=output_json
+            task_id=task_id, signature=signature, output_json=json_data
         )
-        return {"success": True, "result": resp, "help": request.url}, 200
+        return {
+                "success": True, 
+                "result": {
+                    "task_id": task_id, 
+                    "output_published": resp 
+                }, 
+                "help": request.url
+        }, 200
     except ValueError as ve:
         return {
             "success": False,

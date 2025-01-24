@@ -300,38 +300,38 @@ def create_task(json_data, token):
                 ),
                 500,
             )
+        if input:
+            for key in input:
+                resources = []
+                input_group_name = key
+                for val in input[key]:
+                    dataset_uuid, filter_value = None, None
+                    # Extract possible filter from val
+                    if "::" in val:
+                        dataset_uuid, filter_value = val.split("::", 1)
 
-        for key in input:
-            resources = []
-            input_group_name = key
-            for val in input[key]:
-                dataset_uuid, filter_value = None, None
-                # Extract possible filter from val
-                if "::" in val:
-                    dataset_uuid, filter_value = val.split("::", 1)
+                    # Check if the value is a valid UUID
+                    if is_valid_uuid(dataset_uuid or val):
+                        if cutils.is_package(dataset_uuid or val):
+                            # Pass dataset_uuid and filter_value to get_package_resources
+                            dataset_resources = [
+                                resource["id"]
+                                for resource in cutils.get_package_resources(
+                                    dataset_uuid or val, filter_value
+                                )
+                            ]
+                            resources.extend(dataset_resources)
+                        elif cutils.is_resource(dataset_uuid or val):
+                            resources.append(dataset_uuid or val)
+                    elif is_valid_url(val):
+                        resources.append(val)
 
-                # Check if the value is a valid UUID
-                if is_valid_uuid(dataset_uuid or val):
-                    if cutils.is_package(dataset_uuid or val):
-                        # Pass dataset_uuid and filter_value to get_package_resources
-                        dataset_resources = [
-                            resource["id"]
-                            for resource in cutils.get_package_resources(
-                                dataset_uuid or val, filter_value
-                            )
-                        ]
-                        resources.extend(dataset_resources)
-                    elif cutils.is_resource(dataset_uuid or val):
-                        resources.append(dataset_uuid or val)
-                elif is_valid_url(val):
-                    resources.append(val)
+                response = sql_utils.task_execution_insert_input(
+                    task_exec_id, resources, input_group_name
+                )
 
-            response = sql_utils.task_execution_insert_input(
-                task_exec_id, resources, input_group_name
-            )
-
-            if not response:
-                raise RuntimeError("Task could not be created due to a database error.")
+                if not response:
+                    raise RuntimeError("Task could not be created due to a database error.")
 
         parameters = {k: str(v) for k, v in parameters.items()}
         response = sql_utils.task_execution_insert_parameters(task_exec_id, parameters)
@@ -721,7 +721,7 @@ def get_task_output_json(task_id, signature, output_json):
         ValueError: If the task does not exist.
     """
 
-    if verify_task_signature(task_id, signature) is False:
+    if not verify_task_signature(task_id, signature):
         raise AssertionError("Invalid Task Signature.")
         
     if not is_valid_uuid(task_id):
@@ -730,14 +730,12 @@ def get_task_output_json(task_id, signature, output_json):
     if sql_utils.task_execution_read(task_id) is None:
         raise ValueError("Task does not exist.")    
 
-    outputs = output_json["output"]
+    outputs = output_json.get("output", {})
     for output in outputs:
         output_url = outputs[output]
-        output_spec = sql_utils.task_read_output_spec_of_file(task_id, output)
-        
+        output_spec = sql_utils.task_read_output_spec_of_file(task_id, output)        
         if output_spec:
             if output_url == output_spec.get("output_address",""):
-
                 # Handle the case where an existing resource should be updated with the new output path of the tool output.
                 if output_spec.get("resource_id"):
                     updated_metadata = {}
@@ -753,34 +751,39 @@ def get_task_output_json(task_id, signature, output_json):
                 
                 # Handle the case where a refenence to a dataset is included in the spec and we need to create a new resource in that dataset.
                 # or also create the dataset itself.
-                
                 if output_spec.get("dataset_friendly_name"):
-                    # Package does not exist should be created
+                    # Package does not exist, should be created
                     if output_spec.get("package_details"):
                         try:
                             decoded_package = utils.decode_from_base64(output_spec.get("package_details"))
-                            decoded_package["tags"].append("Workflow")
-                            cutils.create_package(basic_metadata=decoded_package)
+                            try:
+                                new_pkg = cutils.create_package(basic_metadata=decoded_package)
+                            except Exception:
+                                # Package already exists
+                                new_pkg = cutils.get_package(id="0", title=decoded_package.get("title"))
+                            logging.debug(new_pkg)
+                            if new_pkg.get("id"):
+                                logging.debug("Creating resource")
+                                resource_metadata = {}
+                                resource_metadata["name"] = output_spec.get("resource_name")
+                                resource_metadata["url"] = output_url
+                                cutils.create_resource(new_pkg.get("id"), resource_metadata, output_spec.get("resource_label"))
                         except Exception:
                             continue
                     # Package exists, we should create a resource inside it
-                    elif output_spec.get("package_id"):
+                    elif output_spec.get("package_uuid"):
                         try:
                             resource_metadata = {}
                             resource_metadata["name"] = output_spec.get("resource_name")
                             resource_metadata["url"] = output_url
-                            cutils.create_resource(output_spec.get("package_id"), resource_metadata, output_spec.get("resource_label"))
+                            cutils.create_resource(output_spec.get("package_uuid"), resource_metadata, output_spec.get("resource_label"))
                         except Exception:
                             continue
-
-                        
-
 
     # Now handle the metrics, messages and state of the task.
     state = output_json.get("state")
     messages = output_json.get("messages")
     metrics = output_json.get("metrics")
-
 
     if metrics:
         sql_utils.task_execution_insert_metrics(task_id, metrics)
@@ -791,4 +794,4 @@ def get_task_output_json(task_id, signature, output_json):
     if state:
         sql_utils.task_execution_update(task_id, state, end_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-    return True
+    return "hello"
