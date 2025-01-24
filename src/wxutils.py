@@ -670,7 +670,7 @@ def get_task_input_json(task_id, signature=None, access_token=None):
             # Read the paths for the output files that the tool will write to.
             output = sql_utils.task_read_output_spec(task_exec_id)
             if output:
-                result["outputs"] = output
+                result["output"] = output
 
             # If the request is signed, we verify the signature to include secret information.
             if signature:
