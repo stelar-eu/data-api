@@ -731,6 +731,7 @@ def get_task_output_json(task_id, signature, output_json):
         raise ValueError("Task does not exist.")    
 
     outputs = output_json.get("output", {})
+    actual_resource_output = []
     for output in outputs:
         output_url = outputs[output]
         output_spec = sql_utils.task_read_output_spec_of_file(task_id, output)        
@@ -745,7 +746,9 @@ def get_task_output_json(task_id, signature, output_json):
                         updated_metadata["relation"] = output_spec.get("resource_label")
                     updated_metadata["url"] = output_url
                     try:
-                        result = cutils.patch_resource(output_spec.get("resource_id"), updated_metadata)
+                        resource = cutils.patch_resource(output_spec.get("resource_id"), updated_metadata)
+                        if resource.get("id"):
+                            actual_resource_output.append(resource.get("id"))
                     except Exception:
                         pass
                 
@@ -761,13 +764,13 @@ def get_task_output_json(task_id, signature, output_json):
                             except Exception:
                                 # Package already exists
                                 new_pkg = cutils.get_package(id="0", title=decoded_package.get("title"))
-                            logging.debug(new_pkg)
                             if new_pkg.get("id"):
-                                logging.debug("Creating resource")
                                 resource_metadata = {}
                                 resource_metadata["name"] = output_spec.get("resource_name")
                                 resource_metadata["url"] = output_url
-                                cutils.create_resource(new_pkg.get("id"), resource_metadata, output_spec.get("resource_label"))
+                                resource = cutils.create_resource(new_pkg.get("id"), resource_metadata, output_spec.get("resource_label"))
+                                if resource.get("id"):
+                                    actual_resource_output.append(resource.get("id"))
                         except Exception:
                             continue
                     # Package exists, we should create a resource inside it
@@ -776,9 +779,16 @@ def get_task_output_json(task_id, signature, output_json):
                             resource_metadata = {}
                             resource_metadata["name"] = output_spec.get("resource_name")
                             resource_metadata["url"] = output_url
-                            cutils.create_resource(output_spec.get("package_uuid"), resource_metadata, output_spec.get("resource_label"))
+                            resource = cutils.create_resource(output_spec.get("package_uuid"), resource_metadata, output_spec.get("resource_label"))
+                            if resource.get("id"):
+                                actual_resource_output.append(resource.get("id"))
                         except Exception:
                             continue
+
+    # Register the actual resources registered in the catalog by the task 
+    if actual_resource_output:
+        sql_utils.task_execution_insert_output(task_id, actual_resource_output)
+
 
     # Now handle the metrics, messages and state of the task.
     state = output_json.get("state")
