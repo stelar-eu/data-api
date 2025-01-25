@@ -61,7 +61,8 @@ def get_partner_logo():
             PARTNER_IMAGE = url_for("static", filename="logos/abaco.png")
         elif "ak" in domain.lower():
             PARTNER_IMAGE = url_for("static", filename="logos/ak.png")
-
+        else:
+            PARTNER_IMAGE = url_for("static", filename="logos/arc.png")
     return PARTNER_IMAGE
 
 

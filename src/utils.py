@@ -193,7 +193,8 @@ sql_workflow_execution_templates = {
                                     tsk.state, 
                                     tsk.start_date, 
                                     tsk.end_date, 
-                                    tsk_tg.value AS tool_image
+                                    MAX(CASE WHEN tsk_tg.key = 'tool_image' THEN tsk_tg.value END) AS tool_image,
+                                    MAX(CASE WHEN tsk_tg.key = 'tool_name' THEN tsk_tg.value END) AS tool_name
                                 FROM 
                                     klms.workflow_execution AS wf
                                 JOIN 
@@ -201,12 +202,14 @@ sql_workflow_execution_templates = {
                                     ON wf.workflow_uuid = tsk.workflow_uuid
                                 LEFT JOIN 
                                     klms.task_tag AS tsk_tg 
-                                    ON tsk.task_uuid = tsk_tg.task_uuid AND tsk_tg.key = 'tool_image'
+                                    ON tsk.task_uuid = tsk_tg.task_uuid
                                 WHERE 
                                     wf.workflow_uuid = %s
-                                    AND (
-                                        tsk_tg.key IS NULL OR tsk_tg.key = 'tool_image'
-                                    );
+                                GROUP BY 
+                                    tsk.task_uuid, 
+                                    tsk.state, 
+                                    tsk.start_date, 
+                                    tsk.end_date;
                             """,
     'workflow_get_all': """SELECT pkg.title as package_title, ex.workflow_uuid as id, ex.state, start_date, end_date, value as package_id 
                            FROM klms.workflow_execution as ex
