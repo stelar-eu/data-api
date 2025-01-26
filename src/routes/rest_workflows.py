@@ -578,16 +578,16 @@ def api_rest_get_task_input(task_id, signature=None):
         resp = wxutils.get_task_input_json(
             task_id=task_id, signature=signature, access_token=access_token
         )
-        return {"success": True, "result": resp, "help": request.url}, 200
+        return {"success": True, "result": resp, "help": ""}, 200
     except ValueError as ve:
         return {
             "success": False,
             "error": {"name": f"Error: {ve}", "__type": "Task Not Found"},
-            "help": request.url,
+            "help": "",
         }, 404
     except AttributeError as e:
         return {
-            "help": request.url,
+            "help": "",
             "error": {
                 "name": f"Error: {e}",
                 "__type": "Not valid Task ID",
@@ -596,7 +596,7 @@ def api_rest_get_task_input(task_id, signature=None):
         }, 400
     except RuntimeError as e:
         return {
-            "help": request.url,
+            "help": "",
             "error": {
                 "name": f"Error: {e}",
                 "__type": "Task Fetch Runtime Error",
@@ -638,7 +638,7 @@ def api_rest_post_task_output(task_id, signature, json_data):
                     "task_id": task_id, 
                     "output_published": resp 
                 }, 
-                "help": request.url
+                "help":""
         }, 200
     except ValueError as ve:
         return {
@@ -754,6 +754,62 @@ def api_delete_task(task_id):
             "success": False,
             "error": {"name": f"Error: {ve}", "__type": "Task Not Found Error"},
             "help": request.url,
+        }, 404
+    except Exception as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                "__type": "Unknown Error",
+            },
+            "success": False,
+        }, 500
+
+
+@rest_workflows_bp.route("/tasks/<task_id>", methods=["PATCH"])
+@rest_workflows_bp.input(schema.WorkflowState, location="json")
+@rest_workflows_bp.doc(tags=["RESTful Workflow Operations"])
+@rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
+@token_active
+def api_update_task_state(task_id, json_data):
+    """Update the state of a task given its unique identifier.
+    Args:
+        task_id: The unique identifier of the Task Execution.
+        json_data: The validated JSON input containing the new state of the task. Only the state field is required. The state must be one of the following: 'failed', 'succeeded', 'running'.
+    Returns:
+        A JSON response containing success status, or error
+    Responses:
+        - 200: Task successfully deleted.
+        - 404: Task not found.
+        - 500: An unknown error occurred.
+    """
+    try:
+        is_updated, state = wxutils.update_task_state(
+            task_id, json_data.get("state")
+        )
+        if is_updated:
+            return {
+                "success": True,
+                "result": {"task_id": task_id, "state": state},
+                "help": request.url,
+            }, 200
+        else:
+            return {
+                "help": request.url,
+                "error": {
+                    "name": f"Error: Task State {state} not valid",
+                    "__type": "Task State Update Error",
+                },
+                "success": False,
+            }, 400
+    except ValueError as ve:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {ve}",
+                "__type": "Task Not Found Error",
+            },
+            "success": False,
         }, 404
     except Exception as e:
         return {
