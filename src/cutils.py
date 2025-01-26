@@ -1,4 +1,3 @@
-import json
 import re
 from datetime import datetime
 from urllib.parse import urlencode, urljoin
@@ -10,31 +9,10 @@ import utils
 from routes.users import api_user_editor
 
 
-def create_CKAN_headers(API_TOKEN):
-    """Create the headers required for publishing a package or a resource in CKAN.
-
-    Args:
-        API_TOKEN (string): The API_TOKEN issued by CKAN that is required to establish connection
-        and submit the request.
-
-    Returns:
-        Two JSON obejcts: (i) headers for package and (ii) headers for resource.
-    """
-
-    package_headers = {"Authorization": API_TOKEN, "Content-Type": "application/json"}
-    resource_headers = {"X-CKAN-API-Key": API_TOKEN}
-    return package_headers, resource_headers
-
-
 def request(
-    method,
-    entity_type,
     endpoint,
-    params=None,
-    data=None,
-    headers=None,
     json=None,
-    files=None,
+    headers={},
 ):
     """
     Sends a request to the CKAN API
@@ -60,8 +38,7 @@ def request(
     api_url = config["CKAN_API"]
 
     # Combine base_url with the endpoint
-    endpoint = endpoint.lstrip("/")
-    url = urljoin(api_url + "/", endpoint)
+    url = urljoin(api_url, endpoint)
 
     # Handle query parameters in the endpoint or passed as 'params'
     if "?" in endpoint and params:
@@ -74,39 +51,13 @@ def request(
         url = f"{url}?{urlencode(params)}"
 
     # Prepare headers, defaulting to Authorization if token is present and Content-Type
-    default_headers = {}
-    package_headers, resource_headers = create_CKAN_headers(config["CKAN_ADMIN_TOKEN"])
-
-    if entity_type != "package" and entity_type != "resource":
-        raise AttributeError(f"Entity type '{entity_type}' is not supported!")
-
-    default_headers.update(
-        package_headers if entity_type == "package" else resource_headers
-    )
-
-    if headers:
-        default_headers.update(headers)
-
-    # Validate data/json and handle accordingly
-    if method.upper() == "GET":
-        # GET requests should not have a body (data or json)
-        if data or json:
-            raise ValueError("GET requests cannot include body data.")
-    else:
-        # POST, PUT, DELETE, etc., should use either data or json but not both
-        if data and json:
-            raise ValueError("Specify either 'data' or 'json', not both.")
+    headers = {"Authorization": config["CKAN_ADMIN_TOKEN"]} | headers
 
     # Make the request using the provided method, url, params, data, json, and headers
-    response = requests.request(
-        method=method,
+    response = requests.post(
         url=url,
-        params=None,  # params are already incorporated into the URL
-        data=data,  # if provided, this will be form data
         json=json,  # if provided, this will be JSON payload
-        headers=default_headers,
-        verify=True,
-        files=files,
+        headers=headers,
     )
 
     # Raise an exception for HTTP errors (4xx, 5xx responses)
@@ -125,14 +76,9 @@ def is_package(id: str):
     """
     try:
         if id:
-            response = request("GET", "package", "package_show", params={"id": id})
+            response = request("package_show", json={"id": id})
             if response.status_code == 200:
                 return True
-        else:
-            return False
-    except requests.exceptions.HTTPError as he:
-        if he.response.status_code == 404:
-            return False
         else:
             return False
     except Exception:
@@ -150,7 +96,7 @@ def is_resource(id: str):
     """
     try:
         if id:
-            response = request("GET", "resource", "resource_show", params={"id": id})
+            response = request("resource_show", params={"id": id})
             if response.status_code == 200:
                 return True
         else:
@@ -205,7 +151,7 @@ def search_packages(
         }
 
         # Make the request to the CKAN API
-        response = request("GET", "package_search", params=params)
+        response = request("package_search", json=params)
 
         if response.status_code == 200:
             results = response.json()["result"]["results"]
@@ -267,7 +213,7 @@ def list_packages(limit: int = 0, offset: int = 0, expand_mode: bool = False):
             )
 
         # Make the request to the CKAN API using the constructed parameters
-        response = request("GET", "package", "package_list")
+        response = request("package_list")
         if response.status_code == 200:
             datasets = response.json()["result"]
             if expand_mode:
@@ -313,10 +259,8 @@ def count_packages() -> int:
     """
     try:
         response = request(
-            "GET",
-            "package",
             "organization_show",
-            params={
+            json={
                 "id": "stelar-klms",
                 "include_dataset_count": True,
                 "include_users": False,
@@ -396,7 +340,7 @@ def get_package(id: str, compressed: bool = False, no_resources: bool = False):
         RuntimeError: For any other HTTP errors encountered while making the request.
     """
     try:
-        response = request("GET", "package", "package_show", params={"id": id})
+        response = request("package_show", json={"id": id})
         if response.status_code == 200:
             resp = response.json()
             dataset = resp.get("result", None)
@@ -475,9 +419,7 @@ def create_package(
                         ]  # CAUTION! Taking the first organization where this user is editor
                         break
         try:
-            resp_basic = request(
-                "POST", "package", "package_create", json=basic_metadata
-            )
+            resp_basic = request("package_create", json=basic_metadata)
             if resp_basic.status_code == 200:
                 package_id = resp_basic.json()["result"]["id"]
         except requests.exceptions.HTTPError as he:
@@ -498,7 +440,7 @@ def create_package(
         extras["id"] = package_id
         extras["extras"] = utils.handle_extras(extra_metadata)
 
-        resp_extras = request("POST", "package", "package_patch", json=extras)
+        resp_extras = request("package_patch", json=extras)
         if resp_extras.status_code != 200:
             raise RuntimeError(resp_extras.json()["result"])
 
@@ -519,9 +461,7 @@ def create_package(
             #         utils.execSql(sql)
         elif profile_metadata.get("url") is not None:
             profile_metadata["relation"] = "profile"
-            resp_resource = request(
-                "POST", "resource", "resource_create", json=profile_metadata
-            )
+            resp_resource = request("resource_create", json=profile_metadata)
             if resp_resource.status_code != 200:
                 raise RuntimeError(resp_extras.json()["result"])
         else:
@@ -531,9 +471,7 @@ def create_package(
             )
 
     # --- Return the newly created package by fetching it from the catalog
-    new_package_resp = request(
-        "GET", "package", "package_show", params={"id": package_id}
-    )
+    new_package_resp = request("package_show", params={"id": package_id})
 
     if new_package_resp.status_code == 200:
         return new_package_resp.json()["result"]
@@ -568,7 +506,7 @@ def patch_package(id: str, package_metadata: dict):
         if package_metadata.get("tags"):
             package_metadata["tags"] = utils.handle_keywords(package_metadata["tags"])
 
-        response = request("POST", "package", "package_patch", json=package_metadata)
+        response = request("package_patch", json=package_metadata)
         if response.status_code == 200:
             return response.json().get("result")
 
@@ -584,7 +522,7 @@ def patch_package(id: str, package_metadata: dict):
 def delete_package(id: str):
     try:
         if id:
-            response = request("POST", "package", "dataset_purge", json={"id": id})
+            response = request("dataset_purge", json={"id": id})
             if response.status_code == 200:
                 return id
     except requests.exceptions.HTTPError as he:
@@ -619,7 +557,7 @@ def get_package_resources(package_id: str, relation_filter: str = None):
 def get_resource(id: str):
     try:
         if id:
-            response = request("GET", "resource", "resource_show", params={"id": id})
+            response = request("resource_show", json={"id": id})
             if response.status_code == 200:
                 return response.json()["result"]
         else:
@@ -639,9 +577,7 @@ def create_resource(
             resource_metadata["package_id"] = package_id
             resource_metadata["relation"] = relation_type
 
-            response = request(
-                "POST", "resource", "resource_create", data=resource_metadata
-            )
+            response = request("resource_create", json=resource_metadata)
 
             if response.status_code == 200:
                 resource_id = response.json()["result"]["id"]
@@ -665,9 +601,7 @@ def patch_resource(id: str, resource_metadata: dict):
     try:
         if id:
             resource_metadata["id"] = id
-            response = request(
-                "POST", "resource", "resource_patch", data=resource_metadata
-            )
+            response = request("resource_patch", json=resource_metadata)
             if response.status_code == 200:
                 return response.json()["result"]
         else:
@@ -687,62 +621,14 @@ def delete_resource(id: str):
             # Performing double delete because CKAN needs 2 resource delete requests
             # to hard delete a resource.
             # Ugh....
-            response = request("POST", "resource", "resource_delete", json={"id": id})
-            if response.status_code == 200:
-                response = request(
-                    "POST", "resource", "resource_delete", json={"id": id}
-                )
+            response = request("resource_delete", json={"id": id})
+            # VSAM: Actually, take this back! eventually we are going to honor the CKAN soft delete,
+            # so we will not delete the resource twice.
+            # if response.status_code == 200:
+            #    response = request("resource_delete", json={"id": id})
             if response.status_code == 200:
                 return id
         else:
             raise ValueError("ID cannot be empty")
     except requests.exceptions.HTTPError as he:
         raise ValueError(f"Resource with ID: {id} was not found", he)
-
-
-##########################
-# NOT IMPLEMENTED
-##########################
-def publish_profile(package_id: str, profile_metadata: dict) -> dict:
-    if profile_metadata.get("file"):
-        with open(profile_metadata["file"], "rb") as f:
-            try:
-                profile_metadata["package_id"] = package_id
-                profile_metadata["relation"] = "profile"
-
-                # Use this instead of the custom create_resource method as we have a file
-                response = request(
-                    "POST",
-                    "resource",
-                    "resource_create",
-                    data=profile_metadata,
-                    files=[("upload", f)],
-                )
-                if response.status_code == 200:
-                    prf = open(profile_metadata["file"])
-                    profile = json.load(prf)
-                    resource_id = response.json()["result"]["id"]
-
-                    sql_commands = utils.extractProfileProperties(resource_id, profile)
-                    for sql in sql_commands:
-                        utils.execSql(sql)
-
-                    return response.json()["result"]
-            except requests.exceptions.HTTPError as he:
-                if he.response.status_code == 404:
-                    raise ValueError(f"Package with ID: {package_id} was not found")
-                elif he.response.status_code == 400:
-                    raise AttributeError(
-                        f"Missing parameter fields for profile metadata: {he}"
-                    )
-            except Exception as e:
-                raise Exception from e
-
-    elif profile_metadata.get("url"):
-        try:
-            resource = create_resource(
-                package_id, resource_metadata=profile_metadata, relation_type="profile"
-            )
-            return resource
-        except Exception as e:
-            raise Exception from e

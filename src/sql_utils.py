@@ -11,8 +11,6 @@ from flask import current_app
 # Auxiliary custom functions & SQL query templates for ranking
 import utils
 
-logging.basicConfig(level=logging.DEBUG)
-
 
 def is_valid_uuid(s):
     try:

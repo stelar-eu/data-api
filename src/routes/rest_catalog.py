@@ -22,6 +22,14 @@ rest_catalog_bp = APIBlueprint(
 #########################################################
 
 
+@rest_catalog_bp.errorhandler(500)
+def api_internal_error(ex):
+    import traceback
+
+    logging.exception("Internal error")
+    return jsonify({"exception": traceback.format_exc()}), 500
+
+
 @rest_catalog_bp.route("/datasets", methods=["GET"])
 @rest_catalog_bp.doc(tags=["RESTful Search Operations"], security=security_doc)
 @rest_catalog_bp.input(schema.PaginationParameters, location="query")

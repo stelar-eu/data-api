@@ -1,14 +1,11 @@
-import datetime
 import hashlib
 import logging
 
 # FOR TESTING ONLY!!!
 import os
-import random
 import re
 import smtplib
 import ssl
-import time
 from datetime import datetime, timedelta
 from functools import wraps
 from math import ceil
@@ -35,9 +32,6 @@ import wxutils
 from auth import admin_required
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
-
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 def render_template_with_s3(template_name, **kwargs):

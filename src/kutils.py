@@ -1,7 +1,5 @@
 import base64
 import datetime
-import logging
-import logging.config
 import re
 import smtplib
 import ssl
@@ -20,8 +18,6 @@ from keycloak import (
 )
 
 import sql_utils
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 def is_valid_uuid(s):
