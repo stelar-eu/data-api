@@ -1,4 +1,5 @@
 import json
+import logging
 
 import requests
 from apiflask import APIBlueprint
@@ -11,6 +12,9 @@ import kutils
 import schema
 import wxutils
 from src.auth import admin_required, auth, security_doc, token_active
+
+logging.basicConfig(level=logging.DEBUG)
+
 
 rest_workflows_bp = APIBlueprint(
     "rest_workflows_blueprint", __name__, tag="RESTful Workflow Operations"
@@ -550,10 +554,11 @@ def api_rest_create_task(json_data):
 
 
 @rest_workflows_bp.route("/tasks/<task_id>/input", methods=["GET"])
+@rest_workflows_bp.route("/tasks/<task_id>/<signature>/input", methods=["GET"])
 @rest_workflows_bp.doc(tags=["RESTful Workflow Operations"])
 @rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
-def api_rest_get_task_input(task_id):
+def api_rest_get_task_input(task_id, signature=None):
     """Return the input JSON of the specific Task Execution. This JSON is given to the tool during its initialization.
 
     Args:
@@ -570,7 +575,9 @@ def api_rest_get_task_input(task_id):
     """
     try:
         access_token = request.headers.get("Authorization").split(" ")[1]
-        resp = wxutils.get_task_input_json(task_id=task_id, access_token=access_token)
+        resp = wxutils.get_task_input_json(
+            task_id=task_id, signature=signature, access_token=access_token
+        )
         return {"success": True, "result": resp, "help": request.url}, 200
     except ValueError as ve:
         return {
@@ -587,6 +594,72 @@ def api_rest_get_task_input(task_id):
             },
             "success": False,
         }, 400
+    except RuntimeError as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                "__type": "Task Fetch Runtime Error",
+            },
+            "success": False,
+        }, 500
+
+
+@rest_workflows_bp.route("/tasks/<task_id>/<signature>/output", methods=["POST"])
+@rest_workflows_bp.doc(tags=["RESTful Workflow Operations"])
+@rest_workflows_bp.input(schema.Task_Output, location="json")
+@rest_workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
+def api_rest_post_task_output(task_id, signature, json_data):
+    """
+    Handles the output of a task execution. Accepts the output files created by the tool, the metrics
+    and the logs generated during the execution. The files are validated and metadata are generated
+    based on the specifications provided in the tool creation request.
+
+    Args:
+        task_id: The unique identifier of the Task.
+        signature: The unique signature of the Task Execution, acting as the authentication mechanism.
+    Returns:
+        A JSON response containing success status, or error details.
+    Responses:
+        - 200: Task output successfully posted.
+        - 400: Invalid task ID or missing parameters.
+        - 401: Invalid signature. Access denied.
+        - 404: Task not found.
+        - 500: An unknown error occurred.
+    """
+    try:
+        resp = wxutils.get_task_output_json(
+            task_id=task_id, signature=signature, output_json=json_data
+        )
+        return {
+            "success": True,
+            "result": {"task_id": task_id, "output_published": resp},
+            "help": request.url,
+        }, 200
+    except ValueError as ve:
+        return {
+            "success": False,
+            "error": {"name": f"Error: {ve}", "__type": "Task Not Found"},
+            "help": request.url,
+        }, 404
+    except AttributeError as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                "__type": "Not valid Task ID",
+            },
+            "success": False,
+        }, 400
+    except AssertionError as e:
+        return {
+            "help": request.url,
+            "error": {
+                "name": f"Error: {e}",
+                "__type": "Invalid Signature",
+            },
+            "success": False,
+        }, 401
     except RuntimeError as e:
         return {
             "help": request.url,

@@ -295,6 +295,8 @@ class Task_Input_v2(Schema):
     tool_name = fields.String(required=False)
     docker_image = fields.String(required=False)
     inputs = Dict(keys=fields.String(), values=fields.List(String), required=False)
+    outputs = Dict(keys=fields.String(), required=False)
+    secrets = Dict(required=False)
     datasets = fields.Dict(
         keys=fields.String(), values=StringOrDictField(), required=False
     )
@@ -303,8 +305,10 @@ class Task_Input_v2(Schema):
 
 
 class Task_Output(Schema):
-    task_exec_id = String(required=True)
-    output_json = Dict()
+    metrics = Dict(keys=fields.String(), values=fields.String(), required=False)
+    status = String(required=True)
+    messages = String(required=False)
+    output = Dict(keys=fields.String(), values=fields.String(), required=True)
 
 
 class Workflow_Input(Schema):

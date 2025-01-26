@@ -321,7 +321,9 @@ def get_packages(
     return result
 
 
-def get_package(id: str, compressed: bool = False, no_resources: bool = False):
+def get_package(
+    id: str, compressed: bool = False, no_resources: bool = False, title: str = None
+):
     """Retrieve a dataset's details from the CKAN catalog using its unique identifier.
 
     This function interacts with the CKAN API to fetch metadata about a specific dataset.
@@ -331,6 +333,9 @@ def get_package(id: str, compressed: bool = False, no_resources: bool = False):
     Args:
         id (str): The unique identifier (name) of the dataset to retrieve.
         compressed (bool): Whether to compress the dataset's 'resources' field.
+        no_resources (bool): Whether to exclude the 'resources' field from the dataset.
+        title (str): The title of the dataset to retrieve. If provided, it will be converted
+        to an ID and dominate any ID provided.
 
     Returns:
         dict or None: The dataset's details as a dictionary if found, otherwise None.
@@ -340,7 +345,11 @@ def get_package(id: str, compressed: bool = False, no_resources: bool = False):
         RuntimeError: For any other HTTP errors encountered while making the request.
     """
     try:
-        response = request("package_show", json={"id": id})
+        # If title is provided, convert it to a valid ID
+        if title:
+            id = re.sub(r"[\W_]+", "_", title).lower()
+
+        response = request("GET", "package", "package_show", params={"id": id})
         if response.status_code == 200:
             resp = response.json()
             dataset = resp.get("result", None)

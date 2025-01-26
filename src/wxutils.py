@@ -1,3 +1,4 @@
+import hashlib
 import re
 import uuid
 import xml.etree.ElementTree as ET
@@ -11,7 +12,9 @@ import execution
 import kutils
 import sql_utils
 import utils
+import logging
 
+logging.basicConfig(level=logging.DEBUG)
 
 def is_valid_url(url):
     """Check if a string is a valid URL. Valid URLs are of the form 'protocol://hostname[:port]/path'.
@@ -36,8 +39,28 @@ def is_valid_uuid(s):
         uuid_obj = uuid.UUID(s)
         # Check if the string matches the canonical form of the UUID (with lowercase hexadecimal and hyphens)
         return str(uuid_obj) == s
-    except ValueError:
+    except Exception:
         return False
+
+
+def generate_task_signature(task_id):
+    """Generates a signature for a given task_id by salting it with the secret key of the flask app
+    and hashing it with SHA256.
+    """
+    secret_key = current_app.secret_key
+
+    if not secret_key:
+        raise RuntimeError("Secret key is not set in the Flask app.")
+
+    # Salting the task_id with the secret key
+    salted_task_id = task_id + secret_key
+    return hashlib.sha256(salted_task_id.encode()).hexdigest()
+
+
+def verify_task_signature(task_id, signature):
+    """Verifies the signature of a given task_id by comparing it with the signature generated using the secret key of the flask app."""
+    return signature == generate_task_signature(task_id)
+    
 
 
 def api_artifact_id(resource_id):
@@ -132,7 +155,7 @@ def get_workflow_process(workflow_id):
             return w
         else:
             raise ValueError("Workflow does not exist.")
-    except ValueError as e:
+    except ValueError:
         raise
     except Exception as e:
         raise RuntimeError(f"Workflow Process Could Not Be Retrieved. {e}")
@@ -249,6 +272,8 @@ def create_task(json_data, token):
         input = json_data.get("inputs")
         parameters = json_data.get("parameters")
         datasets = json_data.get("datasets")
+        secrets = json_data.get("secrets")
+        outputs = json_data.get("outputs")
 
         #### CHECK WORKFLOW EXECUTION STATE AND EXISTENCE
         workflow = sql_utils.workflow_execution_read(workflow_exec_id)
@@ -275,39 +300,38 @@ def create_task(json_data, token):
                 ),
                 500,
             )
+        if input:
+            for key in input:
+                resources = []
+                input_group_name = key
+                for val in input[key]:
+                    dataset_uuid, filter_value = None, None
+                    # Extract possible filter from val
+                    if "::" in val:
+                        dataset_uuid, filter_value = val.split("::", 1)
 
-        for key in input:
-            resources = []
-            input_group_name = key
-            for val in input[key]:
-                dataset_uuid, filter_value = None, None
-                # Extract possible filter from val
-                if "::" in val:
-                    dataset_uuid, filter_value = val.split("::", 1)
+                    # Check if the value is a valid UUID
+                    if is_valid_uuid(dataset_uuid or val):
+                        if cutils.is_package(dataset_uuid or val):
+                            # Pass dataset_uuid and filter_value to get_package_resources
+                            dataset_resources = [
+                                resource["id"]
+                                for resource in cutils.get_package_resources(
+                                    dataset_uuid or val, filter_value
+                                )
+                            ]
+                            resources.extend(dataset_resources)
+                        elif cutils.is_resource(dataset_uuid or val):
+                            resources.append(dataset_uuid or val)
+                    elif is_valid_url(val):
+                        resources.append(val)
 
-                # Check if the value is a valid UUID
-                if is_valid_uuid(dataset_uuid or val):
-                    if cutils.is_package(dataset_uuid or val):
-                        # Pass dataset_uuid and filter_value to get_package_resources
-                        dataset_resources = [
-                            resource["id"]
-                            for resource in cutils.get_package_resources(
-                                dataset_uuid or val, filter_value
-                            )
-                        ]
+                response = sql_utils.task_execution_insert_input(
+                    task_exec_id, resources, input_group_name
+                )
 
-                        resources.extend(dataset_resources)
-                    elif cutils.is_resource(dataset_uuid or val):
-                        resources.append(dataset_uuid or val)
-                elif is_valid_url(val):
-                    resources.append(val)
-
-            response = sql_utils.task_execution_insert_input(
-                task_exec_id, resources, input_group_name
-            )
-
-        if not response:
-            raise RuntimeError("Task could not be created due to a database error.")
+                if not response:
+                    raise RuntimeError("Task could not be created due to a database error.")
 
         parameters = {k: str(v) for k, v in parameters.items()}
         response = sql_utils.task_execution_insert_parameters(task_exec_id, parameters)
@@ -316,7 +340,90 @@ def create_task(json_data, token):
             raise RuntimeError(
                 "Task could not be created due to a database error regarding parameters."
             )
+        
+        if secrets:
+            response = sql_utils.task_execution_insert_secrets(task_exec_id, secrets)
+            if not response:
+                raise RuntimeError(
+                    "Task could not be created due to a database error regarding secrets."
+                )
 
+
+        # Future datasets are datasets that are going to be used for storing metadata when the task is completed. 
+        if datasets:
+            for dataset in datasets:
+                value = datasets[dataset]
+                # Handle the case where the value is a package_id
+                if is_valid_uuid(value):
+                    responses = sql_utils.task_execution_insert_future_package_existing(task_exec_id=task_exec_id, 
+                                                                                        package_id=value, 
+                                                                                        package_friendly_name=dataset)
+                    if not responses:
+                        raise RuntimeError(
+                            "Task could not be created due to a database error regarding future datasets."
+                        )
+                # Handle the case where the value is a package_dict
+                elif utils.is_valid_package_dict(value):
+                    encoded_details = utils.encode_to_base64(value)
+                    responses = sql_utils.task_execution_insert_future_package_details(task_exec_id=task_exec_id, 
+                                                                                       package_details=encoded_details, 
+                                                                                       package_friendly_name=dataset)
+                    if not responses:
+                        raise RuntimeError(
+                            "Task could not be created due to a database error regarding future datasets."
+                        )
+       
+        # Handle output spec to store the details of actions that need to be taken after the task is completed regarding the output files and their metadata.
+        if outputs:
+            for output in outputs:
+                if isinstance(outputs[output], dict):
+                    output_spec = outputs[output]
+                    if not output_spec.get('url'):
+                        raise ValueError("Output spec must contain a URL as an output for file key: " + output)
+                    else:
+                        url = output_spec.get('url', None)
+                        if not is_valid_url(url):
+                            continue
+
+                        # Handle the metadata related fields and cases
+                        if output_spec.get('resource', None):
+                            # Case where there is an existing resource that we want to overwrite its data
+                            resource = output_spec.get('resource')
+                            if is_valid_uuid(resource):
+                                response = sql_utils.task_execution_insert_output_spec_existing_resource(task_exec_id, output, 
+                                                                                                         url, resource, 
+                                                                                                         output_spec.get('resource_action','REPLACE'))
+                                if not response:
+                                    raise RuntimeError(
+                                        "Task could not be created due to a database error regarding output spec at output: " + output
+                                    )
+                                
+                            # Case where we want to create a resource in a dataset specified in the datasets above. 
+                            elif isinstance(resource, dict) and output_spec.get('dataset', None):
+                                dataset_friendly_name = output_spec.get('dataset')
+                                if dataset_friendly_name in datasets.keys():
+                                    response = sql_utils.task_execution_insert_output_spec_new_resource(task_exec_id, 
+                                                                                                        output, 
+                                                                                                        url, 
+                                                                                                        dataset_friendly_name, 
+                                                                                                        resource.get('name',''), 
+                                                                                                        resource.get('label',''))
+                                    if not response:
+                                        raise RuntimeError(
+                                            "Task could not be created due to a database error regarding output spec at output: " + output
+                                        )
+                                else:
+                                    raise RuntimeError(f"Dataset friendly name `{dataset_friendly_name}` not found in declared datasets.")
+                                    
+                        # Case where we don't want any metadata to be tracked for this output file.
+                        else:
+                            response = sql_utils.task_execution_insert_output_spec_plain_path(task_exec_id, output, url)
+                            if not response:
+                                raise RuntimeError(
+                                    "Task could not be created due to a database error regarding output spec at output: " + output
+                                )
+                            
+        
         # Task can also be executed outside the cluster, in that case image was specified so we create
         # a job conditionally.
 
@@ -327,8 +434,12 @@ def create_task(json_data, token):
         if json_data.get("docker_image"):
             engine = execution.exec_engine()
             token = "Bearer " + token
+            task_signature = generate_task_signature(task_exec_id)
             tags["container_id"], tags["job_id"] = engine.create_task(
-                json_data.get("docker_image"), token, task_exec_id
+                json_data.get("docker_image"), 
+                token, 
+                task_exec_id,
+                task_signature
             )
             tags["tool_image"] = json_data.get("docker_image")
 
@@ -341,6 +452,7 @@ def create_task(json_data, token):
         return {
             "task_exec_id": task_exec_id,
             "job_id": tags.get("job_id", "Remote Task Mode"),
+            "signature": generate_task_signature(task_exec_id),
         }
     except Exception as e:
         raise RuntimeError(f"Task could not be created. {e}")
@@ -446,7 +558,7 @@ def delete_task(task_id):
         return False
 
 
-def get_task_input_json(task_id, access_token=None):
+def get_task_input_json(task_id, signature=None, access_token=None):
     """Retrieve the input JSON for a task execution. This is the JSON the tool finally receives.
 
     Provides the input JSON for a task execution, including the input groups and the parameters.
@@ -483,12 +595,7 @@ def get_task_input_json(task_id, access_token=None):
                 "Version": "2011-06-15",
                 "DurationSeconds": "86000",
             }
-            minio_url = (
-                "https://"
-                + config["MINIO_API_SUBDOMAIN"]
-                + "."
-                + config["KLMS_DOMAIN_NAME"]
-            )
+            minio_url = config["MINIO_API_EXT_URL"]
 
             # Make a POST request to MinIO's STS endpoint to retrieve credentials, if any.
             try:
@@ -505,17 +612,37 @@ def get_task_input_json(task_id, access_token=None):
                         ".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials"
                     )
                     if credentials is not None:
-
-                        def credentials_field(name):
-                            el = credentials.find(
-                                f"{https://sts.amazonaws.com/doc/2011-06-15/}{name}"
+                        access_key = (
+                            credentials.find(
+                                "{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId"
+                            ).text
+                            if credentials.find(
+                                "{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId"
                             )
-                            return el.text if el is not None else None
-
-                        access_key = credentials_field("AccessKeyId")
-                        secret_key = credentials_field("SecretAccessKey")
-                        session_token = credentials_field("SessionToken")
-                except ET.ParseError:
+                            is not None
+                            else None
+                        )
+                        secret_key = (
+                            credentials.find(
+                                "{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey"
+                            ).text
+                            if credentials.find(
+                                "{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey"
+                            )
+                            is not None
+                            else None
+                        )
+                        session_token = (
+                            credentials.find(
+                                "{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken"
+                            ).text
+                            if credentials.find(
+                                "{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken"
+                            )
+                            is not None
+                            else None
+                        )
+                except ET.ParseError as e:
                     pass
 
         try:
@@ -534,20 +661,42 @@ def get_task_input_json(task_id, access_token=None):
                     input_paths[group].append(artifact)
 
             # Check if credentials are not None, else we return the input paths and parameters only.
-            minio_data = {"endpoint_url": minio_url}
             if access_key and secret_key and session_token:
-                minio_data |= {
-                    "id": access_key,
-                    "key": secret_key,
-                    "skey": session_token,
+                result = {
+                    'input': input_paths,
+                    'parameters': parameters, 
+                    'minio': {
+                        'endpoint_url': minio_url,
+                        'id': access_key,
+                        'key': secret_key,
+                        'skey': session_token
+                    },
                 }
-            result = {
-                "input": input_paths,
-                "parameters": parameters,
-                "minio": minio_data,
-                # This should be populated in a later stage.
-                "output": {},
-            }
+            else:
+                result = {
+                    'input': input_paths, 
+                    'parameters': parameters,  
+                    'minio':{
+                        'endpoint_url': config["MINIO_API_EXT_URL"]
+                    }
+                }
+            
+            # Read the paths for the output files that the tool will write to.
+            output = sql_utils.task_read_output_spec(task_exec_id)
+            if output:
+                result["output"] = output
+
+            # If the request is signed, we verify the signature to include secret information.
+            if signature:
+                if verify_task_signature(task_exec_id, signature):
+                    # Fetch the secrets for the task execution from the database
+                    secrets = sql_utils.task_execution_read_secrets(task_exec_id)
+                    if secrets:
+                        secrets_dict = {}
+                        # Iterate over the list of secrets and add key-value pairs to the new dictionary
+                        secrets_dict = {secret["key"]: secret["value"] for secret in secrets}
+                        result.update({"secrets": secrets_dict})
+                    result["signature_verified"] = True
 
             return result
 
@@ -555,3 +704,104 @@ def get_task_input_json(task_id, access_token=None):
             raise RuntimeError(f"Task Input Could Not Be Retrieved. {e}")
     else:
         raise AttributeError("Invalid Task ID provided.")
+
+
+def get_task_output_json(task_id, signature, output_json):
+    """
+    Update the task execution with the output JSON provided. The output JSON includes the state, metrics, messages, and the output files.
+    Args:
+        task_id: The unique identifier of the task execution.
+        signature: The signature of the task execution.
+        output_json: The output JSON for the task execution.
+    Returns:
+        A boolean value indicating whether the output JSON was successfully updated.
+    Raises:
+        AssertionError: If the task signature is invalid.
+        AttributeError: If the task ID is invalid.
+        ValueError: If the task does not exist.
+    """
+
+    if not verify_task_signature(task_id, signature):
+        raise AssertionError("Invalid Task Signature.")
+        
+    if not is_valid_uuid(task_id):
+        raise AttributeError("Invalid Task ID provided.")
+    
+    if sql_utils.task_execution_read(task_id) is None:
+        raise ValueError("Task does not exist.")    
+
+    outputs = output_json.get("output", {})
+    actual_resource_output = []
+    for output in outputs:
+        output_url = outputs[output]
+        output_spec = sql_utils.task_read_output_spec_of_file(task_id, output)        
+        if output_spec:
+            if output_url == output_spec.get("output_address",""):
+                # Handle the case where an existing resource should be updated with the new output path of the tool output.
+                if output_spec.get("resource_id"):
+                    updated_metadata = {}
+                    if output_spec.get("resource_name"):
+                        updated_metadata["name"] = output_spec.get("resource_name")
+                    if output_spec.get("resource_label"):
+                        updated_metadata["relation"] = output_spec.get("resource_label")
+                    updated_metadata["url"] = output_url
+                    try:
+                        resource = cutils.patch_resource(output_spec.get("resource_id"), updated_metadata)
+                        if resource.get("id"):
+                            actual_resource_output.append(resource.get("id"))
+                    except Exception:
+                        pass
+                
+                # Handle the case where a refenence to a dataset is included in the spec and we need to create a new resource in that dataset.
+                # or also create the dataset itself.
+                if output_spec.get("dataset_friendly_name"):
+                    # Package does not exist, should be created
+                    if output_spec.get("package_details"):
+                        try:
+                            decoded_package = utils.decode_from_base64(output_spec.get("package_details"))
+                            try:
+                                new_pkg = cutils.create_package(basic_metadata=decoded_package)
+                            except Exception:
+                                # Package already exists
+                                new_pkg = cutils.get_package(id="0", title=decoded_package.get("title"))
+                            if new_pkg.get("id"):
+                                resource_metadata = {}
+                                resource_metadata["name"] = output_spec.get("resource_name")
+                                resource_metadata["url"] = output_url
+                                resource = cutils.create_resource(new_pkg.get("id"), resource_metadata, output_spec.get("resource_label"))
+                                if resource.get("id"):
+                                    actual_resource_output.append(resource.get("id"))
+                        except Exception:
+                            continue
+                    # Package exists, we should create a resource inside it
+                    elif output_spec.get("package_uuid"):
+                        try:
+                            resource_metadata = {}
+                            resource_metadata["name"] = output_spec.get("resource_name")
+                            resource_metadata["url"] = output_url
+                            resource = cutils.create_resource(output_spec.get("package_uuid"), resource_metadata, output_spec.get("resource_label"))
+                            if resource.get("id"):
+                                actual_resource_output.append(resource.get("id"))
+                        except Exception:
+                            continue
+
+    # Register the actual resources registered in the catalog by the task 
+    if actual_resource_output:
+        sql_utils.task_execution_insert_output(task_id, actual_resource_output)
+
+
+    # Now handle the metrics, messages and state of the task.
+    state = output_json.get("state")
+    messages = output_json.get("messages")
+    metrics = output_json.get("metrics")
+
+    if metrics:
+        sql_utils.task_execution_insert_metrics(task_id, metrics)
+    
+    if messages:
+        sql_utils.task_execution_insert_log(task_id, messages)
+    
+    if state:
+        sql_utils.task_execution_update(task_id, state, end_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+    return "hello"

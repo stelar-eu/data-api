@@ -193,7 +193,8 @@ sql_workflow_execution_templates = {
                                     tsk.state, 
                                     tsk.start_date, 
                                     tsk.end_date, 
-                                    tsk_tg.value AS tool_image
+                                    MAX(CASE WHEN tsk_tg.key = 'tool_image' THEN tsk_tg.value END) AS tool_image,
+                                    MAX(CASE WHEN tsk_tg.key = 'tool_name' THEN tsk_tg.value END) AS tool_name
                                 FROM 
                                     klms.workflow_execution AS wf
                                 JOIN 
@@ -201,12 +202,14 @@ sql_workflow_execution_templates = {
                                     ON wf.workflow_uuid = tsk.workflow_uuid
                                 LEFT JOIN 
                                     klms.task_tag AS tsk_tg 
-                                    ON tsk.task_uuid = tsk_tg.task_uuid AND tsk_tg.key = 'tool_image'
+                                    ON tsk.task_uuid = tsk_tg.task_uuid
                                 WHERE 
                                     wf.workflow_uuid = %s
-                                    AND (
-                                        tsk_tg.key IS NULL OR tsk_tg.key = 'tool_image'
-                                    );
+                                GROUP BY 
+                                    tsk.task_uuid, 
+                                    tsk.state, 
+                                    tsk.start_date, 
+                                    tsk.end_date;
                             """,
     'workflow_get_all': """SELECT pkg.title as package_title, ex.workflow_uuid as id, ex.state, start_date, end_date, value as package_id 
                            FROM klms.workflow_execution as ex
@@ -219,12 +222,35 @@ sql_workflow_execution_templates = {
     'task_commit_template': 'UPDATE klms.task_execution SET state = %s, end_date = %s WHERE task_uuid = %s',
     'task_create_connection_template': 'UPDATE klms.task_execution SET next_task_uuid = %s WHERE task_uuid = %s',
     'task_delete_template': 'DELETE FROM klms.task_execution WHERE task_uuid = %s',
+    'task_insert_secret_template': 'INSERT INTO klms.task_secret(task_uuid, key, value) VALUES (%s, %s, %s)',
+    'task_insert_existing_future_package': 'INSERT INTO klms.task_future_output_packages(task_uuid, package_uuid, package_friendly_name) VALUES(%s, %s, %s)',
+    'task_insert_future_package_details': 'INSERT INTO klms.task_future_output_packages(task_uuid, package_details, package_friendly_name) VALUES(%s, %s, %s)',
+    'task_insert_output_spec_new_resource': 'INSERT INTO klms.task_output_spec(task_uuid, output_name, output_address, dataset_friendly_name, resource_name, resource_label) VALUES(%s, %s, %s, %s, %s, %s)',
+    'task_insert_output_spec_existing_resource': 'INSERT INTO klms.task_output_spec(task_uuid, output_name, output_address, resource_id, resource_action) VALUES(%s, %s, %s, %s, %s)',
+    'task_insert_output_spec_plain_path': 'INSERT INTO klms.task_output_spec(task_uuid, output_name, output_address) VALUES(%s, %s, %s)',
+    'task_read_output_spec_for_tool': 'SELECT output_name, output_address FROM klms.task_output_spec WHERE task_uuid = %s',
+    'task_read_secret_template': 'SELECT key, value FROM klms.task_secret WHERE task_uuid = %s',
     'task_read_template': 'SELECT task_uuid AS task_exec_id, creator_user_id as creator, workflow_uuid AS workflow_exec_id, state, start_date, end_date FROM klms.task_execution WHERE task_uuid = %s',
     'task_read_tags_template': 'SELECT key, value FROM klms.task_tag WHERE task_uuid = %s',
     'task_read_input_group_names_by': 'SELECT DISTINCT input_group_name FROM klms.task_input WHERE task_uuid = %s',
     'task_read_uuid_inputs' : 'SELECT resource_id FROM klms.task_input WHERE task_uuid= %s AND input_path IS NULL',
     'task_read_path_inputs' : 'SELECT input_path FROM klms.task_input WHERE task_uuid= %s AND resource_id IS NULL',
     'task_read_inputs_by_group_name' : 'SELECT * FROM klms.task_input WHERE task_uuid= %s AND input_group_name = %s',
+    'task_read_output_spec_of_file': """SELECT out_spec.task_uuid as task_uuid, 
+                                             output_name, 
+                                             output_address, 
+                                             dataset_friendly_name, 
+                                             package_uuid, 
+                                             package_details, 
+                                             resource_id, 
+                                             resource_name, 
+                                             resource_label, 
+                                             resource_action 
+                                      FROM klms.task_output_spec AS out_spec 
+                                      LEFT JOIN klms.task_future_output_packages AS tsk_pkgs 
+                                      ON out_spec.task_uuid=tsk_pkgs.task_uuid 
+                                      AND tsk_pkgs.package_friendly_name=out_spec.dataset_friendly_name 
+                                      WHERE out_spec.task_uuid=%s AND out_spec.output_name=%s""",
     #
     'task_read_input_dataset_template': 'SELECT * FROM klms.task_input WHERE task_uuid = %s',
     'task_read_output_dataset_template': 'SELECT * FROM klms.task_output WHERE task_uuid = %s',
@@ -475,6 +501,57 @@ def read_list_json(json_arr, col_id='id', col_score='score'):
     
     return df
 
+def encode_to_base64(json_data):
+    """
+    Encodes a JSON object to Base64 format.
+
+    Args:
+        json_data (dict): JSON object to encode.
+
+    Returns:
+        str: Base64 encoded string.
+    """
+    # Convert JSON object to a JSON string
+    json_string = json.dumps(json_data)
+    # Encode the JSON string to Base64
+    base64_bytes = base64.b64encode(json_string.encode('utf-8'))
+    return base64_bytes.decode('utf-8')
+
+def decode_from_base64(base64_string):
+    """
+    Decodes a Base64 string back to its original JSON object.
+
+    Args:
+        base64_string (str): Base64 encoded string.
+
+    Returns:
+        dict: Decoded JSON object.
+    """
+    # Decode the Base64 string to a JSON string
+    json_string = base64.b64decode(base64_string).decode('utf-8')
+    # Convert the JSON string back to a JSON object
+    return json.loads(json_string)
+
+
+def is_valid_package_dict(obj):
+    required_keys = {"title", "tags", "notes"}
+    return isinstance(obj, dict) and required_keys.issubset(obj.keys())
+
+def is_valid_uuid(s):
+    """Check if a string is a valid UUID. Valid UUIDs are of the form 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.
+    Args:
+        s: The string to be checked.
+    Returns:
+        A boolean value indicating whether the string is a valid UUID.
+    """
+    try:
+        # Try converting the string to a UUID object
+        uuid_obj = uuid.UUID(s)
+        # Check if the string matches the canonical form of the UUID (with lowercase hexadecimal and hyphens)
+        return str(uuid_obj) == s
+    except Exception:
+        return False
+    
 
 def assign_scores(response, df_scores, dict_df_facet_scores, facet_specs, profile_attributes):
     """Assign scores to the search results; also include any key-value pairs regarding facet specifications for ranking.
