@@ -21,6 +21,11 @@ from psycopg2.extras import RealDictCursor
 import execution
 import kutils
 
+# Create an instance of this API; by default, its OpenAPI-compliant specification
+# will be generated under folder /specs
+# logging.basicConfig(level=logging.DEBUG)
+import logsys
+
 # Input schemata for validating several API requests
 import schema
 import sql_utils
@@ -49,10 +54,9 @@ from routes.tasks import tasks_bp
 from routes.users import api_user_editor, users_bp
 from src.auth import security_doc, token_active
 
-# Create an instance of this API; by default, its OpenAPI-compliant specification
-# will be generated under folder /specs
-logging.basicConfig(level=logging.DEBUG)
+logsys.configure()
 
+app = APIFlask(__name__, spec_path="/specs", docs_path="/docs")
 app.secret_key = os.getenv("SESSION_SECRET_KEY", "None")
 
 app.config.from_prefixed_env()
@@ -60,8 +64,10 @@ app.config.from_prefixed_env()
 
 @app.errorhandler(Exception)
 def report_exception(e):
+    import sys
     import traceback
 
+    print("ERROR HANDLER CALLED", file=sys.stderr)
     logging.exception("Internal error")
     return jsonify({"exception": traceback.format_exc()}), 500
 
