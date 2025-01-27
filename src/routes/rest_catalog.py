@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import functools
 import json
-
-# Auxiliary custom functions & SQL query templates for ranking
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from apiflask import APIBlueprint, abort
 from flask import current_app, jsonify, request, session
@@ -15,6 +14,7 @@ import kutils
 # Input schema for validating and structuring several API requests
 import schema
 from auth import admin_required, auth, security_doc, token_active
+from exceptions import *
 
 if TYPE_CHECKING:
     from requests import Response
@@ -578,21 +578,6 @@ def api_rest_patch_resource(resource_id: str, json_data):
 # ------------------------------------------------------------
 
 
-def rename_endpoint(name):
-    """To be used as a decorator to rename generic endpoint functions.
-
-    Flask requires distinct paths to be mapped to distinct function names.
-    This decorator does this. It should be applied to a function before
-    Flask sees it.
-    """
-
-    def do_rename(func):
-        func.__name__ = name
-        return func
-
-    return do_rename
-
-
 class Entity:
     def __init__(self, name, collection_name, ckan_name=None, extras=True):
         self.name = name
@@ -629,33 +614,103 @@ class Entity:
 
         return ci
 
+    @staticmethod
+    def check_limit_offset(val, name):
+        if not isinstance(val, Optional[int]):
+            raise DataError(f"{name} must be an integer, or None")
+        if val is not None:
+            if val < 0:
+                raise ValidationError(f"{name} must be nonnegative")
 
-def generic_error_500(entity: Entity, operation: str, exc: Exception):
+    def list_entities(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        self.check_limit_offset(limit, "limit")
+        self.check_limit_offset(offset, "offset")
+        return cutils.ckan_request(self.ckan_api_list, limit=limit, offset=offset)
+
+    def get_entity(self, eid: str):
+        obj = cutils.ckan_request(
+            self.ckan_api_show, id=eid, context={"entity": self.name}
+        )
+        return self.load_from_ckan(obj)
+
+
+# -----------------------------------
+# Generic API rendering
+#
+# These functions implement generically the
+# ReST standards of the catalog API.
+#
+# Note: these standards should be observed all over the
+# STELAR API.
+# ------------------------------------
+
+
+def generic_error_500(exc: Exception):
     import traceback
 
     return {
         "help": request.url,
         "success": False,
         "error": {
-            "message": f"{operation} {entity.name} failed to access Data Catalog",
-            "detail": traceback.format_exc(),
+            "__type": "Internal Server Error",
+            "message": repr(exc),
+            "detail": {
+                "exception": traceback.format_exc(),
+            },
         },
     }, 500
 
 
-def generic_ckan_error(entity: Entity, operation: str, resp: Response):
-    return {
+def generic_api_exception(exc: APIException):
+    exattr = [(a, getattr(exc, a, None)) for a in exc.rest_attr() if a != "message"]
+    detail = {a: v for a, v in exattr if v is not None}
+    robj = {
         "help": request.url,
         "success": False,
         "error": {
-            "message": f"{operation} {entity.name} failed: {resp.json()['error']['__type']}",
-            "detail": f"{resp.json()['error']['message']}",
-            "extra_data": resp.json()["error"],
+            "__type": exc.__class__.__name__,
+            "message": exc.message,
+            "detail": detail,
         },
-    }, resp.status_code
+    }
+    return robj, exc.status_code
 
 
-def generate_entity_list(entity: Entity):
+def generic_api_result(result):
+    return {"help": request.url, "success": True, "result": result}
+
+
+def render_api_output(endp_func):
+    """Decorator for generic endpoints that handles exceptions uniformly"""
+
+    @functools.wraps(endp_func)
+    def exc_handler(*args, **kwargs):
+        try:
+            return generic_api_result(endp_func(*args, **kwargs))
+        except APIException as ex:
+            return generic_api_exception(ex)
+        except Exception as e:
+            return generic_error_500(e)
+
+    return exc_handler
+
+
+def rename_endpoint(name):
+    """Decorator to rename generic endpoint functions.
+
+    Flask requires distinct paths to be mapped to distinct function names.
+    This decorator does this. It should be applied to a function before
+    Flask sees it.
+    """
+
+    def do_rename(func):
+        func.__name__ = name
+        return func
+
+    return do_rename
+
+
+def generate_list_entities(entity: Entity):
     """This method generates the entity "list" endpoints"""
 
     @rest_catalog_bp.get(f"/{entity.collection_name}")
@@ -663,61 +718,42 @@ def generate_entity_list(entity: Entity):
     @rest_catalog_bp.input(schema.PaginationParameters, location="query")
     @rest_catalog_bp.output(schema.EntityListResponse, status_code=200)
     @token_active
+    @render_api_output
     @rename_endpoint(f"api_list_{entity.collection_name}")
     def generic_list_entities(query_data):
         limit = query_data.get("limit", None)
         offset = query_data.get("offset", None)
 
-        try:
-            hresp = cutils.raw_request(entity.ckan_api_list, limit=limit, offset=offset)
-
-            response = hresp.json()
-
-            if response["success"]:
-                entity_list = response["result"]
-
-                return {
-                    "help": request.url,
-                    "success": True,
-                    "result": entity_list,
-                }
-            else:
-                return generic_ckan_error(entity, "list", hresp)
-
-        except Exception as e:
-            return generic_error_500(entity, "list")
+        return entity.list_entities(limit=limit, offset=offset)
 
     return generic_list_entities
 
 
-def generate_entity_get(entity: Entity):
+def generate_get_entity(entity: Entity):
     """Generates the entity get endpoints"""
 
     @rest_catalog_bp.get(f"/{entity.name}/<entity_id>")
     @rest_catalog_bp.doc(tags=["RESTful Search Operations"], security=security_doc)
     @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
     @token_active
+    @render_api_output
     @rename_endpoint(f"api_get_{entity.name}")
-    def generic_list_entities(entity_id: str):
-        try:
-            hresp = cutils.raw_request(entity.ckan_api_show, id=entity_id)
+    def generic_get_entity(entity_id: str):
+        return entity.get_entity(entity_id)
 
-            response = hresp.json()
+    return generic_get_entity
 
-            if response["success"]:
-                instance = entity.load_from_ckan(response["result"])
-                return {
-                    "help": request.url,
-                    "success": True,
-                    "result": instance,
-                }
-            else:
-                return generic_ckan_error(entity, "get", hresp)
 
-        except Exception as e:
-            return generic_error_500(entity, "get")
-
-    return generic_list_entities
+def generate_create_entity(entity: Entity):
+    @rest_catalog_bp.post(f"/{entity.collection_name}")
+    @rest_catalog_bp.input(schema.Dataset, location="json")
+    @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
+    @rest_catalog_bp.doc(tags=["RESTful Publishing Operations"], security=security_doc)
+    @token_active
+    @render_api_output
+    @rename_endpoint(f"api_create_{entity.name}")
+    def TODO():
+        pass
 
 
 GROUP = Entity("group", "groups")
@@ -725,5 +761,5 @@ ORGANIZATION = Entity("organization", "organizations")
 DSET = Entity("dset", "dsets", ckan_name="package")
 
 for e in [GROUP, ORGANIZATION, DSET]:
-    e.endpoints["list"] = generate_entity_list(e)
-    e.endpoints["get"] = generate_entity_get(e)
+    e.endpoints["list"] = generate_list_entities(e)
+    e.endpoints["get"] = generate_get_entity(e)

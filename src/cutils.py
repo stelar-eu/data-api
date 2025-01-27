@@ -1,15 +1,21 @@
+from __future__ import annotations
+
 import functools
 import logging
 import re
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import urlencode, urljoin
 
 import requests
 from flask import current_app
 
 import utils
+from exceptions import *
 from routes.users import api_user_editor
+
+if TYPE_CHECKING:
+    from requests import Response
 
 logger = logging.getLogger(__name__)
 
@@ -64,17 +70,6 @@ def raw_request(
     return response
 
 
-def ckan_request(
-    endpoint, *, json: Optional[dict] = None, headers: dict = {}, params=None, **kwargs
-):
-    """Make a CKAN request and return the JSON response."""
-    # Raise an exception for HTTP errors (4xx, 5xx responses)
-    response = raw_request(
-        endpoint, json=json, headers=headers, params=params, **kwargs
-    )
-    return response.json()
-
-
 def request(
     endpoint, *, json: Optional[dict] = None, headers: dict = {}, params=None, **kwargs
 ):
@@ -85,6 +80,57 @@ def request(
     )
     response.raise_for_status()
     return response
+
+
+def raise_ckan_error(response: Response, context: dict):
+    if 200 <= response.status_code < 300:
+        return
+    if 300 <= response.status_code < 400:
+        raise BackendLogicError("ckan", "Unexpected redirect", response.status_code)
+    if 400 <= response.status_code:
+        c = response.json()
+        etype = c["error"]["__type"]
+        emsg = c["error"]["message"]
+
+        match etype:
+            case "Integrity Error":
+                raise DataError(emsg)
+            case "Authorization Error":
+                raise BackendLogicError("ckan", etype, emsg)
+            case "Not Found Error":
+                entity = context.get("entity", None)
+                raise NotFoundError(entity, emsg)
+            case "Validation Error":
+                raise ValidationError(emsg)
+            case "Search Query Error":
+                raise DataError(etype, emsg)
+            case "Search Error":
+                raise ValidationError(etype, emsg)
+            case "Search Index Error" | "Solr Connection Error" | "Internal Server Error":
+                raise BackendError("ckan", etype, emsg)
+            case _:
+                raise BackendLogicError("ckan", "Unknown error type", etype)
+    raise BackendLogicError("ckan", "Unexpected status code", response.status_code)
+
+
+def ckan_request(
+    endpoint,
+    *,
+    json: Optional[dict] = None,
+    headers: dict = {},
+    params=None,
+    context={},
+    **kwargs,
+):
+    """Make a CKAN request and return the JSON response."""
+    # Raise an exception for HTTP errors (4xx, 5xx responses)
+    response = raw_request(
+        endpoint, json=json, headers=headers, params=params, **kwargs
+    )
+    raise_ckan_error(response, context)
+    jsobj = response.json()
+    obj = jsobj["result"]
+    return obj
 
 
 def is_package(id: str):
