@@ -698,8 +698,16 @@ def get_task_input_json(task_id, signature=None, access_token=None, show_resourc
                             artifact['id'] = artifact_id
                         else:
                             artifact = api_artifact_id(artifact)
+                        
                         if artifact is None:
                             continue
+
+                    if show_resource_ids and not isinstance(artifact, dict):
+                        temp = {}
+                        temp['path'] = artifact
+                        temp['id'] = None
+                        artifact = temp
+
                     input_paths[group].append(artifact)
 
             # Check if credentials are not None, else we return the input paths and parameters only.

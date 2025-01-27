@@ -350,7 +350,7 @@ def task(workflow_id, task_id):
             return redirect(url_for("dashboard_blueprint.login"))
 
         input_metadata = wxutils.get_task_input_json(task_id=task_id, show_resource_ids=True)
-
+        logging.debug(input_metadata)
         logs_metadata = wxutils.get_task_info(task_id=task_id)
 
         return render_template_with_s3(
@@ -363,6 +363,7 @@ def task(workflow_id, task_id):
             logs=logs_metadata,
         )
     except Exception as e:
+        logging.debug(str(e))
         return redirect(url_for("dashboard_blueprint.login"))
 
 
