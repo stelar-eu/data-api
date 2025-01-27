@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import json
 
 # Auxiliary custom functions & SQL query templates for ranking
 import logging
+from typing import TYPE_CHECKING
 
-from apiflask import APIBlueprint
+from apiflask import APIBlueprint, abort
 from flask import current_app, jsonify, request, session
 
 import cutils
@@ -11,7 +14,12 @@ import kutils
 
 # Input schema for validating and structuring several API requests
 import schema
-from src.auth import admin_required, auth, security_doc, token_active
+from auth import admin_required, auth, security_doc, token_active
+
+if TYPE_CHECKING:
+    from requests import Response
+
+logger = logging.getLogger(__name__)
 
 rest_catalog_bp = APIBlueprint(
     "rest_catalog_blueprint", __name__, tag="RESTful Publishing Operations"
@@ -54,8 +62,8 @@ def api_rest_get_datasets(query_data):
         dict: A JSON response containing the dataset details or error information.
     """
     try:
-        offset = query_data.get("offset", 0)
-        limit = query_data.get("limit", 0)
+        offset = query_data.get("offset", None)
+        limit = query_data.get("limit", None)
 
         resp = cutils.get_packages(
             limit=limit, offset=offset, tag_filter="Workflow", filter_mode="discard"
@@ -563,3 +571,159 @@ def api_rest_patch_resource(resource_id: str, json_data):
             },
             "success": False,
         }, 500
+
+
+# ------------------------------------------------------------
+#  Generic stuff
+# ------------------------------------------------------------
+
+
+def rename_endpoint(name):
+    """To be used as a decorator to rename generic endpoint functions.
+
+    Flask requires distinct paths to be mapped to distinct function names.
+    This decorator does this. It should be applied to a function before
+    Flask sees it.
+    """
+
+    def do_rename(func):
+        func.__name__ = name
+        return func
+
+    return do_rename
+
+
+class Entity:
+    def __init__(self, name, collection_name, ckan_name=None, extras=True):
+        self.name = name
+        self.collection_name = collection_name
+
+        self.ckan_name = ckan_name if ckan_name is not None else name
+        self.ckan_api_list = f"{self.ckan_name}_list"
+        self.ckan_api_show = f"{self.ckan_name}_show"
+        self.ckan_api_create = f"{self.ckan_name}_create"
+        self.ckan_api_delete = f"{self.ckan_name}_delete"
+        self.ckan_api_purge = f"{self.ckan_name}_purge"
+        self.ckan_api_update = f"{self.ckan_name}_update"
+        self.ckan_api_patch = f"{self.ckan_name}_patch"
+
+        if extras:
+            self.has_extras = True
+            self.has_tags = True
+
+        # Store the endpoint functions
+        self.endpoints = {}
+
+    def ckan_list_extra_args(self):
+        return {}
+
+    def load_from_ckan(self, ci):
+        if self.has_tags and "tags" in ci:
+            # N.B. THIS IS WRONG FOR VOCABULARY TAGS!!!!!!!
+            tags = [cutils.tag_object_to_string(tagobj) for tagobj in ci["tags"]]
+            ci["tags"] = tags
+
+        if self.has_extras and "extras" in ci:
+            extras = {e["key"]: e["value"] for e in ci["extras"]}
+            ci["extras"] = extras
+
+        return ci
+
+
+def generic_error_500(entity: Entity, operation: str, exc: Exception):
+    import traceback
+
+    return {
+        "help": request.url,
+        "success": False,
+        "error": {
+            "message": f"{operation} {entity.name} failed to access Data Catalog",
+            "detail": traceback.format_exc(),
+        },
+    }, 500
+
+
+def generic_ckan_error(entity: Entity, operation: str, resp: Response):
+    return {
+        "help": request.url,
+        "success": False,
+        "error": {
+            "message": f"{operation} {entity.name} failed: {resp.json()['error']['__type']}",
+            "detail": f"{resp.json()['error']['message']}",
+            "extra_data": resp.json()["error"],
+        },
+    }, resp.status_code
+
+
+def generate_entity_list(entity: Entity):
+    """This method generates the entity "list" endpoints"""
+
+    @rest_catalog_bp.get(f"/{entity.collection_name}")
+    @rest_catalog_bp.doc(tags=["RESTful Search Operations"], security=security_doc)
+    @rest_catalog_bp.input(schema.PaginationParameters, location="query")
+    @rest_catalog_bp.output(schema.EntityListResponse, status_code=200)
+    @token_active
+    @rename_endpoint(f"api_list_{entity.collection_name}")
+    def generic_list_entities(query_data):
+        limit = query_data.get("limit", None)
+        offset = query_data.get("offset", None)
+
+        try:
+            hresp = cutils.raw_request(entity.ckan_api_list, limit=limit, offset=offset)
+
+            response = hresp.json()
+
+            if response["success"]:
+                entity_list = response["result"]
+
+                return {
+                    "help": request.url,
+                    "success": True,
+                    "result": entity_list,
+                }
+            else:
+                return generic_ckan_error(entity, "list", hresp)
+
+        except Exception as e:
+            return generic_error_500(entity, "list")
+
+    return generic_list_entities
+
+
+def generate_entity_get(entity: Entity):
+    """Generates the entity get endpoints"""
+
+    @rest_catalog_bp.get(f"/{entity.name}/<entity_id>")
+    @rest_catalog_bp.doc(tags=["RESTful Search Operations"], security=security_doc)
+    @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
+    @token_active
+    @rename_endpoint(f"api_get_{entity.name}")
+    def generic_list_entities(entity_id: str):
+        try:
+            hresp = cutils.raw_request(entity.ckan_api_show, id=entity_id)
+
+            response = hresp.json()
+
+            if response["success"]:
+                instance = entity.load_from_ckan(response["result"])
+                return {
+                    "help": request.url,
+                    "success": True,
+                    "result": instance,
+                }
+            else:
+                return generic_ckan_error(entity, "get", hresp)
+
+        except Exception as e:
+            return generic_error_500(entity, "get")
+
+    return generic_list_entities
+
+
+GROUP = Entity("group", "groups")
+ORGANIZATION = Entity("organization", "organizations")
+DSET = Entity("dset", "dsets", ckan_name="package")
+
+for e in [GROUP, ORGANIZATION, DSET]:
+    e.endpoints["list"] = generate_entity_list(e)
+    e.endpoints["get"] = generate_entity_get(e)

@@ -40,6 +40,36 @@ class ResponseError(Schema):
     success = Boolean(required=True)
 
 
+class EntityListResponse(Schema):
+    help = fields.URL(required=True)
+    success = fields.Boolean(required=True)
+
+    # Use fields that are conditionally required depending on success
+    result = fields.List(fields.String(), required=False)
+    error = fields.Dict(required=False)
+
+    class Meta:
+        unknown = (
+            INCLUDE  # This allows extra fields not explicitly defined in the schema
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def validate(self, data):
+        """
+        Custom validation to ensure either 'result' or 'error' is present
+        based on the 'success' value.
+        """
+        if data.get("success"):
+            if "result" not in data:
+                raise ValueError("'result' field is required when success is True.")
+        else:
+            if "error" not in data:
+                raise ValueError("'error' field is required when success is False.")
+        return data
+
+
 class ResponseAmbiguous(Schema):
     help = fields.URL(required=True)
     success = fields.Boolean(required=True)
@@ -62,10 +92,10 @@ class ResponseAmbiguous(Schema):
         based on the 'success' value.
         """
         if data.get("success"):
-            if not data.get("result"):
+            if "result" not in data:
                 raise ValueError("'result' field is required when success is True.")
         else:
-            if not data.get("error"):
+            if "error" not in data:
                 raise ValueError("'error' field is required when success is False.")
         return data
 

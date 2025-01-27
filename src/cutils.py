@@ -1,5 +1,8 @@
+import functools
+import logging
 import re
 from datetime import datetime
+from typing import Optional
 from urllib.parse import urlencode, urljoin
 
 import requests
@@ -8,24 +11,22 @@ from flask import current_app
 import utils
 from routes.users import api_user_editor
 
+logger = logging.getLogger(__name__)
 
-def request(
-    endpoint,
-    json=None,
-    headers={},
+
+def raw_request(
+    endpoint, *, json: Optional[dict] = None, headers: dict = {}, params=None, **kwargs
 ):
     """
     Sends a request to the CKAN API
 
     Args:
-        method (str): The HTTP method ('GET', 'POST', 'PUT', 'DELETE').
-        entity_type (str): The entity type the request intends to handle ('package', 'resource')
         endpoint (str): The API endpoint (relative to `api_url`). Can include query parameters.
         params (dict, optional): URL query parameters.
-        data (dict, optional): Form data to be sent in the body.
         headers (dict, optional): Additional request headers.
         json (dict, optional): JSON data to be sent in the body.
-        file (file, optional): A file to upload to the request endpoint.
+
+        **kwargs: These are added to json
 
     Returns:
         requests.Response: The response object from the API.
@@ -40,27 +41,48 @@ def request(
     # Combine base_url with the endpoint
     url = urljoin(api_url, endpoint)
 
-    # Handle query parameters in the endpoint or passed as 'params'
-    if "?" in endpoint and params:
-        raise ValueError(
-            "Specify query parameters either in the endpoint or in 'params', not both."
-        )
-
-    # If the URL does not contain a query, add parameters from 'params'
-    if params:
-        url = f"{url}?{urlencode(params)}"
-
     # Prepare headers, defaulting to Authorization if token is present and Content-Type
     headers = {"Authorization": config["CKAN_ADMIN_TOKEN"]} | headers
 
     # Make the request using the provided method, url, params, data, json, and headers
+    if kwargs:
+        if json is None:
+            request_args = kwargs
+        else:
+            request_args = json | kwargs
+    else:
+        request_args = json
+
+    logger.debug("CKAN API call: %s %s", url, request_args)
     response = requests.post(
         url=url,
-        json=json,  # if provided, this will be JSON payload
+        json=request_args,
         headers=headers,
+        params=params,
     )
+    logger.debug("CKAN API response: %d", response.status_code)
+    return response
 
+
+def ckan_request(
+    endpoint, *, json: Optional[dict] = None, headers: dict = {}, params=None, **kwargs
+):
+    """Make a CKAN request and return the JSON response."""
     # Raise an exception for HTTP errors (4xx, 5xx responses)
+    response = raw_request(
+        endpoint, json=json, headers=headers, params=params, **kwargs
+    )
+    return response.json()
+
+
+def request(
+    endpoint, *, json: Optional[dict] = None, headers: dict = {}, params=None, **kwargs
+):
+    """Make a CKAN request and raise on error."""
+    # Raise an exception for HTTP errors (4xx, 5xx responses)
+    response = raw_request(
+        endpoint, json=json, headers=headers, params=params, **kwargs
+    )
     response.raise_for_status()
     return response
 
@@ -180,7 +202,9 @@ def search_packages(
         raise Exception(f"Error while searching packages: {str(e)}")
 
 
-def list_packages(limit: int = 0, offset: int = 0, expand_mode: bool = False):
+def list_packages(
+    limit: Optional[int] = None, offset: Optional[int] = None, expand_mode: bool = False
+):
     """
     Retrieve a list of all dataset IDs from the CKAN catalog.
 
@@ -189,7 +213,7 @@ def list_packages(limit: int = 0, offset: int = 0, expand_mode: bool = False):
     only the unique identifiers (IDs) of the datasets.
 
     Args:
-        limit (int): The number of dataset IDs to return. If 0, no limit is applied.
+        limit (int): The number of dataset IDs to return. If None, no limit is applied.
         offset (int): The starting point (offset) to fetch the dataset IDs from.
 
     Returns:
@@ -201,19 +225,20 @@ def list_packages(limit: int = 0, offset: int = 0, expand_mode: bool = False):
     Example:
         Response: ["dataset_id_1", "dataset_id_2", "dataset_id_3"]
     """
-    try:
-        # Check if no limit is specified or if limit is greater than 0
-        if limit == 0:
-            pass
-        elif limit > 0 and offset >= 0:
-            pass
-        else:
-            raise ValueError(
-                "Limit must be greater than 0. Offset should be non negative"
-            )
 
+    def check(val, name):
+        if not isinstance(val, Optional[int]):
+            raise TypeError(f"{name} must be an integer, or None")
+        if val is not None:
+            if val < 0:
+                raise ValueError(f"{name} must be nonnegative")
+
+    check(limit, "limit")
+    check(offset, "offset")
+
+    try:
         # Make the request to the CKAN API using the constructed parameters
-        response = request("package_list")
+        response = request("package_list", limit=limit, offset=offset)
         if response.status_code == 200:
             datasets = response.json()["result"]
             if expand_mode:
@@ -276,7 +301,10 @@ def count_packages() -> int:
 
 
 def get_packages(
-    limit: int = 0, offset: int = 0, tag_filter: str = None, filter_mode: str = None
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+    tag_filter: str = None,
+    filter_mode: str = None,
 ):
     """
     Retrieve details for multiple datasets, with support for pagination.
@@ -308,6 +336,8 @@ def get_packages(
         return {package: get_package(package, compressed=True) for package in packages}
 
     # Process with filtering
+    # VSAM: Note: this is currently used to filter datasets vs workflows etc, and will
+    # be changed when/(if?) package types are supported in the catalog.
     result = {}
     for package in packages:
         pkg = get_package(package, compressed=True)
@@ -349,7 +379,7 @@ def get_package(
         if title:
             id = re.sub(r"[\W_]+", "_", title).lower()
 
-        response = request("GET", "package", "package_show", params={"id": id})
+        response = request("package_show", params={"id": id})
         if response.status_code == 200:
             resp = response.json()
             dataset = resp.get("result", None)
@@ -641,3 +671,95 @@ def delete_resource(id: str):
             raise ValueError("ID cannot be empty")
     except requests.exceptions.HTTPError as he:
         raise ValueError(f"Resource with ID: {id} was not found", he)
+
+
+def __get_vocabulary(name_or_id):
+    """Return a vocabulary either by name or by id.
+
+    The object returned
+    """
+    try:
+        hresp = raw_request("vocabulary_show", json={"id": name_or_id})
+        response = hresp.json()
+        if response["success"]:
+            return response["result"]
+        else:
+            raise ValueError("Vocabulary not found", name_or_id)
+    except requests.exceptions.HTTPError as he:
+        raise ValueError(f"Resource with ID: {id} was not found", he)
+
+
+@functools.lru_cache(maxsize=128)
+def __get_cached_vocabulary(name_or_id):
+    return {"vocab": __get_vocabulary(name_or_id), "fresh": True}
+
+
+def get_vocabulary(name_or_id, cached=True):
+    """Return a vocabulary either by name or by id.
+
+    The object returned may be cached; if fetched by ID, its name
+    and ID will be correct, since the ID is not repeatable and name
+    is not volatile. However, tag information may be stale.
+
+    If searched by name, the ID returned may be stale...
+    Eventually, this will need to be fixed.
+    """
+    obj = __get_cached_vocabulary(name_or_id)
+    if obj["fresh"]:
+        obj["fresh"] = False
+        return obj["vocab"]
+    elif not cached:
+        # Refresh
+        voc = __get_vocabulary(name_or_id)
+        obj["vocab"] = voc
+        return voc
+    else:
+        return obj["vocab"]
+
+
+def tag_object_to_string(tagobj):
+    "Return a tag string for the given tag object"
+    v = tagobj["vocabulary_id"]
+    if v is None:
+        return tagobj["name"]
+    else:
+        voc = get_vocabulary(v)
+        return ":".join((voc["name"], tagobj["name"]))
+
+
+TAGSPEC_PATTERN = re.compile(r"((.{2,100})\:)?([a-z0-9_-]{2,100})")
+
+
+def tag_split(tagspec: str) -> tuple[str | None, str]:
+    """Split a tag string into a pair or (<vocabulary-name> , <tag-name>).
+
+    Properly, a tagspec is either <tag-name>  or <vocabulary-name>:<tag-name>,
+    where
+        <tagname> is a string made only of lower-case alphanumerics, hyphen (-) and underscore (_),
+        and of length in [2,100]
+        <vocabulary-name> is any string (which may contain spaces and other ascii characters) of
+        length [2,100].
+    """
+    m = TAGSPEC_PATTERN.fullmatch(tagspec)
+    if m is None:
+        raise ValueError("Invalid tag specification")
+    return m.groups()[1:]
+
+
+def string_to_tag_object(tagspec):
+    """Convert a tagspec (vocab:tagname) to an object, suitable for
+    sending to CKAN.
+
+    Args:
+        tagspec (str): the tagspec to convert.
+    Returns:
+        an object for the tagspec.
+    Raises:
+        ValueError if the vocabulary cannot be found or the tag string is badly formed.
+    """
+    vocname, tagname = tag_split(tagspec)
+    if vocname is None:
+        return {"name": tagname}
+    else:
+        vocab = get_vocabulary(vocname)
+        return {"name": tagname, "vocabulary_id": vocab["id"]}
