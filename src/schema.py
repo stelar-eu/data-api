@@ -12,7 +12,7 @@ from apiflask.fields import (
     Nested,
     String,
 )
-from apiflask.validators import Length, NoneOf, OneOf
+from apiflask.validators import Equal, Length, NoneOf, OneOf, Range, Regexp
 from marshmallow import INCLUDE, ValidationError, fields, post_dump, pre_load, validates
 
 optional_basic_metadata = [
@@ -28,6 +28,95 @@ optional_basic_metadata = [
 ]
 
 
+# ---------------------------------------------
+#  Schema for generic requests and responses
+# ---------------------------------------------
+
+
+class ErrorSpec(Schema):
+    type = String(required=True, data_key="__type")
+    message = String(required=True)
+    detail = Dict(required=False)
+
+
+class APIErrorResponse(Schema):
+    help = URL(required=True)
+    success = Boolean(required=True, validates=Equal(False))
+    error = Nested(ErrorSpec, required=True)
+
+
+class APIResponse(Schema):
+    help = URL(required=True)
+    success = Boolean(required=True, validates=Equal(True))
+    result = Dict(required=True)
+
+
+class DeleteRequest(Schema):
+    purge = Boolean(required=False, load_default=False)
+
+
+class DeleteResponse(APIResponse):
+    result = None
+
+
+class EntityListResponse(Schema):
+    help = URL(required=True)
+    success = Boolean(required=True)
+
+    # Use fields that are conditionally required depending on success
+    result = List(String(), required=False)
+
+
+class EntityCreationRequest(Schema):
+    """A base class for creation requests of named entities."""
+
+    name = String(
+        required=True, validate=[Length(2, 100), Regexp(r"^[a-z0-9_-]{2,100}$")]
+    )
+
+
+class ExtEntityCreationRequest(EntityCreationRequest):
+    """Base class for creation requests of entities with tags and extras."""
+
+    tags = List(String, required=True)
+    extras = Dict(required=False)
+    state = String(required=False, validate=OneOf(["draft", "active", "deleted"]))
+
+
+class DatasetCreationRequest(ExtEntityCreationRequest):
+    title = String(required=False)
+
+    notes = String(required=True, validate=Length(0, 10000))
+    author = String(required=False)
+    author_email = String(required=False)
+    maintainer = String(required=False)
+    maintainer_email = String(required=False)
+    url = URL(required=False)
+    private = Boolean(
+        required=False, load_default=False
+    )  # By default, dataset metadata will be publicly available
+
+    url = URL(required=False)
+    version = String(required=False, validate=Length(0, 100))
+
+
+class GroupCreationRequest(EntityCreationRequest):
+    title = String(required=False)
+    description = String(required=False)
+    image_url = URL(required=False)
+    type = String(required=False, validate=OneOf(["group", "organization"]))
+    approval_status = String(
+        required=False, validate=OneOf(["approved", "pending", "rejected"])
+    )
+
+
+# =============================================
+#
+#  Older non-generic schema definitions
+#
+# =============================================
+
+
 class ResponseOK(Schema):
     help = URL(required=True)
     result = Dict(required=True)
@@ -38,36 +127,6 @@ class ResponseError(Schema):
     help = URL(required=True)
     error = Dict(required=True)
     success = Boolean(required=True)
-
-
-class EntityListResponse(Schema):
-    help = fields.URL(required=True)
-    success = fields.Boolean(required=True)
-
-    # Use fields that are conditionally required depending on success
-    result = fields.List(fields.String(), required=False)
-    error = fields.Dict(required=False)
-
-    class Meta:
-        unknown = (
-            INCLUDE  # This allows extra fields not explicitly defined in the schema
-        )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def validate(self, data):
-        """
-        Custom validation to ensure either 'result' or 'error' is present
-        based on the 'success' value.
-        """
-        if data.get("success"):
-            if "result" not in data:
-                raise ValueError("'result' field is required when success is True.")
-        else:
-            if "error" not in data:
-                raise ValueError("'error' field is required when success is False.")
-        return data
 
 
 class ResponseAmbiguous(Schema):
@@ -109,8 +168,8 @@ class Identifier(Schema):
 
 
 class PaginationParameters(Schema):
-    limit = Integer(required=False, example="100")
-    offset = Integer(required=False, example="0")
+    limit = Integer(required=False, example="100", validates=Range(min=0))
+    offset = Integer(required=False, example="0", validates=Range(min_inclusive=0))
 
 
 class RolesInput(Schema):

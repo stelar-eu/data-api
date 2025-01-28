@@ -5,13 +5,19 @@ import logging
 import re
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
-from urllib.parse import urlencode, urljoin
+from urllib.parse import urljoin
 
 import requests
 from flask import current_app
 
 import utils
-from exceptions import *
+from exceptions import (
+    BackendError,
+    BackendLogicError,
+    DataError,
+    NotFoundError,
+    ValidationError,
+)
 from routes.users import api_user_editor
 
 if TYPE_CHECKING:
@@ -792,7 +798,7 @@ def tag_split(tagspec: str) -> tuple[str | None, str]:
     return m.groups()[1:]
 
 
-def string_to_tag_object(tagspec):
+def tag_string_to_object(tagspec):
     """Convert a tagspec (vocab:tagname) to an object, suitable for
     sending to CKAN.
 

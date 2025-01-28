@@ -6,8 +6,9 @@ from typing import TYPE_CHECKING, Callable
 
 
 class ExecEngine:
-
-    def create_task(self, tool_name: str, token: str, task_id: str, signature: str) -> str:
+    def create_task(
+        self, tool_name: str, token: str, task_id: str, signature: str
+    ) -> str:
         """Create a new task execution on this engine.
 
         NOTE: This api is going to change significantly, it currently reflects
@@ -29,6 +30,7 @@ class ExecEngine:
 
     def get_task_info(self, task_id: str) -> dict:
         pass
+
 
 # The following is used to designate the return value of the
 # 'configure' functions

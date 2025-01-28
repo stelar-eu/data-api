@@ -3,21 +3,18 @@ from __future__ import annotations
 import functools
 import json
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import List, Optional
 
-from apiflask import APIBlueprint, abort
-from flask import current_app, jsonify, request, session
+from apiflask import APIBlueprint
+from flask import jsonify, request, session
 
 import cutils
 import kutils
 
 # Input schema for validating and structuring several API requests
 import schema
-from auth import admin_required, auth, security_doc, token_active
-from exceptions import *
-
-if TYPE_CHECKING:
-    from requests import Response
+from auth import security_doc, token_active
+from exceptions import APIException, DataError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +22,9 @@ rest_catalog_bp = APIBlueprint(
     "rest_catalog_blueprint", __name__, tag="RESTful Publishing Operations"
 )
 
-#########################################################
-##################### DATASETS ##########################
-#########################################################
+# ------------------------------------------------------------
+#             DATASETS
+# ------------------------------------------------------------
 
 
 @rest_catalog_bp.errorhandler(500)
@@ -51,7 +48,8 @@ def api_rest_get_datasets(query_data):
     a limit and offset for pagination.
 
     Args: (In URL)
-        - 'limit' (int): Optional, The number of datasets to return. If not specified all datasets will be returned.
+        - 'limit' (int): Optional, The number of datasets to return. If not specified all datasets
+            will be returned.
         - 'offset' (int): Optional, The offset (starting point) for the pagination.
 
     Responses:
@@ -329,9 +327,9 @@ def api_rest_delete_dataset(dataset_id):
         }, 500
 
 
-#########################################################
-##################### RESOURCES #########################
-#########################################################
+# --------------------------------------------------------
+#                    RESOURCES
+# --------------------------------------------------------
 
 
 @rest_catalog_bp.route("/datasets/<dataset_id>/resources", methods=["GET"])
@@ -346,7 +344,8 @@ def api_rest_get_dataset_resources(dataset_id: str, filter: str = None):
     This route allows clients to query the catalog and fetch details of dataset resources
 
     Args:
-        filter (str, Optional): __'owned'__ for resources that have the 'owned' relation with the dataset or __'profile'__ for generated profile resources.
+        filter (str, Optional): __'owned'__ for resources that have the 'owned' relation with the
+        dataset or __'profile'__ for generated profile resources.
 
     Responses:
         - 200: Dataset successfully retrieved.
@@ -579,7 +578,9 @@ def api_rest_patch_resource(resource_id: str, json_data):
 
 
 class Entity:
-    def __init__(self, name, collection_name, ckan_name=None, extras=True):
+    def __init__(
+        self, name, collection_name, ckan_name=None, extras=True, creation_schema=None
+    ):
         self.name = name
         self.collection_name = collection_name
 
@@ -592,6 +593,8 @@ class Entity:
         self.ckan_api_update = f"{self.ckan_name}_update"
         self.ckan_api_patch = f"{self.ckan_name}_patch"
 
+        self.creation_schema = creation_schema
+
         if extras:
             self.has_extras = True
             self.has_tags = True
@@ -599,12 +602,20 @@ class Entity:
         # Store the endpoint functions
         self.endpoints = {}
 
-    def ckan_list_extra_args(self):
-        return {}
+    def save_to_ckan(self, init_data):
+        # Implement the logic to save data to CKAN
+        if self.has_tags and "tags" in init_data:
+            tags = init_data["tags"]
+            init_data["tags"] = [cutils.tag_string_to_object(tag) for tag in tags]
+
+        if self.has_extras and "extras" in init_data:
+            extras = [{"key": k, "value": v} for k, v in init_data["extras"].items()]
+            init_data["extras"] = extras
+
+        return init_data
 
     def load_from_ckan(self, ci):
         if self.has_tags and "tags" in ci:
-            # N.B. THIS IS WRONG FOR VOCABULARY TAGS!!!!!!!
             tags = [cutils.tag_object_to_string(tagobj) for tagobj in ci["tags"]]
             ci["tags"] = tags
 
@@ -630,6 +641,43 @@ class Entity:
     def get_entity(self, eid: str):
         obj = cutils.ckan_request(
             self.ckan_api_show, id=eid, context={"entity": self.name}
+        )
+        return self.load_from_ckan(obj)
+
+    def create_entity(self, init_data):
+        context = {"entity": self.name}
+
+        ckinit_data = self.save_to_ckan(init_data)
+
+        obj = cutils.ckan_request(
+            self.ckan_api_create, context=context, json=ckinit_data
+        )
+        return self.load_from_ckan(obj)
+
+    def delete_entity(self, eid: str, purge=False):
+        context = {"entity": self.name}
+        if purge:
+            return cutils.ckan_request(self.ckan_api_purge, id=eid, context=context)
+        else:
+            return cutils.ckan_request(self.ckan_api_delete, id=eid, context=context)
+
+    def update_entity(self, eid: str, entity_data):
+        context = {"entity": self.name}
+
+        ck_data = self.save_to_ckan(entity_data)
+
+        obj = cutils.ckan_request(
+            self.ckan_api_update, id=eid, context=context, json=ck_data
+        )
+        return self.load_from_ckan(obj)
+
+    def patch_entity(self, eid: str, patch_data):
+        context = {"entity": self.name}
+
+        ckpatch_data = self.save_to_ckan(patch_data)
+
+        obj = cutils.ckan_request(
+            self.ckan_api_patch, id=eid, context=context, json=ckpatch_data
         )
         return self.load_from_ckan(obj)
 
@@ -662,7 +710,7 @@ def generic_error_500(exc: Exception):
 
 
 def generic_api_exception(exc: APIException):
-    exattr = [(a, getattr(exc, a, None)) for a in exc.rest_attr() if a != "message"]
+    exattr = [(a, getattr(exc, a, None)) for a in exc.repr_attr() if a != "message"]
     detail = {a: v for a, v in exattr if v is not None}
     robj = {
         "help": request.url,
@@ -688,8 +736,10 @@ def render_api_output(endp_func):
         try:
             return generic_api_result(endp_func(*args, **kwargs))
         except APIException as ex:
+            logger.exception("API error")
             return generic_api_exception(ex)
         except Exception as e:
+            logger.exception("Internal error")
             return generic_error_500(e)
 
     return exc_handler
@@ -710,13 +760,65 @@ def rename_endpoint(name):
     return do_rename
 
 
+def error_responses(status_list: List[int]):
+    responses = {}
+    for status in status_list:
+        if status == 200:
+            responses[200] = {
+                "description": "Request was successful",
+                "content": {"application/json": {"schema": schema.APIErrorResponse}},
+            }
+        elif status == 400:
+            responses[400] = {
+                "description": "Bad request. This error implies that the data sent in the request is invalid.",
+                "content": {"application/json": {"schema": schema.APIErrorResponse}},
+            }
+        elif status == 403:
+            responses[403] = {
+                "description": "Forbidden request. This error implies that the user is not authorized to perform "
+                "the requested action.",
+                "content": {"application/json": {"schema": schema.APIErrorResponse}},
+            }
+        elif status == 404:
+            responses[404] = {
+                "description": "Resource not found. This error implies that the resource requested does not exist.",
+                "content": {"application/json": {"schema": schema.APIErrorResponse}},
+            }
+        elif status == 409:
+            responses[409] = {
+                "description": "Conflict (e.g., Resource already exists). ",
+                "content": {"application/json": {"schema": schema.APIErrorResponse}},
+            }
+        elif status == 500:
+            responses[500] = {
+                "description": "Internal server error. The error may be caused by a bug in the server, or some malfunction in"
+                "some other service.",
+                "content": {"application/json": {"schema": schema.APIErrorResponse}},
+            }
+        else:
+            responses[status] = {
+                "description": f"Error {status}. This is an unknown error.",
+                "content": {"application/json": {"schema": schema.APIErrorResponse}},
+            }
+    return responses
+
+
 def generate_list_entities(entity: Entity):
     """This method generates the entity "list" endpoints"""
 
     @rest_catalog_bp.get(f"/{entity.collection_name}")
-    @rest_catalog_bp.doc(tags=["RESTful Search Operations"], security=security_doc)
     @rest_catalog_bp.input(schema.PaginationParameters, location="query")
     @rest_catalog_bp.output(schema.EntityListResponse, status_code=200)
+    @rest_catalog_bp.doc(
+        summary=f"List {entity.collection_name} in the Data Catalog",
+        description=f"""List all {entity.collection_name} in the Data Catalog. \\
+        This function returns a list of {entity.collection_name} identifiers. \\
+        It is designed to be used for exploratory or bulk operations where only the IDs of {entity.collection_name} are required. \\
+        """,
+        tags=["RESTful Search Operations"],
+        security=security_doc,
+        responses=error_responses([409, 500]),
+    )
     @token_active
     @render_api_output
     @rename_endpoint(f"api_list_{entity.collection_name}")
@@ -733,8 +835,17 @@ def generate_get_entity(entity: Entity):
     """Generates the entity get endpoints"""
 
     @rest_catalog_bp.get(f"/{entity.name}/<entity_id>")
-    @rest_catalog_bp.doc(tags=["RESTful Search Operations"], security=security_doc)
-    @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
+    @rest_catalog_bp.output(schema.APIResponse, status_code=200)
+    @rest_catalog_bp.doc(
+        summary=f"Get {entity.name} by ID",
+        description=f"""Retrieve a {entity.name} from the Data Catalog by its ID with full information. \\
+        This route allows clients to query the catalog and fetch details of a {entity.name} using its unique 
+        {entity.name} ID. \\
+        """,
+        tags=["RESTful Search Operations"],
+        security=security_doc,
+        responses=error_responses([400, 404, 500]),
+    )
     @token_active
     @render_api_output
     @rename_endpoint(f"api_get_{entity.name}")
@@ -744,11 +855,51 @@ def generate_get_entity(entity: Entity):
     return generic_get_entity
 
 
+def generate_delete_entity(entity: Entity):
+    @rest_catalog_bp.delete(f"/{entity.name}/<entity_id>")
+    @rest_catalog_bp.input(schema.DeleteRequest, location="query")
+    @rest_catalog_bp.output(schema.DeleteResponse, status_code=200)
+    @rest_catalog_bp.doc(
+        summary=f"Delete {entity.name} by ID",
+        description=f"""Delete a {entity.name} from the Data Catalog by its ID. \\
+        This route allows clients to delete a specific {entity.name} by its unique {entity.name} ID. \\
+        Any catalog resources associated with the {entity.name} will also be deleted. \\
+        
+        Normally, deletion simply marks the {entity.name} as deleted, but does not remove it from the catalog. \\
+        If you want to remove the {entity.name} from the catalog permanently, you can use the 'purge' parameter. \\
+
+        ! ATTENTION ! This action performs a hard-delete and the {entity.name} will no longer be retrievable. \\
+        """,
+        tags=["RESTful Search Operations"],
+        security=security_doc,
+        responses=error_responses([400, 403, 404, 409, 500]),
+    )
+    @token_active
+    @render_api_output
+    @rename_endpoint(f"api_delete_{entity.name}")
+    def generic_delete_entity(entity_id: str, query_data: Optional[bool] = False):
+        logger.error("Cannot get here! fot the love of god")
+        logger.info(f"Deleting {entity.name} {entity_id} with purge={query_data}")
+        purge = query_data.get("purge", False)
+        return entity.delete_entity(entity_id, purge=purge)
+
+
 def generate_create_entity(entity: Entity):
-    @rest_catalog_bp.post(f"/{entity.collection_name}")
+    """Generates the entity create endpoints"""
+
+    @rest_catalog_bp.post(f"/{entity.name}")
     @rest_catalog_bp.input(schema.Dataset, location="json")
-    @rest_catalog_bp.output(schema.ResponseAmbiguous, status_code=200)
-    @rest_catalog_bp.doc(tags=["RESTful Publishing Operations"], security=security_doc)
+    @rest_catalog_bp.output(schema.APIResponse, status_code=200)
+    @rest_catalog_bp.doc(
+        summary=f"Create {entity.name}",
+        description=f"""Create and publish a {entity.name} in the Data Catalog. \\  
+        This route allows clients to publish {entity.name} by sending metadata in the request body. \\
+        It supports the inclusion of basic, extra, and profile metadata for the {entity.name}. \\
+        """,
+        tags=["RESTful Publishing Operations"],
+        security=security_doc,
+        responses=error_responses([400, 403, 404, 500]),
+    )
     @token_active
     @render_api_output
     @rename_endpoint(f"api_create_{entity.name}")
@@ -758,8 +909,14 @@ def generate_create_entity(entity: Entity):
 
 GROUP = Entity("group", "groups")
 ORGANIZATION = Entity("organization", "organizations")
-DSET = Entity("dset", "dsets", ckan_name="package")
 
-for e in [GROUP, ORGANIZATION, DSET]:
+DATASET = Entity("datset", "datsets", ckan_name="package")
+DATASET.ckan_api_purge = "dataset_purge"
+
+RESOURCE = Entity("resource", "resources")
+
+
+for e in [GROUP, ORGANIZATION, DATASET, RESOURCE]:
     e.endpoints["list"] = generate_list_entities(e)
     e.endpoints["get"] = generate_get_entity(e)
+    e.endpoints["delete"] = generate_delete_entity(e)

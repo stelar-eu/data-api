@@ -60,7 +60,7 @@ class NotFoundError(APIException):
         self.entity = entity
 
     def repr_attr(self):
-        return super().repr_items() + ["entity"]
+        return super().repr_attr() + ["entity"]
 
 
 class ValidationError(APIException):
