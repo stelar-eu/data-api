@@ -1,9 +1,8 @@
 import json
 import logging
 
-import requests
 from apiflask import APIBlueprint
-from flask import current_app, jsonify, request, session
+from flask import request, session
 
 import cutils
 import kutils
@@ -11,7 +10,7 @@ import kutils
 # Input schema for validating and structuring several API requests
 import schema
 import wxutils
-from src.auth import admin_required, auth, security_doc, token_active
+from src.auth import token_active
 
 logging.basicConfig(level=logging.DEBUG)
 

@@ -10,6 +10,7 @@ from urllib.parse import urljoin
 import requests
 from flask import current_app
 
+import schema
 import utils
 from exceptions import (
     BackendError,
@@ -815,3 +816,140 @@ def tag_string_to_object(tagspec):
     else:
         vocab = get_vocabulary(vocname)
         return {"name": tagname, "vocabulary_id": vocab["id"]}
+
+
+# ------------------------------------------------------------
+#  Generic stuff
+# ------------------------------------------------------------
+
+
+class Entity:
+    def __init__(
+        self,
+        name,
+        collection_name,
+        creation_schema,
+        update_schema,
+        ckan_name=None,
+        extras=True,
+    ):
+        self.name = name
+        self.collection_name = collection_name
+
+        self.ckan_name = ckan_name if ckan_name is not None else name
+        self.ckan_api_list = f"{self.ckan_name}_list"
+        self.ckan_api_show = f"{self.ckan_name}_show"
+        self.ckan_api_create = f"{self.ckan_name}_create"
+        self.ckan_api_delete = f"{self.ckan_name}_delete"
+        self.ckan_api_purge = f"{self.ckan_name}_purge"
+        self.ckan_api_update = f"{self.ckan_name}_update"
+        self.ckan_api_patch = f"{self.ckan_name}_patch"
+
+        self.creation_schema = creation_schema
+        self.update_schema = update_schema
+
+        if extras:
+            self.has_extras = True
+            self.has_tags = True
+
+        # Store the endpoint functions
+        self.endpoints = {}
+
+    def save_to_ckan(self, init_data):
+        # Implement the logic to save data to CKAN
+        if self.has_tags and "tags" in init_data:
+            tags = init_data["tags"]
+            init_data["tags"] = [tag_string_to_object(tag) for tag in tags]
+
+        if self.has_extras and "extras" in init_data:
+            extras = [{"key": k, "value": v} for k, v in init_data["extras"].items()]
+            init_data["extras"] = extras
+
+        return init_data
+
+    def load_from_ckan(self, ci):
+        if self.has_tags and "tags" in ci:
+            tags = [tag_object_to_string(tagobj) for tagobj in ci["tags"]]
+            ci["tags"] = tags
+
+        if self.has_extras and "extras" in ci:
+            extras = {e["key"]: e["value"] for e in ci["extras"]}
+            ci["extras"] = extras
+
+        return ci
+
+    @staticmethod
+    def check_limit_offset(val, name):
+        if not isinstance(val, Optional[int]):
+            raise DataError(f"{name} must be an integer, or None")
+        if val is not None:
+            if val < 0:
+                raise ValidationError(f"{name} must be nonnegative")
+
+    def list_entities(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        self.check_limit_offset(limit, "limit")
+        self.check_limit_offset(offset, "offset")
+        return ckan_request(self.ckan_api_list, limit=limit, offset=offset)
+
+    def get_entity(self, eid: str):
+        obj = ckan_request(self.ckan_api_show, id=eid, context={"entity": self.name})
+        return self.load_from_ckan(obj)
+
+    def create_entity(self, init_data):
+        context = {"entity": self.name}
+
+        ckinit_data = self.save_to_ckan(init_data)
+
+        obj = ckan_request(self.ckan_api_create, context=context, json=ckinit_data)
+        return self.load_from_ckan(obj)
+
+    def delete_entity(self, eid: str, purge=False):
+        context = {"entity": self.name}
+        if purge:
+            return ckan_request(self.ckan_api_purge, id=eid, context=context)
+        else:
+            return ckan_request(self.ckan_api_delete, id=eid, context=context)
+
+    def update_entity(self, eid: str, entity_data):
+        context = {"entity": self.name}
+
+        ck_data = self.save_to_ckan(entity_data)
+
+        obj = ckan_request(self.ckan_api_update, id=eid, context=context, json=ck_data)
+        return self.load_from_ckan(obj)
+
+    def patch_entity(self, eid: str, patch_data):
+        context = {"entity": self.name}
+
+        ckpatch_data = self.save_to_ckan(patch_data)
+
+        obj = ckan_request(
+            self.ckan_api_patch, id=eid, context=context, json=ckpatch_data
+        )
+        return self.load_from_ckan(obj)
+
+
+GROUP = Entity(
+    "group", "groups", schema.GroupCreationRequest, schema.GroupUpdateRequest
+)
+ORGANIZATION = Entity(
+    "organization",
+    "organizations",
+    schema.GroupCreationRequest,
+    schema.GroupUpdateRequest,
+)
+DATASET = Entity(
+    "datset",
+    "datsets",
+    creation_schema=schema.DatasetCreationRequest,
+    update_schema=schema.DatasetUpdateRequest,
+    ckan_name="package",
+)
+DATASET.ckan_api_purge = "dataset_purge"
+RESOURCE = Entity(
+    "resrc",
+    "rsrcs",
+    schema.ResourceCreationRequest,
+    schema.ResourceUpdateRequest,
+    ckan_name="resource",
+)

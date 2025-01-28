@@ -1,19 +1,7 @@
-import json
-
-from apiflask import Schema, abort
-from apiflask.fields import (
-    URL,
-    Boolean,
-    Date,
-    DateTime,
-    Dict,
-    Integer,
-    List,
-    Nested,
-    String,
-)
-from apiflask.validators import Equal, Length, NoneOf, OneOf, Range, Regexp
-from marshmallow import INCLUDE, ValidationError, fields, post_dump, pre_load, validates
+from apiflask import Schema
+from apiflask.fields import URL, Boolean, DateTime, Dict, Integer, List, Nested, String
+from apiflask.validators import Equal, Length, OneOf, Range, Regexp
+from marshmallow import INCLUDE, ValidationError, fields, pre_load
 
 optional_basic_metadata = [
     "version",
@@ -131,6 +119,8 @@ class ResourceCreationRequest(Schema):
 
 
 class DatasetUpdateRequest(DatasetCreationRequest):
+    owner_org = String(required=False)
+
     class Meta:
         exclude = ["name"]
         partial = True
