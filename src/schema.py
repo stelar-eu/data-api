@@ -37,6 +37,7 @@ class APIResponse(Schema):
     help = URL(required=True)
     success = Boolean(required=True, validates=Equal(True))
     result = Dict(required=True)
+    error = Nested(ErrorSpec, required=False)
 
 
 class DeleteRequest(Schema):
@@ -89,6 +90,14 @@ class DatasetCreationRequest(ExtEntityCreationRequest):
     version = String(required=False, validate=Length(0, 100))
 
 
+class DatasetUpdateRequest(DatasetCreationRequest):
+    owner_org = String(required=False)
+
+    class Meta:
+        exclude = ["name"]
+        partial = True
+
+
 class GroupCreationRequest(EntityCreationRequest):
     title = String(required=False)
     description = String(required=False)
@@ -99,42 +108,52 @@ class GroupCreationRequest(EntityCreationRequest):
     )
 
 
-class ResourceCreationRequest(Schema):
-    package_id = String(required=True)
-    url = URL(required=False)
-    format = String(required=False)
-    name = String(required=False)
-    description = String(required=False)
-    resource_type = String(required=False, validate=OneOf(["file", "api", "service"]))
-    hash = String(required=False)
-    size = Integer(required=False)
-    extra = Dict(required=False)
-    mimetype = String(required=False)
-    mimetype_inner = String(required=False)
-    cache_url = URL(required=False)
-    cache_last_updated = DateTime(required=False)
-
-    class Meta:
-        unknown = INCLUDE
-
-
-class DatasetUpdateRequest(DatasetCreationRequest):
-    owner_org = String(required=False)
-
-    class Meta:
-        exclude = ["name"]
-        partial = True
-
-
 class GroupUpdateRequest(GroupCreationRequest):
     class Meta:
         exclude = ["name"]
         partial = True
 
 
+class ResourceCreationRequest(Schema):
+    package_id = String(required=True)
+    url = URL(required=False, allow_none=True)
+    format = String(required=False, allow_none=True)
+    name = String(required=False, allow_none=True)
+    description = String(required=False, allow_none=True)
+    resource_type = String(
+        required=False, validate=OneOf(["file", "api", "service"]), allow_none=True
+    )
+    hash = String(required=False, allow_none=True)
+    size = Integer(required=False, allow_none=True)
+    extra = Dict(required=False, allow_none=True)
+    mimetype = String(required=False, allow_none=True)
+    mimetype_inner = String(required=False, allow_none=True)
+    cache_url = URL(required=False, allow_none=True)
+    cache_last_updated = DateTime(required=False, allow_none=True)
+
+    class Meta:
+        unknown = INCLUDE
+
+
 class ResourceUpdateRequest(ResourceCreationRequest):
     class Meta:
         partial = True
+        unknown = INCLUDE
+
+
+class VocabularyCreationRequest(EntityCreationRequest):
+    tags = List(String, required=True)
+
+
+class VocabularyUpdateRequest(VocabularyCreationRequest):
+    tags = List(String, required=True)
+
+    class Meta:
+        exclude = ["name"]
+
+
+class TagCreationRequest(EntityCreationRequest):
+    vocabulary_id = String(required=True)
 
 
 # =============================================

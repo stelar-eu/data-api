@@ -953,3 +953,14 @@ RESOURCE = Entity(
     schema.ResourceUpdateRequest,
     ckan_name="resource",
 )
+
+VOCABULARY = Entity(
+    "vocabulary",
+    "vocabularies",
+    schema.VocabularyCreationRequest,
+    schema.VocabularyUpdateRequest,
+)
+
+TAG = Entity("tag", "tags", schema.TagCreationRequest, None)
+
+# MEMBER = Entity("member", "members", schema.MemberCreationRequest, None)

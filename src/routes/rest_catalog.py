@@ -3,7 +3,7 @@ from __future__ import annotations
 import functools
 import json
 import logging
-from typing import TYPE_CHECKING, List, Optional
+from typing import List, Optional
 
 from apiflask import APIBlueprint
 from flask import request, session
@@ -14,11 +14,8 @@ import kutils
 # Input schema for validating and structuring several API requests
 import schema
 from auth import security_doc, token_active
-from cutils import DATASET, GROUP, ORGANIZATION, RESOURCE
-
-if TYPE_CHECKING:
-    from cutils import Entity
-    from exceptions import APIException
+from cutils import DATASET, GROUP, ORGANIZATION, RESOURCE, Entity
+from exceptions import APIException
 
 logger = logging.getLogger(__name__)
 
@@ -607,6 +604,9 @@ def generic_api_exception(exc: APIException):
             "detail": detail,
         },
     }
+    import sys
+
+    print("IN GENERIC API EXCEPTION: robj=", robj, file=sys.stderr)
     return robj, exc.status_code
 
 

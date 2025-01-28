@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import re
 import uuid
@@ -59,16 +58,6 @@ logsys.configure()
 app = APIFlask(__name__, spec_path="/specs", docs_path="/docs")
 app.secret_key = os.getenv("SESSION_SECRET_KEY", "None")
 app.config.from_prefixed_env()
-
-
-@app.errorhandler(Exception)
-def report_exception(e):
-    import sys
-    import traceback
-
-    print("ERROR HANDLER CALLED", file=sys.stderr)
-    logging.exception("Internal error")
-    return jsonify({"exception": traceback.format_exc()}), 500
 
 
 # ################# BLUEPRINT REGISTRATION ##################
