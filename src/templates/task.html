@@ -277,6 +277,7 @@
                                             </tr>
                                         </thead>
                                         <tbody class="accordion" id="task-list">
+                                            {% if not "message" in logs.keys() %}
                                             {% for task_id, task_data in logs.items() %}
                                             <tr id="task-{{ task_id }}" data-bs-toggle="collapse" class="cursor-pointer"
                                                 data-bs-target="#collapse-{{ task_id }}">
@@ -307,6 +308,7 @@
                                                 </td>
                                             </tr>
                                             {% endfor %}
+                                            {% endif %}
                                         </tbody>
                                     </table>
                                 </div>
@@ -498,6 +500,11 @@
 
     function updateTaskTable(data) {
         data = data.result.jobs
+
+        if ("message" in data) {
+            return;
+        }
+
         for (const task_id in data) {
             const preElement = $(`#task-${task_id}-logs`);
             const statusTextElement = $(`#task-${task_id}-status`);
@@ -528,11 +535,7 @@
                             <td>${task_id}</td>
                             <td class="text-secondary">${data[task_id].created_at}</td>
                             <td class="text-secondary">
-                                <span id="task-${task_id}-badge" class="badge ${data[task_id].status === 'Succeeded'
-                        ? 'bg-success'
-                        : data[task_id].status === 'Running'
-                            ? 'bg-warning'
-                            : 'bg-danger'
+                                <span id="task-${task_id}-badge" class="badge ${data[task_id].status === 'Succeeded' ? 'bg-success' : data[task_id].status === 'Running' ? 'bg-warning' : 'bg-danger'
                     } me-1"></span>
                                 <p id="task-${task_id}-status" class="d-inline m-1">${data[task_id].status}</p>
                             </td>
