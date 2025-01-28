@@ -395,7 +395,7 @@ class Task_Input_v2(Schema):
 
 class Task_Output(Schema):
     metrics = Dict(keys=fields.String(), values=fields.String(), required=False)
-    status = String(required=True)
+    state = String(required=True)
     messages = String(required=False)
     output = Dict(keys=fields.String(), values=fields.String(), required=True)
 

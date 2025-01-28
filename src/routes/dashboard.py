@@ -249,87 +249,71 @@ def settings():
 @dashboard_bp.route("/workflows")
 @session_required
 def workflows():
-    config = current_app.config["settings"]
+  
+    # Retrieve list of WFs from DB
+    wf_metadata = wxutils.get_workflows()
 
-    headers = {"Authorization": f"Bearer {session.get('access_token')}"}
-    wf_metadata_url = f"{config['API_URL']}api/v1/workflows"
-    metadata_response = requests.get(wf_metadata_url, headers=headers)
-    wf_metadata = metadata_response.json()
+    if wf_metadata is not None and wf_metadata != []:
+        status_counts = {}
+        monthly_counts = {}
 
-    if metadata_response.status_code == 200:
-        if wf_metadata["result"]:
-            status_counts = {}
-            monthly_counts = {}
+        for wf in wf_metadata:
+            # Count workflow status for pie chart
+            status = wf["state"]
+            status_counts[status] = status_counts.get(status, 0) + 1
 
-            for wf in wf_metadata["result"]:
-                # Count workflow status for pie chart
-                status = wf["state"]
-                status_counts[status] = status_counts.get(status, 0) + 1
+            # Count workflows per month for bar chart
+            start_date = wf["start_date"]
+            month_year = start_date.strftime("%Y-%m")
+            monthly_counts[month_year] = monthly_counts.get(month_year, 0) + 1
 
-                # Count workflows per month for bar chart
-                start_date = wf["start_date"]
-                month_year = start_date[:7]  # Get "YYYY-MM" from "YYYY-MM-DDTHH:MM:SS"
-                monthly_counts[month_year] = monthly_counts.get(month_year, 0) + 1
+        # Get the last two months + current month for bar chart display
+        today = datetime.today()
+        months_to_display = [
+            (today - timedelta(days=30 * i)).strftime("%Y-%m")
+            for i in range(2, -1, -1)
+        ]
 
-            # Get the last two months + current month for bar chart display
-            today = datetime.today()
-            months_to_display = [
-                (today - timedelta(days=30 * i)).strftime("%Y-%m")
-                for i in range(2, -1, -1)
-            ]
+        # Ensure monthly_counts includes all three months (set to 0 if missing)
+        monthly_counts = {
+            month: monthly_counts.get(month, 0) for month in months_to_display
+        }
 
-            # Ensure monthly_counts includes all three months (set to 0 if missing)
-            monthly_counts = {
-                month: monthly_counts.get(month, 0) for month in months_to_display
-            }
+        return render_template_with_s3(
+            "workflows.html",
+            workflows=wf_metadata,
+            status_counts=status_counts,
+            monthly_counts=monthly_counts,
+            PARTNER_IMAGE_SRC=get_partner_logo(),
+        )
 
-            return render_template_with_s3(
-                "workflows.html",
-                workflows=wf_metadata["result"],
-                status_counts=status_counts,
-                monthly_counts=monthly_counts,
-                PARTNER_IMAGE_SRC=get_partner_logo(),
-            )
-        else:
-            return redirect(url_for("dashboard_blueprint.login"))
     else:
-        return redirect(url_for("dashboard_blueprint.login"))
+        return render_template_with_s3(
+            "workflows.html",
+            workflows={},
+            PARTNER_IMAGE_SRC=get_partner_logo(),
+        )
+
 
 
 @dashboard_bp.route("/workflows/<workflow_id>")
 @session_required
 def workflow(workflow_id):
-    config = current_app.config["settings"]
-
     # Basic input validation
     if not workflow_id:
         return redirect(url_for("dashboard_blueprint.datasets"))
 
-    headers = {"Authorization": f"Bearer {session.get('access_token')}"}
-
-    wf_metadata_url = f"{config['API_URL']}api/v1/workflow/execution/read?id="
-    metadata_url = wf_metadata_url + workflow_id
-    metadata_response = requests.get(metadata_url, headers=headers)
-    wf_metadata = metadata_response.json()
-
-    wf_task_url = f"{config['API_URL']}api/v1/workflow/tasks?id="
-    tasks_url = wf_task_url + workflow_id
-    tasks_response = requests.get(tasks_url, headers=headers)
-    wf_tasks = tasks_response.json()
-
-    if metadata_response.status_code != 200:
-        return redirect(url_for("dashboard_blueprint.login"))
-    if tasks_response.status_code != 200:
-        return redirect(url_for("dashboard_blueprint.login"))
-
-    if wf_metadata["metadata"] and wf_tasks:
+    wf_metadata = wxutils.get_workflow_process(workflow_id)
+    tasks = wxutils.get_workflow_tasks(workflow_id)
+        
+    if wf_metadata:
         # Sort tasks based on start date
-        if wf_tasks["result"]:
-            wf_tasks["result"] = sorted(
-                wf_tasks["result"], key=lambda x: x["start_date"]
+        if tasks and isinstance(tasks, list):
+            tasks = sorted(
+                tasks, key=lambda x: x["start_date"]
             )
         try:
-            package_id = wf_metadata["metadata"]["tags"].get("package_id")
+            package_id = wf_metadata["tags"].get("package_id")
         except:
             package_id = "Not specified"
 
@@ -338,7 +322,7 @@ def workflow(workflow_id):
             workflow_id=workflow_id,
             PARTNER_IMAGE_SRC=get_partner_logo(),
             wf_metadata=wf_metadata,
-            wf_tasks=wf_tasks.get("result", None),
+            wf_tasks=tasks if tasks and isinstance(tasks, list) else None,
             package_id=package_id,
         )
     else:
@@ -348,8 +332,6 @@ def workflow(workflow_id):
 @dashboard_bp.route("/task/<workflow_id>/<task_id>")
 @session_required
 def task(workflow_id, task_id):
-    config = current_app.config["settings"]
-
     # Basic input validation
     if not workflow_id or not task_id:
         return redirect(url_for("dashboard_blueprint.login"))
@@ -361,8 +343,7 @@ def task(workflow_id, task_id):
         if task_metadata.get("workflow_exec_id") != workflow_id:
             return redirect(url_for("dashboard_blueprint.login"))
 
-        input_metadata = wxutils.get_task_input_json(task_id=task_id)
-
+        input_metadata = wxutils.get_task_input_json(task_id=task_id, show_resource_ids=True)
         logs_metadata = wxutils.get_task_info(task_id=task_id)
 
         return render_template_with_s3(
@@ -375,7 +356,7 @@ def task(workflow_id, task_id):
             logs=logs_metadata,
         )
     except Exception as e:
-        logging.debug(e)
+        logging.debug(str(e))
         return redirect(url_for("dashboard_blueprint.login"))
 
 

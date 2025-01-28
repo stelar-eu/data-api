@@ -109,7 +109,7 @@ def get_users(query_data):
     example={"username": "dpetrou", "password": "mypassword"},
 )
 @users_bp.output(
-    schema.ResponseOK,
+    schema.ResponseAmbiguous,
     example={
         "help": "https://klms.stelar.gr/stelar/docs",
         "result": {
@@ -146,9 +146,9 @@ def api_token_create(json_data):
                 "success": True,
             }, 200
         else:
-            return {"help": request.url, "result": {}, "success": False}, 400
+            return {"help": request.url, "result": {}, "success": False}, 401
     except Exception:
-        return {"help": request.url, "result": {}, "success": False}, 400
+        return {"help": request.url, "result": {}, "success": False}, 401
 
 
 @users_bp.route("/token", methods=["PUT"])

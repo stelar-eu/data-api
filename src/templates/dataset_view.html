@@ -973,10 +973,8 @@
 
                     $.each(data.paths, function(zone, directories) {
                         var optGroup = $('<optgroup>', { label: zone });
-                        if (directories.length === 0) {
-                            var rootPath = zone + '/';
-                            optGroup.append(new Option(rootPath, '/'));  
-                        }
+                        var rootPath = zone + '/';
+                        optGroup.append(new Option(rootPath, '/'));    
                         $.each(directories, function(index, directory) {
                             var fullPath = zone + '/' + directory;
                             optGroup.append(new Option(fullPath, directory)); 

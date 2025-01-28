@@ -276,9 +276,13 @@ class K8sExecEngine(ExecEngine):
         # logger.debug("Job: %s", jm)
         return jm
 
-    def create_task(self, tool_name: str, token: str, task_id: str) -> tuple[str, str]:
+    def create_task(
+        self, tool_name: str, token: str, task_id: str, signature: str
+    ) -> tuple[str, str]:
         try:
-            job_manifest = self._create_job_manifest(tool_name, token, task_id)
+            job_manifest = self._create_job_manifest(
+                tool_name, token, task_id, signature
+            )
             job = self.batch.create_namespaced_job(
                 body=job_manifest, namespace=self.namespace
             )

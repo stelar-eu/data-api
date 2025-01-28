@@ -21,6 +21,8 @@ if [ "$1" = 'start-server' ]; then
         exit 1
     fi
 
+    mc alias set myminio $MINIO_DOMAIN $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD  
+
     if [ $? -ne 0 ]; then
         echo "Error: Failed to configure MinIO client alias."
         exit 1

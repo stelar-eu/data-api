@@ -183,7 +183,7 @@ def get_workflow_tasks(workflow_id):
 
     try:
         response = sql_utils.workflow_get_tasks(workflow_id)
-        return response if response else "No tasks submitted for this workflow."
+        return response if response else []
 
     except Exception as e:
         raise RuntimeError(f"Workflow Tasks Could Not Be Retrieved. {e}")
@@ -214,6 +214,40 @@ def update_workflow_state(workflow_id, state):
         else:
             response = sql_utils.workflow_execution_update(
                 workflow_id, state, "1970-01-01 00:00:01"
+            )
+            if not response:
+                return False
+
+        return True, state
+    except Exception as e:
+        raise RuntimeError(f"Workflow State Could Not Be Updated. {e}")
+
+
+def update_task_state(task_id, state):
+    """Update the state of a task. If the state is 'failed' or 'succeeded', the end date is also updated to the current time.
+
+    Args:
+        task_id: The unique identifier of the workflow process.
+        state: The new state of the workflow process. ('running', 'failed', 'succeeded')
+    Returns:
+        A boolean value indicating whether the state was successfully updated.
+    Raises:
+    """
+    if not task_id:
+        raise AttributeError("Workflow ID is required.")
+
+    try:
+        if get_task_info(task_id) is None:
+            raise ValueError("Workflow does not exist.")
+
+        if state in ["failed", "succeeded"]:
+            end_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            response = sql_utils.task_execution_update(task_id, state, end_date)
+            if not response:
+                return False
+        else:
+            response = sql_utils.task_execution_update(
+                task_id, state, "1970-01-01 00:00:01"
             )
             if not response:
                 return False
@@ -579,7 +613,9 @@ def delete_task(task_id):
         return False
 
 
-def get_task_input_json(task_id, signature=None, access_token=None):
+def get_task_input_json(
+    task_id, signature=None, access_token=None, show_resource_ids=False
+):
     """Retrieve the input JSON for a task execution. This is the JSON the tool finally receives.
 
     Provides the input JSON for a task execution, including the input groups and the parameters.
@@ -676,9 +712,23 @@ def get_task_input_json(task_id, signature=None, access_token=None):
                 for artifact in input[group]:
                     # If the artifact is a URL, we directly append it to the list, else we fetch the path from CKAN
                     if is_valid_uuid(artifact):
-                        artifact = api_artifact_id(artifact)
+                        if show_resource_ids:
+                            artifact_id = artifact
+                            artifact = {}
+                            artifact["path"] = api_artifact_id(artifact_id)
+                            artifact["id"] = artifact_id
+                        else:
+                            artifact = api_artifact_id(artifact)
+
                         if artifact is None:
                             continue
+
+                    if show_resource_ids and not isinstance(artifact, dict):
+                        temp = {}
+                        temp["path"] = artifact
+                        temp["id"] = None
+                        artifact = temp
+
                     input_paths[group].append(artifact)
 
             # Check if credentials are not None, else we return the input paths and parameters only.
@@ -840,8 +890,26 @@ def get_task_output_json(task_id, signature, output_json):
         sql_utils.task_execution_insert_log(task_id, messages)
 
     if state:
+        map_state = map_state_to_execution_status(state)
         sql_utils.task_execution_update(
-            task_id, state, end_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            task_id, map_state, end_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
 
-    return "hello"
+    return True
+
+
+# Map HTTP status codes or other indicators to states
+def map_state_to_execution_status(state):
+    if isinstance(state, int):  # If state is an HTTP code
+        if 200 <= state < 300:  # Success HTTP codes
+            return "succeeded"
+        else:  # Other HTTP codes represent failure
+            return "failed"
+    elif isinstance(state, str):  # If state is a string like "success", "error"
+        state = state.lower()
+        if state in ["success", "succeeded"]:
+            return "succeeded"
+        elif state in ["error", "failed"]:
+            return "failed"
+    # Default to failed for unrecognized states
+    return "failed"
