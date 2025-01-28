@@ -261,7 +261,7 @@
                                         <div class="text-secondary">
                                             <small>
                                                 Jobs and logs are only available for tools executed within the KLMS
-                                                cluster. Logs are available for 24h after a job is executed.
+                                                cluster. Logs are available for 12h after a job is executed.
                                             </small>
                                         </div>
                                     </div>
@@ -370,7 +370,7 @@
                 </div>
                 <div class="modal modal-blur fade" id="outputs-json-modal" tabindex="-1" role="dialog"
                     aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
+                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title">Task Output Resources</h5>
@@ -382,7 +382,8 @@
                                     <thead>
                                         <tr>
                                             <th>Resource ID</th>
-                                            <th class="text-end">Action</th>
+                                            <th>Output Path</th>
+                                            <th class="text-end">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -390,7 +391,10 @@
                                         {% for item in task_metadata['output'] %}
                                         <tr>
                                             <td>
-                                                <div>{{ item }}</div>
+                                                <div>{{ item.get("resource_id", 'Not associated') }}</div>
+                                            </td>
+                                            <td>
+                                                <div>{{ item.get("url", "Not registered") }}</div>
                                             </td>
                                             <td class="w-1 fw-bold text-end">
                                                 <a href="{{url_for('dashboard_blueprint.viewResource', resource_id = item)}}"
@@ -598,9 +602,10 @@
             if (output.length > 0) {
                 output.forEach(item => {
                     const row = `<tr>
-                                        <td><div>${item}</div></td>
+                                        <td><div>${item.resource_id}</div></td>
+                                        <td><div>${item.url}</div></td>
                                         <td class="w-1 fw-bold text-end">
-                                            <a href="/stelar/console/v1/resource/${item}" target="_blank">View</a>
+                                            <a href="/stelar/console/v1/resource/${item.resource_id}" target="_blank">View</a>
                                         </td>
                                     </tr>`;
                     outputModalBody.append(row);

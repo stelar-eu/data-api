@@ -255,7 +255,7 @@ def settings():
 @dashboard_bp.route("/workflows")
 @session_required
 def workflows():
-  
+
     # Retrieve list of WFs from DB
     wf_metadata = wxutils.get_workflows()
 
@@ -276,8 +276,7 @@ def workflows():
         # Get the last two months + current month for bar chart display
         today = datetime.today()
         months_to_display = [
-            (today - timedelta(days=30 * i)).strftime("%Y-%m")
-            for i in range(2, -1, -1)
+            (today - timedelta(days=30 * i)).strftime("%Y-%m") for i in range(2, -1, -1)
         ]
 
         # Ensure monthly_counts includes all three months (set to 0 if missing)
@@ -301,7 +300,6 @@ def workflows():
         )
 
 
-
 @dashboard_bp.route("/workflows/<workflow_id>")
 @session_required
 def workflow(workflow_id):
@@ -311,13 +309,11 @@ def workflow(workflow_id):
 
     wf_metadata = wxutils.get_workflow_process(workflow_id)
     tasks = wxutils.get_workflow_tasks(workflow_id)
-        
+
     if wf_metadata:
         # Sort tasks based on start date
         if tasks and isinstance(tasks, list):
-            tasks = sorted(
-                tasks, key=lambda x: x["start_date"]
-            )
+            tasks = sorted(tasks, key=lambda x: x["start_date"])
         try:
             package_id = wf_metadata["tags"].get("package_id")
         except:
@@ -349,7 +345,9 @@ def task(workflow_id, task_id):
         if task_metadata.get("workflow_exec_id") != workflow_id:
             return redirect(url_for("dashboard_blueprint.login"))
 
-        input_metadata = wxutils.get_task_input_json(task_id=task_id, show_resource_ids=True)
+        input_metadata = wxutils.get_task_input_json(
+            task_id=task_id, show_resource_ids=True
+        )
         logs_metadata = wxutils.get_task_info(task_id=task_id)
 
         return render_template_with_s3(

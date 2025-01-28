@@ -199,9 +199,9 @@ def search_packages(
         params = {
             "q": keyword,
             "start": offset,
-            "rows": limit
-            if limit > 0
-            else 1000,  # Default to a high limit if no limit is specified
+            "rows": (
+                limit if limit > 0 else 1000
+            ),  # Default to a high limit if no limit is specified
         }
 
         # Make the request to the CKAN API
@@ -377,7 +377,9 @@ def get_packages(
     return result
 
 
-def get_package(id: str, compressed: bool = False, no_resources: bool = False, title: str = None):
+def get_package(
+    id: str, compressed: bool = False, no_resources: bool = False, title: str = None
+):
     """Retrieve a dataset's details from the CKAN catalog using its unique identifier.
 
     This function interacts with the CKAN API to fetch metadata about a specific dataset.
@@ -388,7 +390,7 @@ def get_package(id: str, compressed: bool = False, no_resources: bool = False, t
         id (str): The unique identifier (name) of the dataset to retrieve.
         compressed (bool): Whether to compress the dataset's 'resources' field.
         no_resources (bool): Whether to exclude the 'resources' field from the dataset.
-        title (str): The title of the dataset to retrieve. If provided, it will be converted 
+        title (str): The title of the dataset to retrieve. If provided, it will be converted
         to an ID and dominate any ID provided.
 
     Returns:
