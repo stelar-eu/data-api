@@ -78,15 +78,16 @@ class EntityCreationRequest(Schema):
 class ExtEntityCreationRequest(EntityCreationRequest):
     """Base class for creation requests of entities with tags and extras."""
 
-    tags = List(String, required=True)
+    tags = List(String, required=False)
     extras = Dict(required=False)
     state = String(required=False, validate=OneOf(["draft", "active", "deleted"]))
 
 
 class DatasetCreationRequest(ExtEntityCreationRequest):
-    title = String(required=False)
+    owner_org = String(required=True)
 
-    notes = String(required=True, validate=Length(0, 10000))
+    title = String(required=False)
+    notes = String(required=False, validate=Length(0, 10000))
     author = String(required=False)
     author_email = String(required=False)
     maintainer = String(required=False)
@@ -108,6 +109,42 @@ class GroupCreationRequest(EntityCreationRequest):
     approval_status = String(
         required=False, validate=OneOf(["approved", "pending", "rejected"])
     )
+
+
+class ResourceCreationRequest(Schema):
+    package_id = String(required=True)
+    url = URL(required=False)
+    format = String(required=False)
+    name = String(required=False)
+    description = String(required=False)
+    resource_type = String(required=False, validate=OneOf(["file", "api", "service"]))
+    hash = String(required=False)
+    size = Integer(required=False)
+    extra = Dict(required=False)
+    mimetype = String(required=False)
+    mimetype_inner = String(required=False)
+    cache_url = URL(required=False)
+    cache_last_updated = DateTime(required=False)
+
+    class Meta:
+        unknown = INCLUDE
+
+
+class DatasetUpdateRequest(DatasetCreationRequest):
+    class Meta:
+        exclude = ["name"]
+        partial = True
+
+
+class GroupUpdateRequest(GroupCreationRequest):
+    class Meta:
+        exclude = ["name"]
+        partial = True
+
+
+class ResourceUpdateRequest(ResourceCreationRequest):
+    class Meta:
+        partial = True
 
 
 # =============================================

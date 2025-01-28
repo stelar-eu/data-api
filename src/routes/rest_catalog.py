@@ -579,7 +579,13 @@ def api_rest_patch_resource(resource_id: str, json_data):
 
 class Entity:
     def __init__(
-        self, name, collection_name, ckan_name=None, extras=True, creation_schema=None
+        self,
+        name,
+        collection_name,
+        creation_schema,
+        update_schema,
+        ckan_name=None,
+        extras=True,
     ):
         self.name = name
         self.collection_name = collection_name
@@ -594,6 +600,7 @@ class Entity:
         self.ckan_api_patch = f"{self.ckan_name}_patch"
 
         self.creation_schema = creation_schema
+        self.update_schema = update_schema
 
         if extras:
             self.has_extras = True
@@ -883,12 +890,14 @@ def generate_delete_entity(entity: Entity):
         purge = query_data.get("purge", False)
         return entity.delete_entity(entity_id, purge=purge)
 
+    return generic_delete_entity
+
 
 def generate_create_entity(entity: Entity):
     """Generates the entity create endpoints"""
 
     @rest_catalog_bp.post(f"/{entity.name}")
-    @rest_catalog_bp.input(schema.Dataset, location="json")
+    @rest_catalog_bp.input(entity.creation_schema, location="json")
     @rest_catalog_bp.output(schema.APIResponse, status_code=200)
     @rest_catalog_bp.doc(
         summary=f"Create {entity.name}",
@@ -903,20 +912,92 @@ def generate_create_entity(entity: Entity):
     @token_active
     @render_api_output
     @rename_endpoint(f"api_create_{entity.name}")
-    def TODO():
-        pass
+    def generic_create_entity(json_data):
+        return entity.create_entity(json_data)
+
+    return generic_create_entity
 
 
-GROUP = Entity("group", "groups")
-ORGANIZATION = Entity("organization", "organizations")
+def generate_update_entity(entity: Entity):
+    """Generates the entity update endpoints"""
 
-DATASET = Entity("datset", "datsets", ckan_name="package")
+    @rest_catalog_bp.put(f"/{entity.name}/<entity_id>")
+    @rest_catalog_bp.input(entity.update_schema, location="json")
+    @rest_catalog_bp.output(schema.APIResponse, status_code=200)
+    @rest_catalog_bp.doc(
+        summary=f"Update {entity.name} by ID",
+        description=f"""Update a {entity.name} in the Data Catalog by its ID. \\
+        The {entity.name} metadata (e.g., name, description, tags) is passed in the request body. \\
+        Any existing attributes that are excluded but their respective fields are included in the body WILL BE REMOVED. \\
+        """,
+        tags=["RESTful Publishing Operations"],
+        security=security_doc,
+        responses=error_responses([400, 404, 500]),
+    )
+    @token_active
+    @render_api_output
+    @rename_endpoint(f"api_update_{entity.name}")
+    def generic_update_entity(entity_id: str, json_data):
+        return entity.update_entity(entity_id, json_data)
+
+    return generic_update_entity
+
+
+def generate_patch_entity(entity: Entity):
+    """Generates the entity update endpoints"""
+
+    @rest_catalog_bp.patch(f"/{entity.name}/<entity_id>")
+    @rest_catalog_bp.input(entity.update_schema, location="json")
+    @rest_catalog_bp.output(schema.APIResponse, status_code=200)
+    @rest_catalog_bp.doc(
+        summary=f"Update {entity.name} by ID",
+        description=f"""Partially update a {entity.name} in the Data Catalog by its ID. \\
+        The {entity.name} metadata (e.g., name, description, tags) is passed in the request body. \\
+        Contrary to the PUT method, this method does not remove any omitted fields. \\
+        """,
+        tags=["RESTful Publishing Operations"],
+        security=security_doc,
+        responses=error_responses([400, 404, 500]),
+    )
+    @token_active
+    @render_api_output
+    @rename_endpoint(f"api_patch_{entity.name}")
+    def generic_patch_entity(entity_id: str, json_data):
+        return entity.patch_entity(entity_id, json_data)
+
+    return generic_patch_entity
+
+
+GROUP = Entity(
+    "group", "groups", schema.GroupCreationRequest, schema.GroupUpdateRequest
+)
+ORGANIZATION = Entity(
+    "organization",
+    "organizations",
+    schema.GroupCreationRequest,
+    schema.GroupUpdateRequest,
+)
+DATASET = Entity(
+    "datset",
+    "datsets",
+    creation_schema=schema.DatasetCreationRequest,
+    update_schema=schema.DatasetUpdateRequest,
+    ckan_name="package",
+)
 DATASET.ckan_api_purge = "dataset_purge"
-
-RESOURCE = Entity("resource", "resources")
+RESOURCE = Entity(
+    "resrc",
+    "rsrcs",
+    schema.ResourceCreationRequest,
+    schema.ResourceUpdateRequest,
+    ckan_name="resource",
+)
 
 
 for e in [GROUP, ORGANIZATION, DATASET, RESOURCE]:
     e.endpoints["list"] = generate_list_entities(e)
     e.endpoints["get"] = generate_get_entity(e)
     e.endpoints["delete"] = generate_delete_entity(e)
+    e.endpoints["create"] = generate_create_entity(e)
+    e.endpoints["update"] = generate_update_entity(e)
+    e.endpoints["patch"] = generate_patch_entity(e)

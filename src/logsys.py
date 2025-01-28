@@ -13,6 +13,7 @@ def configure():
                 "httpx": {"level": "WARNING", "propagate": False},
                 "cutils": {"level": "DEBUG"},
                 "rest_catalog": {"level": "DEBUG"},
+                "data_api": {"level": "DEBUG"},
             },
         }
     )

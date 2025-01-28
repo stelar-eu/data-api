@@ -58,7 +58,6 @@ logsys.configure()
 
 app = APIFlask(__name__, spec_path="/specs", docs_path="/docs")
 app.secret_key = os.getenv("SESSION_SECRET_KEY", "None")
-
 app.config.from_prefixed_env()
 
 
