@@ -1154,7 +1154,14 @@ def task_execution_parameters_read_sql(task_exec_id):
         resp = utils.execSql(sql, (task_exec_id,))
 
         if resp and len(resp) > 0:
-            params = {tag["key"]: tag["value"] for tag in resp}
+            params = {}
+            for param in resp:
+                value = param["value"]
+                try:
+                    value = int(value)
+                except (ValueError, TypeError, Exception):
+                    pass
+                params[param["key"]] = value
             return params
         else:
             return None

@@ -28,6 +28,12 @@ optional_basic_metadata = [
 ]
 
 
+def validate_status(value):
+    """Custom validator to ensure status is either a string or an integer"""
+    if not isinstance(value, (str, int)):
+        raise ValidationError("Status must be either a string or an integer.")
+
+
 class ResponseOK(Schema):
     help = URL(required=True)
     result = Dict(required=True)
@@ -306,7 +312,9 @@ class Task_Input_v2(Schema):
 
 class Task_Output(Schema):
     metrics = Dict(keys=fields.String(), values=fields.String(), required=False)
-    status = String(required=True)
+    status = fields.Raw(
+        required=True, validate=validate_status
+    )  # Accepts both str and int
     error = String(required=False)
     message = String(required=False)
     output = Dict(keys=fields.String(), values=fields.String(), required=False)
