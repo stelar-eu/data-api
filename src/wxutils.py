@@ -880,8 +880,8 @@ def get_task_output_json(task_id, signature, output_json):
         sql_utils.task_execution_insert_output(task_id, actual_resource_output)
 
     # Now handle the metrics, messages and state of the task.
-    state = output_json.get("state")
-    messages = output_json.get("messages")
+    state = output_json.get("status")
+    messages = output_json.get("message")
     metrics = output_json.get("metrics")
 
     if metrics:
@@ -890,7 +890,12 @@ def get_task_output_json(task_id, signature, output_json):
     if messages:
         sql_utils.task_execution_insert_log(task_id, messages)
 
-    if state:
+    if "error" in output_json:
+        map_state = "failed"
+        sql_utils.task_execution_update(
+            task_id, map_state, end_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+    elif state:
         map_state = map_state_to_execution_status(state)
         sql_utils.task_execution_update(
             task_id, map_state, end_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
