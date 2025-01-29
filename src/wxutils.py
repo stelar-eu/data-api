@@ -424,9 +424,8 @@ def create_task(json_data, token):
                         )
                     else:
                         url = output_spec.get("url", None)
-                        if not is_valid_url(url):
-                            continue
-
+                        # if not is_valid_url(url):
+                        #     continue
                         # Handle the metadata related fields and cases
                         if output_spec.get("resource", None):
                             # Case where there is an existing resource that we want to overwrite its data
@@ -471,6 +470,7 @@ def create_task(json_data, token):
 
                         # Case where we don't want any metadata to be tracked for this output file.
                         else:
+                            logging.debug(output + " : " + url)
                             response = (
                                 sql_utils.task_execution_insert_output_spec_plain_path(
                                     task_exec_id, output, url
@@ -735,7 +735,7 @@ def get_task_input_json(
             # Check if credentials are not None, else we return the input paths and parameters only.
             if access_key and secret_key and session_token:
                 result = {
-                    "input": input_paths,
+                    "inputs": input_paths,
                     "parameters": parameters,
                     "minio": {
                         "endpoint_url": minio_url,
@@ -754,7 +754,7 @@ def get_task_input_json(
             # Read the paths for the output files that the tool will write to.
             output = sql_utils.task_read_output_spec(task_exec_id)
             if output:
-                result["output"] = output
+                result["outputs"] = output
 
             # If the request is signed, we verify the signature to include secret information.
             if signature:

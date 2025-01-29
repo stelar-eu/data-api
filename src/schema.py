@@ -311,7 +311,7 @@ class Task_Input_v2(Schema):
 
 
 class Task_Output(Schema):
-    metrics = Dict(keys=fields.String(), values=fields.String(), required=False)
+    metrics = Dict(required=False)
     status = fields.Raw(
         required=True, validate=validate_status
     )  # Accepts both str and int
