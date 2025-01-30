@@ -46,8 +46,6 @@ from routes.rest_catalog import rest_catalog_bp
 from routes.rest_workflows import rest_workflows_bp
 from routes.settings import settings_bp
 
-#### TASK BPs ####
-from routes.tasks import tasks_bp
 
 #### USERS BP ####
 from routes.users import api_user_editor, users_bp
@@ -87,7 +85,6 @@ def global_error_processor(error):
 # Workflow/Execution management etc.
 
 app.register_blueprint(users_bp, url_prefix="/api/v1/users")
-app.register_blueprint(tasks_bp, url_prefix="/api/v1/task")
 app.register_blueprint(dashboard_bp, url_prefix="/console/v1")
 app.register_blueprint(publisher_bp, url_prefix="/console/v1/publisher")
 app.register_blueprint(settings_bp, url_prefix="/console/v1/settings")
