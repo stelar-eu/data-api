@@ -7,7 +7,7 @@ from minio import Minio
 from minio.error import S3Error
 
 import mutils as mu
-from src.auth import token_active
+from auth import token_active
 
 """
     This .py file contains the endpoints attached to the blueprint
@@ -17,6 +17,8 @@ from src.auth import token_active
 
 # The tasks operations blueprint for all operations related to the lifecycle of `tasks
 publisher_bp = APIBlueprint("pub_blueprint", __name__, enable_openapi=False)
+
+logger = logging.getLogger(__name__)
 
 
 @publisher_bp.route("/fetch_paths", methods=["GET"])
@@ -118,7 +120,7 @@ def upload_file_to_minio():
             # Remove Bucket Prefix from Object Full Path (Avoid creating subfolder with the same name as the bucket)
             object_name.replace(bucket_prefix, "", 1)
 
-            logging.debug(object_name)
+            logger.debug(object_name)
 
             # Upload the file to MinIO
             config = current_app.config["settings"]
