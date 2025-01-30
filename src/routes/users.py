@@ -27,8 +27,6 @@ from src.auth import admin_required, auth, security_doc, token_active
     Follows the REST logic.
 """
 
-logging.basicConfig(level=logging.DEBUG)
-
 # The users operations blueprint for all operations related to the lifecycle of a user
 users_bp = APIBlueprint(
     "users_blueprint",

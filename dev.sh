@@ -45,7 +45,8 @@ if [ "$1" = 'start-server' ]; then
     
     echo "Starting the server with Flask in Debug Mode..."
     # Start Flask application
-    flask run
+    #flask run
+    sleep 10d
 
 # Check if the first argument is 'setup-db'
 elif [ "$1" = 'setup-db' ]; then

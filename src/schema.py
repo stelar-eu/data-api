@@ -1,10 +1,8 @@
-import json
-
-from apiflask import Schema, abort
+from apiflask import Schema
 from apiflask.fields import (
     URL,
     Boolean,
-    Date,
+    Constant,
     DateTime,
     Dict,
     Integer,
@@ -12,8 +10,8 @@ from apiflask.fields import (
     Nested,
     String,
 )
-from apiflask.validators import Length, NoneOf, OneOf
-from marshmallow import INCLUDE, ValidationError, fields, post_dump, pre_load, validates
+from apiflask.validators import Length, OneOf, Range, Regexp
+from marshmallow import INCLUDE, ValidationError, fields, pre_load
 
 optional_basic_metadata = [
     "version",
@@ -26,6 +24,182 @@ optional_basic_metadata = [
     "type",
     "private",
 ]
+
+
+# ---------------------------------------------
+#  Schema for generic requests and responses
+# ---------------------------------------------
+
+
+class ErrorSpec(Schema):
+    type = String(required=True, data_key="__type")
+    message = String(required=True)
+    detail = Dict(required=False)
+
+
+class APIErrorResponse(Schema):
+    help = URL(required=True)
+    # success = Boolean(required=True, validates=Equal(False))
+    success = Constant(False)
+    error = Nested(ErrorSpec, required=True)
+
+
+class APIResponse(Schema):
+    help = URL(required=True)
+    # success = Boolean(required=True, validates=Equal(True))
+    success = Constant(True)
+    result = Dict(required=True)
+    error = Nested(ErrorSpec, required=False)
+
+
+class DeleteRequest(Schema):
+    purge = Boolean(required=False, load_default=False)
+
+
+class DeleteResponse(APIResponse):
+    result = None
+
+
+class IdListResponse(Schema):
+    help = URL(required=True)
+    success = Boolean(required=True)
+    # Use fields that are conditionally required depending on success
+    result = List(String(), required=False)
+
+
+class EntityListResponse(Schema):
+    help = URL(required=True)
+    success = Boolean(required=True)
+
+    # Use fields that are conditionally required depending on success
+    result = List(Dict(), required=False)
+
+
+class NameID(String):
+    """Datasets, groups and organizations, tags, etc, have name field which is unique and immutable."""
+
+    def __init__(self):
+        super().__init__(
+            required=True, validate=[Length(2, 100), Regexp(r"^[a-z0-9_-]{2,100}$")]
+        )
+
+
+class EntityCreationRequest(Schema):
+    """A base class for creation requests of named entities."""
+
+    name = NameID()
+
+
+class DatasetCreationRequest(Schema):
+    name = NameID()
+
+    tags = List(String, required=False)
+    extras = Dict(required=False)
+    state = String(required=False, validate=OneOf(["draft", "active", "deleted"]))
+
+    owner_org = String(required=True)
+
+    title = String(required=False)
+    notes = String(required=False, validate=Length(0, 10000), allow_none=True)
+    author = String(required=False, allow_none=True)
+    author_email = String(required=False, allow_none=True)
+    maintainer = String(required=False, allow_none=True)
+    maintainer_email = String(required=False, allow_none=True)
+    url = String(
+        required=False, validate=Length(0, 200), allow_none=True
+    )  # Note: making this a URL would force checks that might fail
+    private = Boolean(
+        required=False, load_default=False
+    )  # By default, dataset metadata will be publicly available
+
+    version = String(required=False, validate=Length(0, 100), allow_none=True)
+
+
+class DatasetUpdateRequest(DatasetCreationRequest):
+    # owner_org = String(required=False)
+
+    class Meta:
+        exclude = ["name"]
+        partial = True
+
+
+class GroupSchema(Schema):
+    name = NameID()
+
+    state = String(required=False, validate=OneOf(["draft", "active", "deleted"]))
+
+    title = String(required=False)
+    description = String(required=False)
+    image_url = String(required=False)
+    # type = String(required=False, validate=OneOf(["group", "organization"]))
+    approval_status = String(
+        required=False,
+        validate=OneOf(["approved", "pending", "rejected"]),
+    )
+
+    # It seems that Groups and Organizations do not support tags, and furthermore,
+    # the CKAN decision was to drop them altogether from groups and organizations
+    #
+    # https://github.com/ckan/ckan/issues/4388
+    #
+    # tags = List(String, required=False)
+
+    extras = Dict(required=False)
+
+
+class OrganizationSchema(GroupSchema):
+    pass
+
+
+class ResourceCreationRequest(Schema):
+    package_id = String(required=True)
+    url = String(required=False, allow_none=True)
+    format = String(required=False, allow_none=True)
+    name = String(required=False, allow_none=True)
+    description = String(required=False, allow_none=True)
+    resource_type = String(
+        required=False, validate=OneOf(["file", "api", "service"]), allow_none=True
+    )
+    hash = String(required=False, allow_none=True)
+    size = Integer(required=False, allow_none=True)
+    extra = Dict(required=False, allow_none=True)
+    mimetype = String(required=False, allow_none=True)
+    mimetype_inner = String(required=False, allow_none=True)
+    cache_url = String(required=False, allow_none=True)
+    cache_last_updated = DateTime(required=False, allow_none=True)
+
+    class Meta:
+        unknown = INCLUDE
+
+
+class ResourceUpdateRequest(ResourceCreationRequest):
+    class Meta:
+        partial = True
+        unknown = INCLUDE
+
+
+class VocabularyCreationRequest(EntityCreationRequest):
+    name = NameID()
+    tags = List(String, required=True)
+
+
+class VocabularyUpdateRequest(VocabularyCreationRequest):
+    tags = List(String, required=True)
+
+    class Meta:
+        exclude = ["name"]
+
+
+class TagCreationRequest(EntityCreationRequest):
+    name = NameID()
+    vocabulary_id = String(required=True)
+
+
+# =============================================
+#
+#  Older non-generic schema definitions
+#
+# =============================================
 
 
 def validate_status(value):
@@ -68,10 +242,10 @@ class ResponseAmbiguous(Schema):
         based on the 'success' value.
         """
         if data.get("success"):
-            if not data.get("result"):
+            if "result" not in data:
                 raise ValueError("'result' field is required when success is True.")
         else:
-            if not data.get("error"):
+            if "error" not in data:
                 raise ValueError("'error' field is required when success is False.")
         return data
 
@@ -85,8 +259,8 @@ class Identifier(Schema):
 
 
 class PaginationParameters(Schema):
-    limit = Integer(required=False, example="100")
-    offset = Integer(required=False, example="0")
+    limit = Integer(required=False, example="100", validates=Range(min=1))
+    offset = Integer(required=False, example="0", validates=Range(min=0))
 
 
 class RolesInput(Schema):

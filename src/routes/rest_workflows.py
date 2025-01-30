@@ -1,9 +1,8 @@
 import json
 import logging
 
-import requests
 from apiflask import APIBlueprint
-from flask import current_app, jsonify, request, session
+from flask import request, session
 
 import cutils
 import kutils
@@ -11,7 +10,7 @@ import kutils
 # Input schema for validating and structuring several API requests
 import schema
 import wxutils
-from src.auth import admin_required, auth, security_doc, token_active
+from src.auth import token_active
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -605,7 +604,6 @@ def api_rest_get_task_input(task_id, signature=None):
         }, 500
 
 
-
 @rest_workflows_bp.route("/tasks/<task_id>/<signature>/output", methods=["POST"])
 @rest_workflows_bp.doc(tags=["RESTful Workflow Operations"])
 @rest_workflows_bp.input(schema.Task_Output, location="json")
@@ -633,12 +631,9 @@ def api_rest_post_task_output(task_id, signature, json_data):
             task_id=task_id, signature=signature, output_json=json_data
         )
         return {
-                "success": True, 
-                "result": {
-                    "task_id": task_id, 
-                    "output_published": resp 
-                }, 
-                "help":""
+            "success": True,
+            "result": {"task_id": task_id, "output_published": resp},
+            "help": "",
         }, 200
     except ValueError as ve:
         return {
@@ -784,9 +779,7 @@ def api_update_task_state(task_id, json_data):
         - 500: An unknown error occurred.
     """
     try:
-        is_updated, state = wxutils.update_task_state(
-            task_id, json_data.get("state")
-        )
+        is_updated, state = wxutils.update_task_state(task_id, json_data.get("state"))
         if is_updated:
             return {
                 "success": True,

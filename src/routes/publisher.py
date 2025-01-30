@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 
@@ -67,6 +66,7 @@ def fetch_minio_paths():
         )
 
 
+@publisher_bp.route("/upload_file", methods=["POST"])
 @publisher_bp.route("/upload_file", methods=["POST"])
 @token_active
 def upload_file_to_minio():

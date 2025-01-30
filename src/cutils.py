@@ -1,53 +1,47 @@
+from __future__ import annotations
+
+import functools
 import json
+import logging
 import re
+import traceback
 from datetime import datetime
-from urllib.parse import urlencode, urljoin
+from typing import TYPE_CHECKING, Optional
+from urllib.parse import urljoin
 
 import requests
 from flask import current_app
 
+import schema
 import utils
+from exceptions import (
+    BackendError,
+    BackendLogicError,
+    DataError,
+    NotFoundError,
+    ValidationError,
+)
 from routes.users import api_user_editor
 
+if TYPE_CHECKING:
+    from requests import Response
 
-def create_CKAN_headers(API_TOKEN):
-    """Create the headers required for publishing a package or a resource in CKAN.
-
-    Args:
-        API_TOKEN (string): The API_TOKEN issued by CKAN that is required to establish connection
-        and submit the request.
-
-    Returns:
-        Two JSON obejcts: (i) headers for package and (ii) headers for resource.
-    """
-
-    package_headers = {"Authorization": API_TOKEN, "Content-Type": "application/json"}
-    resource_headers = {"X-CKAN-API-Key": API_TOKEN}
-    return package_headers, resource_headers
+logger = logging.getLogger(__name__)
 
 
-def request(
-    method,
-    entity_type,
-    endpoint,
-    params=None,
-    data=None,
-    headers=None,
-    json=None,
-    files=None,
+def raw_request(
+    endpoint, *, json: Optional[dict] = None, headers: dict = {}, params=None, **kwargs
 ):
     """
     Sends a request to the CKAN API
 
     Args:
-        method (str): The HTTP method ('GET', 'POST', 'PUT', 'DELETE').
-        entity_type (str): The entity type the request intends to handle ('package', 'resource')
         endpoint (str): The API endpoint (relative to `api_url`). Can include query parameters.
         params (dict, optional): URL query parameters.
-        data (dict, optional): Form data to be sent in the body.
         headers (dict, optional): Additional request headers.
         json (dict, optional): JSON data to be sent in the body.
-        file (file, optional): A file to upload to the request endpoint.
+
+        **kwargs: These are added to json
 
     Returns:
         requests.Response: The response object from the API.
@@ -60,58 +54,102 @@ def request(
     api_url = config["CKAN_API"]
 
     # Combine base_url with the endpoint
-    endpoint = endpoint.lstrip("/")
-    url = urljoin(api_url + "/", endpoint)
-
-    # Handle query parameters in the endpoint or passed as 'params'
-    if "?" in endpoint and params:
-        raise ValueError(
-            "Specify query parameters either in the endpoint or in 'params', not both."
-        )
-
-    # If the URL does not contain a query, add parameters from 'params'
-    if params:
-        url = f"{url}?{urlencode(params)}"
+    url = urljoin(api_url, endpoint)
 
     # Prepare headers, defaulting to Authorization if token is present and Content-Type
-    default_headers = {}
-    package_headers, resource_headers = create_CKAN_headers(config["CKAN_ADMIN_TOKEN"])
-
-    if entity_type != "package" and entity_type != "resource":
-        raise AttributeError(f"Entity type '{entity_type}' is not supported!")
-
-    default_headers.update(
-        package_headers if entity_type == "package" else resource_headers
-    )
-
-    if headers:
-        default_headers.update(headers)
-
-    # Validate data/json and handle accordingly
-    if method.upper() == "GET":
-        # GET requests should not have a body (data or json)
-        if data or json:
-            raise ValueError("GET requests cannot include body data.")
-    else:
-        # POST, PUT, DELETE, etc., should use either data or json but not both
-        if data and json:
-            raise ValueError("Specify either 'data' or 'json', not both.")
+    headers = {"Authorization": config["CKAN_ADMIN_TOKEN"]} | headers
 
     # Make the request using the provided method, url, params, data, json, and headers
-    response = requests.request(
-        method=method,
-        url=url,
-        params=None,  # params are already incorporated into the URL
-        data=data,  # if provided, this will be form data
-        json=json,  # if provided, this will be JSON payload
-        headers=default_headers,
-        verify=True,
-        files=files,
-    )
+    if kwargs:
+        if json is None:
+            request_args = kwargs
+        else:
+            request_args = json | kwargs
+    else:
+        request_args = json
 
+    logger.debug("CKAN API call: %s %s", url, request_args)
+    try:
+        response = requests.post(
+            url=url,
+            json=request_args,
+            headers=headers,
+            params=params,
+        )
+    except Exception as e:
+        message = "Request to CKAN failed: " + repr(e)
+        detail = {
+            "url": url,
+            "request_args": str(request_args),
+            "format_exc": traceback.format_exc(),
+        }
+        raise BackendError(500, "ckan", *e.args, message=message, detail=detail) from e
+
+    logger.debug("CKAN API response: %d", response.status_code)
+    return response
+
+
+def request(
+    endpoint, *, json: Optional[dict] = None, headers: dict = {}, params=None, **kwargs
+):
+    """Make a CKAN request and raise on error."""
     # Raise an exception for HTTP errors (4xx, 5xx responses)
+    response = raw_request(
+        endpoint, json=json, headers=headers, params=params, **kwargs
+    )
     response.raise_for_status()
     return response
+
+
+def raise_ckan_error(response: Response, context: dict):
+    if 200 <= response.status_code < 300:
+        return
+    if 300 <= response.status_code < 400:
+        raise BackendLogicError("ckan", "Unexpected redirect", response.status_code)
+    if 400 <= response.status_code:
+        c = response.json()
+        etype = c["error"]["__type"]
+        emsg = c["error"]["message"]
+
+        match etype:
+            case "Integrity Error":
+                raise DataError(emsg)
+            case "Authorization Error":
+                raise BackendLogicError("ckan", etype, emsg)
+            case "Not Found Error":
+                entity = context.get("entity", None)
+                raise NotFoundError(entity, emsg)
+            case "Validation Error":
+                raise ValidationError(emsg)
+            case "Search Query Error":
+                raise DataError(etype, emsg)
+            case "Search Error":
+                raise ValidationError(etype, emsg)
+            case "Search Index Error" | "Solr Connection Error" | "Internal Server Error":
+                raise BackendError("ckan", etype, emsg)
+            case _:
+                raise BackendLogicError("ckan", "Unknown error type", etype)
+    raise BackendLogicError("ckan", "Unexpected status code", response.status_code)
+
+
+def ckan_request(
+    endpoint,
+    *,
+    json: Optional[dict] = None,
+    headers: dict = {},
+    params=None,
+    context={},
+    **kwargs,
+):
+    """Make a CKAN request and return the JSON response."""
+    # Raise an exception for HTTP errors (4xx, 5xx responses)
+    response = raw_request(
+        endpoint, json=json, headers=headers, params=params, **kwargs
+    )
+    raise_ckan_error(response, context)
+    jsobj = response.json()
+    obj = jsobj["result"]
+    return obj
 
 
 def is_package(id: str):
@@ -125,14 +163,9 @@ def is_package(id: str):
     """
     try:
         if id:
-            response = request("GET", "package", "package_show", params={"id": id})
+            response = request("package_show", json={"id": id})
             if response.status_code == 200:
                 return True
-        else:
-            return False
-    except requests.exceptions.HTTPError as he:
-        if he.response.status_code == 404:
-            return False
         else:
             return False
     except Exception:
@@ -150,7 +183,7 @@ def is_resource(id: str):
     """
     try:
         if id:
-            response = request("GET", "resource", "resource_show", params={"id": id})
+            response = request("resource_show", params={"id": id})
             if response.status_code == 200:
                 return True
         else:
@@ -205,7 +238,7 @@ def search_packages(
         }
 
         # Make the request to the CKAN API
-        response = request("GET", "package_search", params=params)
+        response = request("package_search", json=params)
 
         if response.status_code == 200:
             results = response.json()["result"]["results"]
@@ -234,7 +267,9 @@ def search_packages(
         raise Exception(f"Error while searching packages: {str(e)}")
 
 
-def list_packages(limit: int = 0, offset: int = 0, expand_mode: bool = False):
+def list_packages(
+    limit: Optional[int] = None, offset: Optional[int] = None, expand_mode: bool = False
+):
     """
     Retrieve a list of all dataset IDs from the CKAN catalog.
 
@@ -243,7 +278,7 @@ def list_packages(limit: int = 0, offset: int = 0, expand_mode: bool = False):
     only the unique identifiers (IDs) of the datasets.
 
     Args:
-        limit (int): The number of dataset IDs to return. If 0, no limit is applied.
+        limit (int): The number of dataset IDs to return. If None, no limit is applied.
         offset (int): The starting point (offset) to fetch the dataset IDs from.
 
     Returns:
@@ -255,19 +290,20 @@ def list_packages(limit: int = 0, offset: int = 0, expand_mode: bool = False):
     Example:
         Response: ["dataset_id_1", "dataset_id_2", "dataset_id_3"]
     """
-    try:
-        # Check if no limit is specified or if limit is greater than 0
-        if limit == 0:
-            pass
-        elif limit > 0 and offset >= 0:
-            pass
-        else:
-            raise ValueError(
-                "Limit must be greater than 0. Offset should be non negative"
-            )
 
+    def check(val, name):
+        if not isinstance(val, Optional[int]):
+            raise TypeError(f"{name} must be an integer, or None")
+        if val is not None:
+            if val < 0:
+                raise ValueError(f"{name} must be nonnegative")
+
+    check(limit, "limit")
+    check(offset, "offset")
+
+    try:
         # Make the request to the CKAN API using the constructed parameters
-        response = request("GET", "package", "package_list")
+        response = request("package_list", limit=limit, offset=offset)
         if response.status_code == 200:
             datasets = response.json()["result"]
             if expand_mode:
@@ -313,10 +349,8 @@ def count_packages() -> int:
     """
     try:
         response = request(
-            "GET",
-            "package",
             "organization_show",
-            params={
+            json={
                 "id": "stelar-klms",
                 "include_dataset_count": True,
                 "include_users": False,
@@ -332,7 +366,10 @@ def count_packages() -> int:
 
 
 def get_packages(
-    limit: int = 0, offset: int = 0, tag_filter: str = None, filter_mode: str = None
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+    tag_filter: str = None,
+    filter_mode: str = None,
 ):
     """
     Retrieve details for multiple datasets, with support for pagination.
@@ -364,6 +401,8 @@ def get_packages(
         return {package: get_package(package, compressed=True) for package in packages}
 
     # Process with filtering
+    # VSAM: Note: this is currently used to filter datasets vs workflows etc, and will
+    # be changed when/(if?) package types are supported in the catalog.
     result = {}
     for package in packages:
         pkg = get_package(package, compressed=True)
@@ -405,7 +444,7 @@ def get_package(
         if title:
             id = re.sub(r"[\W_]+", "_", title).lower()
 
-        response = request("GET", "package", "package_show", params={"id": id})
+        response = request("package_show", params={"id": id})
         if response.status_code == 200:
             resp = response.json()
             dataset = resp.get("result", None)
@@ -484,9 +523,7 @@ def create_package(
                         ]  # CAUTION! Taking the first organization where this user is editor
                         break
         try:
-            resp_basic = request(
-                "POST", "package", "package_create", json=basic_metadata
-            )
+            resp_basic = request("package_create", json=basic_metadata)
             if resp_basic.status_code == 200:
                 package_id = resp_basic.json()["result"]["id"]
         except requests.exceptions.HTTPError as he:
@@ -507,7 +544,7 @@ def create_package(
         extras["id"] = package_id
         extras["extras"] = utils.handle_extras(extra_metadata)
 
-        resp_extras = request("POST", "package", "package_patch", json=extras)
+        resp_extras = request("package_patch", json=extras)
         if resp_extras.status_code != 200:
             raise RuntimeError(resp_extras.json()["result"])
 
@@ -528,9 +565,7 @@ def create_package(
             #         utils.execSql(sql)
         elif profile_metadata.get("url") is not None:
             profile_metadata["relation"] = "profile"
-            resp_resource = request(
-                "POST", "resource", "resource_create", json=profile_metadata
-            )
+            resp_resource = request("resource_create", json=profile_metadata)
             if resp_resource.status_code != 200:
                 raise RuntimeError(resp_extras.json()["result"])
         else:
@@ -540,9 +575,7 @@ def create_package(
             )
 
     # --- Return the newly created package by fetching it from the catalog
-    new_package_resp = request(
-        "GET", "package", "package_show", params={"id": package_id}
-    )
+    new_package_resp = request("package_show", params={"id": package_id})
 
     if new_package_resp.status_code == 200:
         return new_package_resp.json()["result"]
@@ -577,7 +610,7 @@ def patch_package(id: str, package_metadata: dict):
         if package_metadata.get("tags"):
             package_metadata["tags"] = utils.handle_keywords(package_metadata["tags"])
 
-        response = request("POST", "package", "package_patch", json=package_metadata)
+        response = request("package_patch", json=package_metadata)
         if response.status_code == 200:
             return response.json().get("result")
 
@@ -593,7 +626,7 @@ def patch_package(id: str, package_metadata: dict):
 def delete_package(id: str):
     try:
         if id:
-            response = request("POST", "package", "dataset_purge", json={"id": id})
+            response = request("dataset_purge", json={"id": id})
             if response.status_code == 200:
                 return id
     except requests.exceptions.HTTPError as he:
@@ -628,7 +661,7 @@ def get_package_resources(package_id: str, relation_filter: str = None):
 def get_resource(id: str):
     try:
         if id:
-            response = request("GET", "resource", "resource_show", params={"id": id})
+            response = request("resource_show", json={"id": id})
             if response.status_code == 200:
                 return response.json()["result"]
         else:
@@ -648,9 +681,7 @@ def create_resource(
             resource_metadata["package_id"] = package_id
             resource_metadata["relation"] = relation_type
 
-            response = request(
-                "POST", "resource", "resource_create", data=resource_metadata
-            )
+            response = request("resource_create", json=resource_metadata)
 
             if response.status_code == 200:
                 resource_id = response.json()["result"]["id"]
@@ -674,9 +705,7 @@ def patch_resource(id: str, resource_metadata: dict):
     try:
         if id:
             resource_metadata["id"] = id
-            response = request(
-                "POST", "resource", "resource_patch", data=resource_metadata
-            )
+            response = request("resource_patch", json=resource_metadata)
             if response.status_code == 200:
                 return response.json()["result"]
         else:
@@ -696,11 +725,11 @@ def delete_resource(id: str):
             # Performing double delete because CKAN needs 2 resource delete requests
             # to hard delete a resource.
             # Ugh....
-            response = request("POST", "resource", "resource_delete", json={"id": id})
-            if response.status_code == 200:
-                response = request(
-                    "POST", "resource", "resource_delete", json={"id": id}
-                )
+            response = request("resource_delete", json={"id": id})
+            # VSAM: Actually, take this back! eventually we are going to honor the CKAN soft delete,
+            # so we will not delete the resource twice.
+            # if response.status_code == 200:
+            #    response = request("resource_delete", json={"id": id})
             if response.status_code == 200:
                 return id
         else:
@@ -709,49 +738,303 @@ def delete_resource(id: str):
         raise ValueError(f"Resource with ID: {id} was not found", he)
 
 
-##########################
-# NOT IMPLEMENTED
-##########################
-def publish_profile(package_id: str, profile_metadata: dict) -> dict:
-    if profile_metadata.get("file"):
-        with open(profile_metadata["file"], "rb") as f:
+def __get_vocabulary(name_or_id):
+    """Return a vocabulary either by name or by id.
+
+    The object returned
+    """
+    try:
+        hresp = raw_request("vocabulary_show", json={"id": name_or_id})
+        response = hresp.json()
+        if response["success"]:
+            vocab = response["result"]
+            vocab["tagnames"] = {tag["name"] for tag in vocab["tags"]}
+            return vocab
+        else:
+            raise ValueError("Vocabulary not found", name_or_id)
+    except requests.exceptions.HTTPError as he:
+        detail = {"errno": he.errno, "strerror": he.strerror, "url": he.request.url}
+        raise BackendError(
+            500, "CKAN failed on vocabulary access", name_or_id, detail=detail
+        ) from he
+
+
+@functools.lru_cache(maxsize=128)
+def __get_cached_vocabulary(name_or_id):
+    return {"vocab": __get_vocabulary(name_or_id), "fresh": True}
+
+
+def get_vocabulary(name_or_id, cached=True):
+    """Return a vocabulary either by name or by id.
+
+    The object returned may be cached; if fetched by ID, its name
+    and ID will be correct, since the ID is not repeatable and name
+    is not volatile. However, tag information may be stale.
+
+    If searched by name, the ID returned may be stale...
+    Eventually, this will need to be fixed.
+    """
+    obj = __get_cached_vocabulary(name_or_id)
+    if obj["fresh"]:
+        obj["fresh"] = False
+        return obj["vocab"]
+    elif not cached:
+        # Refresh
+        voc = __get_vocabulary(name_or_id)
+        obj["vocab"] = voc
+        return voc
+    else:
+        return obj["vocab"]
+
+
+def tag_object_to_string(tagobj):
+    "Return a tag string for the given tag object"
+    v = tagobj["vocabulary_id"]
+    if v is None:
+        return tagobj["name"]
+    else:
+        voc = get_vocabulary(v)
+        return ":".join((voc["name"], tagobj["name"]))
+
+
+TAGSPEC_PATTERN = re.compile(r"((.{2,100})\:)?([a-z0-9_-]{2,100})")
+
+
+def tag_split(tagspec: str) -> tuple[str | None, str]:
+    """Split a tag string into a pair or (<vocabulary-name> , <tag-name>).
+
+    Properly, a tagspec is either <tag-name>  or <vocabulary-name>:<tag-name>,
+    where
+        <tagname> is a string made only of lower-case alphanumerics, hyphen (-) and underscore (_),
+        and of length in [2,100]
+        <vocabulary-name> is any string (which may contain spaces and other ascii characters) of
+        length [2,100].
+    """
+    m = TAGSPEC_PATTERN.fullmatch(tagspec)
+    if m is None:
+        raise ValueError(f"Invalid tagspec: {tagspec}")
+    return m.groups()[1:]
+
+
+def tag_string_to_object(tagspec):
+    """Convert a tagspec (vocab:tagname) to an object, suitable for
+    sending to CKAN.
+
+    Args:
+        tagspec (str): the tagspec to convert.
+    Returns:
+        an object for the tagspec.
+    Raises:
+        ValueError if the vocabulary cannot be found or the tag string is badly formed.
+    """
+    vocname, tagname = tag_split(tagspec)
+    if vocname is None:
+        return {"name": tagname}
+    else:
+        vocab = get_vocabulary(vocname)
+        if tagname in vocab["tagnames"]:
+            return {"name": tagname, "vocabulary_id": vocab["id"]}
+        else:
+            raise ValueError(f"Tag '{tagname}' not in vocabulary '{vocab[name]}'")
+
+
+# ------------------------------------------------------------
+#  Generic stuff
+# ------------------------------------------------------------
+
+
+class Entity:
+    OPERATIONS = ["list", "fetch", "show", "create", "delete", "update", "patch"]
+
+    def __init__(
+        self,
+        name,
+        collection_name,
+        creation_schema,
+        update_schema,
+        ckan_name=None,
+        extras=True,
+    ):
+        self.name = name
+        self.collection_name = collection_name
+
+        self.ckan_name = ckan_name if ckan_name is not None else name
+        self.ckan_api_list = f"{self.ckan_name}_list"
+        self.ckan_api_show = f"{self.ckan_name}_show"
+        self.ckan_api_create = f"{self.ckan_name}_create"
+        self.ckan_api_delete = f"{self.ckan_name}_delete"
+        self.ckan_api_purge = f"{self.ckan_name}_purge"
+        self.ckan_api_update = f"{self.ckan_name}_update"
+        self.ckan_api_patch = f"{self.ckan_name}_patch"
+
+        self.creation_schema = creation_schema
+        self.update_schema = update_schema
+
+        self.has_extras = bool(extras)
+        self.has_tags = self.has_extras
+
+        # Store the endpoint functions
+        self.operations = Entity.OPERATIONS.copy()
+        if update_schema is None:
+            self.operations.remove("update")
+            self.operations.remove("patch")
+        self.endpoints = {}
+
+    def save_tags_to_ckan(self, tags: list[str]) -> list[dict]:
+        tagobjlist = []
+        for tag in tags:
             try:
-                profile_metadata["package_id"] = package_id
-                profile_metadata["relation"] = "profile"
+                tagobj = tag_string_to_object(tag)
+            except ValueError as e:
+                detail = {
+                    "tagspec": tag,
+                    "value_error": " ".join(str(arg) for arg in e.args),
+                }
+                raise DataError(*e.args, detail=detail)
+            tagobjlist.append(tagobj)
+        return tagobjlist
 
-                # Use this instead of the custom create_resource method as we have a file
-                response = request(
-                    "POST",
-                    "resource",
-                    "resource_create",
-                    data=profile_metadata,
-                    files=[("upload", f)],
-                )
-                if response.status_code == 200:
-                    prf = open(profile_metadata["file"])
-                    profile = json.load(prf)
-                    resource_id = response.json()["result"]["id"]
+    def save_extras_to_ckan(self, extras: dict) -> list[dict]:
+        extras_list = []
+        for k, v in extras.items():
+            sv = json.dumps(v)
+            extras_list.append({"key": k, "value": sv})
+        return extras_list
 
-                    sql_commands = utils.extractProfileProperties(resource_id, profile)
-                    for sql in sql_commands:
-                        utils.execSql(sql)
+    def save_to_ckan(self, init_data):
+        # Implement the logic to save data to CKAN.
+        # For performance, we perform conversion in place.
+        if self.has_tags and "tags" in init_data:
+            tags = init_data["tags"]
+            init_data["tags"] = self.save_tags_to_ckan(tags)
 
-                    return response.json()["result"]
-            except requests.exceptions.HTTPError as he:
-                if he.response.status_code == 404:
-                    raise ValueError(f"Package with ID: {package_id} was not found")
-                elif he.response.status_code == 400:
-                    raise AttributeError(
-                        f"Missing parameter fields for profile metadata: {he}"
-                    )
-            except Exception as e:
-                raise Exception from e
+        if self.has_extras and "extras" in init_data:
+            init_data["extras"] = self.save_extras_to_ckan(init_data["extras"])
 
-    elif profile_metadata.get("url"):
-        try:
-            resource = create_resource(
-                package_id, resource_metadata=profile_metadata, relation_type="profile"
-            )
-            return resource
-        except Exception as e:
-            raise Exception from e
+        return init_data
+
+    def load_from_ckan(self, ci):
+        if self.has_tags and "tags" in ci:
+            tags = [tag_object_to_string(tagobj) for tagobj in ci["tags"]]
+            ci["tags"] = tags
+
+        if self.has_extras and "extras" in ci:
+            extras = {e["key"]: json.loads(e["value"]) for e in ci["extras"]}
+            ci["extras"] = extras
+
+        return ci
+
+    @staticmethod
+    def check_limit_offset(val, name):
+        if not isinstance(val, Optional[int]):
+            raise DataError(f"{name} must be an integer, or None")
+        if val is not None:
+            if val < 0:
+                raise ValidationError(f"{name} must be nonnegative")
+
+    def list_entities(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        self.check_limit_offset(limit, "limit")
+        self.check_limit_offset(offset, "offset")
+        return ckan_request(self.ckan_api_list, limit=limit, offset=offset)
+
+    def fetch_entities(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        entids = self.list_entities(limit=limit, offset=offset)
+        ents = []
+        for eid in entids:
+            e = self.get_entity(eid)
+            ents.append(e)
+        return ents
+
+    def get_entity(self, eid: str):
+        obj = ckan_request(self.ckan_api_show, id=eid, context={"entity": self.name})
+        return self.load_from_ckan(obj)
+
+    def create_entity(self, init_data):
+        context = {"entity": self.name}
+
+        ckinit_data = self.save_to_ckan(init_data)
+
+        obj = ckan_request(self.ckan_api_create, context=context, json=ckinit_data)
+        logger.info("Created %s id=%s", self.name, obj["id"])
+        return self.load_from_ckan(obj)
+
+    def delete_entity(self, eid: str, purge=False):
+        ckan_cmd = self.ckan_api_purge if purge else self.ckan_api_delete
+        context = {"entity": self.name}
+        result = ckan_request(ckan_cmd, id=eid, context=context)
+        logger.info("%s %s id=%s", "Purged" if purge else "Deleted", self.name, eid)
+        return result
+
+    def update_entity(self, eid: str, entity_data):
+        context = {"entity": self.name}
+
+        ck_data = self.save_to_ckan(entity_data)
+
+        obj = ckan_request(self.ckan_api_update, id=eid, context=context, json=ck_data)
+        return self.load_from_ckan(obj)
+
+    def patch_entity(self, eid: str, patch_data):
+        context = {"entity": self.name}
+
+        ckpatch_data = self.save_to_ckan(patch_data)
+
+        obj = ckan_request(
+            self.ckan_api_patch, id=eid, context=context, json=ckpatch_data
+        )
+        return self.load_from_ckan(obj)
+
+
+GROUP = Entity(
+    "group", "groups", schema.GroupSchema(), schema.GroupSchema(partial=True)
+)
+ORGANIZATION = Entity(
+    "organization",
+    "organizations",
+    schema.OrganizationSchema(),
+    schema.OrganizationSchema(partial=True),
+)
+DATASET = Entity(
+    "datset",
+    "datsets",
+    creation_schema=schema.DatasetCreationRequest,
+    update_schema=schema.DatasetUpdateRequest(partial=True),
+    ckan_name="package",
+)
+DATASET.ckan_api_purge = "dataset_purge"
+RESOURCE = Entity(
+    "resrc",
+    "rsrcs",
+    schema.ResourceCreationRequest,
+    schema.ResourceUpdateRequest,
+    ckan_name="resource",
+    extras=False,
+)
+
+
+class VocabularyEntity(Entity):
+    def __init__(self):
+        super().__init__(
+            "vocabulary",
+            "vocabularies",
+            schema.VocabularyCreationRequest,
+            schema.VocabularyUpdateRequest,
+            extras=False,
+        )
+        self.operations.remove("patch")
+
+    def list_entities(self, limit=None, offset=None):
+        """Return the list of vocabulary names"""
+        # CKAN returns a list of objects, breaking the API.
+        entities = ckan_request(self.ckan_api_list, limit=limit, offset=offset)
+        return [e["name"] for e in entities]
+
+    def fetch_entities(self, limit=None, offset=None):
+        entities = ckan_request(self.ckan_api_list, limit=limit, offset=offset)
+        return [self.load_from_ckan(e) for e in entities]
+
+
+VOCABULARY = VocabularyEntity()
+
+TAG = Entity("tag", "tags", schema.TagCreationRequest, None, extras=False)
+
+# MEMBER = Entity("member", "members", schema.MemberCreationRequest, None)

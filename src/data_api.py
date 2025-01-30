@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import re
 import uuid
@@ -20,6 +19,11 @@ from psycopg2.extras import RealDictCursor
 # from container_utils import create_container
 import execution
 import kutils
+
+# Create an instance of this API; by default, its OpenAPI-compliant specification
+# will be generated under folder /specs
+# logging.basicConfig(level=logging.DEBUG)
+import logsys
 
 # Input schemata for validating several API requests
 import schema
@@ -49,14 +53,31 @@ from routes.tasks import tasks_bp
 from routes.users import api_user_editor, users_bp
 from src.auth import security_doc, token_active
 
-# Create an instance of this API; by default, its OpenAPI-compliant specification
-# will be generated under folder /specs
+logsys.configure()
+
 app = APIFlask(__name__, spec_path="/specs", docs_path="/docs")
-
 app.secret_key = os.getenv("SESSION_SECRET_KEY", "None")
-
 app.config.from_prefixed_env()
-logging.basicConfig(level=logging.DEBUG)
+
+
+# ------------------ Error Processor ------------------------
+
+app.config["VALIDATION_ERROR_SCHEMA"] = schema.APIErrorResponse
+app.config["HTTP_ERROR_SCHEMA"] = schema.APIErrorResponse
+
+
+@app.error_processor
+def global_error_processor(error):
+    return {
+        "help": request.url,
+        "success": False,
+        "error": {
+            "__type": error.__class__.__name__,
+            "status_code": error.status_code,
+            "message": error.message,
+            "detail": error.detail,
+        },
+    }, error.status_code
 
 
 # ################# BLUEPRINT REGISTRATION ##################
@@ -1959,9 +1980,9 @@ def api_dataset_publish(json_data):
     if specs.get("extra_metadata") is not None:
         # Convert this metadata to a JSON array with {"key":"...", "value":"..."} pairs as required to be stored as extras in CKAN
         extra_metadata = {}
-        extra_metadata["id"] = (
-            package_id  # Must specify the id of the newly created package
-        )
+        extra_metadata[
+            "id"
+        ] = package_id  # Must specify the id of the newly created package
         extra_metadata["extras"] = utils.handle_extras(specs["extra_metadata"])
         # Make a POST request to the CKAN API to patch the newly created package with the extra metadata
         resp_extras = requests.post(
@@ -1987,9 +2008,9 @@ def api_dataset_publish(json_data):
     # TODO: Replace with the respective API function?
     if specs.get("profile_metadata") is not None:
         resource_metadata = specs["profile_metadata"]
-        resource_metadata["package_id"] = (
-            package_id  # Must specify the id of the newly created package
-        )
+        resource_metadata[
+            "package_id"
+        ] = package_id  # Must specify the id of the newly created package
         if resource_metadata.get("file") is not None:
             # Make a POST request to the CKAN API to upload the file from the specified path
             with open(resource_metadata["file"], "rb") as f:
@@ -3217,7 +3238,6 @@ def yaml_config(config_file):
 
 
 def main(app):
-
     app.config["settings"] = {
         "FLASK_RUN_HOST": os.getenv("FLASK_RUN_HOST", "0.0.0.0"),
         "FLASK_RUN_PORT": os.getenv("FLASK_RUN_PORT", "80"),

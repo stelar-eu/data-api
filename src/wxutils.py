@@ -749,6 +749,9 @@ def get_task_input_json(
                     "input": input_paths,
                     "parameters": parameters,
                     "minio": {"endpoint_url": config["MINIO_API_EXT_URL"]},
+                    "input": input_paths,
+                    "parameters": parameters,
+                    "minio": {"endpoint_url": config["MINIO_API_EXT_URL"]},
                 }
 
             # Read the paths for the output files that the tool will write to.

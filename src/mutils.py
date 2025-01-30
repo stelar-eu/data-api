@@ -11,8 +11,6 @@ from minio import Minio
 from minio.commonconfig import CopySource
 from minio.error import S3Error
 
-logging.basicConfig(level=logging.DEBUG)
-
 
 def initialize_minio_admin(ac_key, sec_key, token):
     config = current_app.config["settings"]
