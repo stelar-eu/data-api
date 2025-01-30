@@ -17,7 +17,6 @@ from src.auth import token_active
 
 # The tasks operations blueprint for all operations related to the lifecycle of `tasks
 publisher_bp = APIBlueprint("pub_blueprint", __name__, enable_openapi=False)
-publisher_bp = APIBlueprint("pub_blueprint", __name__, enable_openapi=False)
 
 
 @publisher_bp.route("/fetch_paths", methods=["GET"])
@@ -27,15 +26,11 @@ def fetch_minio_paths():
         # Try to get the token from the Authorization header
         access_token = request.headers.get("Authorization")
 
-        access_token = request.headers.get("Authorization")
-
         if access_token:
             # Token found in Authorization header, remove 'Bearer ' prefix
             access_token = access_token.replace("Bearer ", "")
         else:
             # No token in Authorization header, try to fetch from session
-            access_token = session.get("access_token")
-
             access_token = session.get("access_token")
 
         # If access_token is still None, raise an exception
@@ -47,17 +42,8 @@ def fetch_minio_paths():
         paths = mu.list_buckets_with_folders(credentials)
 
         return jsonify({"paths": paths})
-        return jsonify({"paths": paths})
 
     except ValueError as e:
-        # Handle the case where no token is found, return 401 Unauthorized
-        return make_response(
-            {
-                "success": False,
-                "error": {"__type": "Authorization Error", "name": [str(e)]},
-            },
-            401,
-        )
         # Handle the case where no token is found, return 401 Unauthorized
         return make_response(
             {
@@ -69,13 +55,6 @@ def fetch_minio_paths():
 
     except Exception as e:
         # Handle any other unexpected errors, return 500 Internal Server Error
-        return make_response(
-            {
-                "success": False,
-                "error": {"__type": "Unexpected Error", "name": [str(e)]},
-            },
-            500,
-        )
         return make_response(
             {
                 "success": False,
@@ -93,15 +72,11 @@ def upload_file_to_minio():
         # Try to get the token from the Authorization header
         access_token = request.headers.get("Authorization")
 
-        access_token = request.headers.get("Authorization")
-
         if access_token:
             # Token found in Authorization header, remove 'Bearer ' prefix
             access_token = access_token.replace("Bearer ", "")
         else:
             # No token in Authorization header, try to fetch from session
-            access_token = session.get("access_token")
-
             access_token = session.get("access_token")
 
         # If access_token is still None, raise an exception
@@ -112,42 +87,27 @@ def upload_file_to_minio():
 
         if "file" not in request.files:
             return jsonify({"error": "No file specified"}), 400
-        if "file" not in request.files:
-            return jsonify({"error": "No file specified"}), 400
 
-        file = request.files["file"]
-        destination_path = request.form.get("path")
         file = request.files["file"]
         destination_path = request.form.get("path")
 
         if file.filename == "":
             return jsonify({"error": "No selected file"}), 400
-        if file.filename == "":
-            return jsonify({"error": "No selected file"}), 400
 
         if "file" not in request.files:
             return jsonify({"error": "No file part"}), 400
-        if "file" not in request.files:
-            return jsonify({"error": "No file part"}), 400
 
-        file = request.files["file"]
-        bucket_name = request.form.get("bucket")  # Get the bucket from the form
-        destination_path = request.form.get("path")  # Get the full path from the form
         file = request.files["file"]
         bucket_name = request.form.get("bucket")  # Get the bucket from the form
         destination_path = request.form.get("path")  # Get the full path from the form
 
         if not bucket_name or not destination_path:
             return jsonify({"error": "Bucket or path not specified"}), 400
-            return jsonify({"error": "Bucket or path not specified"}), 400
 
-        if file.filename == "":
-            return jsonify({"error": "No selected file"}), 400
         if file.filename == "":
             return jsonify({"error": "No selected file"}), 400
 
         try:
-            bucket_prefix = bucket_name + "/"
             bucket_prefix = bucket_name + "/"
             # Extract the folder from the cleaned destination path
             folder = os.path.dirname(destination_path)
@@ -157,23 +117,16 @@ def upload_file_to_minio():
 
             # Remove Bucket Prefix from Object Full Path (Avoid creating subfolder with the same name as the bucket)
             object_name.replace(bucket_prefix, "", 1)
-            object_name.replace(bucket_prefix, "", 1)
 
             logging.debug(object_name)
 
             # Upload the file to MinIO
             config = current_app.config["settings"]
-            config = current_app.config["settings"]
 
-            minio_url = config["MINIO_API_SUBDOMAIN"] + "." + config["KLMS_DOMAIN_NAME"]
             minio_url = config["MINIO_API_SUBDOMAIN"] + "." + config["KLMS_DOMAIN_NAME"]
 
             client = Minio(
                 minio_url,
-                access_key=credentials["AccessKeyId"],
-                secret_key=credentials["SecretAccessKey"],
-                session_token=credentials["SessionToken"],
-                secure=True,  # Set to False if you are using HTTP instead of HTTPS
                 access_key=credentials["AccessKeyId"],
                 secret_key=credentials["SecretAccessKey"],
                 session_token=credentials["SessionToken"],
@@ -187,14 +140,10 @@ def upload_file_to_minio():
                 file.stream,
                 length=-1,
                 part_size=10 * 1024 * 1024,  # 10MB part size
-                part_size=10 * 1024 * 1024,  # 10MB part size
             )
-            return jsonify({"message": "File uploaded successfully!"}), 200
             return jsonify({"message": "File uploaded successfully!"}), 200
 
         except S3Error as e:
-            return jsonify({"error": str(e)}), 500
-
             return jsonify({"error": str(e)}), 500
 
     except ValueError as e:
@@ -206,24 +155,9 @@ def upload_file_to_minio():
             },
             401,
         )
-        # Handle the case where no token is found, return 401 Unauthorized
-        return make_response(
-            {
-                "success": False,
-                "error": {"__type": "Authorization Error", "name": [str(e)]},
-            },
-            401,
-        )
 
     except Exception as e:
         # Handle any other unexpected errors, return 500 Internal Server Error
-        return make_response(
-            {
-                "success": False,
-                "error": {"__type": "Unexpected Error", "name": [str(e)]},
-            },
-            500,
-        )
         return make_response(
             {
                 "success": False,

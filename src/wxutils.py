@@ -1,6 +1,5 @@
 import hashlib
 import logging
-import logging
 import re
 import uuid
 import xml.etree.ElementTree as ET
@@ -16,7 +15,6 @@ import sql_utils
 import utils
 
 logging.basicConfig(level=logging.DEBUG)
-
 
 
 def is_valid_url(url):
@@ -430,18 +428,9 @@ def create_task(json_data, token):
                         #     continue
                         # Handle the metadata related fields and cases
                         if output_spec.get("resource", None):
-                        if output_spec.get("resource", None):
                             # Case where there is an existing resource that we want to overwrite its data
                             resource = output_spec.get("resource")
-                            resource = output_spec.get("resource")
                             if is_valid_uuid(resource):
-                                response = sql_utils.task_execution_insert_output_spec_existing_resource(
-                                    task_exec_id,
-                                    output,
-                                    url,
-                                    resource,
-                                    output_spec.get("resource_action", "REPLACE"),
-                                )
                                 response = sql_utils.task_execution_insert_output_spec_existing_resource(
                                     task_exec_id,
                                     output,
@@ -624,9 +613,6 @@ def delete_task(task_id):
         return False
 
 
-def get_task_input_json(
-    task_id, signature=None, access_token=None, show_resource_ids=False
-):
 def get_task_input_json(
     task_id, signature=None, access_token=None, show_resource_ids=False
 ):

@@ -202,6 +202,12 @@ class TagCreationRequest(EntityCreationRequest):
 # =============================================
 
 
+def validate_status(value):
+    """Custom validator to ensure status is either a string or an integer"""
+    if not isinstance(value, (str, int)):
+        raise ValidationError("Status must be either a string or an integer.")
+
+
 class ResponseOK(Schema):
     help = URL(required=True)
     result = Dict(required=True)
