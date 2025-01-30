@@ -75,23 +75,28 @@ class EntityListResponse(Schema):
     result = List(Dict(), required=False)
 
 
+class NameID(String):
+    """Datasets, groups and organizations, tags, etc, have name field which is unique and immutable."""
+
+    def __init__(self):
+        super().__init__(
+            required=True, validate=[Length(2, 100), Regexp(r"^[a-z0-9_-]{2,100}$")]
+        )
+
+
 class EntityCreationRequest(Schema):
     """A base class for creation requests of named entities."""
 
-    name = String(
-        required=True, validate=[Length(2, 100), Regexp(r"^[a-z0-9_-]{2,100}$")]
-    )
+    name = NameID()
 
 
-class ExtEntityCreationRequest(EntityCreationRequest):
-    """Base class for creation requests of entities with tags and extras."""
+class DatasetCreationRequest(Schema):
+    name = NameID()
 
     tags = List(String, required=False)
     extras = Dict(required=False)
     state = String(required=False, validate=OneOf(["draft", "active", "deleted"]))
 
-
-class DatasetCreationRequest(ExtEntityCreationRequest):
     owner_org = String(required=True)
 
     title = String(required=False)
@@ -119,9 +124,7 @@ class DatasetUpdateRequest(DatasetCreationRequest):
 
 
 class GroupSchema(Schema):
-    name = String(
-        required=True, validate=[Length(2, 100), Regexp(r"^[a-z0-9_-]{2,100}$")]
-    )
+    name = NameID()
 
     state = String(required=False, validate=OneOf(["draft", "active", "deleted"]))
 
@@ -176,6 +179,7 @@ class ResourceUpdateRequest(ResourceCreationRequest):
 
 
 class VocabularyCreationRequest(EntityCreationRequest):
+    name = NameID()
     tags = List(String, required=True)
 
 
@@ -187,6 +191,7 @@ class VocabularyUpdateRequest(VocabularyCreationRequest):
 
 
 class TagCreationRequest(EntityCreationRequest):
+    name = NameID()
     vocabulary_id = String(required=True)
 
 
