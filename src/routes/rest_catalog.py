@@ -14,14 +14,15 @@ import kutils
 # Input schema for validating and structuring several API requests
 import schema
 from auth import security_doc, token_active
-from cutils import DATASET, GROUP, ORGANIZATION, RESOURCE, Entity
-from exceptions import APIException
+from cutils import DATASET, GROUP, ORGANIZATION, RESOURCE, TAG, VOCABULARY, Entity
+from exceptions import APIException, InternalException
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("rest_catalog")
 
 rest_catalog_bp = APIBlueprint(
     "rest_catalog_blueprint", __name__, tag="RESTful Publishing Operations"
 )
+
 
 # ------------------------------------------------------------
 #             DATASETS
@@ -604,9 +605,6 @@ def generic_api_exception(exc: APIException):
             "detail": detail,
         },
     }
-    import sys
-
-    print("IN GENERIC API EXCEPTION: robj=", robj, file=sys.stderr)
     return robj, exc.status_code
 
 
@@ -621,12 +619,14 @@ def render_api_output(endp_func):
     def exc_handler(*args, **kwargs):
         try:
             return generic_api_result(endp_func(*args, **kwargs))
-        except APIException as ex:
-            logger.exception("API error")
-            return generic_api_exception(ex)
+        except APIException:
+            logger.debug("APIException in render_api_output", exc_info=True)
+            raise
+            # return generic_api_exception(ex)
         except Exception as e:
-            logger.exception("Internal error")
-            return generic_error_500(e)
+            logger.exception("Internal error in render_api_output")
+            # return generic_error_500(e)
+            raise InternalException(e)
 
     return exc_handler
 
@@ -647,6 +647,14 @@ def rename_endpoint(name):
 
 
 def error_responses(status_list: List[int]):
+    # Add some standard errors
+    status_list = [
+        401,
+        422,
+        500,
+    ]
+    status_list.sort()
+
     responses = {}
     for status in status_list:
         if status == 200:
@@ -694,7 +702,7 @@ def generate_list_entities(entity: Entity):
 
     @rest_catalog_bp.get(f"/{entity.collection_name}")
     @rest_catalog_bp.input(schema.PaginationParameters, location="query")
-    @rest_catalog_bp.output(schema.EntityListResponse, status_code=200)
+    @rest_catalog_bp.output(schema.IdListResponse, status_code=200)
     @rest_catalog_bp.doc(
         summary=f"List {entity.collection_name} in the Data Catalog",
         description=f"""List all {entity.collection_name} in the Data Catalog. \\
@@ -703,7 +711,7 @@ def generate_list_entities(entity: Entity):
         """,
         tags=["RESTful Search Operations"],
         security=security_doc,
-        responses=error_responses([409, 500]),
+        responses=error_responses([409]),
     )
     @token_active
     @render_api_output
@@ -715,6 +723,34 @@ def generate_list_entities(entity: Entity):
         return entity.list_entities(limit=limit, offset=offset)
 
     return generic_list_entities
+
+
+def generate_fetch_entities(entity: Entity):
+    """This method generates the entity "list" endpoints, but returns instances instead of just IDs"""
+
+    @rest_catalog_bp.get(f"/{entity.collection_name}.fetch")
+    @rest_catalog_bp.input(schema.PaginationParameters, location="query")
+    @rest_catalog_bp.output(schema.EntityListResponse, status_code=200)
+    @rest_catalog_bp.doc(
+        summary=f"List {entity.collection_name} in the Data Catalog",
+        description=f"""List all {entity.collection_name} in the Data Catalog. \\
+        This function returns a list of {entity.collection_name} objects. \\
+        The operation is expensive and should not be used without the 'limit' argument.
+        """,
+        tags=["RESTful Search Operations"],
+        security=security_doc,
+        responses=error_responses([409]),
+    )
+    @token_active
+    @render_api_output
+    @rename_endpoint(f"api_fetch_{entity.collection_name}")
+    def generic_fetch_entities(query_data):
+        limit = query_data.get("limit", None)
+        offset = query_data.get("offset", None)
+
+        return entity.fetch_entities(limit=limit, offset=offset)
+
+    return generic_fetch_entities
 
 
 def generate_get_entity(entity: Entity):
@@ -730,7 +766,7 @@ def generate_get_entity(entity: Entity):
         """,
         tags=["RESTful Search Operations"],
         security=security_doc,
-        responses=error_responses([400, 404, 500]),
+        responses=error_responses([403, 404]),
     )
     @token_active
     @render_api_output
@@ -758,14 +794,12 @@ def generate_delete_entity(entity: Entity):
         """,
         tags=["RESTful Search Operations"],
         security=security_doc,
-        responses=error_responses([400, 403, 404, 409, 500]),
+        responses=error_responses([400, 403, 404, 409]),
     )
     @token_active
     @render_api_output
     @rename_endpoint(f"api_delete_{entity.name}")
     def generic_delete_entity(entity_id: str, query_data: Optional[bool] = False):
-        logger.error("Cannot get here! fot the love of god")
-        logger.info(f"Deleting {entity.name} {entity_id} with purge={query_data}")
         purge = query_data.get("purge", False)
         return entity.delete_entity(entity_id, purge=purge)
 
@@ -786,7 +820,7 @@ def generate_create_entity(entity: Entity):
         """,
         tags=["RESTful Publishing Operations"],
         security=security_doc,
-        responses=error_responses([400, 403, 404, 500]),
+        responses=error_responses([400, 403, 404, 409]),
     )
     @token_active
     @render_api_output
@@ -812,7 +846,7 @@ def generate_update_entity(entity: Entity):
         """,
         tags=["RESTful Publishing Operations"],
         security=security_doc,
-        responses=error_responses([400, 404, 500]),
+        responses=error_responses([400, 403, 404]),
     )
     @token_active
     @render_api_output
@@ -837,7 +871,7 @@ def generate_patch_entity(entity: Entity):
         """,
         tags=["RESTful Publishing Operations"],
         security=security_doc,
-        responses=error_responses([400, 404, 500]),
+        responses=error_responses([400, 403, 404]),
     )
     @token_active
     @render_api_output
@@ -848,10 +882,20 @@ def generate_patch_entity(entity: Entity):
     return generic_patch_entity
 
 
-for e in [GROUP, ORGANIZATION, DATASET, RESOURCE]:
-    e.endpoints["list"] = generate_list_entities(e)
-    e.endpoints["get"] = generate_get_entity(e)
-    e.endpoints["delete"] = generate_delete_entity(e)
-    e.endpoints["create"] = generate_create_entity(e)
-    e.endpoints["update"] = generate_update_entity(e)
-    e.endpoints["patch"] = generate_patch_entity(e)
+# --------------------------------------------------------
+#                    GENERATE ENDPOINTS
+# --------------------------------------------------------
+
+GENERATOR = {
+    "list": generate_list_entities,
+    "fetch": generate_fetch_entities,
+    "show": generate_get_entity,
+    "delete": generate_delete_entity,
+    "create": generate_create_entity,
+    "update": generate_update_entity,
+    "patch": generate_patch_entity,
+}
+
+for e in [GROUP, ORGANIZATION, DATASET, RESOURCE, VOCABULARY, TAG]:
+    for op in e.operations:
+        e.endpoints[op] = GENERATOR[op](e)

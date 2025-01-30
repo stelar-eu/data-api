@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import functools
+import json
 import logging
 import re
+import traceback
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from urllib.parse import urljoin
@@ -67,12 +69,22 @@ def raw_request(
         request_args = json
 
     logger.debug("CKAN API call: %s %s", url, request_args)
-    response = requests.post(
-        url=url,
-        json=request_args,
-        headers=headers,
-        params=params,
-    )
+    try:
+        response = requests.post(
+            url=url,
+            json=request_args,
+            headers=headers,
+            params=params,
+        )
+    except Exception as e:
+        message = "Request to CKAN failed: " + repr(e)
+        detail = {
+            "url": url,
+            "request_args": str(request_args),
+            "format_exc": traceback.format_exc(),
+        }
+        raise BackendError(500, "ckan", *e.args, message=message, detail=detail) from e
+
     logger.debug("CKAN API response: %d", response.status_code)
     return response
 
@@ -739,7 +751,10 @@ def __get_vocabulary(name_or_id):
         else:
             raise ValueError("Vocabulary not found", name_or_id)
     except requests.exceptions.HTTPError as he:
-        raise ValueError(f"Resource with ID: {id} was not found", he)
+        detail = {"errno": he.errno, "strerror": he.strerror, "url": he.request.url}
+        raise BackendError(
+            500, "CKAN failed on vocabulary access", name_or_id, detail=detail
+        ) from he
 
 
 @functools.lru_cache(maxsize=128)
@@ -795,7 +810,7 @@ def tag_split(tagspec: str) -> tuple[str | None, str]:
     """
     m = TAGSPEC_PATTERN.fullmatch(tagspec)
     if m is None:
-        raise ValueError("Invalid tag specification")
+        raise ValueError(f"Invalid tagspec: {tagspec}")
     return m.groups()[1:]
 
 
@@ -824,6 +839,8 @@ def tag_string_to_object(tagspec):
 
 
 class Entity:
+    OPERATIONS = ["list", "fetch", "show", "create", "delete", "update", "patch"]
+
     def __init__(
         self,
         name,
@@ -848,21 +865,38 @@ class Entity:
         self.creation_schema = creation_schema
         self.update_schema = update_schema
 
-        if extras:
-            self.has_extras = True
-            self.has_tags = True
+        self.has_extras = bool(extras)
+        self.has_tags = self.has_extras
 
         # Store the endpoint functions
+        self.operations = Entity.OPERATIONS.copy()
+        if update_schema is None:
+            self.operations.remove("update")
+            self.operations.remove("patch")
         self.endpoints = {}
 
     def save_to_ckan(self, init_data):
         # Implement the logic to save data to CKAN
         if self.has_tags and "tags" in init_data:
             tags = init_data["tags"]
-            init_data["tags"] = [tag_string_to_object(tag) for tag in tags]
+            tagobjlist = []
+            for tag in tags:
+                try:
+                    tagobj = tag_string_to_object(tag)
+                except ValueError as e:
+                    detail = {
+                        "tagspec": tag,
+                        "value_error": " ".join(str(arg) for arg in e.args),
+                    }
+                    raise DataError(*e.args, detail=detail)
+                tagobjlist.append(tagobj)
+            init_data["tags"] = tagobjlist
 
         if self.has_extras and "extras" in init_data:
-            extras = [{"key": k, "value": v} for k, v in init_data["extras"].items()]
+            extras = []
+            for k, v in init_data["extras"].items():
+                sv = json.dumps(v)
+                extras.append({"key": k, "value": sv})
             init_data["extras"] = extras
 
         return init_data
@@ -873,7 +907,7 @@ class Entity:
             ci["tags"] = tags
 
         if self.has_extras and "extras" in ci:
-            extras = {e["key"]: e["value"] for e in ci["extras"]}
+            extras = {e["key"]: json.loads(e["value"]) for e in ci["extras"]}
             ci["extras"] = extras
 
         return ci
@@ -891,6 +925,14 @@ class Entity:
         self.check_limit_offset(offset, "offset")
         return ckan_request(self.ckan_api_list, limit=limit, offset=offset)
 
+    def fetch_entities(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        entids = self.list_entities(limit=limit, offset=offset)
+        ents = []
+        for eid in entids:
+            e = self.get_entity(eid)
+            ents.append(e)
+        return ents
+
     def get_entity(self, eid: str):
         obj = ckan_request(self.ckan_api_show, id=eid, context={"entity": self.name})
         return self.load_from_ckan(obj)
@@ -901,14 +943,15 @@ class Entity:
         ckinit_data = self.save_to_ckan(init_data)
 
         obj = ckan_request(self.ckan_api_create, context=context, json=ckinit_data)
+        logger.info("Created %s id=%s", self.name, obj["id"])
         return self.load_from_ckan(obj)
 
     def delete_entity(self, eid: str, purge=False):
+        ckan_cmd = self.ckan_api_purge if purge else self.ckan_api_delete
         context = {"entity": self.name}
-        if purge:
-            return ckan_request(self.ckan_api_purge, id=eid, context=context)
-        else:
-            return ckan_request(self.ckan_api_delete, id=eid, context=context)
+        result = ckan_request(ckan_cmd, id=eid, context=context)
+        logger.info("%s %s id=%s", "Purged" if purge else "Deleted", self.name, eid)
+        return result
 
     def update_entity(self, eid: str, entity_data):
         context = {"entity": self.name}
@@ -930,19 +973,19 @@ class Entity:
 
 
 GROUP = Entity(
-    "group", "groups", schema.GroupCreationRequest, schema.GroupUpdateRequest
+    "group", "groups", schema.GroupSchema(), schema.GroupSchema(partial=True)
 )
 ORGANIZATION = Entity(
     "organization",
     "organizations",
-    schema.GroupCreationRequest,
-    schema.GroupUpdateRequest,
+    schema.OrganizationSchema(),
+    schema.OrganizationSchema(partial=True),
 )
 DATASET = Entity(
     "datset",
     "datsets",
     creation_schema=schema.DatasetCreationRequest,
-    update_schema=schema.DatasetUpdateRequest,
+    update_schema=schema.DatasetUpdateRequest(partial=True),
     ckan_name="package",
 )
 DATASET.ckan_api_purge = "dataset_purge"
@@ -952,15 +995,34 @@ RESOURCE = Entity(
     schema.ResourceCreationRequest,
     schema.ResourceUpdateRequest,
     ckan_name="resource",
+    extras=False,
 )
 
-VOCABULARY = Entity(
-    "vocabulary",
-    "vocabularies",
-    schema.VocabularyCreationRequest,
-    schema.VocabularyUpdateRequest,
-)
 
-TAG = Entity("tag", "tags", schema.TagCreationRequest, None)
+class VocabularyEntity(Entity):
+    def __init__(self):
+        super().__init__(
+            "vocabulary",
+            "vocabularies",
+            schema.VocabularyCreationRequest,
+            schema.VocabularyUpdateRequest,
+            extras=False,
+        )
+        self.operations.remove("patch")
+
+    def list_entities(self, limit=None, offset=None):
+        """Return the list of vocabulary names"""
+        # CKAN returns a list of objects, breaking the API.
+        entities = ckan_request(self.ckan_api_list, limit=limit, offset=offset)
+        return [e["name"] for e in entities]
+
+    def fetch_entities(self, limit=None, offset=None):
+        entities = ckan_request(self.ckan_api_list, limit=limit, offset=offset)
+        return [self.load_from_ckan(e) for e in entities]
+
+
+VOCABULARY = VocabularyEntity()
+
+TAG = Entity("tag", "tags", schema.TagCreationRequest, None, extras=False)
 
 # MEMBER = Entity("member", "members", schema.MemberCreationRequest, None)

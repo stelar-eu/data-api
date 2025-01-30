@@ -60,6 +60,26 @@ app.secret_key = os.getenv("SESSION_SECRET_KEY", "None")
 app.config.from_prefixed_env()
 
 
+# ------------------ Error Processor ------------------------
+
+app.config["VALIDATION_ERROR_SCHEMA"] = schema.APIErrorResponse
+app.config["HTTP_ERROR_SCHEMA"] = schema.APIErrorResponse
+
+
+@app.error_processor
+def global_error_processor(error):
+    return {
+        "help": request.url,
+        "success": False,
+        "error": {
+            "__type": error.__class__.__name__,
+            "status_code": error.status_code,
+            "message": error.message,
+            "detail": error.detail,
+        },
+    }, error.status_code
+
+
 # ################# BLUEPRINT REGISTRATION ##################
 
 # Blueprints are used to split the API into logical parts,

@@ -1,6 +1,16 @@
 from apiflask import Schema
-from apiflask.fields import URL, Boolean, DateTime, Dict, Integer, List, Nested, String
-from apiflask.validators import Equal, Length, OneOf, Range, Regexp
+from apiflask.fields import (
+    URL,
+    Boolean,
+    Constant,
+    DateTime,
+    Dict,
+    Integer,
+    List,
+    Nested,
+    String,
+)
+from apiflask.validators import Length, OneOf, Range, Regexp
 from marshmallow import INCLUDE, ValidationError, fields, pre_load
 
 optional_basic_metadata = [
@@ -29,13 +39,15 @@ class ErrorSpec(Schema):
 
 class APIErrorResponse(Schema):
     help = URL(required=True)
-    success = Boolean(required=True, validates=Equal(False))
+    # success = Boolean(required=True, validates=Equal(False))
+    success = Constant(False)
     error = Nested(ErrorSpec, required=True)
 
 
 class APIResponse(Schema):
     help = URL(required=True)
-    success = Boolean(required=True, validates=Equal(True))
+    # success = Boolean(required=True, validates=Equal(True))
+    success = Constant(True)
     result = Dict(required=True)
     error = Nested(ErrorSpec, required=False)
 
@@ -48,12 +60,19 @@ class DeleteResponse(APIResponse):
     result = None
 
 
+class IdListResponse(Schema):
+    help = URL(required=True)
+    success = Boolean(required=True)
+    # Use fields that are conditionally required depending on success
+    result = List(String(), required=False)
+
+
 class EntityListResponse(Schema):
     help = URL(required=True)
     success = Boolean(required=True)
 
     # Use fields that are conditionally required depending on success
-    result = List(String(), required=False)
+    result = List(Dict(), required=False)
 
 
 class EntityCreationRequest(Schema):
@@ -76,47 +95,62 @@ class DatasetCreationRequest(ExtEntityCreationRequest):
     owner_org = String(required=True)
 
     title = String(required=False)
-    notes = String(required=False, validate=Length(0, 10000))
-    author = String(required=False)
-    author_email = String(required=False)
-    maintainer = String(required=False)
-    maintainer_email = String(required=False)
-    url = URL(required=False)
+    notes = String(required=False, validate=Length(0, 10000), allow_none=True)
+    author = String(required=False, allow_none=True)
+    author_email = String(required=False, allow_none=True)
+    maintainer = String(required=False, allow_none=True)
+    maintainer_email = String(required=False, allow_none=True)
+    url = String(
+        required=False, validate=Length(0, 200), allow_none=True
+    )  # Note: making this a URL would force checks that might fail
     private = Boolean(
         required=False, load_default=False
     )  # By default, dataset metadata will be publicly available
 
-    url = URL(required=False)
-    version = String(required=False, validate=Length(0, 100))
+    version = String(required=False, validate=Length(0, 100), allow_none=True)
 
 
 class DatasetUpdateRequest(DatasetCreationRequest):
-    owner_org = String(required=False)
+    # owner_org = String(required=False)
 
     class Meta:
         exclude = ["name"]
         partial = True
 
 
-class GroupCreationRequest(EntityCreationRequest):
-    title = String(required=False)
-    description = String(required=False)
-    image_url = URL(required=False)
-    type = String(required=False, validate=OneOf(["group", "organization"]))
-    approval_status = String(
-        required=False, validate=OneOf(["approved", "pending", "rejected"])
+class GroupSchema(Schema):
+    name = String(
+        required=True, validate=[Length(2, 100), Regexp(r"^[a-z0-9_-]{2,100}$")]
     )
 
+    state = String(required=False, validate=OneOf(["draft", "active", "deleted"]))
 
-class GroupUpdateRequest(GroupCreationRequest):
-    class Meta:
-        exclude = ["name"]
-        partial = True
+    title = String(required=False)
+    description = String(required=False)
+    image_url = String(required=False)
+    # type = String(required=False, validate=OneOf(["group", "organization"]))
+    approval_status = String(
+        required=False,
+        validate=OneOf(["approved", "pending", "rejected"]),
+    )
+
+    # It seems that Groups and Organizations do not support tags, and furthermore,
+    # the CKAN decision was to drop them altogether from groups and organizations
+    #
+    # https://github.com/ckan/ckan/issues/4388
+    #
+    # tags = List(String, required=False)
+
+    extras = Dict(required=False)
+
+
+class OrganizationSchema(GroupSchema):
+    pass
 
 
 class ResourceCreationRequest(Schema):
     package_id = String(required=True)
-    url = URL(required=False, allow_none=True)
+    url = String(required=False, allow_none=True)
     format = String(required=False, allow_none=True)
     name = String(required=False, allow_none=True)
     description = String(required=False, allow_none=True)
@@ -128,7 +162,7 @@ class ResourceCreationRequest(Schema):
     extra = Dict(required=False, allow_none=True)
     mimetype = String(required=False, allow_none=True)
     mimetype_inner = String(required=False, allow_none=True)
-    cache_url = URL(required=False, allow_none=True)
+    cache_url = String(required=False, allow_none=True)
     cache_last_updated = DateTime(required=False, allow_none=True)
 
     class Meta:
@@ -214,8 +248,8 @@ class Identifier(Schema):
 
 
 class PaginationParameters(Schema):
-    limit = Integer(required=False, example="100", validates=Range(min=0))
-    offset = Integer(required=False, example="0", validates=Range(min_inclusive=0))
+    limit = Integer(required=False, example="100", validates=Range(min=1))
+    offset = Integer(required=False, example="0", validates=Range(min=0))
 
 
 class RolesInput(Schema):
