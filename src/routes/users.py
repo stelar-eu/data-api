@@ -1,11 +1,8 @@
-import logging
 import smtplib
 import ssl
-import xml.etree.ElementTree as ET
 
 import requests
 from apiflask import APIBlueprint
-from email_validator import EmailNotValidError, validate_email
 from flask import current_app, jsonify, request, url_for
 
 import kutils
@@ -16,8 +13,8 @@ import schema
 
 # Auxiliary custom functions & SQL query templates for ranking
 import utils
+from auth import admin_required, security_doc, token_active
 from demo_t import get_demo_ckan_token
-from src.auth import admin_required, auth, security_doc, token_active
 
 """
     This .py file contains the endpoints attached to the blueprint

@@ -3,17 +3,13 @@ import re
 import smtplib
 import ssl
 
-import pyotp
 from apiflask import APIBlueprint
 from email_validator import EmailNotValidError, validate_email
 from flask import current_app, jsonify, request, session
-from keycloak import KeycloakAdmin
 from keycloak.exceptions import KeycloakAuthenticationError
 
 import kutils
-import sql_utils
 from routes.dashboard import session_required
-from src.auth import auth, security_doc
 
 """
     This .py file contains the endpoints attached to the blueprint

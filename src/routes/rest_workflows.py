@@ -10,7 +10,7 @@ import kutils
 # Input schema for validating and structuring several API requests
 import schema
 import wxutils
-from src.auth import token_active
+from auth import token_active
 
 logging.basicConfig(level=logging.DEBUG)
 

@@ -1,14 +1,10 @@
-import json
 import uuid
 
 import yaml
 from apiflask import APIBlueprint
 from flask import (
     Response,
-    current_app,
     jsonify,
-    make_response,
-    render_template,
     request,
     session,
 )
@@ -20,8 +16,7 @@ import mutils as mu
 import reconciliation_module as rec
 import schema
 import sql_utils
-import utils
-from src.auth import admin_required, auth, security_doc
+from auth import admin_required, auth, security_doc
 
 auth_tool_bp = APIBlueprint(
     "auth_tool_blueprint", __name__, tag="Authorization Management"
@@ -57,7 +52,6 @@ def create_data_layout():
         }, 400
 
     try:
-
         keycloak_openid = ku.initialize_keycloak_openid()
 
         token = keycloak_openid.token(grant_type="client_credentials")
@@ -93,7 +87,6 @@ def create_data_layout():
             "success": True,
         }, 200
     except yaml.YAMLError as e:
-
         return jsonify({"error": "Failed to parse YAML", "details": str(e)}), 400
 
 

@@ -31,6 +31,7 @@ import sql_utils
 
 # Auxiliary custom functions & SQL query templates for ranking
 import utils
+from auth import security_doc, token_active
 
 # Import demo token creator
 from demo_t import get_demo_ckan_token
@@ -46,10 +47,8 @@ from routes.rest_catalog import rest_catalog_bp
 from routes.rest_workflows import rest_workflows_bp
 from routes.settings import settings_bp
 
-
 #### USERS BP ####
 from routes.users import api_user_editor, users_bp
-from src.auth import security_doc, token_active
 
 logsys.configure()
 
