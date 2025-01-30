@@ -261,7 +261,7 @@
                                         <div class="text-secondary">
                                             <small>
                                                 Jobs and logs are only available for tools executed within the KLMS
-                                                cluster. Logs are available for 24h after a job is executed.
+                                                cluster. Logs are available for 12h after a job is executed.
                                             </small>
                                         </div>
                                     </div>
@@ -277,6 +277,7 @@
                                             </tr>
                                         </thead>
                                         <tbody class="accordion" id="task-list">
+                                            {% if not "message" in logs.keys() %}
                                             {% for task_id, task_data in logs.items() %}
                                             <tr id="task-{{ task_id }}" data-bs-toggle="collapse" class="cursor-pointer"
                                                 data-bs-target="#collapse-{{ task_id }}">
@@ -307,6 +308,7 @@
                                                 </td>
                                             </tr>
                                             {% endfor %}
+                                            {% endif %}
                                         </tbody>
                                     </table>
                                 </div>
@@ -370,7 +372,7 @@
                 </div>
                 <div class="modal modal-blur fade" id="outputs-json-modal" tabindex="-1" role="dialog"
                     aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
+                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title">Task Output Resources</h5>
@@ -382,7 +384,8 @@
                                     <thead>
                                         <tr>
                                             <th>Resource ID</th>
-                                            <th class="text-end">Action</th>
+                                            <th>Output Path</th>
+                                            <th class="text-end">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -390,7 +393,10 @@
                                         {% for item in task_metadata['output'] %}
                                         <tr>
                                             <td>
-                                                <div>{{ item }}</div>
+                                                <div>{{ item.get("resource_id", 'Not associated') }}</div>
+                                            </td>
+                                            <td>
+                                                <div>{{ item.get("url", "Not registered") }}</div>
                                             </td>
                                             <td class="w-1 fw-bold text-end">
                                                 <a href="{{url_for('dashboard_blueprint.viewResource', resource_id = item)}}"
@@ -494,6 +500,11 @@
 
     function updateTaskTable(data) {
         data = data.result.jobs
+
+        if ("message" in data) {
+            return;
+        }
+
         for (const task_id in data) {
             const preElement = $(`#task-${task_id}-logs`);
             const statusTextElement = $(`#task-${task_id}-status`);
@@ -524,11 +535,7 @@
                             <td>${task_id}</td>
                             <td class="text-secondary">${data[task_id].created_at}</td>
                             <td class="text-secondary">
-                                <span id="task-${task_id}-badge" class="badge ${data[task_id].status === 'Succeeded'
-                        ? 'bg-success'
-                        : data[task_id].status === 'Running'
-                            ? 'bg-warning'
-                            : 'bg-danger'
+                                <span id="task-${task_id}-badge" class="badge ${data[task_id].status === 'Succeeded' ? 'bg-success' : data[task_id].status === 'Running' ? 'bg-warning' : 'bg-danger'
                     } me-1"></span>
                                 <p id="task-${task_id}-status" class="d-inline m-1">${data[task_id].status}</p>
                             </td>
@@ -598,9 +605,10 @@
             if (output.length > 0) {
                 output.forEach(item => {
                     const row = `<tr>
-                                        <td><div>${item}</div></td>
+                                        <td><div>${item.resource_id}</div></td>
+                                        <td><div>${item.url}</div></td>
                                         <td class="w-1 fw-bold text-end">
-                                            <a href="/stelar/console/v1/resource/${item}" target="_blank">View</a>
+                                            <a href="/stelar/console/v1/resource/${item.resource_id}" target="_blank">View</a>
                                         </td>
                                     </tr>`;
                     outputModalBody.append(row);

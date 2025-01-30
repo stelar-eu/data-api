@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import logging
 import re
 import uuid
 import xml.etree.ElementTree as ET
@@ -15,6 +16,7 @@ import sql_utils
 import utils
 
 logging.basicConfig(level=logging.DEBUG)
+
 
 
 def is_valid_url(url):
@@ -424,14 +426,22 @@ def create_task(json_data, token):
                         )
                     else:
                         url = output_spec.get("url", None)
-                        if not is_valid_url(url):
-                            continue
-
+                        # if not is_valid_url(url):
+                        #     continue
                         # Handle the metadata related fields and cases
+                        if output_spec.get("resource", None):
                         if output_spec.get("resource", None):
                             # Case where there is an existing resource that we want to overwrite its data
                             resource = output_spec.get("resource")
+                            resource = output_spec.get("resource")
                             if is_valid_uuid(resource):
+                                response = sql_utils.task_execution_insert_output_spec_existing_resource(
+                                    task_exec_id,
+                                    output,
+                                    url,
+                                    resource,
+                                    output_spec.get("resource_action", "REPLACE"),
+                                )
                                 response = sql_utils.task_execution_insert_output_spec_existing_resource(
                                     task_exec_id,
                                     output,
@@ -471,6 +481,7 @@ def create_task(json_data, token):
 
                         # Case where we don't want any metadata to be tracked for this output file.
                         else:
+                            logging.debug(output + " : " + url)
                             response = (
                                 sql_utils.task_execution_insert_output_spec_plain_path(
                                     task_exec_id, output, url
@@ -546,8 +557,8 @@ def get_task_metadata(task_id):
 
             d["messages"] = d["tags"]["log"]
 
-            d["output"] = sql_utils.task_execution_output_read(task_id)
-            d["metrics"] = sql_utils.task_execution_metrics_read(task_id)
+            d["output"] = sql_utils.task_execution_read_outputs_sql(task_id)
+            d["metrics"] = sql_utils.task_execution_metrics_read_sql(task_id)
 
             return d
         else:
@@ -616,6 +627,9 @@ def delete_task(task_id):
 def get_task_input_json(
     task_id, signature=None, access_token=None, show_resource_ids=False
 ):
+def get_task_input_json(
+    task_id, signature=None, access_token=None, show_resource_ids=False
+):
     """Retrieve the input JSON for a task execution. This is the JSON the tool finally receives.
 
     Provides the input JSON for a task execution, including the input groups and the parameters.
@@ -640,7 +654,7 @@ def get_task_input_json(
 
         # Fetch the input groups and the parameters for the task execution from the database
         input = sql_utils.task_execution_input_read_sql(task_exec_id)
-        parameters = sql_utils.task_execution_parameters_read(task_exec_id)
+        parameters = sql_utils.task_execution_parameters_read_sql(task_exec_id)
 
         access_key = secret_key = session_token = None
 
@@ -717,6 +731,7 @@ def get_task_input_json(
                             artifact = {}
                             artifact["path"] = api_artifact_id(artifact_id)
                             artifact["id"] = artifact_id
+
                         else:
                             artifact = api_artifact_id(artifact)
 
@@ -734,7 +749,7 @@ def get_task_input_json(
             # Check if credentials are not None, else we return the input paths and parameters only.
             if access_key and secret_key and session_token:
                 result = {
-                    "input": input_paths,
+                    "inputs": input_paths,
                     "parameters": parameters,
                     "minio": {
                         "endpoint_url": minio_url,
@@ -748,12 +763,15 @@ def get_task_input_json(
                     "input": input_paths,
                     "parameters": parameters,
                     "minio": {"endpoint_url": config["MINIO_API_EXT_URL"]},
+                    "input": input_paths,
+                    "parameters": parameters,
+                    "minio": {"endpoint_url": config["MINIO_API_EXT_URL"]},
                 }
 
             # Read the paths for the output files that the tool will write to.
             output = sql_utils.task_read_output_spec(task_exec_id)
             if output:
-                result["output"] = output
+                result["outputs"] = output
 
             # If the request is signed, we verify the signature to include secret information.
             if signature:
@@ -879,8 +897,8 @@ def get_task_output_json(task_id, signature, output_json):
         sql_utils.task_execution_insert_output(task_id, actual_resource_output)
 
     # Now handle the metrics, messages and state of the task.
-    state = output_json.get("state")
-    messages = output_json.get("messages")
+    state = output_json.get("status")
+    messages = output_json.get("message")
     metrics = output_json.get("metrics")
 
     if metrics:
@@ -889,7 +907,12 @@ def get_task_output_json(task_id, signature, output_json):
     if messages:
         sql_utils.task_execution_insert_log(task_id, messages)
 
-    if state:
+    if "error" in output_json:
+        map_state = "failed"
+        sql_utils.task_execution_update(
+            task_id, map_state, end_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+    elif state:
         map_state = map_state_to_execution_status(state)
         sql_utils.task_execution_update(
             task_id, map_state, end_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")

@@ -716,9 +716,7 @@ def task_execution_insert_secrets(task_exec_id, secrets):
     # Compose the SQL command using the template for recording parameters of a task execution
     if secrets:
         for key, value in secrets.items():
-            sql = utils.sql_workflow_execution_templates[
-                "task_insert_secret_template"
-            ]
+            sql = utils.sql_workflow_execution_templates["task_insert_secret_template"]
 
             # Execute the SQL command in the database
             resp = utils.execSql(sql, (task_exec_id, key, value))
@@ -733,7 +731,7 @@ def task_execution_insert_secrets(task_exec_id, secrets):
 
 def task_execution_read_secrets(task_exec_id):
     """
-        Submit a request to the Metadata Database to retrieve information about the secrets 
+        Submit a request to the Metadata Database to retrieve information about the secrets
         of a task execution with given id
 
     Returns:
@@ -750,6 +748,7 @@ def task_execution_read_secrets(task_exec_id):
         return task_secs
     else:
         return None
+
 
 def task_execution_insert_metrics(task_exec_id, metrics):
     """Records in the database that the metrics collected for the given task execution.
@@ -778,7 +777,9 @@ def task_execution_insert_metrics(task_exec_id, metrics):
     return True
 
 
-def task_execution_insert_future_package_existing(task_exec_id, package_id, package_friendly_name):
+def task_execution_insert_future_package_existing(
+    task_exec_id, package_id, package_friendly_name
+):
     """Records in the database that the future user-specified package_id for the given task execution.
 
     Args:
@@ -803,7 +804,10 @@ def task_execution_insert_future_package_existing(task_exec_id, package_id, pack
 
     return True
 
-def task_execution_insert_future_package_details(task_exec_id, package_details, package_friendly_name):
+
+def task_execution_insert_future_package_details(
+    task_exec_id, package_details, package_friendly_name
+):
     """Records in the database that the future user-specified package_id for the given task execution.
 
     Args:
@@ -828,15 +832,28 @@ def task_execution_insert_future_package_details(task_exec_id, package_details, 
 
     return True
 
-def task_execution_insert_output_spec_new_resource(task_exec_id, 
-                                                   output_name, 
-                                                   output_address,
-                                                   dataset_friendly_name, 
-                                                   resource_name, 
-                                                   resource_label):
-    sql = utils.sql_workflow_execution_templates["task_insert_output_spec_new_resource"]    
-      # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id, output_name, output_address, dataset_friendly_name, resource_name, resource_label))
+
+def task_execution_insert_output_spec_new_resource(
+    task_exec_id,
+    output_name,
+    output_address,
+    dataset_friendly_name,
+    resource_name,
+    resource_label,
+):
+    sql = utils.sql_workflow_execution_templates["task_insert_output_spec_new_resource"]
+    # Execute the SQL command in the database
+    resp = utils.execSql(
+        sql,
+        (
+            task_exec_id,
+            output_name,
+            output_address,
+            dataset_friendly_name,
+            resource_name,
+            resource_label,
+        ),
+    )
     if "status" in resp:
         if not resp.get("status"):
             return False
@@ -845,14 +862,17 @@ def task_execution_insert_output_spec_new_resource(task_exec_id,
 
     return True
 
-def task_execution_insert_output_spec_existing_resource(task_exec_id, 
-                                                        output_name, 
-                                                        output_address,
-                                                        resource_id,
-                                                        resource_action):
-    sql = utils.sql_workflow_execution_templates["task_insert_output_spec_existing_resource"]    
-      # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id, output_name, output_address, resource_id, resource_action))
+
+def task_execution_insert_output_spec_existing_resource(
+    task_exec_id, output_name, output_address, resource_id, resource_action
+):
+    sql = utils.sql_workflow_execution_templates[
+        "task_insert_output_spec_existing_resource"
+    ]
+    # Execute the SQL command in the database
+    resp = utils.execSql(
+        sql, (task_exec_id, output_name, output_address, resource_id, resource_action)
+    )
     if "status" in resp:
         if not resp.get("status"):
             return False
@@ -862,7 +882,9 @@ def task_execution_insert_output_spec_existing_resource(task_exec_id,
     return True
 
 
-def task_execution_insert_output_spec_plain_path(task_exec_id, output_name, output_address):
+def task_execution_insert_output_spec_plain_path(
+    task_exec_id, output_name, output_address
+):
     sql = utils.sql_workflow_execution_templates["task_insert_output_spec_plain_path"]
     resp = utils.execSql(sql, (task_exec_id, output_name, output_address))
     if "status" in resp:
@@ -883,7 +905,9 @@ def task_read_output_spec(task_exec_id):
 
     if resp and len(resp) > 0:
         output_spec = {}
-        output_spec = {output['output_name']: output['output_address']  for output in resp}
+        output_spec = {
+            output["output_name"]: output["output_address"] for output in resp
+        }
         return output_spec
     else:
         return None
@@ -894,7 +918,7 @@ def task_read_output_spec_of_file(task_exec_id, file_key):
     Retrieves the full specification regarding the handling of a tool output file. Both metadata
     and data handling.
     """
-    sql  = utils.sql_workflow_execution_templates["task_read_output_spec_of_file"]
+    sql = utils.sql_workflow_execution_templates["task_read_output_spec_of_file"]
 
     resp = utils.execSql(sql, (task_exec_id, file_key))
 
@@ -903,7 +927,6 @@ def task_read_output_spec_of_file(task_exec_id, file_key):
         return output_spec
     else:
         return None
-    
 
 
 def task_execution_read(task_exec_id):
@@ -923,7 +946,9 @@ def task_execution_read(task_exec_id):
     resp = utils.execSql(sql, (task_exec_id,))
 
     if resp and len(resp) > 0:
-        task_specs = resp[0]  # List should contain specification of a single task execution (unique UUID)
+        task_specs = resp[
+            0
+        ]  # List should contain specification of a single task execution (unique UUID)
         # Also include any user-specified tags in the response
         task_specs["tags"] = task_execution_tags_read(task_exec_id)
         return task_specs
@@ -1117,6 +1142,56 @@ def task_execution_parameters_read(task_exec_id):
     }
     parameters = cast_dict(parameters)
     return parameters
+
+
+def task_execution_parameters_read_sql(task_exec_id):
+    if task_exec_id:
+        sql = utils.sql_workflow_execution_templates["task_read_parameters_template"]
+
+        # Execute the SQL command in the database
+        resp = utils.execSql(sql, (task_exec_id,))
+
+        if resp and len(resp) > 0:
+            params = {}
+            for param in resp:
+                value = param["value"]
+                try:
+                    value = int(value)
+                except (ValueError, TypeError, Exception):
+                    pass
+                params[param["key"]] = value
+            return params
+        else:
+            return None
+
+
+def task_execution_metrics_read_sql(task_exec_id):
+    if task_exec_id:
+        sql = utils.sql_workflow_execution_templates["task_read_metrics_template"]
+
+        # Execute the SQL command in the database
+        resp = utils.execSql(sql, (task_exec_id,))
+
+        if resp and len(resp) > 0:
+            metrics = {tag["key"]: tag["value"] for tag in resp}
+            return metrics
+        else:
+            return None
+
+
+def task_execution_read_outputs_sql(task_exec_id):
+    if task_exec_id:
+        sql = utils.sql_workflow_execution_templates[
+            "task_read_output_with_paths_template"
+        ]
+
+        # Execute the SQL command in the database
+        resp = utils.execSql(sql, (task_exec_id,))
+
+        if resp and len(resp) > 0:
+            return resp
+        else:
+            return None
 
 
 def task_execution_metrics_read(task_exec_id):

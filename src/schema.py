@@ -479,10 +479,13 @@ class Task_Input_v2(Schema):
 
 
 class Task_Output(Schema):
-    metrics = Dict(keys=fields.String(), values=fields.String(), required=False)
-    state = String(required=True)
-    messages = String(required=False)
-    output = Dict(keys=fields.String(), values=fields.String(), required=True)
+    metrics = Dict(required=False)
+    status = fields.Raw(
+        required=True, validate=validate_status
+    )  # Accepts both str and int
+    error = String(required=False)
+    message = String(required=False)
+    output = Dict(keys=fields.String(), values=fields.String(), required=False)
 
 
 class Workflow_Input(Schema):

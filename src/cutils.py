@@ -232,9 +232,9 @@ def search_packages(
         params = {
             "q": keyword,
             "start": offset,
-            "rows": limit
-            if limit > 0
-            else 1000,  # Default to a high limit if no limit is specified
+            "rows": (
+                limit if limit > 0 else 1000
+            ),  # Default to a high limit if no limit is specified
         }
 
         # Make the request to the CKAN API
