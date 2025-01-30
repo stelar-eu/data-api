@@ -747,7 +747,9 @@ def __get_vocabulary(name_or_id):
         hresp = raw_request("vocabulary_show", json={"id": name_or_id})
         response = hresp.json()
         if response["success"]:
-            return response["result"]
+            vocab = response["result"]
+            vocab["tagnames"] = {tag["name"] for tag in vocab["tags"]}
+            return vocab
         else:
             raise ValueError("Vocabulary not found", name_or_id)
     except requests.exceptions.HTTPError as he:
@@ -830,7 +832,10 @@ def tag_string_to_object(tagspec):
         return {"name": tagname}
     else:
         vocab = get_vocabulary(vocname)
-        return {"name": tagname, "vocabulary_id": vocab["id"]}
+        if tagname in vocab["tagnames"]:
+            return {"name": tagname, "vocabulary_id": vocab["id"]}
+        else:
+            raise ValueError(f"Tag '{tagname}' not in vocabulary '{vocab[name]}'")
 
 
 # ------------------------------------------------------------
@@ -875,29 +880,36 @@ class Entity:
             self.operations.remove("patch")
         self.endpoints = {}
 
+    def save_tags_to_ckan(self, tags: list[str]) -> list[dict]:
+        tagobjlist = []
+        for tag in tags:
+            try:
+                tagobj = tag_string_to_object(tag)
+            except ValueError as e:
+                detail = {
+                    "tagspec": tag,
+                    "value_error": " ".join(str(arg) for arg in e.args),
+                }
+                raise DataError(*e.args, detail=detail)
+            tagobjlist.append(tagobj)
+        return tagobjlist
+
+    def save_extras_to_ckan(self, extras: dict) -> list[dict]:
+        extras_list = []
+        for k, v in extras.items():
+            sv = json.dumps(v)
+            extras_list.append({"key": k, "value": sv})
+        return extras_list
+
     def save_to_ckan(self, init_data):
-        # Implement the logic to save data to CKAN
+        # Implement the logic to save data to CKAN.
+        # For performance, we perform conversion in place.
         if self.has_tags and "tags" in init_data:
             tags = init_data["tags"]
-            tagobjlist = []
-            for tag in tags:
-                try:
-                    tagobj = tag_string_to_object(tag)
-                except ValueError as e:
-                    detail = {
-                        "tagspec": tag,
-                        "value_error": " ".join(str(arg) for arg in e.args),
-                    }
-                    raise DataError(*e.args, detail=detail)
-                tagobjlist.append(tagobj)
-            init_data["tags"] = tagobjlist
+            init_data["tags"] = self.save_tags_to_ckan(tags)
 
         if self.has_extras and "extras" in init_data:
-            extras = []
-            for k, v in init_data["extras"].items():
-                sv = json.dumps(v)
-                extras.append({"key": k, "value": sv})
-            init_data["extras"] = extras
+            init_data["extras"] = self.save_extras_to_ckan(init_data["extras"])
 
         return init_data
 
