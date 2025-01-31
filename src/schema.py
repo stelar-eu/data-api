@@ -90,7 +90,7 @@ class EntityCreationRequest(Schema):
     name = NameID()
 
 
-class DatasetCreationRequest(Schema):
+class DatasetSchema(Schema):
     name = NameID()
 
     tags = List(String, required=False)
@@ -113,14 +113,6 @@ class DatasetCreationRequest(Schema):
     )  # By default, dataset metadata will be publicly available
 
     version = String(required=False, validate=Length(0, 100), allow_none=True)
-
-
-class DatasetUpdateRequest(DatasetCreationRequest):
-    # owner_org = String(required=False)
-
-    class Meta:
-        exclude = ["name"]
-        partial = True
 
 
 class GroupSchema(Schema):
@@ -254,7 +246,9 @@ class Identifier(Schema):
     id = String(
         required=False,
         validate=Length(0, 64),
-        example="6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+        metadata={
+            "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+        },
     )
 
 
@@ -404,15 +398,19 @@ class Query(Schema):
 
 
 class Filter(Schema):
-    q = String(required=False, example="format:JSON")  # query search
+    q = String(required=False, metadata={"example": "format:JSON"})  # query search
 
 
 class ComplexFilter(Schema):
     q = String(
-        required=False, example="Topic:*Hydrography*&ext_bbox=20,35,30,42"
+        required=False, metadata={"example": "Topic:*Hydrography*&ext_bbox=20,35,30,42"}
     )  # query search
-    ext_bbox = String(required=False, example="20,35,30,42")  # spatial search only
-    fq = String(required=False, example="organization:athenarc")  # facet search only
+    ext_bbox = String(
+        required=False, metadata={"example": "20,35,30,42"}
+    )  # spatial search only
+    fq = String(
+        required=False, metadata={"example": "organization:athenarc"}
+    )  # facet search only
 
 
 class Ranking(Schema):

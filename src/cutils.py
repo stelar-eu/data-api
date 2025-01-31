@@ -789,7 +789,7 @@ def get_vocabulary(name_or_id, cached=True):
 
 def tag_object_to_string(tagobj):
     "Return a tag string for the given tag object"
-    v = tagobj["vocabulary_id"]
+    v = tagobj.get("vocabulary_id")  # ok if vocabulary_id is missing!
     if v is None:
         return tagobj["name"]
     else:
@@ -871,7 +871,8 @@ class Entity:
         self.update_schema = update_schema
 
         self.has_extras = bool(extras)
-        self.has_tags = self.has_extras
+        # Only packages have tags!
+        self.has_tags = self.ckan_name in ("package", "vocabulary")
 
         # Store the endpoint functions
         self.operations = Entity.OPERATIONS.copy()
@@ -894,12 +895,20 @@ class Entity:
             tagobjlist.append(tagobj)
         return tagobjlist
 
+    def load_tags_from_ckan(self, tags: list[dict]) -> list[str]:
+        return [tag_object_to_string(tagobj) for tagobj in tags]
+
     def save_extras_to_ckan(self, extras: dict) -> list[dict]:
+        """Restructure a dict into the CKAN format"""
         extras_list = []
         for k, v in extras.items():
             sv = json.dumps(v)
             extras_list.append({"key": k, "value": sv})
         return extras_list
+
+    def load_extras_from_ckan(self, extras: list[dict]) -> dict:
+        """Restructure the CKAN extras into a dict"""
+        return {e["key"]: json.loads(e["value"]) for e in extras}
 
     def save_to_ckan(self, init_data):
         # Implement the logic to save data to CKAN.
@@ -915,12 +924,10 @@ class Entity:
 
     def load_from_ckan(self, ci):
         if self.has_tags and "tags" in ci:
-            tags = [tag_object_to_string(tagobj) for tagobj in ci["tags"]]
-            ci["tags"] = tags
+            ci["tags"] = self.load_tags_from_ckan(ci["tags"])
 
         if self.has_extras and "extras" in ci:
-            extras = {e["key"]: json.loads(e["value"]) for e in ci["extras"]}
-            ci["extras"] = extras
+            ci["extras"] = self.load_extras_from_ckan(ci["extras"])
 
         return ci
 
@@ -996,8 +1003,8 @@ ORGANIZATION = Entity(
 DATASET = Entity(
     "datset",
     "datsets",
-    creation_schema=schema.DatasetCreationRequest,
-    update_schema=schema.DatasetUpdateRequest(partial=True),
+    creation_schema=schema.DatasetSchema(),
+    update_schema=schema.DatasetSchema(partial=True),
     ckan_name="package",
 )
 DATASET.ckan_api_purge = "dataset_purge"

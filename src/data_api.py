@@ -122,7 +122,7 @@ class CustomJSONEncoder(JSONEncoder):
         return JSONEncoder.default(self, obj)
 
 
-app.json_encoder = CustomJSONEncoder
+app.json_provider_class = CustomJSONEncoder
 
 ################################## AUTHENTICATION ########################################
 
