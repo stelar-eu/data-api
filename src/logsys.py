@@ -42,6 +42,7 @@ def configure():
                 "rest_catalog": {"level": "DEBUG"},
                 "data_api": {"level": "DEBUG"},
                 "werkzeug": {"handlers": ["wz"], "propagate": False},
+                "route": {"level": "DEBUG"},
             },
             "root": {
                 "level": "DEBUG",

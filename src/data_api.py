@@ -3282,7 +3282,7 @@ def main(app):
         "dbhost": os.getenv("POSTGRES_HOST", "<DB-HOST>"),
         "dbport": os.getenv("POSTGRES_PORT", "5432"),
         "KEYCLOAK_URL": os.getenv("KEYCLOAK_URL", "http://keycloak:8080"),
-        "KEYCLOAK_CLIENT_ID": os.getenv("KEYCLOAK_CLIENT_ID", "stelar"),
+        "KEYCLOAK_CLIENT_ID": os.getenv("KEYCLOAK_CLIENT_ID", "stelar-api"),
         "KEYCLOAK_CLIENT_SECRET": os.getenv("KEYCLOAK_CLIENT_SECRET", "none"),
         "REALM_NAME": os.getenv("REALM_NAME", "master"),
         "SPARQL_ENDPOINT": os.getenv("SPARQL_ENDPOINT", "http://<ONTOP-HOST>/sparql"),

@@ -9,8 +9,55 @@
 # and possibly adjust the settings to reflect your own test
 # setup.
 
-sample_testcluter:
-    execution:
-        engine: kubernetes
-        namespace: default
 
+# Basic settings are presented below. The file is an actual file used
+# by the Athena team.
+# 
+# The comments describe the contents of the various fields.
+
+cluster:
+
+    # During tool execution, the executing tool (kubernetes job) must be able to
+    # access the stelar api from within its container. 
+    API_URL: 'http://localhost/'
+
+    # The kubectl context that will be used by the tests to access the kubernetes
+    # cluster. This context must be configured with the correct namespace, and
+    # must have administrator access to the STELAR deployment
+    context: minikube-notls
+
+    # Parameters provided to the execution engine.
+    # These are read as is into the tests
+    execution:
+        # Type of execution engine, the only supported value currently is
+        # 'kubernetes'
+        engine: kubernetes
+        # The kubernetes namespace where the STELAR test instance resides
+        namespace: stelar-notls
+        # Determines the manner of speaking to the kubernetes API,
+        # for testing the correct value is 'kubeconfig'.
+        config: kubeconfig
+
+    # Determines an administrator-level user to the KLMS that will be used as
+    # the user to run tests as.
+    access:
+        # Load username and password from this client context (stored in file $HOME/.stelar by default)
+        client_context: 'local'
+        # Path to the stelar client config file
+        # client_config: /home/vsam/.stelar
+
+        # Note: it is also possible to add username and password directly
+        # In this case, make sure that these are not exposed inadvertently, e.g., by git
+        # username: vsam
+        # password: secret_passwd123
+
+    # Options determine the network access to the STELAR KLMS instance    
+    net:
+        # Whether services are reachable via https or http. Usually testing is run
+        # on local minikube instances, accessible via http.
+        scheme: http
+
+        # The base domain name for this installation.
+        # For the example value below, the klms api should be accessible at
+        #   http://klms.minikube.notls/stelar
+        dn: minikube.notls

@@ -4,12 +4,18 @@
 #
 # This is the location for declaring fixtures and other utilities that are auto-included
 # in test files.
+from __future__ import annotations
+
 import subprocess
 import time
+from collections import namedtuple
+from typing import Generator
 
 import cluster_config as cc
 import pytest
 import werkzeug
+from apiflask import APIFlask
+from keycloak import KeycloakOpenID
 
 from data_api import create_app
 
@@ -32,6 +38,9 @@ def testcluster_kubernetes(kconfig, request):
     return request.param
 
 
+CONNECT = False
+
+
 @pytest.fixture(scope="session")
 def kubectl_port_forward():
     c = cc.testcluster_config()
@@ -43,20 +52,22 @@ def kubectl_port_forward():
     else:
         ctxopt = []
 
-    proc = subprocess.Popen(
-        ["kubectl", *ctxopt, "port-forward", "svc/ckan", "5000:5000"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    if CONNECT:
+        proc = subprocess.Popen(
+            ["kubectl", *ctxopt, "port-forward", "svc/ckan", "5000:5000"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
-    # Give kubectl some time to establish the port-forward
-    time.sleep(5)
+        # Give kubectl some time to establish the port-forward
+        time.sleep(5)
 
     yield
 
-    # Terminate the kubectl process after tests are done
-    proc.terminate()
-    proc.wait()
+    if CONNECT:
+        # Terminate the kubectl process after tests are done
+        proc.terminate()
+        proc.wait()
 
 
 @pytest.fixture(scope="session")
@@ -65,8 +76,12 @@ def app(kubectl_port_forward):
     scheme = c["cluster"]["net"]["scheme"]
     dn = c["cluster"]["net"]["dn"]
 
-    # ckan_url = f"{scheme}://klms.{dn}/dc"
-    ckan_url = f"{scheme}://localhost:5000/"
+    if CONNECT:
+        ckan_url = f"{scheme}://localhost:5000/"
+    else:
+        ckan_url = f"{scheme}://klms.{dn}/dc"
+        kc_url = f"{scheme}://kc.{dn}/"
+    kc_ext_url = f"{scheme}://kc.{dn}/"
 
     app = create_app()
     app.config.update({"TESTING": True, "CKAN_SITE_URL": ckan_url})
@@ -75,10 +90,10 @@ def app(kubectl_port_forward):
     config["CKAN_API"] = f"{ckan_url}/api/3/action/"
     config["CKAN_ADMIN_TOKEN"] = cc.ckan_api_token()
 
-    config["KEYCLOAK_URL"] = f"{scheme}://kc.{dn}/"
-    config["KEYCLOAK_EXT_URL"] = f"{scheme}://kc.{dn}/"
-    config["KEYCLOAK_ISSUER_URL"] = f"{scheme}://kc.{dn}/realms/master"
-    config["KEYCLOAK_CLIENT_SECRET"] = ""
+    config["KEYCLOAK_URL"] = kc_url
+    config["KEYCLOAK_EXT_URL"] = kc_url
+    config["KEYCLOAK_ISSUER_URL"] = f"{kc_url}realms/master"
+    config["KEYCLOAK_CLIENT_SECRET"] = cc.kc_client_secret()
 
     # Yield the configured app
     yield app
@@ -94,18 +109,35 @@ def runner(app):
     return app.test_cli_runner()
 
 
-@pytest.fixture()
-def credentials(client: werkzeug.Client):
+Credentials = namedtuple("Credentials", ["token", "refresh_token"])
+
+
+@pytest.fixture(scope="module")
+def credentials(app: APIFlask) -> Generator[Credentials]:
+    config = app.config["settings"]
+    cli = KeycloakOpenID(
+        server_url=config["KEYCLOAK_URL"],
+        client_id=config["KEYCLOAK_CLIENT_ID"],
+        realm_name=config["REALM_NAME"],
+        client_secret_key=config["KEYCLOAK_CLIENT_SECRET"],
+        verify=True,
+    )
+
     match cc.testcluster_config():
-        case {"cluster": {"access": access}}:
+        case {"cluster": {"access": {"username": username, "password": password}}}:
             pass
+        case {
+            "cluster": {
+                "access": {"client_context": cprofile, "client_config": cfgfile}
+            }
+        }:
+            username, password = cc.client_context(cprofile, cfgfile)
+        case {"cluster": {"access": {"client_context": cprofile}}}:
+            username, password = cc.client_context(cprofile)
         case _:
             assert False
 
-    match client.post("/api/v1/users/token", json=access):
-        case {"success": True, "result": result}:
-            return result
-        case _:
-            assert False
+    cred = cli.token(username=username, password=password)
+    yield Credentials(cred["access_token"], cred["refresh_token"])
 
-    return None
+    cli.logout(refresh_token=cred["refresh_token"])

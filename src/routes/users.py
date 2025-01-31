@@ -1,3 +1,4 @@
+import logging
 import smtplib
 import ssl
 
@@ -23,6 +24,8 @@ from demo_t import get_demo_ckan_token
 
     Follows the REST logic.
 """
+
+logger = logging.getLogger(__name__)
 
 # The users operations blueprint for all operations related to the lifecycle of a user
 users_bp = APIBlueprint(

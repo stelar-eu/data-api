@@ -180,10 +180,14 @@ def test_manage_dataset(app):
 
 
 def test_dataset_api(client: werkzeug.Client, credentials):
-    response: werkzeug.test.TestResponse = client.get(
+    # breakpoint()
+
+    response = werkzeug.test.TestResponse = client.get(
         f"/api/v2/{DATASET.collection_name}",
-        headers={"Authorization": credentials["access_token"]},
+        headers={"Authorization": f"Bearer {credentials.token}"},
     )
+
+    print(response, response.json)
 
     assert response.status_code == 200
     match response.json:
