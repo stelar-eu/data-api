@@ -4,9 +4,9 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
-    "makefile.configureOnOpen": false,
     "black-formatter.importStrategy": "fromEnvironment",
     "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
     "editor.codeActionsOnSave": {
         "source.organizeImports": "explicit",
         "source.unusedImports": "explicit"

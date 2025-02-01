@@ -67,6 +67,13 @@ class IdListResponse(Schema):
     result = List(String(), required=False)
 
 
+class MemberListResponse(Schema):
+    help = URL(required=True)
+    success = Boolean(required=True)
+    # Use fields that are conditionally required depending on success
+    result = List(List(String()), required=True)
+
+
 class EntityListResponse(Schema):
     help = URL(required=True)
     success = Boolean(required=True)

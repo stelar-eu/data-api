@@ -109,7 +109,7 @@ def get_users(query_data):
     example={"username": "dpetrou", "password": "mypassword"},
 )
 @users_bp.output(
-    schema.ResponseAmbiguous,
+    schema.APIResponse,
     example={
         "help": "https://klms.stelar.gr/stelar/docs",
         "result": {

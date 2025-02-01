@@ -14,7 +14,17 @@ import kutils
 # Input schema for validating and structuring several API requests
 import schema
 from auth import security_doc, token_active
-from cutils import DATASET, GROUP, ORGANIZATION, RESOURCE, TAG, VOCABULARY, Entity
+from cutils import (
+    DATASET,
+    GROUP,
+    ORGANIZATION,
+    RESOURCE,
+    TAG,
+    VOCABULARY,
+    Entity,
+    EntityWithMembers,
+    MemberEntity,
+)
 from exceptions import APIException, InternalException
 
 logger = logging.getLogger("rest_catalog")
@@ -882,6 +892,94 @@ def generate_patch_entity(entity: Entity):
     return generic_patch_entity
 
 
+def generate_add_member(member_entity: MemberEntity):
+    """Generates the entity add member endpoints"""
+
+    @rest_catalog_bp.post(
+        f"/{member_entity.parent.name}/<entity_id>/{member_entity.child.name}/<member_id>"
+    )
+    @rest_catalog_bp.input(member_entity.capacity_schema, location="json")
+    @rest_catalog_bp.output(schema.APIResponse, status_code=200)
+    @rest_catalog_bp.doc(
+        summary=f"Add a {member_entity.child.name} member to a {member_entity.parent.name} by ID",
+        description=f"""Add a {member_entity.child.name} member to a {member_entity.parent.name} by ID. \\
+        Members can be added with different capacities. \\
+        
+        The capacity of the member must be specified in the request body. \\
+        {member_entity.capacity_schema.capdoc} \\
+        """,
+        tags=["RESTful Publishing Operations"],
+        security=security_doc,
+        responses=error_responses([400, 403, 404]),
+    )
+    @token_active
+    @render_api_output
+    @rename_endpoint(
+        f"api_add_{member_entity.child.name}_member_to_{member_entity.parent.name}"
+    )
+    def generic_add_member(entity_id: str, member_id: str, json_data):
+        capacity = json_data.get("capacity")
+        return member_entity.add_member(entity_id, member_id, capacity)
+
+    return generic_add_member
+
+
+def generate_remove_member(member_entity: MemberEntity):
+    """Generates the entity remove member endpoints"""
+
+    @rest_catalog_bp.delete(
+        f"/{member_entity.parent.name}/<entity_id>/{member_entity.child.name}/<member_id>"
+    )
+    @rest_catalog_bp.output(schema.APIResponse, status_code=200)
+    @rest_catalog_bp.doc(
+        summary=f"Remove a {member_entity.child.name} member from a {member_entity.parent.name} by ID",
+        description=f"""Remove a {member_entity.child.name} member from a {member_entity.parent.name} by ID. \\
+        Members can be removed from the parent entity. \\
+        """,
+        tags=["RESTful Publishing Operations"],
+        security=security_doc,
+        responses=error_responses([400, 403, 404]),
+    )
+    @token_active
+    @render_api_output
+    @rename_endpoint(
+        f"api_remove_{member_entity.child.name}_member_from_{member_entity.parent.name}"
+    )
+    def generic_remove_member(entity_id: str, member_id: str):
+        return member_entity.remove_member(entity_id, member_id)
+
+    return generic_remove_member
+
+
+def generate_list_members(member_entity: MemberEntity):
+    """Generates the entity list member endpoints"""
+
+    @rest_catalog_bp.get(
+        f"/{member_entity.parent.name}/<entity_id>/{member_entity.child.collection_name}"
+    )
+    @rest_catalog_bp.input(member_entity.capacity_schema, location="query")
+    @rest_catalog_bp.output(schema.MemberListResponse, status_code=200)
+    @rest_catalog_bp.doc(
+        summary=f"List {member_entity.child.name} members of a {member_entity.parent.name} by ID",
+        description=f"""List all {member_entity.child.name} members of a {member_entity.parent.name} by ID. \\
+        This function returns a list of {member_entity.child.name} identifiers and their membership capacities. \\
+        """,
+        tags=["RESTful Search Operations"],
+        security=security_doc,
+        responses=error_responses([403, 409]),
+    )
+    @token_active
+    @render_api_output
+    @rename_endpoint(
+        f"api_list_{member_entity.child.name}_members_of_{member_entity.parent.name}"
+    )
+    def generic_list_members(entity_id: str, query_data):
+        capacity = query_data.get("capacity", None)
+        return member_entity.list_members(entity_id, capacity)
+
+    return generic_list_members
+
+
 # --------------------------------------------------------
 #                    GENERATE ENDPOINTS
 # --------------------------------------------------------
@@ -894,8 +992,17 @@ GENERATOR = {
     "create": generate_create_entity,
     "update": generate_update_entity,
     "patch": generate_patch_entity,
+    "add_member": generate_add_member,
+    "remove_member": generate_remove_member,
+    "list_members": generate_list_members,
 }
 
 for e in [GROUP, ORGANIZATION, DATASET, RESOURCE, VOCABULARY, TAG]:
     for op in e.operations:
         e.endpoints[op] = GENERATOR[op](e)
+
+    # Add member operations
+    if isinstance(e, EntityWithMembers):
+        for me in e.members:
+            for op in me.operations:
+                me.endpoints[op] = GENERATOR[op](me)
