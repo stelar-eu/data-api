@@ -4,6 +4,7 @@ file.
 """
 from __future__ import annotations
 
+import json
 import subprocess
 from configparser import ConfigParser
 from pathlib import Path
@@ -74,6 +75,15 @@ def k8s_secret(context: str, secret: str, var: str) -> str:
     return subprocess.check_output(cmd, shell=True, text=True)
 
 
+def stelar_api_cm(context=None):
+    """Return the 'api-config-map' settings from the eponymous kubernetes config map."""
+    ctx = f"--context {context}" if context else ""
+    cmd = f"kubectl {ctx} get cm api-config-map -o json|jq .data"
+
+    jsdict = subprocess.check_output(cmd, shell=True, text=True)
+    return json.loads(jsdict)
+
+
 def ckan_api_token(context=None):
     secret = "ckan-admin-token-secret"
     return k8s_secret(context, secret, "token")
@@ -82,6 +92,10 @@ def ckan_api_token(context=None):
 def kc_client_secret(context=None):
     secret = "stelar-api-client-secret"
     return k8s_secret(context, secret, "secret")
+
+
+def postgres_password(context=None):
+    return k8s_secret(context, "ckandb-secret", "password")
 
 
 def client_context(context: str, cfgfile: PathLike = None) -> Tuple[str, str]:

@@ -6,9 +6,11 @@
 # in test files.
 from __future__ import annotations
 
+import socket
 import subprocess
 import time
 from collections import namedtuple
+from contextlib import closing
 from typing import Generator
 
 import cluster_config as cc
@@ -38,23 +40,29 @@ def testcluster_kubernetes(kconfig, request):
     return request.param
 
 
-CONNECT = False
-
-
 @pytest.fixture(scope="session")
-def kubectl_port_forward():
+def pg_access():
     c = cc.testcluster_config()
-
     context = c["cluster"]["context"]
+    local_port = c["cluster"]["postgres"]["local_port"]
 
     if context is not None:
         ctxopt = ["--context", context]
     else:
         ctxopt = []
 
+    # Test the local port for availability
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        if sock.connect_ex(("localhost", local_port)) == 0:
+            # Port is already in use, assume that a port-forward is already running
+            CONNECT = False
+        else:
+            # Port is not in use, start a port-forward
+            CONNECT = True
+
     if CONNECT:
         proc = subprocess.Popen(
-            ["kubectl", *ctxopt, "port-forward", "svc/ckan", "5000:5000"],
+            ["kubectl", *ctxopt, "port-forward", "svc/db", f"{local_port}:5432"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -71,29 +79,41 @@ def kubectl_port_forward():
 
 
 @pytest.fixture(scope="session")
-def app(kubectl_port_forward):
+def monkeysession(request):
+    with pytest.MonkeyPatch.context() as mp:
+        yield mp
+
+
+@pytest.fixture(scope="session")
+def app(monkeysession, pg_access):
     c = cc.testcluster_config()
+    cm = cc.stelar_api_cm()
+
     scheme = c["cluster"]["net"]["scheme"]
     dn = c["cluster"]["net"]["dn"]
 
-    if CONNECT:
-        ckan_url = f"{scheme}://localhost:5000/"
-    else:
-        ckan_url = f"{scheme}://klms.{dn}/dc"
-        kc_url = f"{scheme}://kc.{dn}/"
+    ckan_url = f"{scheme}://klms.{dn}/dc"
+    kc_url = f"{scheme}://kc.{dn}/"
     kc_ext_url = f"{scheme}://kc.{dn}/"
 
+    monkeysession.setenv("POSTGRES_HOST", "localhost")
+    monkeysession.setenv("POSTGRES_PORT", str(c["cluster"]["postgres"]["local_port"]))
+    monkeysession.setenv("POSTGRES_USER", cm["POSTGRES_USER"])
+    monkeysession.setenv("POSTGRES_PASSWORD", cc.postgres_password())
+    monkeysession.setenv("POSTGRES_DB", cm["POSTGRES_DB"])
+
+    monkeysession.setenv("CKAN_SITE_URL", ckan_url)
+    monkeysession.setenv("CKAN_ADMIN_TOKEN", cc.ckan_api_token())
+
+    monkeysession.setenv("KEYCLOAK_URL", kc_url)
+    monkeysession.setenv("KEYCLOAK_EXT_URL", kc_url)
+    monkeysession.setenv("KEYCLOAK_ISSUER_URL", f"{kc_url}realms/master")
+    monkeysession.setenv("KEYCLOAK_CLIENT_SECRET", cc.kc_client_secret())
+
+    monkeysession.setenv("REALM_NAME", cm["REALM_NAME"])
+
     app = create_app()
-    app.config.update({"TESTING": True, "CKAN_SITE_URL": ckan_url})
-
-    config = app.config["settings"]
-    config["CKAN_API"] = f"{ckan_url}/api/3/action/"
-    config["CKAN_ADMIN_TOKEN"] = cc.ckan_api_token()
-
-    config["KEYCLOAK_URL"] = kc_url
-    config["KEYCLOAK_EXT_URL"] = kc_url
-    config["KEYCLOAK_ISSUER_URL"] = f"{kc_url}realms/master"
-    config["KEYCLOAK_CLIENT_SECRET"] = cc.kc_client_secret()
+    app.config.update({"TESTING": True})
 
     # Yield the configured app
     yield app

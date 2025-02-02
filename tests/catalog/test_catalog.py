@@ -6,7 +6,8 @@ import werkzeug
 werkzeug.__version__ = "3.1.3"
 
 import schema
-from cutils import DATASET, GROUP, ORGANIZATION, VOCABULARY, Entity, get_vocabulary
+from cutils import DATASET, GROUP, ORGANIZATION, VOCABULARY, Entity
+from tags import get_vocabulary
 
 
 def test_dummy_app(app):

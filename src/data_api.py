@@ -16,7 +16,6 @@ from flask.json import JSONEncoder
 # for keycloak integration with the api
 from psycopg2.extras import RealDictCursor
 
-# from container_utils import create_container
 import execution
 import kutils
 
@@ -32,23 +31,27 @@ import sql_utils
 # Auxiliary custom functions & SQL query templates for ranking
 import utils
 from auth import security_doc, token_active
+from backend.ckan import initialize_ckan_client
+from backend.pgsql import initialize_db_pool
 
 # Import demo token creator
 from demo_t import get_demo_ckan_token
 from routes.admin import admin_bp
 from routes.auth_tool import auth_tool_bp
+from routes.catalog import catalog_bp
 
 #### DASHBOARD BP ####
 from routes.dashboard import dashboard_bp
 
 #### PUBLISHER BP ####
 from routes.publisher import publisher_bp
-from routes.rest_catalog import rest_catalog_bp
 from routes.rest_workflows import rest_workflows_bp
 from routes.settings import settings_bp
 
 #### USERS BP ####
 from routes.users import api_user_editor, users_bp
+
+# from container_utils import create_container
 
 logsys.configure()
 
@@ -89,7 +92,7 @@ app.register_blueprint(publisher_bp, url_prefix="/console/v1/publisher")
 app.register_blueprint(settings_bp, url_prefix="/console/v1/settings")
 app.register_blueprint(admin_bp, url_prefix="/console/v1/admin")
 app.register_blueprint(auth_tool_bp, url_prefix="/api/v1/auth")
-app.register_blueprint(rest_catalog_bp, url_prefix="/api/v2")
+app.register_blueprint(catalog_bp, url_prefix="/api/v2")
 app.register_blueprint(rest_workflows_bp, url_prefix="/api/v2")
 ############################################################
 
@@ -1373,15 +1376,19 @@ def api_sparql(json_data):
     return response.json()
 
 
-@app.route("/api/v1/catalog/sql", methods=["POST"])
-@app.input(
-    schema.Filter,
-    location="json",
-    example={"q": "SELECT * FROM public.package LIMIT 5"},
-)
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Search Operations"], security=security_doc)
-@token_active
+# !!!!!!!
+# THE FOLLOWING ENDPOINTS ARE SUCCEPTIBLE TO SQL INJECTION ATTACKS
+
+
+# @app.route("/api/v1/catalog/sql", methods=["POST"])
+# @app.input(
+#    schema.Filter,
+#    location="json",
+#    example={"q": "SELECT * FROM public.package LIMIT 5"},
+# )
+# @app.output(schema.ResponseOK, status_code=200)
+# @app.doc(tags=["Search Operations"], security=security_doc)
+# @token_active
 def api_sql(json_data):
     """Submit a SELECT SQL command to the PostgreSQL database.
 
@@ -1444,11 +1451,11 @@ def api_sql(json_data):
     return jsonify(results)
 
 
-@app.route("/api/v1/catalog/facet/values", methods=["POST"])
-@app.input(schema.Filter, location="json", example={"q": "format"})
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Search Operations"], security=security_doc)
-@token_active
+# @app.route("/api/v1/catalog/facet/values", methods=["POST"])
+# @app.input(schema.Filter, location="json", example={"q": "format"})
+# @app.output(schema.ResponseOK, status_code=200)
+# @app.doc(tags=["Search Operations"], security=security_doc)
+# @token_active
 def api_facet_values(json_data):
     """Submit a SELECT SQL command to the PostgreSQL database.
 
@@ -1855,7 +1862,8 @@ def api_catalog_rank(json_data):
 def api_dataset_publish(json_data):
     """Publish a new dataset in the Catalog.
 
-    Registers metadata about a dataset and its associated resources (e.g., a data profile) in CKAN. The actual dataset will not be stored in the Catalog. The user will become the publisher of this dataset.
+    Registers metadata about a dataset and its associated resources (e.g., a data profile) in CKAN.
+    The actual dataset will not be stored in the Catalog. The user will become the publisher of this dataset.
 
     Args:
         data: A JSON with metadata information provided by the publisher about the new dataset.
@@ -3318,6 +3326,12 @@ def main(app):
     app.config["SECURITY_SCHEMES"] = {
         "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
     }
+
+    # Configure the metadata database connection pool
+    initialize_db_pool(app.config["settings"])
+
+    # Configure the CKAN client
+    initialize_ckan_client(app.config["settings"])
 
     # Configure execution
     execution.configure(app.config["settings"])

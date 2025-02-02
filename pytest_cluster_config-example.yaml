@@ -61,3 +61,27 @@ cluster:
         # For the example value below, the klms api should be accessible at
         #   http://klms.minikube.notls/stelar
         dn: minikube.notls
+
+    # Options for the postgres database
+    postgres:
+        # The local port where the postgres database is accessible
+        # This is the port where the in-cluster database is accessible from the testing machine
+        # using a port-forwarding command.
+        # For example, to forward the port 5432 to the local machine, use the command
+        #
+        #   kubectl port-forward svc/db 5432:5432
+        #
+        # The test suite will execute this command before running the tests, unless
+        # the local port is already in use. If the port is already in use, the test suite will
+        # assume that the port-forwarding is already set up (this is useful for running
+        # tests much faster, since  port-forwarding takes ~5 seconds to set up).
+        #
+        # Therefore, for repeated test runs, it is suggested that the user run the port-forwarding
+        # command manually before running the tests.
+        local_port: 5432
+
+        # The time to wait for the port-forwarding to be set up (in seconds).
+        # You may need to adjust this value depending on the speed of your machine.
+        # If the port-forwarding is not set up in this time, the test suite will
+        # fail saying 'psycopg2 cannot connect to the database'.
+        port_forward_wait: 5
