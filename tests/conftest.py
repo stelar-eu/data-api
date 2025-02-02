@@ -112,6 +112,12 @@ def app(monkeysession, pg_access):
 
     monkeysession.setenv("REALM_NAME", cm["REALM_NAME"])
 
+    # Disable execution engine. This is a test environment
+    # and it is not possible for a in-cluster job to contact us for
+    # its parameters etc.
+    # TODO: figure out how to test the execution engine
+    monkeysession.setenv("EXECUTION_ENGINE", "none")
+
     app = create_app()
     app.config.update({"TESTING": True})
 

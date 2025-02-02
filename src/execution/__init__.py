@@ -11,10 +11,15 @@
     task execution details.
 """
 from __future__ import annotations
+
+import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from execution.engine import ExecEngine, ExecEngineFactory
+
+
+logger = logging.getLogger("exec")
 
 
 # Private global variable holds a function/callable for returning
@@ -45,10 +50,6 @@ def configure(cfg: dict):
     Args:
         cfg (dict): The configuration object
     """
-    import logging
-
-    # create the logger for the executor
-    logger = logging.getLogger("exec")
 
     execution_cfg = cfg.get("execution", None)
 
@@ -77,14 +78,14 @@ def configure(cfg: dict):
 """
 
     def fatal(msg, from_exc=None):
-        logger.fatal("%s %s", msg, fatal_help_log_message)
+        logger.critical("%s %s", msg, fatal_help_log_message)
         raise RuntimeError(msg) from from_exc
 
     if execution_cfg is None:
         fatal("The configuration does not contain an 'execution' field.")
 
     try:
-        engine = execution_cfg['engine']
+        engine = execution_cfg["engine"]
     except TypeError as e:
         fatal("The execution field is not an object: %a", e.args)
     except KeyError as e:
@@ -119,12 +120,10 @@ def set_exec_engine_factory(fct: ExecEngineFactory):
     global _exec_engine_factory
     if fct is not None:
         _exec_engine_factory = fct
-        import logging
-        logging.getLogger("exec").info("Established execution engine factory.")
+        logger.info("Established execution engine factory.")
     else:
         _exec_engine_factory = lambda: None
-        import logging
-        logging.getLogger("exec").warning("There is no execution engine.")
+        logger.warning("There is no execution engine.")
 
 
 __all__ = ["exec_engine", "configure", "set_exec_engine_factory"]
