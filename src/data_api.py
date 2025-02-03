@@ -137,7 +137,7 @@ app.json_provider_class = CustomJSONEncoder
 @app.doc(tags=["KLMS Data API"])
 def home():
     """Entry point to the Console of Knowledge Lake Management System."""
-    return redirect("/stelar" + url_for("dashboard_blueprint.login"))
+    return redirect(url_for("dashboard_blueprint.login"))
 
 
 @app.route("/help", methods=["GET"])
