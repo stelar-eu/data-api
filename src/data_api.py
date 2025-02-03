@@ -10,7 +10,7 @@ import psycopg2
 import requests
 import yaml
 from apiflask import APIFlask
-from flask import current_app, jsonify, redirect, request
+from flask import current_app, jsonify, redirect, request, url_for
 from flask.json import JSONEncoder
 
 # for keycloak integration with the api
@@ -137,7 +137,7 @@ app.json_provider_class = CustomJSONEncoder
 @app.doc(tags=["KLMS Data API"])
 def home():
     """Entry point to the Console of Knowledge Lake Management System."""
-    return redirect("/stelar/console/v1/login")
+    return redirect("/stelar" + url_for("dashboard_blueprint.login"))
 
 
 @app.route("/help", methods=["GET"])
