@@ -12,7 +12,7 @@ import schema
 import wxutils
 from auth import token_active
 
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 rest_workflows_bp = APIBlueprint(

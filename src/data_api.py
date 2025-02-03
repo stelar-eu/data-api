@@ -10,7 +10,7 @@ import psycopg2
 import requests
 import yaml
 from apiflask import APIFlask
-from flask import current_app, jsonify, redirect, request, session
+from flask import current_app, jsonify, redirect, request
 from flask.json import JSONEncoder
 
 # for keycloak integration with the api
@@ -127,67 +127,10 @@ class CustomJSONEncoder(JSONEncoder):
 
 app.json_provider_class = CustomJSONEncoder
 
-################################## AUTHENTICATION ########################################
 
-
-# Redirect user to Keycloak login page
-@app.route("/login")
-@app.doc(tags=["KLMS Data API"])
-def login():
-    config = current_app.config["settings"]
-    keycloak_login_url = (
-        config["KEYCLOAK_ISSUER_URL"]
-        + "/protocol/openid-connect/auth"
-        + "?client_id="
-        + config["KEYCLOAK_CLIENT_ID"]
-        + "&response_type=code"
-        + "&redirect_uri="
-        # The callback url
-        + config["MAIN_EXT_URL"]
-        + "/stelar/callback"
-        + "&scope=openid"
-    )
-    return redirect(keycloak_login_url)
-
-
-# Callback endpoint to handle Keycloak's response
-@app.route("/callback")
-@app.doc(tags=["KLMS Data Testing"])
-def callback():
-    code = request.args.get("code")
-    if not code:
-        return "Authorization code not provided", 400
-
-    config = current_app.config["settings"]
-
-    # Exchange authorization code for an access token
-    token_url = (
-        config["KEYCLOAK_URL"]
-        + "/realms/"
-        + config["REALM_NAME"]
-        + "/protocol/openid-connect/token"
-    )
-    payload = {
-        "grant_type": "authorization_code",
-        "client_id": config["KEYCLOAK_CLIENT_ID"],
-        "client_secret": config["KEYCLOAK_CLIENT_SECRET"],
-        "code": code,
-        "redirect_uri": config["MAIN_EXT_URL"] + "/stelar/callback",
-    }
-
-    response = requests.post(token_url, data=payload)
-    token_data = response.json()
-
-    if "access_token" in token_data:
-        session["access_token"] = token_data["access_token"]
-        return jsonify(
-            {"message": "Keycloak authenticated!", "token": token_data["access_token"]}
-        )
-    else:
-        return "Failed to get access token", 400
-
-
-################################## ENTRY POINT ########################################
+# -----------------
+# Entry point
+# -----------------
 
 
 @app.route("/", methods=["GET"])
