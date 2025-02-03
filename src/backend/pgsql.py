@@ -97,7 +97,7 @@ def execSql(sql, vars=None):
             # Commit the changes to the database
             conn.commit()
 
-        conn.putconn()  # Return the connection to the pool
+        mdb_pool.putconn(conn)  # Return the connection to the pool
     except (Exception, psycopg2.DatabaseError) as error:
         logger.exception("Error in executing SQL command", sql)
         conn.putconn(close=True)  # Close this connection, just in case...
