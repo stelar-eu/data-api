@@ -39,10 +39,10 @@ def configure():
             "loggers": {
                 "httpx": {"level": "WARNING", "propagate": False},
                 "cutils": {"level": "DEBUG"},
-                "rest_catalog": {"level": "DEBUG"},
                 "data_api": {"level": "DEBUG"},
                 "werkzeug": {"handlers": ["wz"], "propagate": False},
-                "route": {"level": "DEBUG"},
+                "routes": {"level": "DEBUG", "handlers": ["cstderr"]},
+                # "routes.catalog": {"level": "DEBUG"},
             },
             "root": {
                 "level": "DEBUG",
