@@ -128,7 +128,7 @@ def raise_ckan_error(response: Response, context: dict):
     if 400 <= response.status_code:
         c = response.json()
         etype = c["error"]["__type"]
-        emsg = c["error"]["message"]
+        emsg = c["error"]["name"] #emsg = c["error"]["message"] ( KeyError: 'message' )
         context_detail = {
             k: v for k, v in context.items() if isinstance(v, (int, str, float, bool))
         }

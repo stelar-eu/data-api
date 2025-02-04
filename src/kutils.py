@@ -5,6 +5,8 @@ import smtplib
 import ssl
 import uuid
 from io import BytesIO
+from backend.ckan import ckan_request
+import logging
 
 import jwt
 import pyotp
@@ -19,6 +21,7 @@ from keycloak import (
 
 import sql_utils
 
+logger = logging.getLogger(__name__)
 
 def is_valid_uuid(s):
     try:
@@ -629,6 +632,18 @@ def create_user_with_password(
             keycloak_admin.set_user_password(
                 user_id=user_id, password=password, temporary=temporary_password
             )
+
+        ckan_payload = {
+            "name": username,
+            "email": email,
+            "password": password, 
+        }
+
+        try:
+            obj = ckan_request("user_create", json=ckan_payload)
+            logger.debug("CKAN Response: %s", obj)
+        except Exception as e:
+            logger.error("Error while calling ckan_request: %s", str(e), exc_info=True)
 
         return user_id
     except KeycloakAuthenticationError as e:
