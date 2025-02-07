@@ -14,5 +14,6 @@
     "isort.args": [
         "--profile",
         "black"
-    ]
+    ],
+    "makefile.configureOnOpen": false
 }

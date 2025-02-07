@@ -15,20 +15,11 @@ if TYPE_CHECKING:
 
 
 def testcluster_config():
-    """Return the parsed file"""
+    """Return the parsed file 'pytest_cluster_config.yaml'."""
     import yaml
 
     with open("pytest_cluster_config.yaml") as f:
         return yaml.safe_load(f)
-
-
-def testclusters_by_engine(engine: str) -> list:
-    """Return all testcluster configurations with kubernetes engines"""
-    return [
-        cluster
-        for cluster in testcluster_config().values()
-        if cluster["execution"]["engine"] == "kubernetes"
-    ]
 
 
 def k8s_secret(context: str, secret: str, var: str) -> str:
@@ -108,3 +99,28 @@ def client_context(context: str, cfgfile: PathLike = None) -> Tuple[str, str]:
     usr = ctx["username"]
     pwd = ctx["password"]
     return usr, pwd
+
+
+def testcluster_keycloak_admin_client():
+    """This function returns a KeycloakAdmin object for the testcluster.
+
+    It is mostly useful in interactive tests.
+    """
+
+    cfg = testcluster_config()
+
+    scheme = cfg["cluster"]["net"]["scheme"]
+    dn = cfg["cluster"]["net"]["dn"]
+
+    kc_url = f"{scheme}://kc.{dn}/"
+
+    from keycloak import KeycloakAdmin
+
+    keycloak_admin = KeycloakAdmin(
+        server_url=kc_url,
+        realm_name="master",
+        client_id="stelar-api",
+        client_secret_key=kc_client_secret(cfg["cluster"]["context"]),
+        verify=True,
+    )
+    return keycloak_admin

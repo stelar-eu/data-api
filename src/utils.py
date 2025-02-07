@@ -233,6 +233,7 @@ sql_workflow_execution_templates = {
     "workflow_create_template_empty_package": "INSERT INTO klms.workflow_execution(workflow_uuid, state, creator_user_id, start_date) VALUES (%s, %s, %s, %s)",
     "workflow_update_template": "UPDATE klms.workflow_execution SET state = %s WHERE workflow_uuid = %s",
     "workflow_commit_template": "UPDATE klms.workflow_execution SET state = %s, end_date = %s WHERE workflow_uuid = %s",
+    "workflow_update_wf_package": "UPDATE klms.workflow_execution SET wf_package_id = %s WHERE workflow_uuid = %s",
     "workflow_insert_tags_template": "INSERT INTO klms.workflow_tag VALUES (%s, %s, %s)",
     "workflow_state_template": "SELECT workflow_uuid AS workflow_exec_id, state FROM klms.workflow_execution WHERE workflow_uuid = %s",
     "workflow_get_context_package": "SELECT wf_package_id AS context_package FROM klms.workflow_execution WHERE workflow_uuid = %s",

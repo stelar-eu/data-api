@@ -22,6 +22,14 @@ from keycloak import KeycloakOpenID
 from data_api import create_app
 
 
+# In this function we put code executed before almost everything else
+def pytest_configure(config):
+    # Fix a bug in FlaskClient.
+    import werkzeug
+
+    werkzeug.__version__ = "3.1.3"
+
+
 @pytest.fixture(scope="session")
 def kconfig():
     from kubernetes import client, config
@@ -33,11 +41,6 @@ def kconfig():
 @pytest.fixture(scope="session")
 def dev_cluster_config(scope="session"):
     return cc.testcluster_config()
-
-
-@pytest.fixture(params=cc.testclusters_by_engine("kubernetes"))
-def testcluster_kubernetes(kconfig, request):
-    return request.param
 
 
 @pytest.fixture(scope="session")
@@ -87,7 +90,10 @@ def monkeysession(request):
 @pytest.fixture(scope="session")
 def app(monkeysession, pg_access):
     c = cc.testcluster_config()
-    cm = cc.stelar_api_cm()
+    k8s_context = c["cluster"]["context"]
+
+    # Get the stelar api config map from kubernetes
+    cm = cc.stelar_api_cm(k8s_context)
 
     scheme = c["cluster"]["net"]["scheme"]
     dn = c["cluster"]["net"]["dn"]
@@ -99,16 +105,16 @@ def app(monkeysession, pg_access):
     monkeysession.setenv("POSTGRES_HOST", "localhost")
     monkeysession.setenv("POSTGRES_PORT", str(c["cluster"]["postgres"]["local_port"]))
     monkeysession.setenv("POSTGRES_USER", cm["POSTGRES_USER"])
-    monkeysession.setenv("POSTGRES_PASSWORD", cc.postgres_password())
+    monkeysession.setenv("POSTGRES_PASSWORD", cc.postgres_password(k8s_context))
     monkeysession.setenv("POSTGRES_DB", cm["POSTGRES_DB"])
 
     monkeysession.setenv("CKAN_SITE_URL", ckan_url)
     monkeysession.setenv("CKAN_ADMIN_TOKEN", cc.ckan_api_token())
 
     monkeysession.setenv("KEYCLOAK_URL", kc_url)
-    monkeysession.setenv("KEYCLOAK_EXT_URL", kc_url)
+    monkeysession.setenv("KEYCLOAK_EXT_URL", kc_ext_url)
     monkeysession.setenv("KEYCLOAK_ISSUER_URL", f"{kc_url}realms/master")
-    monkeysession.setenv("KEYCLOAK_CLIENT_SECRET", cc.kc_client_secret())
+    monkeysession.setenv("KEYCLOAK_CLIENT_SECRET", cc.kc_client_secret(k8s_context))
 
     monkeysession.setenv("REALM_NAME", cm["REALM_NAME"])
 

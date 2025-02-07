@@ -10,6 +10,7 @@ from flask import current_app
 
 # Auxiliary custom functions & SQL query templates for ranking
 import utils
+from backend.pgsql import transaction
 
 
 def is_valid_uuid(s):
@@ -277,50 +278,50 @@ def workflow_execution_create(
         A boolean: True, if the statement executed successfully; otherwise, False.
     """
 
-    # Compose the SQL command using the template for creating a new workflow execution
-    if wf_package_id:
-        sql = utils.sql_workflow_execution_templates["workflow_create_template"]
-        resp = utils.execSql(
-            sql, (workflow_exec_id, state, creator_user_id, start_date, wf_package_id)
-        )
-    else:
-        sql = utils.sql_workflow_execution_templates[
-            "workflow_create_template_empty_package"
-        ]
-        resp = utils.execSql(
-            sql, (workflow_exec_id, state, creator_user_id, start_date)
-        )
-
-    # Execute the SQL command in the database
-    if resp and "status" in resp:
-        if not resp.get("status"):
-            return False
-    else:
-        return False
-
-    # Compose the SQL command using the template for assigning tags to the new workflow execution
-    if tags:
-        for key, value in tags.items():
+    with transaction() as conn:
+        # Compose the SQL command using the template for creating a new workflow execution
+        if wf_package_id:
+            sql = utils.sql_workflow_execution_templates["workflow_create_template"]
+            resp = utils.execSql(
+                sql,
+                (workflow_exec_id, state, creator_user_id, start_date, wf_package_id),
+            )
+        else:
             sql = utils.sql_workflow_execution_templates[
-                "workflow_insert_tags_template"
+                "workflow_create_template_empty_package"
             ]
+            resp = utils.execSql(
+                sql, (workflow_exec_id, state, creator_user_id, start_date)
+            )
 
-            # Execute the SQL command in the database
-            resp = utils.execSql(sql, (workflow_exec_id, key, value))
-            if resp and "status" in resp:
-                if not resp.get("status"):
+        # Execute the SQL command in the database
+        if not resp or not resp.get("status", False):
+            return False
+
+        # Compose the SQL command using the template for assigning tags to the new workflow execution
+        if tags:
+            for key, value in tags.items():
+                sql = utils.sql_workflow_execution_templates[
+                    "workflow_insert_tags_template"
+                ]
+
+                # Execute the SQL command in the database
+                resp = utils.execSql(sql, (workflow_exec_id, key, value))
+
+                if resp and "status" in resp:
+                    if not resp.get("status"):
+                        return False
+                else:
                     return False
-            else:
-                return False
 
-    return True
+        return True
 
 
 def workflow_execution_update(workflow_exec_id, state, end_date=None):
     """Updates metadata regarding a workflow execution in the database.
 
     Args:
-        task_exec_id: UUID of a workflow execution.
+        workflow_exec_id: UUID of a workflow execution.
         state: Current state of this workflow execution.
         end_date: Timestamp marking the end of this workflow execution.
 
@@ -329,20 +330,31 @@ def workflow_execution_update(workflow_exec_id, state, end_date=None):
     """
 
     # Compose and execute the SQL command using the template for updating/commiting a workflow execution
-    if not end_date is None:
+    if end_date is not None:
         sql = utils.sql_workflow_execution_templates["workflow_commit_template"]
         resp = utils.execSql(sql, (state, end_date, workflow_exec_id))
     else:
         sql = utils.sql_workflow_execution_templates["workflow_update_template"]
         resp = utils.execSql(sql, (state, workflow_exec_id))
 
-    if resp and "status" in resp:
-        if not resp.get("status"):
-            return False
-    else:
-        return False
+    return resp.get("status", False)
 
-    return True
+
+def workflow_execution_update_wf_package(workflow_exec_id, package_id):
+    """Updates metadata regarding a workflow execution in the database.
+
+    Args:
+        workflow_exec_id: UUID of a workflow execution.
+        package_id: The ID of the package that will be used as context for the workflow.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Compose and execute the SQL command using the template for updating/commiting a workflow execution
+    sql = utils.sql_workflow_execution_templates["workflow_update_wf_package"]
+    resp = utils.execSql(sql, (package_id, workflow_exec_id))
+    return resp.get("status", False)
 
 
 def workflow_execution_delete(workflow_exec_id):
@@ -361,13 +373,7 @@ def workflow_execution_delete(workflow_exec_id):
     # Execute the SQL command in the database
     resp = utils.execSql(sql, (workflow_exec_id,))
 
-    if resp and "status" in resp:
-        if not resp.get("status"):
-            return False
-    else:
-        return False
-
-    return True
+    return resp.get("status", False)
 
 
 def workflow_execution_read(workflow_exec_id):
@@ -387,9 +393,8 @@ def workflow_execution_read(workflow_exec_id):
     resp = utils.execSql(sql, (workflow_exec_id,))
 
     if resp and len(resp) > 0:
-        workflow_specs = resp[
-            0
-        ]  # List should contain specification of a single workflow execution (unique UUID)
+        # List should contain specification of a single workflow execution (unique UUID)
+        workflow_specs = resp[0]
         # Also include any user-specified tags in the response
         workflow_specs["tags"] = workflow_execution_tags_read(workflow_exec_id)
         return workflow_specs

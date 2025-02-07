@@ -25,10 +25,8 @@ TODOs:
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 import kubernetes as k8s
@@ -69,8 +67,8 @@ def configure(cfg: dict, client_config=True) -> ExecEngineFactory:
 
     Args:
         cfg (dict): Deployment configuration
-        client_config (bool, optional): If true, configure the kubernetes client also.
-                        Defaults to True.
+        client_config (bool, optional): If true, configure the kubernetes client.
+                Defaults to True. It may be set to False for testing.
     Returns:
         ExecEngineFactory: Docker ExecEngine factory
     """

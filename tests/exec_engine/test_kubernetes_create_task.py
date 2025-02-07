@@ -5,18 +5,14 @@ import execution.kubernetes as k
 from execution.engine import ExecEngine
 
 
-def test_factory(kconfig):
+def test_factory(dev_cluster_config):
     "Test factory creation from minimal config"
 
+    cluster = dev_cluster_config["cluster"]
+
     factory = k.configure(
-        {
-            "API_URL": "http://localhost/",
-            "execution": {
-                "engine": "kubernetes",
-                "namespace": "playground",
-                "config": "kubectl",
-            },
-        },
+        # {"API_URL": cluster["API_URL"], "execution": cluster["execution"]},
+        cluster,
         client_config=False,
     )
 
@@ -24,8 +20,8 @@ def test_factory(kconfig):
 
     assert isinstance(engine, ExecEngine)
     assert isinstance(engine, k.K8sExecEngine)
-    assert engine.api_url == "http://localhost/"
-    assert engine.namespace == "playground"
+    assert engine.api_url == cluster["API_URL"]
+    assert engine.namespace == cluster["execution"]["namespace"]
 
 
 #
@@ -41,10 +37,18 @@ def kube_get_job(namespace, task_id):
     return batch.read_namespaced_job(name=f"stelar-task-{task_id}", namespace=namespace)
 
 
+#
+#  The current test fails with the following error:
+# TypeError: K8sExecEngine.create_task() missing 1 required positional argument: 'signature'
+#
+# The test needs to be updated to reflect the current implementation of the create_task method
+
+
 @pytest.mark.skip(reason="This test needs updating")
-def test_kubernetes_create_task(testcluster_kubernetes):
+def test_kubernetes_create_task(kconfig, dev_cluster_config):
     # Create a sample task in the default kubernetes cluster
-    factory = k.configure(testcluster_kubernetes)
+    cluster = dev_cluster_config["cluster"]
+    factory = k.configure(cluster)
     engine = factory()
 
     tool_name = "vsam/testservice"

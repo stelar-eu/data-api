@@ -209,6 +209,28 @@ def introspect_token(access_token):
         return False
 
 
+def current_user():
+    """Return the current user from the session or the request headers.
+
+    When the 'Authorization' header is present in the request, the user is fetched using the access token in the header.
+    else, the user is fetched using the access token stored in the session.
+
+    NOTE: This is a bit fragile, since it assumes that the header 'Authorization' is always present in the request.
+
+    Returns:
+        dict: The user information.
+    """
+    from flask import request
+
+    match request.headers.get("Authorization", "").split(" "):
+        case ["Bearer", token]:
+            pass
+        case _:
+            token = session.get("access_token")
+
+    return get_user_by_token(access_token=token)
+
+
 def user_has_2fa(user_id):
     if is_valid_uuid(user_id):
         return sql_utils.two_factor_user_has_2fa(user_id=user_id)

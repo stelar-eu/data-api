@@ -6,14 +6,14 @@ from flask import request, session
 
 import cutils
 import kutils
-
-# Input schema for validating and structuring several API requests
 import schema
 import wxutils
 from auth import token_active
 
-logger = logging.getLogger(__name__)
+# Input schema for validating and structuring several API requests
+from routes.generic import generate_endpoints
 
+logger = logging.getLogger(__name__)
 
 workflows_bp = APIBlueprint(
     "rest_workflows_blueprint", __name__, tag="RESTful Workflow Operations"
@@ -22,6 +22,9 @@ workflows_bp = APIBlueprint(
 #########################################################
 ##################### WORKFLOWS #########################
 #########################################################
+
+logger.info(f"Generating endpoints for process")
+generate_endpoints(wxutils.PROCESS, workflows_bp, logger)
 
 
 @workflows_bp.route("/workflows", methods=["POST"])

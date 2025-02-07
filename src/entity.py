@@ -33,6 +33,18 @@ logger = logging.getLogger(__name__)
 
 
 class Entity:
+    """Base class for all API entities.
+
+    In ReST terminology, an entity is a resource that can be accessed via an API.
+
+    This class provides the basic structure for all entities. It defines the common
+    operations that can be performed on an entity, such as listing, fetching, creating,
+    updating, and deleting. The specific implementation of these operations is left to
+    the subclasses.
+
+    The API defined in this class is the one used by the generic endpoint definitions.
+    """
+
     OPERATIONS = [
         "list",
         "fetch",
@@ -43,33 +55,12 @@ class Entity:
         "patch",
     ]
 
-    def __init__(
-        self,
-        name,
-        collection_name,
-        creation_schema,
-        update_schema,
-        ckan_name=None,
-        extras=True,
-    ):
+    def __init__(self, name, collection_name, creation_schema, update_schema):
         self.name = name
         self.collection_name = collection_name
 
-        self.ckan_name = ckan_name if ckan_name is not None else name
-        self.ckan_api_list = f"{self.ckan_name}_list"
-        self.ckan_api_show = f"{self.ckan_name}_show"
-        self.ckan_api_create = f"{self.ckan_name}_create"
-        self.ckan_api_delete = f"{self.ckan_name}_delete"
-        self.ckan_api_purge = f"{self.ckan_name}_purge"
-        self.ckan_api_update = f"{self.ckan_name}_update"
-        self.ckan_api_patch = f"{self.ckan_name}_patch"
-
         self.creation_schema = creation_schema
         self.update_schema = update_schema
-
-        self.has_extras = bool(extras)
-        # Only packages have tags!
-        self.has_tags = self.ckan_name in ("package", "vocabulary")
 
         # Store the endpoint functions
         self.operations = Entity.OPERATIONS.copy()
@@ -78,6 +69,46 @@ class Entity:
             self.operations.remove("patch")
 
         self.endpoints = {}
+        logger.info("Instantiated entity %s", self.name)
+
+    def list_entities(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        raise NotImplementedError
+
+    def fetch_entities(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        raise NotImplementedError
+
+    def get_entity(self, eid: str):
+        raise NotImplementedError
+
+    def create_entity(self, init_data):
+        raise NotImplementedError
+
+    def delete_entity(self, eid: str, purge=False):
+        raise NotImplementedError
+
+    def update_entity(self, eid: str, entity_data):
+        raise NotImplementedError
+
+    def patch_entity(self, eid: str, patch_data):
+        raise NotImplementedError
+
+
+class CKANEntity(Entity):
+    def __init__(self, *args, ckan_name=None, extras=True, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.ckan_name = ckan_name if ckan_name is not None else self.name
+        self.ckan_api_list = f"{self.ckan_name}_list"
+        self.ckan_api_show = f"{self.ckan_name}_show"
+        self.ckan_api_create = f"{self.ckan_name}_create"
+        self.ckan_api_delete = f"{self.ckan_name}_delete"
+        self.ckan_api_purge = f"{self.ckan_name}_purge"
+        self.ckan_api_update = f"{self.ckan_name}_update"
+        self.ckan_api_patch = f"{self.ckan_name}_patch"
+
+        self.has_extras = bool(extras)
+        # Only packages have tags!
+        self.has_tags = self.ckan_name in ("package", "vocabulary")
 
     def save_tags_to_ckan(self, tags: list[str]) -> list[dict]:
         tagobjlist = []
@@ -276,7 +307,7 @@ class MemberEntity:
         )
 
 
-class EntityWithMembers(Entity):
+class EntityWithMembers(CKANEntity):
     """This class treats CKAN entities which have members.
 
     This includes groups and organizations as well as any custom types derived

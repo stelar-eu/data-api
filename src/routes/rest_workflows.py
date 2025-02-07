@@ -11,6 +11,7 @@ import kutils
 import schema
 import wxutils
 from auth import token_active
+from entity import Entity
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +20,38 @@ rest_workflows_bp = APIBlueprint(
     "rest_workflows_blueprint", __name__, tag="RESTful Workflow Operations"
 )
 
+# -----------------------------------------------
+#  These should probably move to a "utilities" module
+# -----------------------------------------------
+
+
+def current_user():
+    """Return the current user from the session or the request headers."""
+    if request.headers.get("Authorization"):
+        user = kutils.get_user_by_token(
+            access_token=request.headers.get("Authorization").split(" ")[1]
+        )
+    else:
+        user = kutils.get_user_by_token(access_token=session.get("access_token"))
+    return user
+
+
 #########################################################
 ##################### WORKFLOWS #########################
 #########################################################
+
+
+class ProcessEntity(Entity):
+    """A class to represent a Process Entity."""
+
+    def __init__(self, process_id, package_id, tags):
+        super().__init__()
+        self.process_id = process_id
+        self.package_id = package_id
+        self.tags = tags
+
+    def __str__(self):
+        return f"Process ID: {self.process_id}, Package ID: {self.package_id}, Tags: {self.tags}"
 
 
 @rest_workflows_bp.route("/workflows", methods=["POST"])
@@ -53,8 +83,7 @@ def api_rest_create_workflow(json_data):
         dict: A JSON response containing success status, the newly created workflow, or error details.
     """
     try:
-        specs = json.loads(request.data.decode("utf-8"))
-        wf = specs.get("workflow_metadata")
+        wf = json_data.get("workflow_metadata")
 
         if wf:
             if request.headers.get("Authorization"):

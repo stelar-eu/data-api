@@ -16,6 +16,7 @@ import schema
 import utils
 from auth import admin_required, security_doc, token_active
 from demo_t import get_demo_ckan_token
+from routes.generic import render_api_output
 
 """
     This .py file contains the endpoints attached to the blueprint
@@ -109,7 +110,7 @@ def get_users(query_data):
     example={"username": "dpetrou", "password": "mypassword"},
 )
 @users_bp.output(
-    schema.APIResponse,
+    schema.APIResponse(),
     example={
         "help": "https://klms.stelar.gr/stelar/docs",
         "result": {
@@ -121,6 +122,7 @@ def get_users(query_data):
     status_code=200,
 )
 @users_bp.doc(tags=["User Management"])
+@render_api_output(logger)
 def api_token_create(json_data):
     """
     Generate an OAuth2.0 token for an existing user.
@@ -132,23 +134,14 @@ def api_token_create(json_data):
         - A JSON response with the OAuth2.0 token or an error message.
     """
 
-    try:
-        username = json_data.get("username")
-        password = json_data.get("password")
-        token = kutils.get_token(username, password)
-        if token:
-            return {
-                "help": request.url,
-                "result": {
-                    "token": token["access_token"],
-                    "refresh_token": token["refresh_token"],
-                },
-                "success": True,
-            }, 200
-        else:
-            return {"help": request.url, "result": {}, "success": False}, 401
-    except Exception:
-        return {"help": request.url, "result": {}, "success": False}, 401
+    username = json_data.get("username")
+    password = json_data.get("password")
+    token = kutils.get_token(username, password)
+
+    return {
+        "token": token["access_token"],
+        "refresh_token": token["refresh_token"],
+    }
 
 
 @users_bp.route("/token", methods=["PUT"])

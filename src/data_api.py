@@ -10,7 +10,7 @@ import psycopg2
 import requests
 import yaml
 from apiflask import APIFlask
-from flask import current_app, jsonify, redirect, request, url_for
+from flask import current_app, g, jsonify, redirect, request, url_for
 from flask.json import JSONEncoder
 
 # for keycloak integration with the api
@@ -32,24 +32,18 @@ import sql_utils
 import utils
 from auth import security_doc, token_active
 from backend.ckan import initialize_ckan_client
-from backend.pgsql import initialize_db_pool
+from backend.pgsql import get_mdb_pool, initialize_mdb_pool
 
 # Import demo token creator
 from demo_t import get_demo_ckan_token
 from routes.admin import admin_bp
 from routes.auth_tool import auth_tool_bp
 from routes.catalog import catalog_bp
-
-#### DASHBOARD BP ####
 from routes.dashboard import dashboard_bp
-
-#### PUBLISHER BP ####
 from routes.publisher import publisher_bp
-from routes.rest_workflows import rest_workflows_bp
 from routes.settings import settings_bp
-
-#### USERS BP ####
 from routes.users import api_user_editor, users_bp
+from routes.workflows import workflows_bp
 
 # from container_utils import create_container
 
@@ -93,7 +87,7 @@ app.register_blueprint(settings_bp, url_prefix="/console/v1/settings")
 app.register_blueprint(admin_bp, url_prefix="/console/v1/admin")
 app.register_blueprint(auth_tool_bp, url_prefix="/api/v1/auth")
 app.register_blueprint(catalog_bp, url_prefix="/api/v2")
-app.register_blueprint(rest_workflows_bp, url_prefix="/api/v2")
+app.register_blueprint(workflows_bp, url_prefix="/api/v2")
 ############################################################
 
 
@@ -3154,6 +3148,13 @@ def datetimeformat(value, format="%d-%m-%Y %H:%M"):
         return value  # Return the original value if it can't be formatted
 
 
+@app.teardown_appcontext
+def teardown_dbconn(exception):
+    dbconn = g.pop("dbconn", None)
+    if dbconn is not None:
+        get_mdb_pool().putconn(dbconn)
+
+
 def json_config(config_file):
     """Load configuration settings for interacting with CKAN, Ontop, and the PostgreSQL database.
 
@@ -3271,7 +3272,7 @@ def main(app):
     }
 
     # Configure the metadata database connection pool
-    initialize_db_pool(app.config["settings"])
+    initialize_mdb_pool(app.config["settings"])
 
     # Configure the CKAN client
     initialize_ckan_client(app.config["settings"])

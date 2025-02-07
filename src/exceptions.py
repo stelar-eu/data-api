@@ -76,6 +76,13 @@ class NotFoundError(APIException):
         return super().repr_attr() + ["entity"]
 
 
+class NotAllowedError(APIException):
+    """The request is not allowed"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(405, *args, **kwargs)
+
+
 class ValidationError(APIException):
     """A value is bad in request (but in correct format)"""
 

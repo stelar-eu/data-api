@@ -3,18 +3,15 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import requests
 
 import schema
 import utils
 from backend.ckan import ckan_request, request
-from entity import AnyCapacity, Entity, EntityWithMembers, MemberEntity
+from entity import AnyCapacity, CKANEntity, EntityWithMembers, MemberEntity
 from routes.users import api_user_editor
-
-if TYPE_CHECKING:
-    from requests import Response
 
 logger = logging.getLogger(__name__)
 
@@ -614,7 +611,7 @@ def delete_resource(id: str):
 #  STELAR Entities
 # ------------------------------------------------------------
 
-DATASET = Entity(
+DATASET = CKANEntity(
     "dataset",
     "datasets",
     creation_schema=schema.DatasetSchema(),
@@ -623,7 +620,7 @@ DATASET = Entity(
 )
 DATASET.ckan_api_purge = "dataset_purge"
 
-RESOURCE = Entity(
+RESOURCE = CKANEntity(
     "resource",
     "resources",
     schema.ResourceCreationRequest,
@@ -660,7 +657,7 @@ ORGANIZATION.members = [
 ]
 
 
-class VocabularyEntity(Entity):
+class VocabularyEntity(CKANEntity):
     def __init__(self):
         super().__init__(
             "vocabulary",
@@ -684,6 +681,6 @@ class VocabularyEntity(Entity):
 
 VOCABULARY = VocabularyEntity()
 
-TAG = Entity("tag", "tags", schema.TagCreationRequest, None, extras=False)
+TAG = CKANEntity("tag", "tags", schema.TagCreationRequest, None, extras=False)
 
 # MEMBER = Entity("member", "members", schema.MemberCreationRequest, None)

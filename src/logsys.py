@@ -36,17 +36,19 @@ def configure():
                     "stream": "ext://sys.stderr",
                 },
             },
+            "root": {
+                "level": "DEBUG",
+                "handlers": ["cstderr"],
+            },
             "loggers": {
                 "httpx": {"level": "WARNING", "propagate": False},
+                "urllib3": {"level": "WARNING", "propagate": False},
                 "cutils": {"level": "DEBUG"},
+                "entity": {"level": "DEBUG"},
                 "data_api": {"level": "DEBUG"},
                 "werkzeug": {"handlers": ["wz"], "propagate": False},
                 "routes": {"level": "DEBUG", "handlers": ["cstderr"]},
                 # "routes.catalog": {"level": "DEBUG"},
-            },
-            "root": {
-                "level": "DEBUG",
-                "handlers": ["cstderr"],
             },
         }
     )

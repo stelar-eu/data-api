@@ -10,7 +10,7 @@ from flask import request
 
 import schema
 from auth import security_doc, token_active
-from cutils import Entity, MemberEntity
+from entity import Entity, MemberEntity
 from exceptions import APIException, InternalException
 
 gen_logger = getLogger(__name__)
@@ -129,6 +129,11 @@ def error_responses(status_list: List[int]):
         elif status == 404:
             responses[404] = {
                 "description": "Resource not found. This error implies that the resource requested does not exist.",
+                "content": {"application/json": {"schema": schema.APIErrorResponse}},
+            }
+        elif status == 405:
+            responses[405] = {
+                "description": "Method not allowed. This error states that the method used in the request is not allowed on the resource.",
                 "content": {"application/json": {"schema": schema.APIErrorResponse}},
             }
         elif status == 409:

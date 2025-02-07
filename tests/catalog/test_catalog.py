@@ -3,11 +3,13 @@ import json
 import pytest
 import werkzeug
 
-werkzeug.__version__ = "3.1.3"
-
 import schema
-from cutils import DATASET, GROUP, ORGANIZATION, VOCABULARY, Entity
+from cutils import DATASET, GROUP, ORGANIZATION, VOCABULARY
+from entity import CKANEntity, Entity
 from tags import get_vocabulary
+
+#  The followng fixes a bug in FlaskClient !!
+# werkzeug.__version__ = "3.1.3"
 
 
 def test_dummy_app(app):
@@ -20,7 +22,7 @@ def test_dummy_app(app):
 
 
 def test_entity_creation(app):
-    e = Entity(
+    e = CKANEntity(
         "dset", "dsets", schema.DatasetSchema(), schema.DatasetSchema(partial=True)
     )
 
@@ -39,7 +41,7 @@ def test_entity_creation(app):
     assert "update" in e.operations
     assert "patch" in e.operations
 
-    e = Entity(
+    e = CKANEntity(
         "tool",
         "tools",
         schema.DatasetSchema(),
@@ -65,7 +67,7 @@ extras_pairs = [
 
 @pytest.mark.parametrize("input_data, expected_output", extras_pairs)
 def test_save_extras(input_data, expected_output):
-    e = Entity(
+    e = CKANEntity(
         "dset", "dsets", schema.DatasetSchema(), schema.DatasetSchema(partial=True)
     )
 
@@ -74,7 +76,7 @@ def test_save_extras(input_data, expected_output):
 
 @pytest.mark.parametrize("expected_output, input_data", extras_pairs)
 def test_load_extras(input_data, expected_output):
-    e = Entity(
+    e = CKANEntity(
         "dset", "dsets", schema.DatasetSchema(), schema.DatasetSchema(partial=True)
     )
 
@@ -117,7 +119,7 @@ def tagobject(request, thedaltons):
 
 @pytest.mark.parametrize("tagspec, tagobject", tags_pairs, indirect=["tagobject"])
 def test_save_tags(tagspec, tagobject, app):
-    e = Entity(
+    e = CKANEntity(
         "dset", "dsets", schema.DatasetSchema(), schema.DatasetSchema(partial=True)
     )
 
@@ -146,7 +148,7 @@ def test_manage_dataset(app):
     with app.app_context():
         try:
             DATASET.delete_entity("test_dataset", purge=True)
-        except:
+        except Exception:
             pass
 
         # create a dataset
@@ -183,12 +185,12 @@ def test_manage_dataset(app):
 def test_dataset_api(client: werkzeug.Client, credentials):
     # breakpoint()
 
-    response = werkzeug.test.TestResponse = client.get(
+    response = client.get(
         f"/api/v2/{DATASET.collection_name}",
         headers={"Authorization": f"Bearer {credentials.token}"},
     )
 
-    print(response, response.json)
+    # print(response, response.json)
 
     assert response.status_code == 200
     match response.json:
@@ -196,4 +198,4 @@ def test_dataset_api(client: werkzeug.Client, credentials):
             items = len(elements)
         case _:
             assert False
-    print("There are", len(elements), "datasets")
+    # print("There are", len(elements), "datasets")
