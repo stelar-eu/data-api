@@ -20,10 +20,12 @@ import re
 from typing import TYPE_CHECKING, Optional
 
 from apiflask import Schema, fields, validators
+from marshmallow import EXCLUDE, post_dump, pre_load
 
 import schema
-from backend.ckan import ckan_request
-from exceptions import DataError, ValidationError
+from backend.ckan import ckan_request, filter_list_by_type
+from backend.pgsql import execSql
+from exceptions import DataError
 from tags import tag_object_to_string, tag_string_to_object
 
 if TYPE_CHECKING:
@@ -94,7 +96,14 @@ class Entity:
 
 
 class CKANEntity(Entity):
-    def __init__(self, *args, ckan_name=None, extras=True, **kwargs):
+    def __init__(
+        self,
+        *args,
+        ckan_name: str = None,
+        extras: bool = True,
+        ckan_schema: Schema = None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
 
         self.ckan_name = ckan_name if ckan_name is not None else self.name
@@ -105,6 +114,12 @@ class CKANEntity(Entity):
         self.ckan_api_purge = f"{self.ckan_name}_purge"
         self.ckan_api_update = f"{self.ckan_name}_update"
         self.ckan_api_patch = f"{self.ckan_name}_patch"
+
+        if isinstance(ckan_schema, type):
+            self.ckan_schema = ckan_schema()
+        else:
+            # Note: it is ok for ckan_schema to be None
+            self.ckan_schema = ckan_schema
 
         self.has_extras = bool(extras)
         # Only packages have tags!
@@ -147,23 +162,32 @@ class CKANEntity(Entity):
         return edict
 
     def save_to_ckan(self, init_data):
-        # Implement the logic to save data to CKAN.
-        # For performance, we perform conversion in place.
-        if self.has_tags and "tags" in init_data:
-            tags = init_data["tags"]
-            init_data["tags"] = self.save_tags_to_ckan(tags)
+        """Convert the data to the CKAN format.
 
-        if self.has_extras and "extras" in init_data:
-            init_data["extras"] = self.save_extras_to_ckan(init_data["extras"])
+        The CKAN format is a JSON object with the following structure:
+        """
+        if self.ckan_schema is not None:
+            init_data = self.ckan_schema.dump(init_data)
+        else:
+            if self.has_extras and "extras" in init_data:
+                init_data["extras"] = self.save_extras_to_ckan(init_data["extras"])
+
+            if self.has_tags and "tags" in init_data:
+                tags = init_data["tags"]
+                init_data["tags"] = self.save_tags_to_ckan(tags)
 
         return init_data
 
     def load_from_ckan(self, ci):
-        if self.has_tags and "tags" in ci:
-            ci["tags"] = self.load_tags_from_ckan(ci["tags"])
+        """Convert the data from the CKAN format."""
+        if self.ckan_schema is not None:
+            ci = self.ckan_schema.load(ci)
+        else:
+            if self.has_tags and "tags" in ci:
+                ci["tags"] = self.load_tags_from_ckan(ci["tags"])
 
-        if self.has_extras and "extras" in ci:
-            ci["extras"] = self.load_extras_from_ckan(ci["extras"])
+            if self.has_extras and "extras" in ci:
+                ci["extras"] = self.load_extras_from_ckan(ci["extras"])
 
         return ci
 
@@ -173,7 +197,7 @@ class CKANEntity(Entity):
             raise DataError(f"{name} must be an integer, or None")
         if val is not None:
             if val < 0:
-                raise ValidationError(f"{name} must be nonnegative")
+                raise DataError(f"{name} must be nonnegative")
 
     def list_entities(self, limit: Optional[int] = None, offset: Optional[int] = None):
         self.check_limit_offset(limit, "limit")
@@ -320,19 +344,29 @@ class EntityWithMembers(CKANEntity):
         for m in self.members:
             m.parent = self
 
-    #
-    # Because of a bug in CKAN code, getting CKAN groups and orgs fails (CKAN returns 'internal error')
-    # when there are cycles between groups. To ameliorate this, we need to pass the 'include_groups=False'
-    # flag.
-    #
-    # FYI: the bug is in file './ckan/lib/dictization/model_dictize.py' and manifests as a "stack overflow"
-    # (in python the exception is "Recursion Depth exceeded").
-    #
     def get_entity(self, eid: str):
+        #
+        # Because of a bug in CKAN code, getting CKAN groups and orgs fails (CKAN returns 'internal error')
+        # when there are cycles between groups. To ameliorate this, we need to pass the 'include_groups=False'
+        # flag.
+        #
+        # FYI: the bug is in file './ckan/lib/dictization/model_dictize.py' and manifests as a "stack overflow"
+        # (in python the exception is "Recursion Depth exceeded").
+        #
         obj = ckan_request(
             self.ckan_api_show,
             id=eid,
+            # the line below fixes the bug mentioned above
             include_groups=False,
+            # Exclude tags, since they are not actually supported
+            # Also, exclude some irrelevant stuff
+            include_tags=False,
+            include_followers=False,
+            include_users=False,
+            include_datasets=False,
+            include_dataset_count=False,
+            # INCLUDE the extras!
+            include_extras=True,
             context={"entity": self.name},
         )
         return self.load_from_ckan(obj)
@@ -362,7 +396,7 @@ class EntityWithMembers(CKANEntity):
         self, eid: str, member_id: str, member_kind: str, context: dict = {}
     ):
         context = {"entity": self.name}
-        obj = ckan_request(
+        ckan_request(
             "member_delete",
             id=eid,
             object=member_id,
@@ -385,3 +419,204 @@ class EntityWithMembers(CKANEntity):
             capacity=capacity,
             context=context,
         )
+
+
+class PackageEntity(CKANEntity):
+    """CKAN Entities based on packages.
+
+    These entities all have a package_type.
+    They currently include:
+    - datasets
+    - processes
+    - workflows
+    - tools
+    """
+
+    def __init__(self, *args, package_type: str, **kwargs):
+        super().__init__(*args, ckan_name="package", **kwargs)
+        self.package_type = package_type
+        self.ckan_api_purge = "dataset_purge"
+
+    def list_entities(self, limit=None, offset=None):
+        self.check_limit_offset(limit, "limit")
+        self.check_limit_offset(offset, "offset")
+
+        # Package-derived entities are filtered by type using SQL, since
+        # the package_list API call does not support filtering by type.
+        result = execSql(
+            """\
+            SELECT id 
+            FROM package 
+            WHERE state = 'active' AND type = %s
+            ORDER BY name
+            LIMIT %s OFFSET %s""",
+            [self.package_type, limit, offset],
+        )
+        return [row["id"] for row in result]
+
+    def filter_ids(self, idlist: list[str]) -> list[dict]:
+        """Filter the list of packages by ID, leaving only packages of one type."""
+        return filter_list_by_type(idlist, self.package_type)
+
+    def filter_names(self, idlist: list[str]) -> list[dict]:
+        """Filter the list of packages by ID, leaving only packages of one type."""
+        return filter_list_by_type(idlist, self.package_type, idattr="name")
+
+    def create_entity(self, init_data):
+        # Make sure we have the two compulsory fields
+        if "name" not in init_data:
+            raise DataError("Missing name")
+        if "owner_org" not in init_data:
+            raise DataError("Missing owner_org")
+        if "type" in init_data:
+            if init_data["type"] != self.package_type:
+                raise DataError(f"Invalid type: {init_data['type']}")
+
+        # Force this!
+        init_data["type"] = self.package_type
+        return super().create_entity(init_data)
+
+
+class TagList(fields.Field):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if value is None:
+            return None
+        return self.save_tags_to_ckan(value)
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if value is None:
+            return None
+        return self.load_tags_from_ckan(value)
+
+    def save_tags_to_ckan(self, tags: list[str]) -> list[dict]:
+        tagobjlist = []
+        for tag in tags:
+            try:
+                tagobj = tag_string_to_object(tag)
+            except ValueError as e:
+                detail = {
+                    "tagspec": tag,
+                    "value_error": " ".join(str(arg) for arg in e.args),
+                }
+                raise DataError(*e.args, detail=detail)
+            tagobjlist.append(tagobj)
+        return tagobjlist
+
+    def load_tags_from_ckan(self, tags: list[dict]) -> list[str]:
+        return [tag_object_to_string(tagobj) for tagobj in tags]
+
+
+class PackageCKANSchema(Schema):
+    # This schema is used to filter and transform the data to and from CKAN.
+    # Validation is not performed here.
+
+    # Read-only system attributes
+    id = fields.String()
+    metadata_created = fields.DateTime(load_only=True)
+    metadata_modified = fields.DateTime(load_only=True)
+    creator_user_id = fields.String(load_only=True)
+
+    # System attributes that may be set
+    state = fields.String()  # needed in UPDATE
+    type = fields.String()  # needed in CREATE
+    name = fields.String()  # needed in CREATE, UPDATE
+    owner_org = fields.String()  # needed in CREATE, UPDATE
+    private = fields.Boolean()
+
+    # Dataset annotations
+    title = fields.String(allow_none=True)
+    author = fields.String(allow_none=True)
+    author_email = fields.String(allow_none=True)
+    maintainer = fields.String(allow_none=True)
+    maintainer_email = fields.String(allow_none=True)
+    notes = fields.String(allow_none=True)
+    url = fields.String(allow_none=True)
+    version = fields.String(allow_none=True)
+
+    # ---- Licence stuff...
+    # isopen = None
+    # license_id = None
+    # license_title = None
+    # license_url = None
+
+    # ---- TMI...
+    # num_resources = None
+    # num_tags = None
+    # organization = None
+
+    # ---- These seem defunct... user package_relationships_list
+    # relationships_as_object = fields.Raw()
+    # relationships_as_subject = fields.Raw()
+
+    # ---- External stuff, need to be processed
+    resources = fields.Raw()
+    groups = fields.Raw()
+
+    extras = fields.Dict()
+    tags = TagList()
+
+    class Meta:
+        # Exclude all else from CKAN
+        unknown = EXCLUDE
+
+    @pre_load
+    def load_extras(self, data, **kwargs):
+        # Process the extras
+        extras = data.get("extras", [])
+        data["extras"] = {e["key"]: e["value"] for e in extras}
+
+        return data
+
+    @post_dump
+    def dump_extras(self, data, **kwargs):
+        # Process the extras
+        extras = data.get("extras", None)
+        if extras is not None:
+            data["extras"] = [{"key": k, "value": v} for k, v in extras.items()]
+
+        return data
+
+
+class _some_lists:
+    # The additional attributes are removed from our schema.
+    additional = [
+        "tracking_summary",
+        "plugin_data",
+        "num_resources",
+        "num_tags",
+        "organization",
+        "isopen",
+        "license_id",
+        "license_title",
+        "license_url",
+        "relationships_as_object",
+        "relationships_as_subject",
+    ]
+
+    # These are the attributes of a proper object.
+    fields = [
+        "id",
+        "metadata_created",
+        "metadata_modified",
+        "creator_user_id",
+        "type",
+        "name",
+        "state",
+        "owner_org",
+        "private",
+        "title",
+        "author",
+        "author_email",
+        "maintainer",
+        "maintainer_email",
+        "notes",
+        "url",
+        "version",
+        "resources",
+        "groups",
+        "extras",
+        "tags",
+    ]

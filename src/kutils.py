@@ -6,6 +6,7 @@ import ssl
 import uuid
 from io import BytesIO
 
+import flask
 import jwt
 import pyotp
 import qrcode
@@ -216,19 +217,24 @@ def current_user():
     else, the user is fetched using the access token stored in the session.
 
     NOTE: This is a bit fragile, since it assumes that the header 'Authorization' is always present in the request.
+    Properly, a check would be needed.
+
+    The user is saved in the flask.g context for the current request.
 
     Returns:
         dict: The user information.
     """
-    from flask import request
+    if "current_user" not in flask.g:
+        from flask import request
 
-    match request.headers.get("Authorization", "").split(" "):
-        case ["Bearer", token]:
-            pass
-        case _:
-            token = session.get("access_token")
+        match request.headers.get("Authorization", "").split(" "):
+            case ["Bearer", access_token]:
+                pass
+            case _:
+                access_token = session.get("access_token")
 
-    return get_user_by_token(access_token=token)
+        flask.g.current_user = get_user_by_token(access_token=access_token)
+    return flask.g.current_user
 
 
 def user_has_2fa(user_id):

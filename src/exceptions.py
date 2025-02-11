@@ -58,6 +58,13 @@ class DataError(APIException):
         super().__init__(400, *args, **kwargs)
 
 
+class InvalidError(APIException):
+    """A value is bad in request (but in correct format)"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(400, *args, **kwargs)
+
+
 class AuthorizationError(APIException):
     """The user is not authorized to do this"""
 
@@ -83,8 +90,8 @@ class NotAllowedError(APIException):
         super().__init__(405, *args, **kwargs)
 
 
-class ValidationError(APIException):
-    """A value is bad in request (but in correct format)"""
+class ConflictError(APIException):
+    """The request conflicts with the current state"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(409, *args, **kwargs)
@@ -135,7 +142,7 @@ class BackendError(APIException, RuntimeError):
     """
 
     def __init__(self, svc: str = None, *args, **kwargs):
-        super().__init__(500, *args, **kwargs)
+        super().__init__(502, *args, **kwargs)
         validate_service(svc)
         self.svc = svc
 
@@ -150,7 +157,7 @@ class BackendLogicError(APIException):
     """
 
     def __init__(self, svc: str = None, *args, **kwargs):
-        super().__init__(500, *args, **kwargs)
+        super().__init__(502, *args, **kwargs)
         validate_service(svc)
         self.svc = svc
 

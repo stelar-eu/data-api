@@ -1,10 +1,11 @@
 import logging
 from contextlib import contextmanager
-from functools import wraps
 
 from flask import g
 from psycopg2.extensions import TRANSACTION_STATUS_IDLE
 from psycopg2.pool import ThreadedConnectionPool
+
+from exceptions import BackendError
 
 logger = logging.getLogger(__name__)
 
@@ -115,17 +116,6 @@ def transaction():
         yield conn
 
 
-def with_transaction(func):
-    """Decorator to run a function in a transaction."""
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        with transaction():
-            return func(*args, **kwargs)
-
-    return wrapper
-
-
 def execSql(sql, vars=None):
     """Opens a connection to a PostgreSQL database and executes the given SQL command.
 
@@ -151,8 +141,10 @@ def execSql(sql, vars=None):
             data = execSqlTx(conn, sql, vars)
 
     except Exception:
-        logger.exception("Error in executing SQL command", sql)
-        raise
+        logger.exception("Error in executing SQL command", sql, vars)
+        raise BackendError(
+            "Error in executing SQL command", details={"sql": sql, "vars": vars}
+        )
     return data
 
 
@@ -180,7 +172,6 @@ def execSqlTx(conn, sql, vars=None):
             cur.execute(sql, vars)
         except Exception:
             logger.exception("Error in executing SQL command", sql)
-            breakpoint()
             raise
 
         # Handle the response

@@ -10,14 +10,17 @@ from urllib.parse import urljoin
 
 import requests
 from flask import current_app
+from psycopg2 import sql
 
 from exceptions import (
     BackendError,
     BackendLogicError,
     DataError,
+    InvalidError,
     NotFoundError,
-    ValidationError,
 )
+
+from .pgsql import transaction
 
 if TYPE_CHECKING:
     from requests import Response
@@ -127,8 +130,26 @@ def raise_ckan_error(response: Response, context: dict):
         raise BackendLogicError("ckan", "Unexpected redirect", response.status_code)
     if 400 <= response.status_code:
         c = response.json()
-        etype = c["error"]["__type"]
-        emsg = c["error"].get("message", "No message provided")
+        try:
+            err = c["error"]  # Must have this...
+        except Exception as e:
+            logger.exception(
+                "CKAN error response unexpected: status code=%d, json response==%s",
+                response.status_code,
+                c,
+            )
+            raise BackendLogicError(
+                "ckan",
+                "No error information provided",
+                c,
+                response.status_code,
+                detail=context,
+            ) from e
+
+        if (etype := err.get("__type", None)) is None:
+            raise DataError("No error type provided", err, detail=context)
+
+        emsg = err.get("message", "No message provided")
         context_detail = {
             k: v for k, v in context.items() if isinstance(v, (int, str, float, bool))
         }
@@ -145,11 +166,11 @@ def raise_ckan_error(response: Response, context: dict):
                 entity = context.get("entity", None)
                 raise NotFoundError(entity, emsg, detail=context_detail)
             case "Validation Error":
-                raise ValidationError(emsg, detail=context_detail)
+                raise InvalidError(emsg, detail=context_detail)
             case "Search Query Error":
                 raise DataError(etype, emsg, detail=context_detail)
             case "Search Error":
-                raise ValidationError(etype, emsg, detail=context_detail)
+                raise InvalidError(etype, emsg, detail=context_detail)
             case "Search Index Error" | "Solr Connection Error" | "Internal Server Error":
                 raise BackendError("ckan", etype, emsg, detail=context_detail)
             case _:
@@ -179,3 +200,44 @@ def ckan_request(
     jsobj = response.json()
     obj = jsobj["result"]
     return obj
+
+
+def filter_list_by_type(
+    id_list: list[str], etype: str, tablename: str = "package", idattr: str = "id"
+) -> list[str]:
+    """Given a list of IDs, return only those that have the given type.
+
+    Processing is done using the SQL database, so it is very fast.
+
+    The table queried must have a 'type' string attribute.
+
+    Also, the table must have either the 'id' or the 'name' attribute, which-ever is specified
+    by the 'idattr' argument.
+
+    The 'tablename' argument specifies the table to query from. By default, it is _package_.
+    Another option is _group_. Note that, _resource_ is not, since the "type attribute" is
+    named "resource_type".
+
+    Args:
+        id_list (list[str]): The list of IDs to filter.
+        etype (str): The type to filter by.
+        tablename (str, optional): The table to filter from. Defaults to 'package'.
+        idattr (str, optional): The attribute to filter by. Defaults to 'id'.
+
+    Returns:
+        list[str]: The filtered list of IDs.
+    """
+    query = sql.SQL(
+        """\
+        SELECT {idattr}
+        FROM {tablename}
+        WHERE {idattr} =ANY(%s) AND type = %s""".format(
+            idattr=sql.Identifier(idattr), tablename=sql.Identifier(tablename)
+        )
+    )
+    # Pluck out the IDs from the list of tuples
+    with transaction() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, (id_list, etype))
+            rows = cur.fetchall()
+    return [row[0] for row in rows]

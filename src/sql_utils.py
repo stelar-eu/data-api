@@ -3,14 +3,17 @@ import json
 import logging
 import re
 import uuid
+from datetime import datetime
 
 import pandas as pd
 import requests
 from flask import current_app
 
-# Auxiliary custom functions & SQL query templates for ranking
 import utils
-from backend.pgsql import transaction
+from backend import pgsql
+
+# Auxiliary custom functions & SQL query templates for ranking
+from exceptions import BackendLogicError
 
 
 def is_valid_uuid(s):
@@ -88,7 +91,7 @@ def policy_version_create(
 
     # Compose the SQL command using the template for recording parameters of a task execution
     sql = utils.sql_policy_template["policy_create_template"]
-    resp = utils.execSql(
+    resp = pgsql.execSql(
         sql, (policy_uuid, policy_familiar_name, active, yaml_content, user_id)
     )
     if "status" in resp:
@@ -102,7 +105,7 @@ def policy_version_create(
 
 def list_policies():
     sql = utils.sql_policy_template["policy_get_all_info_template"]
-    resp = utils.execSql(sql)
+    resp = pgsql.execSql(sql)
     if resp and len(resp) > 0:
         policies = resp
         return policies
@@ -113,7 +116,7 @@ def list_policies():
 def policy_representation_read(filter):
     if is_valid_uuid(filter):
         sql = utils.sql_policy_template["policy_get_yaml_by_id_template"]
-        resp = utils.execSql(sql, (filter,))
+        resp = pgsql.execSql(sql, (filter,))
         if resp and len(resp) > 0:
             policy_version = resp[0]
             return policy_version["yaml_content"]
@@ -121,7 +124,7 @@ def policy_representation_read(filter):
             return None
     elif filter == "active":
         sql = utils.sql_policy_template["policy_get_yaml_by_state_template"]
-        resp = utils.execSql(sql, (True,))
+        resp = pgsql.execSql(sql, (True,))
         if resp and len(resp) > 0:
             policy_version = resp[0]
 
@@ -133,7 +136,7 @@ def policy_representation_read(filter):
 def policy_info_read(filter):
     if is_valid_uuid(filter):
         sql = utils.sql_policy_template["policy_get_info_by_id_template"]
-        resp = utils.execSql(sql, (filter,))
+        resp = pgsql.execSql(sql, (filter,))
         if resp and len(resp) > 0:
             policy_version = resp[0]
             return policy_version
@@ -141,7 +144,7 @@ def policy_info_read(filter):
             return None
     elif filter == "active":
         sql = utils.sql_policy_template["policy_get_info_by_state_template"]
-        resp = utils.execSql(sql, (True,))
+        resp = pgsql.execSql(sql, (True,))
         if resp and len(resp) > 0:
             policy_version = resp[0]
             return policy_version
@@ -166,7 +169,7 @@ def two_factor_auth_create(user_id, secret) -> str:
     """
     if user_id and secret:
         sql = utils.sql_2fa_template["two_factor_create_template"]
-        resp = utils.execSql(sql, (user_id, secret))
+        resp = pgsql.execSql(sql, (user_id, secret))
         if resp and "status" in resp:
             if not resp.get("status"):
                 return False
@@ -188,7 +191,7 @@ def two_factor_revoke(user_id) -> str:
     """
     if user_id:
         sql = utils.sql_2fa_template["two_factor_revoke_template"]
-        resp = utils.execSql(sql, (user_id,))
+        resp = pgsql.execSql(sql, (user_id,))
         if "status" in resp:
             if not resp.get("status"):
                 return False
@@ -213,7 +216,7 @@ def two_factor_auth_retrieve(user_id) -> str:
     """
     if user_id:
         sql = utils.sql_2fa_template["two_factor_retrieve_skey_template"]
-        resp = utils.execSql(sql, (user_id,))
+        resp = pgsql.execSql(sql, (user_id,))
         if resp and len(resp) > 0:
             secret = resp[0]
             return secret
@@ -231,7 +234,7 @@ def two_factor_user_has_2fa(user_id) -> str:
 
     if user_id:
         sql = utils.sql_2fa_template["two_factor_check_template"]
-        resp = utils.execSql(sql, (user_id,))
+        resp = pgsql.execSql(sql, (user_id,))
         if resp and len(resp) > 0:
             return True
         else:
@@ -250,7 +253,7 @@ def stat_two_factor_for_user(user_id) -> str:
 
     if user_id:
         sql = utils.sql_2fa_template["two_factor_check_template"]
-        resp = utils.execSql(sql, (user_id,))
+        resp = pgsql.execSql(sql, (user_id,))
         if resp and len(resp) > 0:
             secret = resp[0]
             return secret
@@ -262,7 +265,12 @@ def stat_two_factor_for_user(user_id) -> str:
 ## Workflow Execution Metadata Management
 ##########################################################
 def workflow_execution_create(
-    workflow_exec_id, start_date, state, creator_user_id, wf_package_id=None, tags=None
+    workflow_exec_id: uuid.UUID | str,
+    start_date: datetime,
+    state,
+    creator_user_id: str,
+    wf_package_id: uuid.UUID | str | None = None,
+    tags=None,
 ):
     """Records metadata for a new workflow execution in the database.
 
@@ -278,43 +286,33 @@ def workflow_execution_create(
         A boolean: True, if the statement executed successfully; otherwise, False.
     """
 
-    with transaction() as conn:
+    with pgsql.transaction() as conn:
         # Compose the SQL command using the template for creating a new workflow execution
-        if wf_package_id:
-            sql = utils.sql_workflow_execution_templates["workflow_create_template"]
-            resp = utils.execSql(
-                sql,
-                (workflow_exec_id, state, creator_user_id, start_date, wf_package_id),
-            )
-        else:
-            sql = utils.sql_workflow_execution_templates[
-                "workflow_create_template_empty_package"
-            ]
-            resp = utils.execSql(
-                sql, (workflow_exec_id, state, creator_user_id, start_date)
+        sql = utils.sql_workflow_execution_templates["workflow_create_template"]
+        resp = pgsql.execSql(
+            sql,
+            (workflow_exec_id, state, creator_user_id, start_date, wf_package_id),
+        )
+        if not resp["status"]:
+            raise BackendLogicError(
+                "Failed to insert new workflow execution record in the database",
+                workflow_exec_id,
             )
 
-        # Execute the SQL command in the database
-        if not resp or not resp.get("status", False):
-            return False
-
-        # Compose the SQL command using the template for assigning tags to the new workflow execution
+        # Add any tags
         if tags:
+            sql = utils.sql_workflow_execution_templates[
+                "workflow_insert_tags_template"
+            ]
+
             for key, value in tags.items():
-                sql = utils.sql_workflow_execution_templates[
-                    "workflow_insert_tags_template"
-                ]
-
                 # Execute the SQL command in the database
-                resp = utils.execSql(sql, (workflow_exec_id, key, value))
-
-                if resp and "status" in resp:
-                    if not resp.get("status"):
-                        return False
-                else:
-                    return False
-
-        return True
+                resp = pgsql.execSql(sql, (workflow_exec_id, key, value))
+                if not resp["status"]:
+                    raise BackendLogicError(
+                        "Failed to insert new workflow execution record in the database",
+                        workflow_exec_id,
+                    )
 
 
 def workflow_execution_update(workflow_exec_id, state, end_date=None):
@@ -332,10 +330,10 @@ def workflow_execution_update(workflow_exec_id, state, end_date=None):
     # Compose and execute the SQL command using the template for updating/commiting a workflow execution
     if end_date is not None:
         sql = utils.sql_workflow_execution_templates["workflow_commit_template"]
-        resp = utils.execSql(sql, (state, end_date, workflow_exec_id))
+        resp = pgsql.execSql(sql, (state, end_date, workflow_exec_id))
     else:
         sql = utils.sql_workflow_execution_templates["workflow_update_template"]
-        resp = utils.execSql(sql, (state, workflow_exec_id))
+        resp = pgsql.execSql(sql, (state, workflow_exec_id))
 
     return resp.get("status", False)
 
@@ -353,7 +351,7 @@ def workflow_execution_update_wf_package(workflow_exec_id, package_id):
 
     # Compose and execute the SQL command using the template for updating/commiting a workflow execution
     sql = utils.sql_workflow_execution_templates["workflow_update_wf_package"]
-    resp = utils.execSql(sql, (package_id, workflow_exec_id))
+    resp = pgsql.execSql(sql, (package_id, workflow_exec_id))
     return resp.get("status", False)
 
 
@@ -371,7 +369,7 @@ def workflow_execution_delete(workflow_exec_id):
     sql = utils.sql_workflow_execution_templates["workflow_delete_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (workflow_exec_id,))
+    resp = pgsql.execSql(sql, (workflow_exec_id,))
 
     return resp.get("status", False)
 
@@ -383,14 +381,14 @@ def workflow_execution_read(workflow_exec_id):
         workflow_exec_id: UUID of the workflow execution.
 
     Returns:
-        A JSON with the workflow execution metadata.
+        A JSON with the workflow execution metadata, including the tags.
     """
 
     # Compose the SQL command using the template for reading metadata about a workflow execution
     sql = utils.sql_workflow_execution_templates["workflow_read_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (workflow_exec_id,))
+    resp = pgsql.execSql(sql, (workflow_exec_id,))
 
     if resp and len(resp) > 0:
         # List should contain specification of a single workflow execution (unique UUID)
@@ -417,7 +415,7 @@ def workflow_execution_context_read(workflow_exec_id):
     sql = utils.sql_workflow_execution_templates["workflow_get_context_package"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (workflow_exec_id,))
+    resp = pgsql.execSql(sql, (workflow_exec_id,))
 
     if resp and len(resp) > 0:
         workflow_context = resp[0]
@@ -440,7 +438,7 @@ def workflow_execution_tags_read(workflow_exec_id):
     sql = utils.sql_workflow_execution_templates["workflow_read_tags_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (workflow_exec_id,))
+    resp = pgsql.execSql(sql, (workflow_exec_id,))
 
     if resp and len(resp) > 0:
         tag_dict = {tag["key"]: tag["value"] for tag in resp}
@@ -477,7 +475,7 @@ def task_execution_create(
     sql = utils.sql_workflow_execution_templates["task_create_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(
+    resp = pgsql.execSql(
         sql, (task_exec_id, workflow_exec_id, creator_user_id, state, start_date)
     )
     if resp and "status" in resp:
@@ -491,7 +489,7 @@ def task_execution_create(
         sql = utils.sql_workflow_execution_templates["task_create_connection_template"]
 
         # Execute the SQL command in the database
-        resp = utils.execSql(sql, (task_exec_id, prev_task_exec_id))
+        resp = pgsql.execSql(sql, (task_exec_id, prev_task_exec_id))
         if resp and "status" in resp:
             if not resp.get("status"):
                 return False
@@ -504,7 +502,7 @@ def task_execution_create(
             sql = utils.sql_workflow_execution_templates["task_insert_tags_template"]
 
             # Execute the SQL command in the database
-            resp = utils.execSql(sql, (task_exec_id, key, value))
+            resp = pgsql.execSql(sql, (task_exec_id, key, value))
             if resp and "status" in resp:
                 if not resp.get("status"):
                     return False
@@ -529,10 +527,10 @@ def task_execution_update(task_exec_id, state, end_date=None, tags=None):
     # Compose and execute the SQL command using the template for updating a task execution
     if not end_date is None:
         sql = utils.sql_workflow_execution_templates["task_commit_template"]
-        resp = utils.execSql(sql, (state, end_date, task_exec_id))
+        resp = pgsql.execSql(sql, (state, end_date, task_exec_id))
     else:
         sql = utils.sql_workflow_execution_templates["task_update_template"]
-        resp = utils.execSql(sql, (state, task_exec_id))
+        resp = pgsql.execSql(sql, (state, task_exec_id))
 
     if resp and "status" in resp:
         if not resp.get("status"):
@@ -546,7 +544,7 @@ def task_execution_update(task_exec_id, state, end_date=None, tags=None):
             sql = utils.sql_workflow_execution_templates["task_insert_tags_template"]
 
             # Execute the SQL command in the database
-            resp = utils.execSql(sql, (task_exec_id, key, value))
+            resp = pgsql.execSql(sql, (task_exec_id, key, value))
             if resp and "status" in resp:
                 if not resp.get("status"):
                     return False
@@ -570,7 +568,7 @@ def task_execution_delete(task_exec_id):
     sql = utils.sql_workflow_execution_templates["task_delete_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id,))
+    resp = pgsql.execSql(sql, (task_exec_id,))
 
     if resp and "status" in resp:
         if not resp.get("status"):
@@ -596,7 +594,7 @@ def task_execution_insert_log(task_exec_id, log):
     sql = utils.sql_workflow_execution_templates["task_insert_tags_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id, "log", log))
+    resp = pgsql.execSql(sql, (task_exec_id, "log", log))
     if resp and "status" in resp:
         if not resp.get("status"):
             return False
@@ -627,7 +625,7 @@ def task_execution_insert_input(task_exec_id, inputs, input_group_name):
                 "task_insert_input_by_uuid_template"
             ]
             # Execute the SQL command in the database
-            resp = utils.execSql(sql, (task_exec_id, idx, inp, input_group_name))
+            resp = pgsql.execSql(sql, (task_exec_id, idx, inp, input_group_name))
             if resp and "status" in resp:
                 if not resp.get("status"):
                     return False
@@ -640,7 +638,7 @@ def task_execution_insert_input(task_exec_id, inputs, input_group_name):
                 "task_insert_input_by_path_template"
             ]
             # Execute the SQL command in the database
-            resp = utils.execSql(sql, (task_exec_id, idx, inp, input_group_name))
+            resp = pgsql.execSql(sql, (task_exec_id, idx, inp, input_group_name))
             if resp and "status" in resp:
                 if not resp.get("status"):
                     return False
@@ -668,7 +666,7 @@ def task_execution_insert_output(task_exec_id, resource_ids):
         ]
 
         # Execute the SQL command in the database
-        resp = utils.execSql(sql, (task_exec_id, idx, res_id))
+        resp = pgsql.execSql(sql, (task_exec_id, idx, res_id))
         if resp and "status" in resp:
             if not resp.get("status"):
                 return False
@@ -697,7 +695,7 @@ def task_execution_insert_parameters(task_exec_id, parameters):
             ]
 
             # Execute the SQL command in the database
-            resp = utils.execSql(sql, (task_exec_id, key, value))
+            resp = pgsql.execSql(sql, (task_exec_id, key, value))
             if "status" in resp:
                 if not resp.get("status"):
                     return False
@@ -724,7 +722,7 @@ def task_execution_insert_secrets(task_exec_id, secrets):
             sql = utils.sql_workflow_execution_templates["task_insert_secret_template"]
 
             # Execute the SQL command in the database
-            resp = utils.execSql(sql, (task_exec_id, key, value))
+            resp = pgsql.execSql(sql, (task_exec_id, key, value))
             if "status" in resp:
                 if not resp.get("status"):
                     return False
@@ -746,7 +744,7 @@ def task_execution_read_secrets(task_exec_id):
     sql = utils.sql_workflow_execution_templates["task_read_secret_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id,))
+    resp = pgsql.execSql(sql, (task_exec_id,))
 
     if resp and len(resp) > 0:
         task_secs = resp
@@ -772,7 +770,7 @@ def task_execution_insert_metrics(task_exec_id, metrics):
             sql = utils.sql_workflow_execution_templates["task_insert_metrics_template"]
 
             # Execute the SQL command in the database
-            resp = utils.execSql(sql, (task_exec_id, key, value))
+            resp = pgsql.execSql(sql, (task_exec_id, key, value))
             if "status" in resp:
                 if not resp.get("status"):
                     return False
@@ -800,7 +798,7 @@ def task_execution_insert_future_package_existing(
     sql = utils.sql_workflow_execution_templates["task_insert_existing_future_package"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id, package_id, package_friendly_name))
+    resp = pgsql.execSql(sql, (task_exec_id, package_id, package_friendly_name))
     if "status" in resp:
         if not resp.get("status"):
             return False
@@ -828,7 +826,7 @@ def task_execution_insert_future_package_details(
     sql = utils.sql_workflow_execution_templates["task_insert_future_package_details"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id, package_details, package_friendly_name))
+    resp = pgsql.execSql(sql, (task_exec_id, package_details, package_friendly_name))
     if "status" in resp:
         if not resp.get("status"):
             return False
@@ -848,7 +846,7 @@ def task_execution_insert_output_spec_new_resource(
 ):
     sql = utils.sql_workflow_execution_templates["task_insert_output_spec_new_resource"]
     # Execute the SQL command in the database
-    resp = utils.execSql(
+    resp = pgsql.execSql(
         sql,
         (
             task_exec_id,
@@ -875,7 +873,7 @@ def task_execution_insert_output_spec_existing_resource(
         "task_insert_output_spec_existing_resource"
     ]
     # Execute the SQL command in the database
-    resp = utils.execSql(
+    resp = pgsql.execSql(
         sql, (task_exec_id, output_name, output_address, resource_id, resource_action)
     )
     if "status" in resp:
@@ -891,7 +889,7 @@ def task_execution_insert_output_spec_plain_path(
     task_exec_id, output_name, output_address
 ):
     sql = utils.sql_workflow_execution_templates["task_insert_output_spec_plain_path"]
-    resp = utils.execSql(sql, (task_exec_id, output_name, output_address))
+    resp = pgsql.execSql(sql, (task_exec_id, output_name, output_address))
     if "status" in resp:
         if not resp.get("status"):
             return False
@@ -906,7 +904,7 @@ def task_read_output_spec(task_exec_id):
     sql = utils.sql_workflow_execution_templates["task_read_output_spec_for_tool"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id,))
+    resp = pgsql.execSql(sql, (task_exec_id,))
 
     if resp and len(resp) > 0:
         output_spec = {}
@@ -925,7 +923,7 @@ def task_read_output_spec_of_file(task_exec_id, file_key):
     """
     sql = utils.sql_workflow_execution_templates["task_read_output_spec_of_file"]
 
-    resp = utils.execSql(sql, (task_exec_id, file_key))
+    resp = pgsql.execSql(sql, (task_exec_id, file_key))
 
     if resp and len(resp) > 0:
         output_spec = resp[0]
@@ -948,7 +946,7 @@ def task_execution_read(task_exec_id):
     sql = utils.sql_workflow_execution_templates["task_read_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id,))
+    resp = pgsql.execSql(sql, (task_exec_id,))
 
     if resp and len(resp) > 0:
         task_specs = resp[
@@ -975,7 +973,7 @@ def task_execution_tags_read(task_exec_id):
     sql = utils.sql_workflow_execution_templates["task_read_tags_template"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql, (task_exec_id,))
+    resp = pgsql.execSql(sql, (task_exec_id,))
 
     if resp and len(resp) > 0:
         tag_dict = {tag["key"]: tag["value"] for tag in resp}
@@ -1016,7 +1014,7 @@ def task_execution_input_read(task_exec_id):
     # sql = utils.sql_workflow_execution_templates['task_read_input_dataset_template']
 
     # # Execute the SQL command in the database
-    # resp = utils.execSql(sql, (task_exec_id, ))
+    # resp = pgsql.execSql(sql, (task_exec_id, ))
     # print(resp)
     # if resp and len(resp)>0:
     #     res_ids = [res['dataset_id'] for res in resp]
@@ -1061,7 +1059,7 @@ def task_execution_output_read(task_exec_id):
     # sql = utils.sql_workflow_execution_templates['task_read_output_dataset_template']
 
     # # Execute the SQL command in the database
-    # resp = utils.execSql(sql, (task_exec_id, ))
+    # resp = pgsql.execSql(sql, (task_exec_id, ))
     # if resp and len(resp)>0:
     #     res_ids = [res['dataset_id'] for res in resp]
     #     return res_ids
@@ -1086,7 +1084,7 @@ def task_execution_input_read_sql(task_exec_id):
     sql_groups = utils.sql_workflow_execution_templates[
         "task_read_input_group_names_by"
     ]
-    resp = utils.execSql(sql_groups, (task_exec_id,))
+    resp = pgsql.execSql(sql_groups, (task_exec_id,))
 
     logging.debug(resp)
     inputs = dict()
@@ -1097,7 +1095,7 @@ def task_execution_input_read_sql(task_exec_id):
             sql_inputs = utils.sql_workflow_execution_templates[
                 "task_read_inputs_by_group_name"
             ]
-            resp = utils.execSql(
+            resp = pgsql.execSql(
                 sql_inputs,
                 (
                     task_exec_id,
@@ -1154,7 +1152,7 @@ def task_execution_parameters_read_sql(task_exec_id):
         sql = utils.sql_workflow_execution_templates["task_read_parameters_template"]
 
         # Execute the SQL command in the database
-        resp = utils.execSql(sql, (task_exec_id,))
+        resp = pgsql.execSql(sql, (task_exec_id,))
 
         if resp and len(resp) > 0:
             params = {}
@@ -1175,7 +1173,7 @@ def task_execution_metrics_read_sql(task_exec_id):
         sql = utils.sql_workflow_execution_templates["task_read_metrics_template"]
 
         # Execute the SQL command in the database
-        resp = utils.execSql(sql, (task_exec_id,))
+        resp = pgsql.execSql(sql, (task_exec_id,))
 
         if resp and len(resp) > 0:
             metrics = {tag["key"]: tag["value"] for tag in resp}
@@ -1191,7 +1189,7 @@ def task_execution_read_outputs_sql(task_exec_id):
         ]
 
         # Execute the SQL command in the database
-        resp = utils.execSql(sql, (task_exec_id,))
+        resp = pgsql.execSql(sql, (task_exec_id,))
 
         if resp and len(resp) > 0:
             return resp
@@ -1243,20 +1241,14 @@ def workflow_get_tasks(workflow_exec_id):
         id: The identifier (UUID) assigned to a worfklow execution
 
     Returns:
-        A JSON with the tasks, if any, belonging to the workflow
+        A JSON array with the tasks, if any, belonging to the workflow
     """
 
     if workflow_exec_id:
         sql = utils.sql_workflow_execution_templates["workflow_get_tasks"]
 
         # Execute the SQL command in the database
-        resp = utils.execSql(sql, (workflow_exec_id,))
-
-        if resp and len(resp) > 0:
-            wf_tasks = resp
-            return wf_tasks
-        else:
-            return None
+        return pgsql.execSql(sql, (workflow_exec_id,))
 
 
 def workflow_get_all():
@@ -1272,7 +1264,7 @@ def workflow_get_all():
     sql = utils.sql_workflow_execution_templates["workflow_get_all"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(sql)
+    resp = pgsql.execSql(sql)
 
     if resp and len(resp) > 0:
         wf_tasks = resp
@@ -1302,7 +1294,7 @@ def workflow_statistics(workflow_tags, parameters, metrics):
     sql = utils.sql_workflow_execution_templates["workflow_read_statistics"]
 
     # Execute the SQL command in the database
-    resp = utils.execSql(
+    resp = pgsql.execSql(
         sql,
         (
             workflow_tags,

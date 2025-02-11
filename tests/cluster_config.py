@@ -10,6 +10,8 @@ from configparser import ConfigParser
 from pathlib import Path
 from typing import TYPE_CHECKING, Tuple
 
+import backdoor
+
 if TYPE_CHECKING:
     from os import PathLike
 
@@ -101,6 +103,15 @@ def client_context(context: str, cfgfile: PathLike = None) -> Tuple[str, str]:
     return usr, pwd
 
 
+def testcluster_ckan_api():
+    """Return the CKAN API URL."""
+    cfg = testcluster_config()
+    clicontext = cfg["cluster"]["access"]["client_context"]
+    clicfgfile = cfg["cluster"]["access"].get("client_config", None)
+
+    return backdoor.CKAN(context=clicontext, config_file=clicfgfile)
+
+
 def testcluster_keycloak_admin_client():
     """This function returns a KeycloakAdmin object for the testcluster.
 
@@ -124,3 +135,21 @@ def testcluster_keycloak_admin_client():
         verify=True,
     )
     return keycloak_admin
+
+
+def testcluster_pg_dsn():
+    """Return the postgres DSN for the testcluster."""
+
+    c = testcluster_config()
+    k8s_context = c["cluster"]["context"]
+    cm = stelar_api_cm(k8s_context)
+    pg = c["cluster"]["postgres"]
+
+    dbname = cm["POSTGRES_DB"]
+    host = "localhost"  # access via port-forwarding
+    port = str(pg["local_port"])
+    user = cm["POSTGRES_USER"]
+    pwd = postgres_password(k8s_context)
+
+    # Get the stelar api config map from kubernetes
+    return f"postgresql://{user}:{pwd}@{host}:{port}/{dbname}"

@@ -32,6 +32,15 @@ def pytest_configure(config):
 
 @pytest.fixture(scope="session")
 def kconfig():
+    """Run load_kube_config() to initialize kubernetes API.
+
+    After this is run, tests can use the kubernetes API to interact with the
+    default cluster.
+
+    FIXME: this does not load the pytest_cluster_config.yaml file, it just
+    loads the default context in ~/.kube/config.
+    """
+
     from kubernetes import client, config
 
     config.load_kube_config()
@@ -40,11 +49,18 @@ def kconfig():
 
 @pytest.fixture(scope="session")
 def dev_cluster_config(scope="session"):
+    """Return the pytest_cluster_config.yaml file as an object."""
     return cc.testcluster_config()
 
 
 @pytest.fixture(scope="session")
 def pg_access():
+    """Start a port-forward to the testcluster's PostgreSQL database.
+
+    This fixture starts a kubectl port-forward to the testcluster's PostgreSQL.
+    This allows tests and the data_app code to connect to the database.
+    """
+
     c = cc.testcluster_config()
     context = c["cluster"]["context"]
     local_port = c["cluster"]["postgres"]["local_port"]
@@ -83,12 +99,22 @@ def pg_access():
 
 @pytest.fixture(scope="session")
 def monkeysession(request):
+    """A session-scoped monkeypatch context.
+
+    This is straight out of the pytest documentation.
+    """
     with pytest.MonkeyPatch.context() as mp:
         yield mp
 
 
 @pytest.fixture(scope="session")
 def app(monkeysession, pg_access):
+    """Create a test app with the testcluster configuration.
+
+    The app is configured to use the testcluster's PostgreSQL database and
+    CKAN API, as well as the keycloak server.
+    """
+
     c = cc.testcluster_config()
     k8s_context = c["cluster"]["context"]
 
@@ -115,7 +141,6 @@ def app(monkeysession, pg_access):
     monkeysession.setenv("KEYCLOAK_EXT_URL", kc_ext_url)
     monkeysession.setenv("KEYCLOAK_ISSUER_URL", f"{kc_url}realms/master")
     monkeysession.setenv("KEYCLOAK_CLIENT_SECRET", cc.kc_client_secret(k8s_context))
-
     monkeysession.setenv("REALM_NAME", cm["REALM_NAME"])
 
     # Disable execution engine. This is a test environment
@@ -133,12 +158,21 @@ def app(monkeysession, pg_access):
 
 @pytest.fixture()
 def client(app) -> werkzeug.Client:
+    """Return a test client for the app."""
     return app.test_client()
 
 
 @pytest.fixture()
 def runner(app):
+    """Return a test runner for the app."""
     return app.test_cli_runner()
+
+
+@pytest.fixture()
+def app_context(app):
+    """Return an app context for the app."""
+    with app.app_context():
+        yield
 
 
 Credentials = namedtuple("Credentials", ["token", "refresh_token"])
@@ -146,6 +180,10 @@ Credentials = namedtuple("Credentials", ["token", "refresh_token"])
 
 @pytest.fixture(scope="module")
 def credentials(app: APIFlask) -> Generator[Credentials]:
+    """Return a set of credentials for the testcluster.
+
+    This set is obtained from the keycloak server using
+    """
     config = app.config["settings"]
     cli = KeycloakOpenID(
         server_url=config["KEYCLOAK_URL"],
@@ -173,3 +211,59 @@ def credentials(app: APIFlask) -> Generator[Credentials]:
     yield Credentials(cred["access_token"], cred["refresh_token"])
 
     cli.logout(refresh_token=cred["refresh_token"])
+
+
+@pytest.fixture
+def app_client(app, credentials):
+    with app.test_client() as client:
+        client.environ_base["HTTP_AUTHORIZATION"] = f"Bearer {credentials.token}"
+        yield client
+
+
+@pytest.fixture(scope="session")
+def DC():
+    """A CKAN api object (DC == Data Catalog). Call on it the ckan api methods.
+
+    E.g.:
+    ```
+    pkg = DC.package_show(id='shakespeare_novels')
+    org = DC.organization_show(id='stelar-klms')
+    p = DC.package_create(name='just_a_test', title='Just a test', owner_org='stelar-klms')
+    DC.dataset_purge(id=p['id'])
+    ```
+    """
+    from cluster_config import testcluster_ckan_api
+
+    return testcluster_ckan_api()
+
+
+@pytest.fixture(scope="session")
+def mdb_dsn():
+    """Return the DSN for the testcluster's PostgreSQL database.
+
+    This can be used to connect to the metadata database using a PostgreSQL
+    client. For example:
+
+    ```
+    def test_pg_connection(pg_dsn):
+        import psycopg2
+
+        conn = psycopg2.connect(pg_dsn)
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        assert cur.fetchone() == (1,)
+    ```
+    """
+    return cc.testcluster_pg_dsn()
+
+
+@pytest.fixture
+def mdb_conn(mdb_dsn):
+    """Return a connection to the metadata database."""
+    import psycopg2
+
+    conn = psycopg2.connect(mdb_dsn)
+    try:
+        yield conn
+    finally:
+        conn.close()

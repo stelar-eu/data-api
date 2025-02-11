@@ -230,7 +230,6 @@ sql_2fa_template = {
 # FIXME: Remove fixed parameters from SQL query for 'workflow_read_statistics'
 sql_workflow_execution_templates = {
     "workflow_create_template": "INSERT INTO klms.workflow_execution(workflow_uuid, state, creator_user_id, start_date, wf_package_id) VALUES (%s, %s, %s, %s, %s)",
-    "workflow_create_template_empty_package": "INSERT INTO klms.workflow_execution(workflow_uuid, state, creator_user_id, start_date) VALUES (%s, %s, %s, %s)",
     "workflow_update_template": "UPDATE klms.workflow_execution SET state = %s WHERE workflow_uuid = %s",
     "workflow_commit_template": "UPDATE klms.workflow_execution SET state = %s, end_date = %s WHERE workflow_uuid = %s",
     "workflow_update_wf_package": "UPDATE klms.workflow_execution SET wf_package_id = %s WHERE workflow_uuid = %s",
@@ -238,30 +237,38 @@ sql_workflow_execution_templates = {
     "workflow_state_template": "SELECT workflow_uuid AS workflow_exec_id, state FROM klms.workflow_execution WHERE workflow_uuid = %s",
     "workflow_get_context_package": "SELECT wf_package_id AS context_package FROM klms.workflow_execution WHERE workflow_uuid = %s",
     "workflow_delete_template": "DELETE FROM klms.workflow_execution WHERE workflow_uuid = %s",
-    "workflow_read_template": "SELECT workflow_uuid AS workflow_exec_id, creator_user_id as creator, state, start_date, end_date, wf_package_id FROM klms.workflow_execution WHERE workflow_uuid = %s",
-    "workflow_get_tasks": """SELECT 
-                                    tsk.task_uuid, 
-                                    tsk.state, 
-                                    tsk.start_date, 
-                                    tsk.end_date, 
-                                    MAX(CASE WHEN tsk_tg.key = 'tool_image' THEN tsk_tg.value END) AS tool_image,
-                                    MAX(CASE WHEN tsk_tg.key = 'tool_name' THEN tsk_tg.value END) AS tool_name
-                                FROM 
-                                    klms.workflow_execution AS wf
-                                JOIN 
-                                    klms.task_execution AS tsk 
-                                    ON wf.workflow_uuid = tsk.workflow_uuid
-                                LEFT JOIN 
-                                    klms.task_tag AS tsk_tg 
-                                    ON tsk.task_uuid = tsk_tg.task_uuid
-                                WHERE 
-                                    wf.workflow_uuid = %s
-                                GROUP BY 
-                                    tsk.task_uuid, 
-                                    tsk.state, 
-                                    tsk.start_date, 
-                                    tsk.end_date;
-                            """,
+    "workflow_read_template": """\
+        SELECT
+            workflow_uuid AS id, 
+            creator_user_id as creator, 
+            state as exec_state, 
+            start_date, 
+            end_date, 
+            wf_package_id as workflow
+        FROM klms.workflow_execution 
+        WHERE workflow_uuid = %s
+        """,
+    "workflow_get_tasks": """\
+        SELECT 
+            tsk.task_uuid, 
+            tsk.state, 
+            tsk.start_date, 
+            tsk.end_date, 
+            (
+                SELECT tg.value 
+                FROM klms.task_tag tg 
+                WHERE tg.key = 'tool_image' AND tg.task_uuid=tsk.task_uuid
+            ) AS tool_image,
+            (
+                SELECT tg.value 
+                FROM klms.task_tag tg 
+                WHERE tg.key = 'tool_name' AND tg.task_uuid=tsk.task_uuid
+            ) AS tool_name
+        FROM
+            klms.task_execution AS tsk 
+        WHERE
+            tsk.workflow_uuid = %s
+    """,
     "workflow_get_all": """SELECT pkg.title as package_title, ex.workflow_uuid as id, ex.state, start_date, end_date, value as package_id 
                            FROM klms.workflow_execution as ex
                            LEFT JOIN

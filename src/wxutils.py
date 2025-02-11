@@ -15,14 +15,15 @@ import kutils
 import sql_utils
 import utils
 from backend.ckan import ckan_request
-from backend.pgsql import execSql, transaction, with_transaction
-from entity import CKANEntity
+from backend.pgsql import transaction
+from entity import PackageCKANSchema, PackageEntity
 from exceptions import (
     BackendLogicError,
+    ConflictError,
     DataError,
+    InvalidError,
     NotAllowedError,
     NotFoundError,
-    ValidationError,
 )
 
 logger = logging.getLogger(__name__)
@@ -161,51 +162,65 @@ def get_workflows():
 
 
 class WorkflowProcessSchema(Schema):
-    tags = fields.List(fields.String, required=False)
-    extras = fields.Dict(required=False)
-    state = fields.String(
-        required=False, validate=validators.OneOf(["active", "deleted"])
-    )
+    """Schema for creation and update of Workflow Process entity."""
 
+    class Meta:
+        datetimeformat = "iso"
+
+    id = fields.String(dump_only=True)
+    metadata_created = fields.DateTime(dump_only=True)
+    metadata_modified = fields.DateTime(dump_only=True)
+    creator_user_id = fields.String(dump_only=True)
+    type = fields.String(dump_only=True)
+
+    # From the database
+    creator = fields.String(dump_only=True)
+    start_date = fields.DateTime(dump_only=True)
+    end_date = fields.DateTime(dump_only=True)
+    exec_state = fields.String(
+        validate=validators.OneOf(["running", "failed", "succeeded"])
+    )
+    workflow = fields.UUID(allow_none=True, load_default=None)
+
+    name = fields.String()
+    state = fields.String(validate=validators.OneOf(["active", "deleted"]))
     owner_org = fields.String(required=True)
 
-    # Name or ID of a package, or None
-    workflow = fields.String(required=False)
+    # By default, dataset metadata will be publicly available
+    private = fields.Boolean(load_default=False)
 
-    title = fields.String(required=False)
-    notes = fields.String(
-        required=False, validate=validators.Length(0, 10000), allow_none=True
-    )
+    tags = fields.List(fields.String)
+    extras = fields.Dict()
 
-    # Do we really need these 4? They are not used in the current implementation
+    title = fields.String()
+    # Do we really need these 4?
     # Maybe we should replace them with other specs, like
     # - orchestation engine  (e.g., manual, rapidminer, airflow, argo etc.)
     # - workflow language
-    author = fields.String(required=False, allow_none=True)
-    author_email = fields.String(required=False, allow_none=True)
-    maintainer = fields.String(required=False, allow_none=True)
-    maintainer_email = fields.String(required=False, allow_none=True)
-
-    # By default, dataset metadata will be publicly available
-    # private = fields.Boolean(required=False, load_default=False)
-
+    author = fields.String(allow_none=True)
+    author_email = fields.String(allow_none=True)
+    maintainer = fields.String(allow_none=True)
+    maintainer_email = fields.String(allow_none=True)
     # Note: making this a URL would force checks that might fail
-    url = fields.String(
-        required=False, validate=validators.Length(0, 200), allow_none=True
-    )
-    version = fields.String(
-        required=False, validate=validators.Length(0, 100), allow_none=True
-    )
+    notes = fields.String(validate=validators.Length(0, 10000), allow_none=True)
+    url = fields.String(validate=validators.Length(0, 200), allow_none=True)
+    version = fields.String(validate=validators.Length(0, 100), allow_none=True)
 
 
-class ProcessEntity(CKANEntity):
+class ProcessCKANSchema(PackageCKANSchema):
+    pass
+    # Nothing to add here yet...
+
+
+class ProcessEntity(PackageEntity):
     def __init__(self):
         super().__init__(
             "process",
             "processes",
             WorkflowProcessSchema(),
             WorkflowProcessSchema(partial=True),
-            ckan_name="package",
+            package_type="process",
+            ckan_schema=ProcessCKANSchema(),
         )
         self.operations.remove("update")
 
@@ -225,10 +240,11 @@ class ProcessEntity(CKANEntity):
         "name",
         "metadata_created",
         "metadata_modified",
+        "private",
         "state",
+        "owner_org",
         "title",
         "notes",
-        "owner_org",
         "author",
         "author_email",
         "maintainer",
@@ -243,11 +259,11 @@ class ProcessEntity(CKANEntity):
 
     GET_KEEP_FIELDS = frozenset(CKAN_FIELDS) | frozenset(DB_FIELDS)
 
-    def list_entities(self, limit=None, offset=None):
-        self.check_limit_offset(limit, "limit")
-        self.check_limit_offset(offset, "offset")
-        result = execSql("SELECT workflow_uuid FROM klms.workflow_execution")
-        return [row["workflow_uuid"] for row in result]
+    # def list_entities(self, limit=None, offset=None):
+    #    self.check_limit_offset(limit, "limit")
+    #    self.check_limit_offset(offset, "offset")
+    #    result = execSql("SELECT workflow_uuid FROM klms.workflow_execution")
+    #    return [row["workflow_uuid"] for row in result]
 
     def create_process(self, creator_user: str, organization=None, **attributes):
         """Create a new workflow process.
@@ -256,9 +272,6 @@ class ProcessEntity(CKANEntity):
         The workflow process is used to manage and monitor the execution of tasks.
         The workflow process is associated with a package in CKAN and can have additional
         metadata. The workflow acts as a shared context for the tasks belonging to it.
-
-        TODO: Synchronize with the "scheming" CKAN extension and define a schema for
-        the workflow processes.
 
         Args:
             creator: The username of the user who creates the workflow process.
@@ -293,6 +306,7 @@ class ProcessEntity(CKANEntity):
 
         # Create the package in CKAN
         package_creation_req = {
+            "id": random_uuid,
             "name": package_name,
             "type": "process",  # N.B. this will be ignored until scheming is activated
             "owner_org": owner_org,
@@ -321,20 +335,26 @@ class ProcessEntity(CKANEntity):
         )
 
         package_id = package["id"]
-        start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        start_date = datetime.now()
         exec_state = "running"
 
         # Now, try to create the process in the database
-        response = sql_utils.workflow_execution_create(
-            package_id, start_date, exec_state, creator_user["username"], workflow, {}
-        )
-        if not response:
-            # Delete the package if the process creation failed
-            # super().delete_entity(package_id, purge=True)
+        try:
+            response = sql_utils.workflow_execution_create(
+                package_id,
+                start_date,
+                exec_state,
+                creator_user["username"],
+                workflow,
+                {},
+            )
+        except Exception:
+            # Delete the ckan package if the database part of process creation failed
             ckan_request("dataset_purge", id=package_id)
-            raise DataError("Process could not be created, the database failed.")
+            raise
 
         package = super().load_from_ckan(package)
+        assert isinstance(package["metadata_created"], datetime)
         package = self._filter_fields_from_ckan(package)
 
         # Consolidate the object to return
@@ -368,7 +388,7 @@ class ProcessEntity(CKANEntity):
         if wf["type"] == "workflow":
             return wf["id"]
         else:
-            raise ValidationError("The package is not a workflow package.", workflow)
+            raise DataError("The package is not a workflow package.", workflow)
 
     def create_entity(self, init_attr):
         """Create a new process.
@@ -387,18 +407,6 @@ class ProcessEntity(CKANEntity):
             del init_attr["owner_org"]
         return self.create_process(creator, organization, **init_attr)
 
-    def _enhance_from_db_row(self, package, w):
-        package.update(
-            {
-                "creator": w["creator"],
-                "exec_state": w["state"],
-                "start_date": w["start_date"],
-                "end_date": w["end_date"],
-                "workflow": w["wf_package_id"],
-            }
-        )
-
-    @with_transaction
     def _enhance_process_package_from_db(self, package):
         """Enhance a package with additional fields.
 
@@ -412,9 +420,19 @@ class ProcessEntity(CKANEntity):
         """
         w = sql_utils.workflow_execution_read(package["id"])
         if not w:
-            raise BackendLogicError("Process not found in the database.", package["id"])
-        self._enhance_from_db_row(package, w)
-        package["tasks"] = sql_utils.workflow_get_tasks(package["id"])
+            raise BackendLogicError(
+                "Process not found in the database, out of sync with data catalog.",
+                package["id"],
+            )
+        tasks = sql_utils.workflow_get_tasks(package["id"])
+        package.update(
+            creator=w["creator"],
+            exec_state=w["exec_state"],
+            start_date=w["start_date"],
+            end_date=w["end_date"],
+            workflow=w["workflow"],
+            tasks=tasks,
+        )
         return package
 
     def _filter_fields_from_ckan(self, package):
@@ -501,7 +519,7 @@ class ProcessEntity(CKANEntity):
                             validation_errors["workflow"] = {
                                 "error": "Workflow object not found."
                             }
-                        except ValidationError:
+                        except InvalidError:
                             validation_errors["workflow"] = {
                                 "error": "Workflow object is not a workflow."
                             }
@@ -513,7 +531,7 @@ class ProcessEntity(CKANEntity):
                     validation_errors[attr] = {"error": "Attribute not recognized."}
 
         if validation_errors:
-            raise ValidationError(
+            raise InvalidError(
                 message="Validation errors in patch operation.",
                 detail=validation_errors,
             )
@@ -526,7 +544,7 @@ class ProcessEntity(CKANEntity):
         # TODO: We shoould do these in a transaction
         with transaction():
             if "exec_state" in db_patch:
-                end_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                end_date = datetime.now().isoformat()
                 exec_state = db_patch["exec_state"]
                 sql_utils.workflow_execution_update(id, exec_state, end_date)
             if "workflow" in db_patch:
@@ -543,7 +561,7 @@ class ProcessEntity(CKANEntity):
         if process["state"] == "deleted":
             return
         if process["exec_state"] == "running":
-            raise ValidationError("Cannot delete a running process.")
+            raise ConflictError("Cannot delete a running process.")
         # Delete the process from CKAN
         ckan_request("package_delete", id=id)
         # TODO: Mark the process as deleted with a tag or something...
@@ -633,7 +651,7 @@ def update_workflow_state(workflow_id, state):
             raise ValueError("Workflow does not exist.")
 
         if state in ["failed", "succeeded"]:
-            end_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            end_date = datetime.now().isoformat()
             response = sql_utils.workflow_execution_update(workflow_id, state, end_date)
             if not response:
                 return False
@@ -667,7 +685,7 @@ def update_task_state(task_id, state):
             raise ValueError("Workflow does not exist.")
 
         if state in ["failed", "succeeded"]:
-            end_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            end_date = datetime.now().isoformat()
             response = sql_utils.task_execution_update(task_id, state, end_date)
             if not response:
                 return False
@@ -743,7 +761,7 @@ def create_task(json_data, token):
         if workflow.get("state") != "running":
             raise AttributeError("Workflow is committed and will not accept tasks!")
 
-        start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        start_date = datetime.now().isoformat()
         state = "running"
         task_exec_id = str(uuid.uuid4())
 
@@ -1322,12 +1340,12 @@ def get_task_output_json(task_id, signature, output_json):
     if "error" in output_json:
         map_state = "failed"
         sql_utils.task_execution_update(
-            task_id, map_state, end_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            task_id, map_state, end_date=datetime.now().isoformat()
         )
     elif state:
         map_state = map_state_to_execution_status(state)
         sql_utils.task_execution_update(
-            task_id, map_state, end_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            task_id, map_state, end_date=datetime.now().isoformat()
         )
 
     return True

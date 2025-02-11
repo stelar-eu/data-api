@@ -10,7 +10,13 @@ import requests
 import schema
 import utils
 from backend.ckan import ckan_request, request
-from entity import AnyCapacity, CKANEntity, EntityWithMembers, MemberEntity
+from entity import (
+    AnyCapacity,
+    CKANEntity,
+    EntityWithMembers,
+    MemberEntity,
+    PackageEntity,
+)
 from routes.users import api_user_editor
 
 logger = logging.getLogger(__name__)
@@ -611,14 +617,13 @@ def delete_resource(id: str):
 #  STELAR Entities
 # ------------------------------------------------------------
 
-DATASET = CKANEntity(
+DATASET = PackageEntity(
     "dataset",
     "datasets",
     creation_schema=schema.DatasetSchema(),
     update_schema=schema.DatasetSchema(partial=True),
-    ckan_name="package",
+    package_type="dataset",
 )
-DATASET.ckan_api_purge = "dataset_purge"
 
 RESOURCE = CKANEntity(
     "resource",

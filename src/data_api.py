@@ -11,7 +11,7 @@ import requests
 import yaml
 from apiflask import APIFlask
 from flask import current_app, g, jsonify, redirect, request, url_for
-from flask.json import JSONEncoder
+from flask.json.provider import DefaultJSONProvider
 
 # for keycloak integration with the api
 from psycopg2.extras import RealDictCursor
@@ -106,20 +106,21 @@ app.jinja_env.filters["format_datetime"] = format_datetime
 
 
 # Custom class to retain original ISO format like 'yyyy-mm-dd hh:mm:ss.m' in date/time/timestamp values
-class CustomJSONEncoder(JSONEncoder):
+class CustomJSONProvider(DefaultJSONProvider):
     def default(self, obj):
-        try:
-            if isinstance(obj, date):
-                return obj.isoformat()
-            iterable = iter(obj)
-        except TypeError:
-            pass
-        else:
-            return list(iterable)
-        return JSONEncoder.default(self, obj)
+        if isinstance(obj, date | datetime):
+            return obj.isoformat()
+
+        # Handle iterators (the old code was attempting to
+        # handle iterables, but this makes no sense!!
+        # It would apply to strings, lists, tuples, dicts, etc.)
+        if hasattr(obj, "__next__"):
+            return list(obj)
+
+        return super().default(obj)
 
 
-app.json_provider_class = CustomJSONEncoder
+app.json = CustomJSONProvider(app)
 
 
 # -----------------
@@ -3272,7 +3273,8 @@ def main(app):
     }
 
     # Configure the metadata database connection pool
-    initialize_mdb_pool(app.config["settings"])
+    if app.config["settings"]["dbname"] != "<DB-NAME>":
+        initialize_mdb_pool(app.config["settings"])
 
     # Configure the CKAN client
     initialize_ckan_client(app.config["settings"])
