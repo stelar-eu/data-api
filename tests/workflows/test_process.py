@@ -201,3 +201,166 @@ def test_process_update_metadata(app_client, DC, mdb_conn):
 
     # clean everything up...
     purge_process(data["result"]["id"], DC, mdb_conn)
+
+
+@pytest.fixture
+def aprocess(app_client, DC, mdb_conn):
+    # Create a new process
+    response = app_client.post(
+        "/api/v2/process",
+        json={
+            "owner_org": "stelar-klms",
+            "title": "Test Process Description",
+            "version": "1.0.0",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+    assert data["result"]["title"] == "Test Process Description"
+    assert data["result"]["version"] == "1.0.0"
+
+    yield data["result"]
+
+    # clean everything up...
+    purge_process(data["result"]["id"], DC, mdb_conn)
+
+
+def test_process_succeeded(app_client, aprocess):
+    assert aprocess["exec_state"] == "running"
+
+    # Complete the process
+    response = app_client.patch(
+        f"/api/v2/process/{aprocess['id']}",
+        json={
+            "exec_state": "succeeded",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+    proc = data["result"]
+    assert proc["exec_state"] == "succeeded"
+    assert proc["end_date"] is not None
+    assert isinstance(proc["end_date"], str)
+    assert abs(datetime.fromisoformat(proc["end_date"]) - datetime.now()) < timedelta(
+        seconds=2
+    )
+
+    # Try to make it failed
+    response = app_client.patch(
+        f"/api/v2/process/{proc['id']}",
+        json={
+            "exec_state": "failed",
+        },
+    )
+
+    assert response.status_code == 409
+    data = response.get_json()
+    assert data["success"] is False
+    assert data["error"]["__type"] == "ConflictError"
+
+    # Try to make it running
+    response = app_client.patch(
+        f"/api/v2/process/{proc['id']}",
+        json={
+            "exec_state": "running",
+        },
+    )
+
+    assert response.status_code == 409
+    data = response.get_json()
+    assert data["success"] is False
+    assert data["error"]["__type"] == "ConflictError"
+
+
+def test_process_failed(app_client, aprocess):
+    assert aprocess["exec_state"] == "running"
+
+    # Complete the process
+    response = app_client.patch(
+        f"/api/v2/process/{aprocess['id']}",
+        json={
+            "exec_state": "failed",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+    proc = data["result"]
+    assert proc["exec_state"] == "failed"
+    assert proc["end_date"] is not None
+    assert isinstance(proc["end_date"], str)
+    assert abs(datetime.fromisoformat(proc["end_date"]) - datetime.now()) < timedelta(
+        seconds=2
+    )
+
+    # Try to make it succeeded
+    response = app_client.patch(
+        f"/api/v2/process/{proc['id']}",
+        json={
+            "exec_state": "succeeded",
+        },
+    )
+
+    assert response.status_code == 409
+    data = response.get_json()
+    assert data["success"] is False
+    assert data["error"]["__type"] == "ConflictError"
+
+    # Try to make it running
+    response = app_client.patch(
+        f"/api/v2/process/{proc['id']}",
+        json={
+            "exec_state": "running",
+        },
+    )
+
+    assert response.status_code == 409
+    data = response.get_json()
+    assert data["success"] is False
+    assert data["error"]["__type"] == "ConflictError"
+
+
+def test_process_delete(app_client, aprocess):
+    # Delete the process while running
+    response = app_client.delete(f"/api/v2/process/{aprocess['id']}")
+    assert response.status_code == 409
+    data = response.get_json()
+    assert data["success"] is False
+    assert data["error"]["__type"] == "ConflictError"
+
+    # Mark it as succeeded
+    response = app_client.patch(
+        f"/api/v2/process/{aprocess['id']}",
+        json={
+            "exec_state": "succeeded",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+
+    # Now delete it
+    response = app_client.delete(f"/api/v2/process/{aprocess['id']}")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+
+    # Try to purge it
+    response = app_client.delete(f"/api/v2/process/{aprocess['id']}?purge=true")
+    assert response.status_code == 405
+    data = response.get_json()
+    assert data["success"] is False
+    assert data["error"]["__type"] == "NotAllowedError"
+
+    # Try to get it
+    response = app_client.get(f"/api/v2/process/{aprocess['id']}")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+    assert data["result"]["state"] == "deleted"

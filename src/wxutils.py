@@ -176,7 +176,7 @@ class WorkflowProcessSchema(Schema):
     # From the database
     creator = fields.String(dump_only=True)
     start_date = fields.DateTime(dump_only=True)
-    end_date = fields.DateTime(dump_only=True)
+    end_date = fields.DateTime(dump_only=True, allow_none=True)
     exec_state = fields.String(
         validate=validators.OneOf(["running", "failed", "succeeded"])
     )
@@ -484,7 +484,6 @@ class ProcessEntity(PackageEntity):
         # Get the process
         process = self.get_entity(id)
 
-        validation_errors = {}
         ckan_patch = {}
         db_patch = {}
 
@@ -492,61 +491,63 @@ class ProcessEntity(PackageEntity):
         for attr, new_value in patch_attr.items():
             match attr:
                 case "state":
+                    if process["state"] == new_value:
+                        continue
+                    if new_value not in ["active", "deleted"]:
+                        raise InvalidError(
+                            message="Validation errors in patch operation.",
+                            detail={"state": {"error": "Invalid state."}},
+                        )
                     if process["state"] == "deleted" and new_value == "active":
                         ckan_patch["state"] = "active"
                     else:
-                        validation_errors["state"] = {
-                            "error": "State can only change from deleted to active."
-                        }
+                        raise ConflictError(
+                            "State can only change from deleted to active."
+                        )
                 case "exec_state":
+                    if process["exec_state"] == new_value:
+                        continue
                     if process["exec_state"] == "running" and new_value in [
                         "failed",
                         "succeeded",
                     ]:
-                        db_patch["state"] = new_value
+                        db_patch["exec_state"] = new_value
                     else:
-                        validation_errors["exec_state"] = {
-                            "error": "Exec state can only change from running to failed or succeeded."
-                        }
+                        raise ConflictError(
+                            "Exec state can only change from running to failed or succeeded."
+                        )
                 case "workflow":
+                    if process["workflow"] == new_value:
+                        continue
                     if new_value is None:
                         db_patch["workflow"] = None
                     else:
-                        try:
-                            wfid = self.validate_workflow(new_value)
-                            db_patch["workflow"] = wfid
-                        except NotFoundError:
-                            validation_errors["workflow"] = {
-                                "error": "Workflow object not found."
-                            }
-                        except InvalidError:
-                            validation_errors["workflow"] = {
-                                "error": "Workflow object is not a workflow."
-                            }
+                        wfid = self.validate_workflow(new_value)
+                        db_patch["workflow"] = wfid
                 case _ if attr in self.UPDATABLE_CKAN_FIELDS:
                     ckan_patch[attr] = new_value
                 case _ if attr in self.ALL_FIELDS:
-                    validation_errors[attr] = {"error": "Attribute not updatable."}
+                    raise InvalidError(
+                        message="Validation errors in patch operation.",
+                        detail={attr: {"error": "Attribute not updatable."}},
+                    )
                 case _:
-                    validation_errors[attr] = {"error": "Attribute not recognized."}
-
-        if validation_errors:
-            raise InvalidError(
-                message="Validation errors in patch operation.",
-                detail=validation_errors,
-            )
+                    raise InvalidError(
+                        message="Validation errors in patch operation.",
+                        detail={attr: {"error": "Attribute not recognized."}},
+                    )
 
         new_package = ckan_request(
             "package_patch", json=ckan_patch, context={"entity": "process"}, id=id
         )
 
         # See if the database needs to be updated
-        # TODO: We shoould do these in a transaction
         with transaction():
             if "exec_state" in db_patch:
-                end_date = datetime.now().isoformat()
+                end_date = datetime.now()
                 exec_state = db_patch["exec_state"]
                 sql_utils.workflow_execution_update(id, exec_state, end_date)
+
             if "workflow" in db_patch:
                 sql_utils.workflow_execution_update_wf_package(id, db_patch["workflow"])
 
