@@ -537,6 +537,8 @@ class ProcessEntity(PackageEntity):
                         detail={attr: {"error": "Attribute not recognized."}},
                     )
 
+        ckan_patch = self.save_to_ckan(ckan_patch)
+
         new_package = ckan_request(
             "package_patch", json=ckan_patch, context={"entity": "process"}, id=id
         )

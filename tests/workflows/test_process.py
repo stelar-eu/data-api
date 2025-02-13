@@ -364,3 +364,57 @@ def test_process_delete(app_client, aprocess):
     data = response.get_json()
     assert data["success"] is True
     assert data["result"]["state"] == "deleted"
+
+
+def test_process_set_tags(app_client, aprocess):
+    # Set tags
+    response = app_client.patch(
+        f"/api/v2/process/{aprocess['id']}",
+        json={
+            "tags": ["tag1", "tag2", "tag3"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+    assert data["result"]["tags"] == ["tag1", "tag2", "tag3"]
+
+    # Add tags
+    response = app_client.patch(
+        f"/api/v2/process/{aprocess['id']}",
+        json={
+            "tags": ["tag4", "tag5"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+    assert data["result"]["tags"] == ["tag4", "tag5"]
+
+    # Remove tags
+    response = app_client.patch(
+        f"/api/v2/process/{aprocess['id']}",
+        json={
+            "tags": ["tag2", "tag4"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+    assert data["result"]["tags"] == ["tag2", "tag4"]
+
+    # Remove all tags
+    response = app_client.patch(
+        f"/api/v2/process/{aprocess['id']}",
+        json={
+            "tags": [],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+    assert data["result"]["tags"] == []

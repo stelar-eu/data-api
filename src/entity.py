@@ -123,7 +123,7 @@ class CKANEntity(Entity):
 
         self.has_extras = bool(extras)
         # Only packages have tags!
-        self.has_tags = self.ckan_name in ("package", "vocabulary")
+        self.has_tags = self.ckan_name == "package"
 
     def save_tags_to_ckan(self, tags: list[str]) -> list[dict]:
         tagobjlist = []
