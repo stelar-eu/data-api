@@ -741,11 +741,9 @@
         }
 
         const payload = {
-          basic_metadata: {
-            title: title,
-            notes: notes,
-            tags: tags
-          }
+          name: title,
+          notes: notes,
+          tags: tags
         };
 
         $('#new-dataset-modal-footer .alert').remove()
@@ -753,7 +751,7 @@
         $("#new-dataset-modal-footer").prepend(loader)
 
         $.ajax({
-          url: `{{ url_for('rest_catalog_blueprint.api_rest_create_dataset') }}`,
+          url: `{{ url_for('rest_catalog_blueprint.api_create_dataset') }}`,
           method: 'POST',
           contentType: 'application/json',
           data: JSON.stringify(payload),
@@ -802,7 +800,7 @@
       $("#availability-div").append(loader)
 
       $.ajax({
-        url: `{{url_for('rest_catalog_blueprint.api_rest_get_dataset', dataset_id='')}}${slugifyTitle(title)}`,
+        url: `{{url_for('rest_catalog_blueprint.api_get_dataset', entity_id='')}}${slugifyTitle(title)}`,
         method: 'GET',
         success: function (response) {
           // If the response is 200, a dataset already exists
@@ -815,6 +813,7 @@
             $('#availability-div .spinner-border').remove()
             titleInput.addClass('is-valid');
           } else {
+            $('#availability-div .spinner-border').remove()
           }
         }
       });
