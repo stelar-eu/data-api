@@ -575,7 +575,7 @@
 
           // Fetch the resource details via AJAX
           $.ajax({
-            url: `{{url_for('rest_catalog_blueprint.api_get_resource', entity_id='')}}${resourceId}`,
+            url: `{{url_for('catalog_blueprint.api_get_resource', entity_id='')}}${resourceId}`,
             type: 'GET',
             success: function (response) {
               if (response.success) {
@@ -650,7 +650,7 @@
       };
 
       $.ajax({
-        url: `{{url_for('rest_catalog_blueprint.api_patch_resource',entity_id='')}}${resourceId}`,
+        url: `{{url_for('catalog_blueprint.api_patch_resource',entity_id='')}}${resourceId}`,
         method: 'PATCH',
         contentType: 'application/json',
         data: JSON.stringify(resourceData),
@@ -771,7 +771,7 @@
       }
 
       $.ajax({
-        url: `{{ url_for('rest_catalog_blueprint.api_delete_resource', entity_id='')}}${resourceId}`,
+        url: `{{ url_for('catalog_blueprint.api_delete_resource', entity_id='')}}${resourceId}`,
         type: 'DELETE',
         success: function (response) {
           $(`#${resourceId}`).remove();
@@ -957,7 +957,7 @@
         };
 
         $.ajax({
-          url: `{{url_for('rest_catalog_blueprint.api_create_resource', entity_id=dataset.get('id')) }}`,
+          url: `{{url_for('catalog_blueprint.api_create_resource', entity_id=dataset.get('id')) }}`,
           method: 'POST',
           contentType: 'application/json',
           data: JSON.stringify(resourceMetadata),
@@ -1180,7 +1180,7 @@
         $('#update-tags-icon .stelar-loader').remove();
         updateTagsIcon.prepend(loader)
         $.ajax({
-          url: `{{url_for('rest_catalog_blueprint.api_patch_dataset', entity_id=dataset.get('id'))}}`,
+          url: `{{url_for('catalog_blueprint.api_patch_dataset', entity_id=dataset.get('id'))}}`,
           type: 'PATCH',
           contentType: 'application/json',
           data: JSON.stringify(payload),
@@ -1220,7 +1220,7 @@
         $('#update-tags-icon .stelar-loader').remove();
         updateDescriptionIcon.prepend(loader)
         $.ajax({
-          url: `{{url_for('rest_catalog_blueprint.api_patch_dataset', entity_id=dataset.get('id'))}}`,
+          url: `{{url_for('catalog_blueprint.api_patch_dataset', entity_id=dataset.get('id'))}}`,
           type: 'PATCH',
           contentType: 'application/json',
           data: JSON.stringify(payload),
