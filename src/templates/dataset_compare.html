@@ -88,72 +88,125 @@
                                             General Information</th>
                                     </tr>
 
+                                    <tr>
+                                        <td>ID</td>
+                                        {% if datasets %}
+                                        {% for dataset in datasets %}
+                                        <td class="text-center">
+                                            <div class="p text-wrap">
+                                                {{dataset.get('id','Not specified')}}
+                                                <button class="btn px-2 py-1  btn-secondary-outline btn-pill btn-sm"
+                                                    onclick="copyToClipboard('{{dataset.get('id','Not specified')}}')">
+                                                    Copy
+                                                </button>
+                                            </div>
+                                        </td>
+                                        {% endfor %}
+                                        {% endif %}
+                                    </tr>
+                                    <script>
+                                        function copyToClipboard(text) {
+                                            navigator.clipboard.writeText(text).then(function () {
+
+                                            }, function (err) {
+                                                console.error('Could not copy text: ', err);
+                                            });
+                                        }
+                                    </script>
+                                    <tr>
+                                        <td>Title</td>
+                                        {% if datasets %}
+                                        {% for dataset in datasets %}
+                                        <td class="text-center">
+                                            <div class="p text-wrap">
+                                                {{dataset.get('title','Not specified')}}
+                                            </div>
+                                        </td>
+                                        {% endfor %}
+                                        {% endif %}
+                                    </tr>
+                                    <tr>
+                                        <td>Organization</td>
+                                        {% if datasets %}
+                                        {% for dataset in datasets %}
+                                        <td class="text-center fw-bold">
+                                            <div class="p text-wrap">
+
+                                                {{dataset.get('organization')}}
+                                            </div>
+                                        </td>
+                                        {% endfor %}
+                                        {% endif %}
+                                    </tr>
 
                                     <tr>
-                                        <td>Some info about feature</td>
-                                        <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/check -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-green" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M5 12l5 5l10 -10" />
-                                            </svg>
+                                        <td>Creator</td>
+                                        {% if datasets %}
+                                        {% for dataset in datasets %}
+                                        <td class="text-center fw-bold">
+                                            <div class="p text-wrap">
+                                                {{dataset.get('author','Not specified')}}
+                                            </div>
                                         </td>
-                                        <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/check -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-green" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M5 12l5 5l10 -10" />
-                                            </svg>
-                                        </td>
+                                        {% endfor %}
+                                        {% endif %}
                                     </tr>
                                     <tr>
-                                        <td>Online payment gateway</td>
+                                        <td>Type</td>
+                                        {% if datasets %}
+                                        {% for dataset in datasets %}
                                         <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/x -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-red" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M18 6l-12 12" />
-                                                <path d="M6 6l12 12" />
-                                            </svg>
+                                            {% if dataset.get('type') == 'dataset' %}
+                                            <span class="badge my-3 bg-blue-lt">DATASET</span>
+                                            {% else %}
+                                            <span class="badge my-3 bg-purple-lt">WORKFLOW</span>
+                                            {% endif %}
                                         </td>
-                                        <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/check -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-green" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M5 12l5 5l10 -10" />
-                                            </svg>
-                                        </td>
+                                        {% endfor %}
+                                        {% endif %}
                                     </tr>
                                     <tr>
-                                        <td>Unlimited products can be sold</td>
-                                        <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/x -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-red" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M18 6l-12 12" />
-                                                <path d="M6 6l12 12" />
-                                            </svg>
+                                        <td>Description</td>
+                                        {% if datasets %}
+                                        {% for dataset in datasets %}
+                                        <td class="text-left w-25">
+                                            <div class="p text-wrap small">
+                                                <em>{{dataset.get('notes','Not specified')}}</em>
+                                            </div>
                                         </td>
+                                        {% endfor %}
+                                        {% endif %}
+                                    </tr>
+                                    <tr>
+                                        <td>Tags</td>
+                                        {% if datasets %}
+                                        {% set tag_counts = {} %}
+                                        {% for dataset in datasets %}
+                                        {% for tag in dataset.get('tags') %}
+                                        {% set tag_name = tag.get('display_name') %}
+                                        {% set tag_counts = tag_counts.update({tag_name: tag_counts.get(tag_name, 0) +
+                                        1}) or tag_counts %}
+                                        {% endfor %}
+                                        {% endfor %}
+                                        {% set colors = ['text-blue', 'text-green', 'text-danger', 'text-yellow',
+                                        'text-primary', 'text-pink', 'text-orange'] %}
+                                        {% set all_tags = {} %}
+                                        {% for tag, count in tag_counts.items() %}
+                                        {% if count > 1 %}
+                                        {% set all_tags = all_tags.update({tag: colors[loop.index0 % colors|length]}) or
+                                        all_tags %}
+                                        {% endif %}
+                                        {% endfor %}
+                                        {% for dataset in datasets %}
                                         <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/x -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-red" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M18 6l-12 12" />
-                                                <path d="M6 6l12 12" />
-                                            </svg>
+                                            {% for tag in dataset.get('tags') %}
+                                            {% set tag_name = tag.get('display_name') %}
+                                            <span class="tag m-1 mb-0 {{ all_tags.get(tag_name, '') }}">{{ tag_name
+                                                }}</span><br>
+                                            {% endfor %}
                                         </td>
+                                        {% endfor %}
+                                        {% endif %}
                                     </tr>
                                     <tr class="bg-light">
                                         <th colspan="{% if datasets %}{{ datasets|length + 1 }}{% endif %}"
@@ -161,46 +214,25 @@
                                             Resources</th>
                                     </tr>
                                     <tr>
-                                        <td>Free hosting and domain name</td>
-                                        <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/check -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-green" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M5 12l5 5l10 -10" />
-                                            </svg>
+                                        <td>Formats</td>
+                                        {% if datasets %}
+                                        {% for dataset in datasets %}
+                                        <td>
+
                                         </td>
-                                        <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/check -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-green" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M5 12l5 5l10 -10" />
-                                            </svg>
-                                        </td>
+                                        {% endfor %}
+                                        {% endif %}
                                     </tr>
                                     <tr>
-                                        <td>Admin dashboard to control items</td>
-                                        <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/check -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-green" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M5 12l5 5l10 -10" />
-                                            </svg>
+                                        <td>Relations</td>
+                                        {% if datasets %}
+                                        {% for dataset in datasets %}
+                                        <td>
+
                                         </td>
-                                        <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/check -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-green" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M5 12l5 5l10 -10" />
-                                            </svg>
-                                        </td>
+                                        {% endfor %}
+                                        {% endif %}
+
                                     </tr>
                                     <tr class="bg-light">
                                         <th colspan="{% if datasets %}{{ datasets|length + 1 }}{% endif %}"
@@ -208,61 +240,41 @@
                                             Spatial, Temporal & Profiles</th>
                                     </tr>
                                     <tr>
-                                        <td>Email marketing and service</td>
-                                        <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/x -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-red" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M18 6l-12 12" />
-                                                <path d="M6 6l12 12" />
-                                            </svg>
+                                        <td>Spatial Coverage</td>
+                                        {% if datasets %}
+                                        {% for dataset in datasets %}
+                                        <td>
+
                                         </td>
-                                        <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/x -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-red" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M18 6l-12 12" />
-                                                <path d="M6 6l12 12" />
-                                            </svg>
-                                        </td>
+                                        {% endfor %}
+                                        {% endif %}
+
+
+
                                     </tr>
                                     <tr>
-                                        <td>24/7 customer support online</td>
-                                        <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/x -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-red" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M18 6l-12 12" />
-                                                <path d="M6 6l12 12" />
-                                            </svg>
+                                        <td>Temporal Coverage</td>
+                                        {% if datasets %}
+                                        {% for dataset in datasets %}
+                                        <td>
+
                                         </td>
-                                        <td class="text-center">
-                                            <!-- Download SVG icon from http://tabler-icons.io/i/check -->
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-green" width="24"
-                                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M5 12l5 5l10 -10" />
-                                            </svg>
-                                        </td>
+                                        {% endfor %}
+                                        {% endif %}
+
 
                                     </tr>
                                 </tbody>
                                 <tfoot>
                                     <tr>
-                                        <td></td>
+                                        <td>Profiling</td>
+                                        {% if datasets %}
+                                        {% for dataset in datasets %}
                                         <td>
-                                            <a href="#" class="btn w-100">Open Available Profiles</a>
+                                            <a class="btn w-100">Open Available Profiles</a>
                                         </td>
-                                        <td>
-                                            <a href="#" class="btn w-100">Open Available Profiles</a>
-                                        </td>
+                                        {% endfor %}
+                                        {% endif %}
                                     </tr>
                                 </tfoot>
                             </table>
