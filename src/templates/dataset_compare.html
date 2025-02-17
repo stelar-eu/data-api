@@ -293,6 +293,50 @@
                                         {% if datasets %}
                                         {% for dataset in datasets %}
                                         <td>
+                                            <div id="chart{{ loop.index }}" style="height: 100px;"></div>
+                                            <script>
+                                                var options{{ loop.index }} = {
+                                                    series: [{
+                                                        data: [{
+                                                            x: 'Coverage',
+                                                            y: [new Date('2024-01-01').getTime(), new Date('2025-01-01').getTime()]
+                                                        }]
+                                                    }],
+                                                        chart: {
+                                                        height: 100,
+                                                            type: 'rangeBar',
+                                                                zoom: {
+                                                            enabled: true
+                                                        }
+                                                    },
+                                                    colors: ['#3f1757'],
+                                                        plotOptions: {
+                                                        bar: {
+                                                            horizontal: true
+                                                        }
+                                                    },
+                                                    xaxis: {
+                                                        type: 'datetime'
+                                                    },
+                                                    
+                                                    grid: {
+                                                        xaxis: {
+                                                            lines: {
+                                                                show: true
+                                                            }
+                                                        },
+                                                        yaxis: {
+                                                            lines: {
+                                                                show: false
+                                                            }
+                                                        }
+                                                    }
+                                                };
+
+                                                var chart{{ loop.index }} = new ApexCharts(document.querySelector("#chart{{ loop.index }}"), options{{ loop.index }});
+                                                chart{{loop.index}}.render();
+                                            </script>
+
 
                                         </td>
                                         {% endfor %}
