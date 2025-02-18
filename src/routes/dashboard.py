@@ -414,6 +414,13 @@ def datasets(page_number=None):
         )
 
 
+@dashboard_bp.route("/tools", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+def tools():
+    return render_template_with_s3("tools.html", PARTNER_IMAGE_SRC=get_partner_logo())
+
+
 @dashboard_bp.route("/datasets/compare", methods=["GET"])
 @dashboard_bp.doc(False)
 @session_required
