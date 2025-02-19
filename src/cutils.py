@@ -6,6 +6,8 @@ from datetime import datetime
 from typing import Optional
 
 import requests
+from apiflask import Schema, fields, validators
+from marshmallow import EXCLUDE, INCLUDE
 
 import schema
 import utils
@@ -13,9 +15,12 @@ from backend.ckan import ckan_request, request
 from entity import (
     AnyCapacity,
     CKANEntity,
+    EntityWithExtrasCKANSchema,
     EntityWithMembers,
     MemberEntity,
+    PackageCKANSchema,
     PackageEntity,
+    PackageSchema,
 )
 from routes.users import api_user_editor
 
@@ -610,43 +615,170 @@ def delete_resource(id: str):
 
 # ------------------------------------------------------------
 #  Generic stuff
+#  STELAR Catalog Entities
 # ------------------------------------------------------------
 
 
 # ------------------------------------------------------------
-#  STELAR Entities
+# Dataset and Resources
 # ------------------------------------------------------------
+
+
+class DatasetSchema(PackageSchema):
+    pass
+
+
+class DatasetCKANSchema(PackageCKANSchema):
+    pass
+
 
 DATASET = PackageEntity(
     "dataset",
     "datasets",
-    creation_schema=schema.DatasetSchema(),
-    update_schema=schema.DatasetSchema(partial=True),
+    creation_schema=DatasetSchema(),
+    update_schema=DatasetSchema(partial=True),
     package_type="dataset",
+    ckan_schema=DatasetCKANSchema(),
 )
+
+
+class ResourceSchema(Schema):
+    id = fields.UUID(dump_only=True)
+    created = fields.DateTime(dump_only=True)
+    last_modified = fields.DateTime(dump_only=True, allow_none=True)
+    package_id = fields.UUID(required=True)
+
+    url = fields.String(allow_none=True)
+    format = fields.String(allow_none=True)
+    name = fields.String(allow_none=True)
+    description = fields.String(allow_none=True)
+    resource_type = fields.String(
+        validate=validators.OneOf(["file", "api", "service"]), allow_none=True
+    )
+    hash = fields.String(allow_none=True)
+    size = fields.Integer(allow_none=True)
+    mimetype = fields.String(allow_none=True)
+    mimetype_inner = fields.String(allow_none=True)
+    cache_url = fields.String(allow_none=True)
+    cache_last_updated = fields.DateTime(allow_none=True)
+
+    # extra = fields.Dict(required=False, allow_none=True)
+
+    class Meta:
+        unknown = INCLUDE
+
+
+class ResourceCKANSchema(Schema):
+    id = fields.String()
+    created = fields.DateTime(load_only=True)
+    last_modified = fields.DateTime(load_only=True)
+
+    package_id = fields.String()
+
+    url = fields.String(allow_none=True)
+    format = fields.String(allow_none=True)
+    name = fields.String(allow_none=True)
+    description = fields.String(allow_none=True)
+    resource_type = fields.String(allow_none=True)
+    hash = fields.String(allow_none=True)
+    size = fields.Integer(allow_none=True)
+    mimetype = fields.String(allow_none=True)
+    mimetype_inner = fields.String(allow_none=True)
+    cache_url = fields.String(allow_none=True)
+    cache_last_updated = fields.DateTime(allow_none=True)
+
+    class Meta:
+        unknown = INCLUDE
+
 
 RESOURCE = CKANEntity(
     "resource",
     "resources",
-    schema.ResourceCreationRequest,
-    schema.ResourceUpdateRequest,
+    ResourceSchema(),
+    ResourceSchema(partial=True),
     ckan_name="resource",
-    extras=False,
+    ckan_schema=ResourceCKANSchema,
 )
+
+
+# ------------------------------------------------------------
+# Groups and Organizations
+# ------------------------------------------------------------
+
+
+class GroupSchema(Schema):
+    id = fields.UUID(dump_only=True)
+    name = schema.NameID()
+    created = fields.DateTime(dump_only=True)
+    state = fields.String(
+        required=False, validate=validators.OneOf(["draft", "active", "deleted"])
+    )
+
+    title = fields.String()
+    description = fields.String()
+    image_url = fields.String()
+    type = fields.String(validate=validators.OneOf(["group", "organization"]))
+    approval_status = fields.String(
+        validate=validators.OneOf(["approved", "pending", "rejected"]),
+    )
+
+    is_organization = fields.Boolean(dump_only=True)
+
+    # It seems that Groups and Organizations do not support tags, and furthermore,
+    # the CKAN decision was to drop them altogether from groups and organizations
+    #
+    # https://github.com/ckan/ckan/issues/4388
+    #
+    # tags = List(String, required=False)
+
+    extras = fields.Dict(required=False)
+
+
+class OrganizationSchema(GroupSchema):
+    pass
+
+
+class EntityWithMembersCKANSchema(EntityWithExtrasCKANSchema):
+    id = fields.String()
+    name = schema.NameID()
+    created = fields.DateTime(load_only=True)
+    state = fields.String()
+
+    title = fields.String(allow_none=True)
+    description = fields.String(allow_none=True)
+    image_url = fields.String(allow_none=True)
+    type = fields.String()
+    approval_status = fields.String()
+
+    is_organization = fields.Boolean(load_only=True)
+
+    # It seems that Groups and Organizations do not support tags, and furthermore,
+    # the CKAN decision was to drop them altogether from groups and organizations
+    #
+    # https://github.com/ckan/ckan/issues/4388
+    #
+    # tags = List(String, required=False)
+
+    class Meta:
+        unknown = EXCLUDE
 
 
 GROUP = EntityWithMembers(
     "group",
     "groups",
-    schema.GroupSchema(),
-    schema.GroupSchema(partial=True),
+    GroupSchema(),
+    GroupSchema(partial=True),
+    ckan_name="group",
+    ckan_schema=EntityWithMembersCKANSchema(),
 )
 
 ORGANIZATION = EntityWithMembers(
     "organization",
     "organizations",
-    schema.OrganizationSchema(),
-    schema.OrganizationSchema(partial=True),
+    OrganizationSchema(),
+    OrganizationSchema(partial=True),
+    ckan_name="organization",
+    ckan_schema=EntityWithMembersCKANSchema(),
 )
 
 GROUP.members = [
@@ -662,14 +794,35 @@ ORGANIZATION.members = [
 ]
 
 
+# ------------------------------------------------------------
+# Tags and Vocabulary
+# ------------------------------------------------------------
+
+
+class VocabularySchema(Schema):
+    id = fields.UUID(dump_only=True)
+    name = schema.NameID()
+    tags = fields.List(fields.String, required=True)
+
+
+class VocabularyCKANSchema(Schema):
+    id = fields.String()
+    name = schema.NameID()
+    tags = fields.List(fields.String)
+
+    class Meta:
+        unknown = EXCLUDE
+
+
 class VocabularyEntity(CKANEntity):
     def __init__(self):
         super().__init__(
             "vocabulary",
             "vocabularies",
-            schema.VocabularyCreationRequest,
-            schema.VocabularyUpdateRequest,
-            extras=False,
+            VocabularySchema(),
+            VocabularySchema(partial=True),
+            ckan_name="vocabulary",
+            ckan_schema=VocabularyCKANSchema(),
         )
         self.operations.remove("patch")
 
@@ -686,6 +839,22 @@ class VocabularyEntity(CKANEntity):
 
 VOCABULARY = VocabularyEntity()
 
-TAG = CKANEntity("tag", "tags", schema.TagCreationRequest, None, extras=False)
 
-# MEMBER = Entity("member", "members", schema.MemberCreationRequest, None)
+class TagSchema(Schema):
+    id = fields.UUID(dump_only=True)
+    name = schema.NameID()
+    vocabulary_id = fields.String(required=True)
+
+
+class TagCKANSchema(Schema):
+    id = fields.String()
+    name = schema.NameID()
+    vocabulary_id = fields.String()
+
+    class Meta:
+        unknown = EXCLUDE
+
+
+TAG = CKANEntity(
+    "tag", "tags", TagSchema(), None, ckan_name="tag", ckan_schema=TagCKANSchema()
+)

@@ -4,6 +4,7 @@ from apiflask import APIBlueprint
 from flask import request
 
 import schema
+import tools
 import wxutils
 from auth import token_active
 
@@ -22,7 +23,7 @@ workflows_bp = APIBlueprint(
 
 logger.info(f"Generating endpoints for process")
 generate_endpoints(wxutils.PROCESS, workflows_bp, logger)
-
+generate_endpoints(tools.TOOL, workflows_bp, logger)
 
 # @workflows_bp.route("/workflows/<workflow_id>/tasks", methods=["GET"])
 

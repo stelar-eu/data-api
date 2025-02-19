@@ -329,7 +329,7 @@ class ProcessEntity(PackageEntity):
                 package_creation_req[pattr] = attributes[pattr]
 
         # This will raise on failure
-        package_creation_req = super().save_to_ckan(package_creation_req)
+        package_creation_req = self.create_to_ckan(package_creation_req)
         package = ckan_request(
             "package_create", json=package_creation_req, context={"entity": "process"}
         )
@@ -340,7 +340,7 @@ class ProcessEntity(PackageEntity):
 
         # Now, try to create the process in the database
         try:
-            response = sql_utils.workflow_execution_create(
+            sql_utils.workflow_execution_create(
                 package_id,
                 start_date,
                 exec_state,
@@ -480,7 +480,7 @@ class ProcessEntity(PackageEntity):
         ]
     )
 
-    def patch_entity(self, id, patch_attr):
+    def patch_entity(self, id: str, patch_attr):
         # Get the process
         process = self.get_entity(id)
 
@@ -537,7 +537,7 @@ class ProcessEntity(PackageEntity):
                         detail={attr: {"error": "Attribute not recognized."}},
                     )
 
-        ckan_patch = self.save_to_ckan(ckan_patch)
+        ckan_patch = self.update_to_ckan(ckan_patch, id)
 
         new_package = ckan_request(
             "package_patch", json=ckan_patch, context={"entity": "process"}, id=id
@@ -569,6 +569,18 @@ class ProcessEntity(PackageEntity):
         ckan_request("package_delete", id=id)
         # TODO: Mark the process as deleted with a tag or something...
 
+    def set_exec_state(self, id, state):
+        process = self.get_entity(id)
+        if process["exec_state"] == state:
+            return
+        if process["exec_state"] == "running" and state in ["failed", "succeeded"]:
+            end_date = datetime.now()
+            sql_utils.workflow_execution_update(id, state, end_date)
+        else:
+            raise ConflictError(
+                "Exec state can only change from running to failed or succeeded."
+            )
+
 
 # ------------------------------------------
 #
@@ -587,23 +599,11 @@ def get_workflow_process(workflow_id):
     Provides the metadata for a workflow process, including the state, start and end time, and the tags. The metadata is used to monitor the progress of a workflow process.
 
     Args:
-        workflow_id: The unique identifier of the workflow process.
+        process_id: The unique identifier of the workflow process.
     Returns:
         A JSON with the metadata for the specified workflow process.
     """
-    if not is_valid_uuid(workflow_id):
-        raise AttributeError("Invalid Workflow ID provided.")
-
-    try:
-        w = sql_utils.workflow_execution_read(workflow_id)
-        if w:
-            return w
-        else:
-            raise ValueError("Workflow does not exist.")
-    except ValueError:
-        raise
-    except Exception as e:
-        raise RuntimeError(f"Workflow Process Could Not Be Retrieved. {e}")
+    PROCESS.get_entity(workflow_id)
 
 
 def get_workflow_tasks(workflow_id):
@@ -617,61 +617,16 @@ def get_workflow_tasks(workflow_id):
         ValueError: If the workflow does not exist.
         RuntimeError: If the tasks could not be retrieved.
     """
-    if not workflow_id:
-        raise AttributeError("Workflow ID is required.")
-
-    if not is_valid_uuid(workflow_id):
-        raise AttributeError("Invalid Workflow ID provided.")
-
     if sql_utils.workflow_execution_read(workflow_id) is None:
-        raise ValueError("Workflow does not exist.")
+        raise NotFoundError("Workflow does not exist.", workflow_id)
 
-    try:
-        response = sql_utils.workflow_get_tasks(workflow_id)
-        return response if response else []
-
-    except Exception as e:
-        raise RuntimeError(f"Workflow Tasks Could Not Be Retrieved. {e}")
-
-
-def update_workflow_state(workflow_id, state):
-    """Update the state of a workflow process.
-
-    If the state is 'failed' or 'succeeded', the end date is also updated to the current time.
-
-    Args:
-        workflow_id: The unique identifier of the workflow process.
-        state: The new state of the workflow process. ('running', 'failed', 'succeeded')
-    Returns:
-        A boolean value indicating whether the state was successfully updated.
-    Raises:
-    """
-    if not workflow_id:
-        raise AttributeError("Workflow ID is required.")
-
-    try:
-        if get_workflow_process(workflow_id) is None:
-            raise ValueError("Workflow does not exist.")
-
-        if state in ["failed", "succeeded"]:
-            end_date = datetime.now().isoformat()
-            response = sql_utils.workflow_execution_update(workflow_id, state, end_date)
-            if not response:
-                return False
-        else:
-            response = sql_utils.workflow_execution_update(
-                workflow_id, state, "1970-01-01 00:00:01"
-            )
-            if not response:
-                return False
-
-        return True, state
-    except Exception as e:
-        raise RuntimeError(f"Workflow State Could Not Be Updated. {e}")
+    return sql_utils.workflow_get_tasks(workflow_id)
 
 
 def update_task_state(task_id, state):
-    """Update the state of a task. If the state is 'failed' or 'succeeded', the end date is also updated to the current time.
+    """Update the state of a task. If the state is
+    'failed' or 'succeeded', the end date is also updated
+    to the current time.
 
     Args:
         task_id: The unique identifier of the workflow process.
@@ -708,24 +663,10 @@ def delete_workflow_process(workflow_id):
     """Delete a workflow process.
     Args:
         workflow_id: The unique identifier of the workflow process.
-    Returns:
-        A boolean value indicating whether the workflow process was successfully deleted.
     Raises:
         RuntimeError: If the workflow process could not be deleted.
     """
-    try:
-        if not is_valid_uuid(workflow_id):
-            raise AttributeError("Invalid Workflow ID provided.")
-
-        if sql_utils.workflow_execution_read(workflow_id) is None:
-            raise ValueError("Workflow does not exist.")
-
-        response = sql_utils.workflow_execution_delete(workflow_id)
-        if not response:
-            return False
-        return True
-    except Exception as e:
-        raise RuntimeError(f"Workflow Process Could Not Be Deleted. {e}")
+    PROCESS.delete_entity(workflow_id)
 
 
 def create_task(json_data, token):
@@ -1193,9 +1134,6 @@ def get_task_input_json(
                 }
             else:
                 result = {
-                    "input": input_paths,
-                    "parameters": parameters,
-                    "minio": {"endpoint_url": config["MINIO_API_EXT_URL"]},
                     "input": input_paths,
                     "parameters": parameters,
                     "minio": {"endpoint_url": config["MINIO_API_EXT_URL"]},

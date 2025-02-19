@@ -20,11 +20,12 @@ import re
 from typing import TYPE_CHECKING, Optional
 
 from apiflask import Schema, fields, validators
-from marshmallow import EXCLUDE, post_dump, pre_load
+from marshmallow import EXCLUDE, SchemaOpts, post_dump, pre_load
+from psycopg2 import sql
 
 import schema
 from backend.ckan import ckan_request, filter_list_by_type
-from backend.pgsql import execSql
+from backend.pgsql import execSql, transaction
 from exceptions import DataError
 from tags import tag_object_to_string, tag_string_to_object
 
@@ -99,9 +100,8 @@ class CKANEntity(Entity):
     def __init__(
         self,
         *args,
-        ckan_name: str = None,
-        extras: bool = True,
-        ckan_schema: Schema = None,
+        ckan_name: str,
+        ckan_schema: Schema,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -121,74 +121,26 @@ class CKANEntity(Entity):
             # Note: it is ok for ckan_schema to be None
             self.ckan_schema = ckan_schema
 
-        self.has_extras = bool(extras)
+        self.has_extras = False
+
         # Only packages have tags!
         self.has_tags = self.ckan_name == "package"
 
-    def save_tags_to_ckan(self, tags: list[str]) -> list[dict]:
-        tagobjlist = []
-        for tag in tags:
-            try:
-                tagobj = tag_string_to_object(tag)
-            except ValueError as e:
-                detail = {
-                    "tagspec": tag,
-                    "value_error": " ".join(str(arg) for arg in e.args),
-                }
-                raise DataError(*e.args, detail=detail)
-            tagobjlist.append(tagobj)
-        return tagobjlist
-
-    def load_tags_from_ckan(self, tags: list[dict]) -> list[str]:
-        return [tag_object_to_string(tagobj) for tagobj in tags]
-
-    def save_extras_to_ckan(self, extras: dict) -> list[dict]:
-        """Restructure a dict into the CKAN format"""
-        extras_list = []
-        for k, v in extras.items():
-            sv = json.dumps(v)
-            extras_list.append({"key": k, "value": sv})
-        return extras_list
-
-    def load_extras_from_ckan(self, extras: list[dict]) -> dict:
-        """Restructure the CKAN extras into a dict"""
-        edict = dict()
-        for e in extras:
-            try:
-                val = json.loads(e["value"])
-            except json.JSONDecodeError:
-                val = e["value"]
-            edict[e["key"]] = val
-        return edict
-
-    def save_to_ckan(self, init_data):
+    def create_to_ckan(self, init_data):
         """Convert the data to the CKAN format.
 
         The CKAN format is a JSON object with the following structure:
         """
-        if self.ckan_schema is not None:
-            init_data = self.ckan_schema.dump(init_data)
-        else:
-            if self.has_extras and "extras" in init_data:
-                init_data["extras"] = self.save_extras_to_ckan(init_data["extras"])
-
-            if self.has_tags and "tags" in init_data:
-                tags = init_data["tags"]
-                init_data["tags"] = self.save_tags_to_ckan(tags)
-
+        init_data = self.ckan_schema.dump(init_data)
         return init_data
+
+    def update_to_ckan(self, update_data, current_obj):
+        """Convert the data to the CKAN format for updating."""
+        return self.create_to_ckan(update_data)
 
     def load_from_ckan(self, ci):
         """Convert the data from the CKAN format."""
-        if self.ckan_schema is not None:
-            ci = self.ckan_schema.load(ci)
-        else:
-            if self.has_tags and "tags" in ci:
-                ci["tags"] = self.load_tags_from_ckan(ci["tags"])
-
-            if self.has_extras and "extras" in ci:
-                ci["extras"] = self.load_extras_from_ckan(ci["extras"])
-
+        ci = self.ckan_schema.load(ci)
         return ci
 
     @staticmethod
@@ -212,14 +164,31 @@ class CKANEntity(Entity):
             ents.append(e)
         return ents
 
-    def get_entity(self, eid: str):
+    def read_entity(self, eid: str):
+        """Read an entity from CKAN. This method bypasses any authorization checks."""
         obj = ckan_request(self.ckan_api_show, id=eid, context={"entity": self.name})
         return self.load_from_ckan(obj)
 
+    def get_entity(self, eid: str):
+        """Get an entity from CKAN.
+
+        This method implements the GET endpoint for the entity, including authorizing the request.
+
+        Arguments:
+            eid: the ID of the entity to get
+        Returns:
+            the entity object
+        """
+        return self.read_entity(eid)
+
     def create_entity(self, init_data):
+        """Create an entity in CKAN.
+
+        This method implements the POST endpoint for the entity, including authorizing the request.
+        """
         context = {"entity": self.name}
 
-        ckinit_data = self.save_to_ckan(init_data)
+        ckinit_data = self.create_to_ckan(init_data)
 
         obj = ckan_request(self.ckan_api_create, context=context, json=ckinit_data)
         logger.info("Created %s id=%s", self.name, obj["id"])
@@ -235,7 +204,8 @@ class CKANEntity(Entity):
     def update_entity(self, eid: str, entity_data):
         context = {"entity": self.name}
 
-        ck_data = self.save_to_ckan(entity_data)
+        # Convert to CKAN properly
+        ck_data = self.update_to_ckan(entity_data, eid)
 
         obj = ckan_request(self.ckan_api_update, id=eid, context=context, json=ck_data)
         return self.load_from_ckan(obj)
@@ -243,7 +213,7 @@ class CKANEntity(Entity):
     def patch_entity(self, eid: str, patch_data):
         context = {"entity": self.name}
 
-        ckpatch_data = self.save_to_ckan(patch_data)
+        ckpatch_data = self.update_to_ckan(patch_data, eid)
 
         obj = ckan_request(
             self.ckan_api_patch, id=eid, context=context, json=ckpatch_data
@@ -289,6 +259,179 @@ UserOrgCapacity = create_capacity_schema(
 )
 
 
+def db_fetch_entity_extras(eid: str, table: str):
+    """Fetch the extras for an entity from the database.
+
+    Arguments:
+        eid: the ID of the entity
+        table: the name of the table to fetch from. This should be
+            either 'package' or 'group'
+    Returns:
+        a dictionary with all the extras
+    """
+    with transaction() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                sql.SQL("SELECT key, value FROM {table} WHERE {eid} = %s").format(
+                    table=sql.Identifier(f"{table}_extra"),
+                    eid=sql.Identifier(f"{table}_id"),
+                ),
+                [eid],
+            )
+            extras = {row[0]: row[1] for row in cur}
+    return extras
+
+
+class EntityWithExtras(CKANEntity):
+    """This class treats CKAN entities which have extras.
+
+    This includes package-derived entities, and group-derived entities.
+    Such entities are allowed to have additional attributes, defined at
+    the schema level, but saved in the 'extras' field in CKAN.
+
+    This class encapsulates the logic for handling these additional
+    attributes. In particular, it provides methods to fold and unfold
+    these attributes into the 'extras' field when saving and loading.
+    """
+
+    def __init__(self, *args, extras_table: str, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.has_extras = True
+        self.extras_table = extras_table
+
+    def provide_extras_for_update(self, update_data, current_obj):
+        # Here, we check if we need to provide the full 'extras' object for
+        # proper merging. This is needed when either an 'extras' field, or
+        # any of the 'extra_attributes' is provided.
+
+        extras_present = "extras" in update_data
+
+        if extras_present or any(
+            attr in update_data for attr in self.ckan_schema.opts.extra_attributes
+        ):
+            # Fetch the full 'extras' object directly from the database
+            curextras = db_fetch_entity_extras(current_obj, self.extras_table)
+
+            # Add the curextras object to the update data
+            update_extras = update_data.setdefault("extras", {})
+            # Note that we are purposely using a name with spaces...
+            update_extras["current extras object"] = curextras
+            update_extras["extras update present"] = extras_present
+
+    def update_to_ckan(self, update_data, current_obj):
+        if self.ckan_schema is not None:
+            # We may need to 'instrument' our update data before dumping
+            # can be done
+            if self.ckan_schema.opts.extra_attributes:
+                self.provide_extras_for_update(update_data, current_obj)
+
+            update_data = self.ckan_schema.dump(update_data)
+            return update_data
+        else:
+            return super().update_to_ckan(update_data, current_obj)
+
+
+class CKANEntityOptions(SchemaOpts):
+    def __init__(self, meta, **kwargs):
+        super().__init__(meta, **kwargs)
+        self.extra_attributes = getattr(meta, "extra_attributes", [])
+
+
+class EntityWithExtrasCKANSchema(Schema):
+    """The back-end (CKAN) schema for entities with extras.
+
+    This schema is used as a base class to handle additional attributes.
+    """
+
+    OPTIONS_CLASS = CKANEntityOptions
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    # -------------------------------------------------------
+    # The 'extras' field is a dictionary of key-value pairs.
+    # We declare it here; subclasses should not declare it.
+    #
+
+    extras = fields.Dict()
+
+    #
+    # -------------------------------------------------------
+
+    def fold_fields(self, data: dict):
+        """This method is called at dumping (to CKAN) to fold named
+        extra fields into the 'extras' field.
+        """
+        extras = data.get("extras", None)
+        attrs = {
+            attr: data[attr] for attr in self.opts.extra_attributes if attr in data
+        }
+
+        if (not attrs) and extras is None:
+            return
+
+        # Serialize the actual extras, attributes have already been
+        # serialized.
+        for k, v in extras.items():
+            extras[k] = json.dumps(v)
+
+        # We could have an 'instrumented' extras object
+        if "current extras object" in extras:
+            current_extras = extras.pop("current extras object")
+            extras_present = extras.pop("extras update present")
+
+            if extras_present:
+                curattrs = {
+                    attr: current_extras[attr]
+                    for attr in self.opts.extra_attributes
+                    if attr in current_extras
+                }
+                extras = extras | (curattrs | attrs)
+            else:
+                extras = current_extras | attrs
+
+        data["extras"] = extras
+
+    def unfold_fields(self, data: dict):
+        """This method is called at loading (from CKAN) to unfold the
+        named extra fields from the 'extras' field.
+        """
+
+        # This will raise if the 'extras' field is not present, but that's ok...
+        extras = data["extras"]
+
+        if self.opts.extra_attributes:
+            for attr in self.opts.extra_attributes:
+                if attr in extras:
+                    data[attr] = extras.pop(attr)
+
+        # deserialize the actual extras
+        for k, v in extras.items():
+            extras[k] = json.loads(v)
+
+    @pre_load
+    def load_extras(self, data, **kwargs):
+        # Process the extras
+        extras = data.get("extras", [])
+        data["extras"] = {e["key"]: e["value"] for e in extras}
+        self.unfold_fields(data)
+        return data
+
+    @post_dump
+    def dump_extras(self, data, **kwargs):
+        # Process the extras
+        #
+        # TODO: The folding needs access to the current object, to be
+        # done properly...
+        #
+        self.fold_fields(data)
+        extras = data.get("extras", None)
+        if extras is not None:
+            data["extras"] = [{"key": k, "value": v} for k, v in extras.items()]
+        return data
+
+
 class MemberEntity:
     """This class customizes membership in entities with members.
 
@@ -331,7 +474,7 @@ class MemberEntity:
         )
 
 
-class EntityWithMembers(CKANEntity):
+class EntityWithMembers(EntityWithExtras):
     """This class treats CKAN entities which have members.
 
     This includes groups and organizations as well as any custom types derived
@@ -339,12 +482,12 @@ class EntityWithMembers(CKANEntity):
     """
 
     def __init__(self, *args, members: list[MemberEntity] = [], **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, extras_table="group", **kwargs)
         self.members = members
         for m in self.members:
             m.parent = self
 
-    def get_entity(self, eid: str):
+    def read_entity(self, eid: str):
         #
         # Because of a bug in CKAN code, getting CKAN groups and orgs fails (CKAN returns 'internal error')
         # when there are cycles between groups. To ameliorate this, we need to pass the 'include_groups=False'
@@ -421,7 +564,7 @@ class EntityWithMembers(CKANEntity):
         )
 
 
-class PackageEntity(CKANEntity):
+class PackageEntity(EntityWithExtras):
     """CKAN Entities based on packages.
 
     These entities all have a package_type.
@@ -433,7 +576,7 @@ class PackageEntity(CKANEntity):
     """
 
     def __init__(self, *args, package_type: str, **kwargs):
-        super().__init__(*args, ckan_name="package", **kwargs)
+        super().__init__(*args, extras_table="package", ckan_name="package", **kwargs)
         self.package_type = package_type
         self.ckan_api_purge = "dataset_purge"
 
@@ -491,7 +634,8 @@ class TagList(fields.Field):
             return None
         return self.load_tags_from_ckan(value)
 
-    def save_tags_to_ckan(self, tags: list[str]) -> list[dict]:
+    @staticmethod
+    def save_tags_to_ckan(tags: list[str]) -> list[dict]:
         tagobjlist = []
         for tag in tags:
             try:
@@ -505,13 +649,48 @@ class TagList(fields.Field):
             tagobjlist.append(tagobj)
         return tagobjlist
 
-    def load_tags_from_ckan(self, tags: list[dict]) -> list[str]:
+    @staticmethod
+    def load_tags_from_ckan(tags: list[dict]) -> list[str]:
         return [tag_object_to_string(tagobj) for tagobj in tags]
 
 
-class PackageCKANSchema(Schema):
-    # This schema is used to filter and transform the data to and from CKAN.
-    # Validation is not performed here.
+class PackageSchema(Schema):
+    """The front-end (API) schema for package-based entities"""
+
+    id = fields.UUID(dump_only=True)
+    metadata_created = fields.DateTime(dump_only=True)
+    metadata_modified = fields.DateTime(dump_only=True)
+    creator_user_id = fields.String(dump_only=True)
+
+    state = fields.String(validate=validators.OneOf(["active", "deleted"]))
+    type = fields.String(validate=validators.Equal("dataset"))
+    name = schema.NameID()
+    owner_org = fields.String(required=True)
+    # By default, dataset metadata will be publicly available
+    private = fields.Boolean(load_default=False)
+
+    title = fields.String(allow_none=True)
+    author = fields.String(allow_none=True)
+    author_email = fields.String(allow_none=True)
+    maintainer = fields.String(allow_none=True)
+    maintainer_email = fields.String(allow_none=True)
+    notes = fields.String(validate=validators.Length(0, 10000), allow_none=True)
+    # Note: making this a URL would force checks that might fail
+    url = fields.String(validate=validators.Length(0, 200), allow_none=True)
+    version = fields.String(validate=validators.Length(0, 100), allow_none=True)
+
+    resources = fields.List(fields.Dict(), dump_only=True)
+    groups = fields.List(fields.Dict(), dump_only=True)
+    tags = fields.List(fields.String)
+    extras = fields.Dict(keys=fields.String())
+
+
+class PackageCKANSchema(EntityWithExtrasCKANSchema):
+    """The back-end (CKAN) schema for package-based entities.
+
+    This schema is used to filter and transform the data to and from CKAN.
+    Validation is not performed here.
+    """
 
     # Read-only system attributes
     id = fields.String()
@@ -554,30 +733,13 @@ class PackageCKANSchema(Schema):
     # ---- External stuff, need to be processed
     resources = fields.Raw()
     groups = fields.Raw()
-
-    extras = fields.Dict()
+    # ---- Extras are processed in the superclass
+    # extras = fields.Raw()
     tags = TagList()
 
     class Meta:
         # Exclude all else from CKAN
         unknown = EXCLUDE
-
-    @pre_load
-    def load_extras(self, data, **kwargs):
-        # Process the extras
-        extras = data.get("extras", [])
-        data["extras"] = {e["key"]: e["value"] for e in extras}
-
-        return data
-
-    @post_dump
-    def dump_extras(self, data, **kwargs):
-        # Process the extras
-        extras = data.get("extras", None)
-        if extras is not None:
-            data["extras"] = [{"key": k, "value": v} for k, v in extras.items()]
-
-        return data
 
 
 class _some_lists:

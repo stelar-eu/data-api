@@ -5,9 +5,15 @@ import pytest
 import werkzeug
 from marshmallow import EXCLUDE
 
-import schema
-from cutils import DATASET, GROUP, ORGANIZATION, VOCABULARY
-from entity import CKANEntity, Entity, PackageCKANSchema
+from cutils import (
+    DATASET,
+    GROUP,
+    ORGANIZATION,
+    VOCABULARY,
+    DatasetCKANSchema,
+    DatasetSchema,
+)
+from entity import CKANEntity, Entity, EntityWithExtras, PackageCKANSchema, TagList
 from tags import get_vocabulary
 
 #  The followng fixes a bug in FlaskClient !!
@@ -25,30 +31,37 @@ def test_dummy_app(app):
 
 def test_entity_creation(app):
     e = CKANEntity(
-        "dset", "dsets", schema.DatasetSchema(), schema.DatasetSchema(partial=True)
+        "dset",
+        "dsets",
+        DatasetSchema(),
+        DatasetSchema(partial=True),
+        ckan_name="package",
+        ckan_schema=PackageCKANSchema(),
     )
 
     assert e.name == "dset"
     assert e.collection_name == "dsets"
-    assert e.ckan_name == "dset"
-    assert e.ckan_api_create == "dset_create"
-    assert e.ckan_api_list == "dset_list"
+    assert e.ckan_name == "package"
+    assert e.ckan_api_create == "package_create"
+    assert e.ckan_api_list == "package_list"
 
     assert not e.creation_schema.partial
     assert e.update_schema.partial
 
-    assert e.has_extras
-    assert not e.has_tags
+    assert not e.has_extras
+    assert e.has_tags
 
     assert "update" in e.operations
     assert "patch" in e.operations
 
-    e = CKANEntity(
+    e = EntityWithExtras(
         "tool",
         "tools",
-        schema.DatasetSchema(),
-        schema.DatasetSchema(partial=True),
+        DatasetSchema(),
+        DatasetSchema(partial=True),
         ckan_name="package",
+        ckan_schema=DatasetCKANSchema(),
+        extras_table="package",
     )
     assert e.ckan_name == "package"
     assert e.has_extras and e.has_tags
@@ -69,20 +82,22 @@ extras_pairs = [
 
 @pytest.mark.parametrize("input_data, expected_output", extras_pairs)
 def test_save_extras(input_data, expected_output):
-    e = CKANEntity(
-        "dset", "dsets", schema.DatasetSchema(), schema.DatasetSchema(partial=True)
-    )
+    s = DatasetCKANSchema()
 
-    assert e.save_extras_to_ckan(input_data) == expected_output
+    e = {"extras": input_data}
+    c = s.dump(e)
+
+    assert c["extras"] == expected_output
 
 
 @pytest.mark.parametrize("expected_output, input_data", extras_pairs)
 def test_load_extras(input_data, expected_output):
-    e = CKANEntity(
-        "dset", "dsets", schema.DatasetSchema(), schema.DatasetSchema(partial=True)
-    )
+    s = DatasetCKANSchema()
 
-    assert e.load_extras_from_ckan(input_data) == expected_output
+    e = {"extras": input_data}
+    c = s.load(e)
+
+    assert c["extras"] == expected_output
 
 
 @pytest.fixture(scope="session")
@@ -121,13 +136,9 @@ def tagobject(request, thedaltons):
 
 @pytest.mark.parametrize("tagspec, tagobject", tags_pairs, indirect=["tagobject"])
 def test_save_tags(tagspec, tagobject, app):
-    e = CKANEntity(
-        "dset", "dsets", schema.DatasetSchema(), schema.DatasetSchema(partial=True)
-    )
-
     with app.app_context():
-        assert e.save_tags_to_ckan(tagspec) == tagobject
-        assert e.load_tags_from_ckan(tagobject) == tagspec
+        assert TagList.save_tags_to_ckan(tagspec) == tagobject
+        assert TagList.load_tags_from_ckan(tagobject) == tagspec
 
 
 @pytest.mark.parametrize(
@@ -211,7 +222,7 @@ def test_dataset_ckan_schema(DC):
                 title="Test dataset",
                 owner_org="stelar-klms",
                 url="s3://testvol/data.txt",
-                extras={"a": "10.2"},
+                extras={"a": 10.2},
                 tags=["foo", "bar"],
                 metadata_created="2021-09-01T00:00:00",
                 license_id="cc-by",
@@ -237,7 +248,7 @@ def test_dataset_ckan_schema(DC):
         assert isinstance(p["metadata_modified"], datetime.datetime)
 
         assert p["owner_org"] == DC.stelar_klms["id"]
-        assert p["extras"] == {"a": "10.2"}
+        assert p["extras"] == {"a": 10.2}
         assert p["state"] == "active"
         assert p["title"] == "Test dataset"
         assert p["url"] == "s3://testvol/data.txt"
@@ -336,7 +347,22 @@ def test_dataset_ckan_schema_trans(DC):
     }
 
 
-def test_delete_attr_from_ckan_schema(DC):
+@pytest.fixture
+def sample_package(DC):
+    resp = DC.package_create(
+        name="test-sample-package",
+        description="Sample Package",
+        title="The package title",
+        owner_org=DC.stelar_klms["id"],
+    )
+    assert resp["success"]
+    yield resp["result"]
+
+    resp = DC.dataset_purge(id="test-sample-package")
+    assert resp["success"]
+
+
+def test_delete_attr_from_ckan_schema(DC, sample_package):
     class MySchema(PackageCKANSchema):
         class Meta:
             exclude = ["title", "author"]
@@ -345,9 +371,8 @@ def test_delete_attr_from_ckan_schema(DC):
 
     s = MySchema()
 
-    resp = DC.package_show(id="package4")
-    assert resp["success"]
-    pkg = resp["result"]
+    pkg = sample_package
+    # DC.package_show(id="package4")
     obj = s.load(pkg)
 
     assert "title" not in obj
