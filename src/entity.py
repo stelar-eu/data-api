@@ -325,7 +325,6 @@ class EntityWithExtras(CKANEntity):
             # can be done
             if self.ckan_schema.opts.extra_attributes:
                 self.provide_extras_for_update(update_data, current_obj)
-
             update_data = self.ckan_schema.dump(update_data)
             return update_data
         else:
@@ -354,45 +353,10 @@ class EntityWithExtrasCKANSchema(Schema):
     # We declare it here; subclasses should not declare it.
     #
 
-    extras = fields.Dict()
+    extras = fields.Raw()
 
     #
     # -------------------------------------------------------
-
-    def fold_fields(self, data: dict):
-        """This method is called at dumping (to CKAN) to fold named
-        extra fields into the 'extras' field.
-        """
-
-        extras = data.get("extras", None)
-        attrs = {
-            attr: data[attr] for attr in self.opts.extra_attributes if attr in data
-        }
-
-        if (not attrs) and extras is None:
-            return
-
-        if extras is None:
-            extras = {}
-
-        # We could have an 'instrumented' extras object
-        if "current extras object" in extras:
-            current_extras = extras.pop("current extras object")
-            extras_present = extras.pop("extras update present")
-
-            if extras_present:
-                curattrs = {
-                    attr: current_extras[attr]
-                    for attr in self.opts.extra_attributes
-                    if attr in current_extras
-                }
-                extras = extras | (curattrs | attrs)
-            else:
-                extras = current_extras | attrs
-        else:
-            extras |= attrs
-
-        data["extras"] = extras
 
     def unfold_fields(self, data: dict):
         """This method is called at loading (from CKAN) to unfold the
@@ -424,6 +388,57 @@ class EntityWithExtrasCKANSchema(Schema):
         # Return the data to be loaded
         return data
 
+    #
+    #  Dump extras to CKAN with extras-based attribute folding.
+    #
+
+    def fold_fields(self, data: dict):
+        """This method is called at dumping (to CKAN) to fold named
+        extra fields into the 'extras' field.
+
+        To be able to merge everything properly, we need to dump everything
+        to string here.
+        """
+
+        extras = data.get("extras", None)
+        attrs = {
+            attr: json.dumps(data[attr])
+            for attr in self.opts.extra_attributes
+            if attr in data
+        }
+
+        if (not attrs) and extras is None:
+            return
+
+        if extras is None:
+            extras = {}
+
+        # We could have an 'instrumented' extras object
+        if "current extras object" in extras:
+            current_extras = extras.pop("current extras object")
+            extras_present = extras.pop("extras update present")
+
+            # Before merge, we convert dump the remaining extras
+            extras = {k: json.dumps(v) for k, v in extras.items()}
+
+            # Merge the current extras with the new extras
+            if extras_present:
+                curattrs = {
+                    attr: current_extras[attr]
+                    for attr in self.opts.extra_attributes
+                    if attr in current_extras
+                }
+                extras = extras | (curattrs | attrs)
+            else:
+                extras = current_extras | attrs
+        else:
+            # Convert the extras to strings
+            extras = {k: json.dumps(v) for k, v in extras.items()}
+
+            extras |= attrs
+
+        data["extras"] = extras
+
     @post_dump
     def dump_extras(self, data, **kwargs):
         # Process the extra attributes folding them into the extras field
@@ -435,9 +450,7 @@ class EntityWithExtrasCKANSchema(Schema):
             # Attributes have already been serialized to json, now turn them
             # into strings.
 
-            data["extras"] = [
-                {"key": k, "value": json.dumps(v)} for k, v in extras.items()
-            ]
+            data["extras"] = [{"key": k, "value": v} for k, v in extras.items()]
         # Ready to dump to CKAN
         return data
 
