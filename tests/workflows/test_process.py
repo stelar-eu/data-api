@@ -19,7 +19,7 @@ def purge_process(pid, DC, mdb_conn):
     # Delete the package
     try:
         DC.dataset_purge(id=pid)
-    except:
+    except Exception:
         pass
 
     with mdb_conn:

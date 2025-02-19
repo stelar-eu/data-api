@@ -363,6 +363,7 @@ class EntityWithExtrasCKANSchema(Schema):
         """This method is called at dumping (to CKAN) to fold named
         extra fields into the 'extras' field.
         """
+
         extras = data.get("extras", None)
         attrs = {
             attr: data[attr] for attr in self.opts.extra_attributes if attr in data
@@ -371,10 +372,8 @@ class EntityWithExtrasCKANSchema(Schema):
         if (not attrs) and extras is None:
             return
 
-        # Serialize the actual extras, attributes have already been
-        # serialized.
-        for k, v in extras.items():
-            extras[k] = json.dumps(v)
+        if extras is None:
+            extras = {}
 
         # We could have an 'instrumented' extras object
         if "current extras object" in extras:
@@ -390,6 +389,8 @@ class EntityWithExtrasCKANSchema(Schema):
                 extras = extras | (curattrs | attrs)
             else:
                 extras = current_extras | attrs
+        else:
+            extras |= attrs
 
         data["extras"] = extras
 
@@ -406,29 +407,38 @@ class EntityWithExtrasCKANSchema(Schema):
                 if attr in extras:
                     data[attr] = extras.pop(attr)
 
-        # deserialize the actual extras
-        for k, v in extras.items():
-            extras[k] = json.loads(v)
+    @staticmethod
+    def jsload(value):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return value
 
     @pre_load
     def load_extras(self, data, **kwargs):
         # Process the extras
         extras = data.get("extras", [])
-        data["extras"] = {e["key"]: e["value"] for e in extras}
+        data["extras"] = {e["key"]: self.jsload(e["value"]) for e in extras}
+        # Unfold the extra attributes
         self.unfold_fields(data)
+        # Return the data to be loaded
         return data
 
     @post_dump
     def dump_extras(self, data, **kwargs):
-        # Process the extras
-        #
-        # TODO: The folding needs access to the current object, to be
-        # done properly...
-        #
+        # Process the extra attributes folding them into the extras field
         self.fold_fields(data)
+
+        # Serialize the extras (if any!).
         extras = data.get("extras", None)
         if extras is not None:
-            data["extras"] = [{"key": k, "value": v} for k, v in extras.items()]
+            # Attributes have already been serialized to json, now turn them
+            # into strings.
+
+            data["extras"] = [
+                {"key": k, "value": json.dumps(v)} for k, v in extras.items()
+            ]
+        # Ready to dump to CKAN
         return data
 
 

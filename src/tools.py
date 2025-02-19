@@ -5,8 +5,8 @@ from entity import PackageCKANSchema, PackageEntity, PackageSchema
 
 
 class ToolCKANSchema(PackageCKANSchema):
-    programming_language = fields.String(allow_none=True, optional=True)
-    git_repository = fields.String(allow_none=True, optional=True, data_key="url")
+    programming_language = fields.String(allow_none=True)
+    git_repository = fields.String(allow_none=True, data_key="url")
 
     # Use resources to represent images
     images = fields.Raw(data_key="resources", load_only=True)
@@ -18,9 +18,9 @@ class ToolCKANSchema(PackageCKANSchema):
 
 
 class ToolSchema(PackageSchema):
-    programming_language = fields.String(allow_none=True, optional=True)
-    git_repository = fields.String(allow_none=True, optional=True, data_key="url")
-    type = fields.String(validate=validators.Equal("dataset"))
+    programming_language = fields.String(allow_none=True)
+    git_repository = fields.String(allow_none=True)
+    type = fields.String(validate=validators.Equal("tool"))
 
     # Use resources to represent images
     images = fields.Raw(dump_only=True)
