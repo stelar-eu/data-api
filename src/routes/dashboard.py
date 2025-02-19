@@ -10,21 +10,16 @@ from datetime import datetime, timedelta
 from functools import wraps
 from math import ceil
 
-import requests
 from apiflask import APIBlueprint
-from email_validator import EmailNotValidError, validate_email
 from flask import (
     current_app,
     flash,
-    jsonify,
-    make_response,
     redirect,
     render_template,
     request,
     session,
     url_for,
 )
-from keycloak import KeycloakAdmin, KeycloakOpenID
 
 import cutils
 import kutils
@@ -32,6 +27,8 @@ import wxutils
 from auth import admin_required
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
+
+logger = logging.getLogger(__name__)
 
 
 def render_template_with_s3(template_name, **kwargs):
@@ -415,6 +412,36 @@ def datasets(page_number=None):
             total_pages=total_pages,
             PARTNER_IMAGE_SRC=get_partner_logo(),
         )
+
+
+@dashboard_bp.route("/tools", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+def tools():
+    return render_template_with_s3("tools.html", PARTNER_IMAGE_SRC=get_partner_logo())
+
+
+@dashboard_bp.route("/datasets/compare", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+def dataset_compare():
+    dataset_ids = request.cookies.get("compare_datasets", "").split(",")[:5]
+    datasets = []
+
+    logger.debug("Dataset IDs from the cookie: %d", dataset_ids)
+    for dataset_id in dataset_ids:
+        try:
+            dataset = cutils.get_package(id=dataset_id)
+            if dataset:
+                datasets.append(dataset)
+        except Exception as e:
+            logging.error(f"Error fetching dataset {dataset_id}: {str(e)}")
+
+    return render_template_with_s3(
+        "dataset_compare.html",
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+        datasets=datasets,
+    )
 
 
 @dashboard_bp.route("/datasets/<dataset_id>", methods=["GET", "POST"])

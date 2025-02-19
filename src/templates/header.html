@@ -1,6 +1,7 @@
 <header class="navbar navbar-expand-md d-print-none">
     <div class="container-xl">
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu" aria-controls="navbar-menu" aria-expanded="false" aria-label="Toggle navigation">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu"
+            aria-controls="navbar-menu" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
         <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
@@ -9,12 +10,12 @@
                 <div class="d-flex align-items-center justify-content-center">
                     <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR" class="me-3">
                     {% if PARTNER_IMAGE_SRC %}
-                        <!-- Vertical line -->
-                        <div class="vr" style="height: 70px; margin: 20px;"></div>
-                        <!-- Partner image -->
-                        <img src="{{ PARTNER_IMAGE_SRC }}" width="70" alt="Partner Logo">
+                    <!-- Vertical line -->
+                    <div class="vr" style="height: 70px; margin: 20px;"></div>
+                    <!-- Partner image -->
+                    <img src="{{ PARTNER_IMAGE_SRC }}" width="70" alt="Partner Logo">
                     {% endif %}
-                  </div>      
+                </div>
             </a>
         </h1>
         <div class="navbar-nav flex-row order-md-last">
@@ -22,48 +23,104 @@
                 <div class="nav-item d-none d-md-flex me-3">
                     <div class="btn-list">
                         <a href="{{ S3_CONSOLE_URL }}" class="btn" target="_blank" rel="noreferrer">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24"  height="24" class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-brand-metabrainz" viewBox="0 0 162.612 24.465" xmlns:v="https://vecta.io/nano"><path d="M52.751.414h9.108v23.63h-9.108zM41.711.74l-18.488 9.92a.919.919 0 0 1-.856 0L3.879.74A2.808 2.808 0 0 0 2.558.414h-.023A2.4 2.4 0 0 0 0 2.641v21.376h9.1V13.842a.918.918 0 0 1 1.385-.682l10.361 5.568a3.634 3.634 0 0 0 3.336.028l10.933-5.634a.917.917 0 0 1 1.371.69v10.205h9.1V2.641A2.4 2.4 0 0 0 43.055.414h-.023a2.808 2.808 0 0 0-1.321.326zm65.564-.326h-9.237v10.755a.913.913 0 0 1-1.338.706L72.762.675a2.824 2.824 0 0 0-1.191-.261h-.016a2.4 2.4 0 0 0-2.535 2.227v21.377h9.163V13.275a.914.914 0 0 1 1.337-.707l24.032 11.2a2.813 2.813 0 0 0 1.188.26 2.4 2.4 0 0 0 2.535-2.227zm7.161 23.63V.414h4.191v23.63zm28.856.421c-11.274 0-19.272-4.7-19.272-12.232C124.02 4.741 132.066 0 143.292 0s19.32 4.7 19.32 12.233-7.902 12.232-19.32 12.232zm0-21.333c-8.383 0-14.84 3.217-14.84 9.1 0 5.926 6.457 9.1 14.84 9.1s14.887-3.174 14.887-9.1c0-5.883-6.504-9.1-14.887-9.1z" fill="#c72c48"/></svg>                            
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-brand-metabrainz"
+                                viewBox="0 0 162.612 24.465" xmlns:v="https://vecta.io/nano">
+                                <path
+                                    d="M52.751.414h9.108v23.63h-9.108zM41.711.74l-18.488 9.92a.919.919 0 0 1-.856 0L3.879.74A2.808 2.808 0 0 0 2.558.414h-.023A2.4 2.4 0 0 0 0 2.641v21.376h9.1V13.842a.918.918 0 0 1 1.385-.682l10.361 5.568a3.634 3.634 0 0 0 3.336.028l10.933-5.634a.917.917 0 0 1 1.371.69v10.205h9.1V2.641A2.4 2.4 0 0 0 43.055.414h-.023a2.808 2.808 0 0 0-1.321.326zm65.564-.326h-9.237v10.755a.913.913 0 0 1-1.338.706L72.762.675a2.824 2.824 0 0 0-1.191-.261h-.016a2.4 2.4 0 0 0-2.535 2.227v21.377h9.163V13.275a.914.914 0 0 1 1.337-.707l24.032 11.2a2.813 2.813 0 0 0 1.188.26 2.4 2.4 0 0 0 2.535-2.227zm7.161 23.63V.414h4.191v23.63zm28.856.421c-11.274 0-19.272-4.7-19.272-12.232C124.02 4.741 132.066 0 143.292 0s19.32 4.7 19.32 12.233-7.902 12.232-19.32 12.232zm0-21.333c-8.383 0-14.84 3.217-14.84 9.1 0 5.926 6.457 9.1 14.84 9.1s14.887-3.174 14.887-9.1c0-5.883-6.504-9.1-14.887-9.1z"
+                                    fill="#c72c48" />
+                            </svg>
                             S3 Console
                         </a>
-                      <div class="btn dropdown p-1 px-3">
-                        <a href="#" class="nav-link d-flex lh-1 text-reset p-1" data-bs-toggle="dropdown" aria-label="Open user menu">
-                            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-script"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M17 20h-11a3 3 0 0 1 0 -6h11a3 3 0 0 0 0 6h1a3 3 0 0 0 3 -3v-11a2 2 0 0 0 -2 -2h-10a2 2 0 0 0 -2 2v8" /></svg>
-                            Documentation
-                        </a>
+                        <div class="btn dropdown p-1 px-3">
+                            <a href="#" class="nav-link d-flex lh-1 text-reset p-1" data-bs-toggle="dropdown"
+                                aria-label="Open user menu">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-script">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path
+                                        d="M17 20h-11a3 3 0 0 1 0 -6h11a3 3 0 0 0 0 6h1a3 3 0 0 0 3 -3v-11a2 2 0 0 0 -2 -2h-10a2 2 0 0 0 -2 2v8" />
+                                </svg>
+                                Documentation
+                            </a>
                             <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-                                <a href="{{ url_for('home') }}docs"  target="_blank" class="dropdown-item">
-                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-primary icon icon-tabler icons-tabler-outline icon-tabler-api"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 13h5" /><path d="M12 16v-8h3a2 2 0 0 1 2 2v1a2 2 0 0 1 -2 2h-3" /><path d="M20 8v8" /><path d="M9 16v-5.5a2.5 2.5 0 0 0 -5 0v5.5" /></svg>                                
+                                <a href="{{ url_for('home') }}docs" target="_blank" class="dropdown-item">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        class="me-2 text-primary icon icon-tabler icons-tabler-outline icon-tabler-api">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                        <path d="M4 13h5" />
+                                        <path d="M12 16v-8h3a2 2 0 0 1 2 2v1a2 2 0 0 1 -2 2h-3" />
+                                        <path d="M20 8v8" />
+                                        <path d="M9 16v-5.5a2.5 2.5 0 0 0 -5 0v5.5" />
+                                    </svg>
                                     STELAR API Docs
                                 </a>
                                 <a href="https://stelar-client.readthedocs.io/" target="_blank" class="dropdown-item">
-                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-facebook icon icon-tabler icons-tabler-outline icon-tabler-brand-python"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 9h-7a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h3" /><path d="M12 15h7a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2h-3" /><path d="M8 9v-4a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v5a2 2 0 0 1 -2 2h-4a2 2 0 0 0 -2 2v5a2 2 0 0 0 2 2h4a2 2 0 0 0 2 -2v-4" /><path d="M11 6l0 .01" /><path d="M13 18l0 .01" /></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        class="me-2 text-facebook icon icon-tabler icons-tabler-outline icon-tabler-brand-python">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                        <path d="M12 9h-7a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h3" />
+                                        <path d="M12 15h7a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2h-3" />
+                                        <path
+                                            d="M8 9v-4a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v5a2 2 0 0 1 -2 2h-4a2 2 0 0 0 -2 2v5a2 2 0 0 0 2 2h4a2 2 0 0 0 2 -2v-4" />
+                                        <path d="M11 6l0 .01" />
+                                        <path d="M13 18l0 .01" />
+                                    </svg>
                                     STELAR Python SDK</a>
-                                <a href="https://min.io/docs/minio/linux/developers/minio-drivers.html" target="_blank" class="dropdown-item">
-                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-brand-metabrainz"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7v10l7 4v-18z" /><path d="M21 7v10l-7 4v-18z" /></svg>
+                                <a href="https://min.io/docs/minio/linux/developers/minio-drivers.html" target="_blank"
+                                    class="dropdown-item">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-brand-metabrainz">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                        <path d="M3 7v10l7 4v-18z" />
+                                        <path d="M21 7v10l-7 4v-18z" />
+                                    </svg>
                                     Minio SDK</a>
                             </div>
                         </div>
-                      <a href="https://support.stelar.gr" class="btn" target="_blank" rel="noreferrer">
-                        <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-exclamation-circle"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 9v4" /><path d="M12 16v.01" /></svg>                        
-                        Report an Error
-                      </a>
+                        <a href="https://support.stelar.gr" class="btn" target="_blank" rel="noreferrer">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round"
+                                class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-exclamation-circle">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                                <path d="M12 9v4" />
+                                <path d="M12 16v.01" />
+                            </svg>
+                            Report an Error
+                        </a>
                     </div>
-                  </div>
+                </div>
             </div>
 
             <div class="nav-item dropdown">
-                <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown" aria-label="Open user menu">
-                    <span class="avatar avatar-sm" style="background-image: url('{{ url_for('static', filename='avatar.png') }}')"></span>
+                <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown"
+                    aria-label="Open user menu">
+                    <span class="avatar avatar-sm">
+                        {% set initials = session.get('USER_NAME', 'Guest').split() %}
+                        {% set initials = (initials[0][0] + (initials[1][0] if initials|length > 1 else '')).upper() %}
+                        {{ initials if initials != 'G' else 'G' }}
+                    </span>
                     <div class="d-none d-xl-block ps-2">
                         <div>{{ session.get('USER_NAME', 'Guest') }}</div>
                         <div class="mt-1 small text-secondary">
-                            {% set excluded_roles = ['default-roles-master', 'offline_access', 'uma_authorization', 'create_realm'] %}
-                            {% set displayed_roles = session.get('USER_ROLES', []) 
-                                | reject("in", excluded_roles)  
-                                | map("replace", '-', ' ') 
-                                | map("replace", '_', ' ')  
-                                | map("title")  
-                                | join(', ')
+                            {% set excluded_roles = ['default-roles-master', 'offline_access', 'uma_authorization',
+                            'create_realm'] %}
+                            {% set displayed_roles = session.get('USER_ROLES', [])
+                            | reject("in", excluded_roles)
+                            | map("replace", '-', ' ')
+                            | map("replace", '_', ' ')
+                            | map("title")
+                            | join(', ')
                             %}
                             {{ displayed_roles }}
                         </div>
@@ -83,55 +140,93 @@
         <div class="navbar">
             <div class="container-xl">
                 <ul class="navbar-nav">
-                    <li class="nav-item {% if request.path == url_for('dashboard_blueprint.dashboard_index') %}active{% endif %}">
+                    <li
+                        class="nav-item {% if request.path == url_for('dashboard_blueprint.dashboard_index') %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.dashboard_index') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                                 <!-- Overview icon -->
-                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                    <path d="M5 12l-2 0l9 -9l9 9l-2 0"/>
-                                    <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"/>
-                                    <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"/>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
+                                    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M5 12l-2 0l9 -9l9 9l-2 0" />
+                                    <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+                                    <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
                                 </svg>
                             </span>
                             <span class="nav-link-title">Overview</span>
                         </a>
                     </li>
-                    <li class="nav-item {% if request.path == url_for('dashboard_blueprint.workflows') %}active{% endif %}">
+                    <li
+                        class="nav-item {% if request.path == url_for('dashboard_blueprint.workflows') %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.workflows') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                                 <!-- Workflows icon -->
-                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                    <path d="M12 3l8 4.5v9l-8 4.5l-8 -4.5v-9l8 -4.5"/>
-                                    <path d="M12 12l8 -4.5"/>
-                                    <path d="M12 12l0 9"/>
-                                    <path d="M12 12l-8 -4.5"/>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
+                                    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M12 3l8 4.5v9l-8 4.5l-8 -4.5v-9l8 -4.5" />
+                                    <path d="M12 12l8 -4.5" />
+                                    <path d="M12 12l0 9" />
+                                    <path d="M12 12l-8 -4.5" />
                                 </svg>
                             </span>
                             <span class="nav-link-title">Workflows</span>
                         </a>
                     </li>
-                    <li class="nav-item {% if request.path == url_for('dashboard_blueprint.datasets') %}active{% endif %}">
+                    <li
+                        class="nav-item {% if request.path == url_for('dashboard_blueprint.datasets') %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.datasets') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                                 <!-- Dataset icon -->
-                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-database">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12.75m-4 0a4 1.75 0 1 0 8 0a4 1.75 0 1 0 -8 0" />
-                                    <path d="M8 12.5v3.75c0 .966 1.79 1.75 4 1.75s4 -.784 4 -1.75v-3.75" /><path d="M14 3v4a1 1 0 0 0 1 1h4" />
-                                    <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    class="icon icon-tabler icons-tabler-outline icon-tabler-file-database">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M12 12.75m-4 0a4 1.75 0 1 0 8 0a4 1.75 0 1 0 -8 0" />
+                                    <path d="M8 12.5v3.75c0 .966 1.79 1.75 4 1.75s4 -.784 4 -1.75v-3.75" />
+                                    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+                                    <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
+                                </svg>
                             </span>
                             <span class="nav-link-title">Datasets</span>
                         </a>
                     </li>
+                    <li class="nav-item {% if request.path == url_for('dashboard_blueprint.tools') %}active{% endif %}">
+                        <a class="nav-link" href="{{ url_for('dashboard_blueprint.tools') }}">
+                            <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                <!-- Tool icon -->
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    class="icon icon-tabler icons-tabler-outline icon-tabler-tool">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path
+                                        d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" />
+                                </svg>
+                            </span>
+                            <span class="nav-link-title">Toolkit</span>
+                        </a>
+                    </li>
                     {% if 'admin' in session.get('USER_ROLES', []) %}
-                    <li class="nav-item {% if request.path == url_for('dashboard_blueprint.adminSettings') %}active{% endif %}">
+                    <li
+                        class="nav-item {% if request.path == url_for('dashboard_blueprint.adminSettings') %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.adminSettings') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
-                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-server"><path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                    <path d="M3 4m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" />
-                                    <path d="M3 12m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" />
-                                    <path d="M7 8l0 .01" /><path d="M7 16l0 .01" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    class="icon icon-tabler icons-tabler-outline icon-tabler-server">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path
+                                        d="M3 4m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" />
+                                    <path
+                                        d="M3 12m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" />
+                                    <path d="M7 8l0 .01" />
+                                    <path d="M7 16l0 .01" />
+                                </svg>
                             </span>
                             <span class="nav-link-title">Cluster Settings</span>
                         </a>
@@ -144,13 +239,16 @@
                         <div class="input-icon">
                             <span class="input-icon-addon">
                                 <!-- Search icon -->
-                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                    <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/>
-                                    <path d="M21 21l-6 -6"/>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
+                                    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+                                    <path d="M21 21l-6 -6" />
                                 </svg>
                             </span>
-                            <input type="text" value="" class="form-control" placeholder="Search…" aria-label="Search in website">
+                            <input type="text" value="" class="form-control" placeholder="Search…"
+                                aria-label="Search in website">
                         </div>
                     </form>
                 </div>
