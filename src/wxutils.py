@@ -100,7 +100,8 @@ def get_workflows():
     """Retrieve all workflows."""
     try:
         response = sql_utils.workflow_get_all()
-        return response if response else "No workflows submitted yet."
+        # return response if response else "No workflows submitted yet."
+        return response if response else []
     except Exception as e:
         raise RuntimeError(f"Workflows Could Not Be Retrieved. {e}")
 

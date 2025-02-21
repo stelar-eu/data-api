@@ -287,6 +287,8 @@ def workflows():
         return render_template_with_s3(
             "workflows.html",
             workflows={},
+            status_counts={},
+            monthly_counts={},
             PARTNER_IMAGE_SRC=get_partner_logo(),
         )
 
