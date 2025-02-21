@@ -1,14 +1,37 @@
-"""Contains the Entity class and its subclasses. 
+"""
+Contains the Entity class and its subclasses. 
 
-The Entity class is a base class for CKAN entities. It provides methods to interact with CKAN
-and to perform CRUD operations on the entities. The subclasses of Entity are used to customize
-specific CKAN entities, such as datasets, groups, and organizations. The subclasses define the
-specific attributes and methods for each entity sub-type.
+The Entity class is a base class for STELAR entities. The main responsibility of the Entity class is to provide 
+a common interface for interacting via the STELAR API. The class defines a set of operations that can be performed 
+on an entity, such as listing, fetching, creating, updating, and deleting. The specific implementation of these 
+operations is left to the subclasses. 
+
+
+CKAN-based entities:
+--------------------
+
+The main subclass of Entity is the CKANEntity class, which is used to handle entities that are stored in CKAN.
+
+The CKANEntity class provides methods to interact with CKAN and to perform CRUD operations on the entities. 
+The subclasses of CKANEntity are used to customize specific CKAN entities, such as datasets, groups, and organizations. 
+The subclasses define the specific attributes and methods for each entity sub-type.
 
 In particular, the EntityWithMembers class is used to handle CKAN entities that have members,
 that is, groups and organizations. It provides methods to add, remove, and list members of the
 group or organization. The MemberEntity class is used to customize the membership API in entities with
 members.
+
+Also, the EntityWithExtras class is used to handle CKAN entities that have extras, that is, additional
+attributes stored in the 'extras' field in CKAN. The EntityWithExtrasCKANSchema class is used to define
+the schema for entities with extras in CKAN.
+
+The PackageEntity class is used to handle CKAN entities based on packages, such as datasets, processes,
+workflows, and tools. It provides methods to filter packages by type and to create, update, and delete
+packages.
+
+General function for CKAN-based entities:
+
+An 
 
 """
 
@@ -46,6 +69,14 @@ class Entity:
     the subclasses.
 
     The API defined in this class is the one used by the generic endpoint definitions.
+
+    The generic endpoint definitions use the API defined in the Entity class to implement the CRUD operations for the
+    entities. For this purpose, each Entity defines four fields:
+
+    - name: the name of the entity
+    - collection_name: the name of the collection of entities
+    - creation_schema: the schema for creating entities
+    - update_schema: the schema for updating entities
     """
 
     OPERATIONS = [
@@ -58,7 +89,21 @@ class Entity:
         "patch",
     ]
 
-    def __init__(self, name, collection_name, creation_schema, update_schema):
+    def __init__(
+        self,
+        name: str,
+        collection_name: str,
+        creation_schema: Schema,
+        update_schema: Schema,
+    ):
+        """Initialize the entity.
+
+        Args:
+            name: The name of the entity.
+            collection_name : The name of the collection of entities.
+            creation_schema: The schema for creating entities.
+            update_schema: The schema for updating entities. If None, the entity does not support updates.
+        """
         self.name = name
         self.collection_name = collection_name
 
@@ -75,24 +120,122 @@ class Entity:
         logger.info("Instantiated entity %s", self.name)
 
     def list_entities(self, limit: Optional[int] = None, offset: Optional[int] = None):
-        raise NotImplementedError
+        """List the entities of this type.
+
+        This method is used to list the entities of this type. It returns a list of entity IDs.
+
+        Args:
+            limit: The maximum number of entities to return.
+            offset: The offset to start listing entities from.
+        Returns:
+            A list of entity IDs.
+        """
+        return self.list(limit=limit, offset=offset)
 
     def fetch_entities(self, limit: Optional[int] = None, offset: Optional[int] = None):
-        raise NotImplementedError
+        """Fetch the entities of this type.
+
+        This method is used to fetch the entities of this type. It returns a list of entity objects.
+
+        Args:
+            limit: The maximum number of entities to return.
+            offset: The offset to start fetching entities from.
+        Returns:
+            A list of entity objects.
+        """
+        return self.fetch(limit=limit, offset=offset)
 
     def get_entity(self, eid: str):
-        raise NotImplementedError
+        """Get an entity by ID.
+
+        This method is used to get an entity by its ID.
+
+        Args:
+            eid: The ID of the entity to get.
+        Returns:
+            The entity object.
+        """
+        return self.get(eid)
 
     def create_entity(self, init_data):
-        raise NotImplementedError
+        """Create a new entity.
+
+        This method is used to create a new entity.
+
+        Args:
+            init_data: The data to initialize the entity with.
+        Returns:
+            The created entity object.
+        """
+        return self.create(init_data)
 
     def delete_entity(self, eid: str, purge=False):
-        raise NotImplementedError
+        """Delete an entity.
+
+        This method is used to delete an entity.
+
+        Args:
+            eid: The ID of the entity to delete.
+            purge: Whether to purge the entity.
+        Returns:
+            The result of the delete operation.
+        """
+        return self.delete(eid, purge)
 
     def update_entity(self, eid: str, entity_data):
-        raise NotImplementedError
+        """Update an entity.
+
+        This method is used to update an entity. It performs a full update,
+        replacing the entity with the new data. If attributes are missing in
+        the new data, they will be removed from the entity (if applicable).
+
+        Args:
+            eid: The ID of the entity to update.
+            entity_data: The data to update the entity with.
+        Returns:
+            The updated entity object.
+        """
+        return self.update(eid, entity_data)
 
     def patch_entity(self, eid: str, patch_data):
+        """Patch an entity.
+
+        This method is used to patch an entity. It performs a partial update,
+        updating only the attributes present in the patch data. If attributes
+        are missing in the patch data, they will be left unchanged.
+
+        Args:
+            eid: The ID of the entity to patch.
+            patch_data: The data to patch the entity with.
+        Returns:
+            The patched entity object.
+        """
+        return self.patch(eid, patch_data)
+
+    #
+    # The following methods are the actual implementations of the API
+    # operations, bypassing any authorization checks.
+    #
+
+    def list(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        raise NotImplementedError
+
+    def fetch(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        raise NotImplementedError
+
+    def get(self, eid: str):
+        raise NotImplementedError
+
+    def create(self, init_data):
+        raise NotImplementedError
+
+    def delete(self, eid: str, purge=False):
+        raise NotImplementedError
+
+    def update(self, eid: str, entity_data):
+        raise NotImplementedError
+
+    def patch(self, eid: str, patch_data):
         raise NotImplementedError
 
 
@@ -104,6 +247,13 @@ class CKANEntity(Entity):
         ckan_schema: Schema,
         **kwargs,
     ):
+        """Initialize a CKAN entity.
+
+        Args:
+            ckan_name: The name of the entity in CKAN.
+            ckan_schema: The schema for the entity in CKAN, used to convert data to and from CKAN format.
+        """
+
         super().__init__(*args, **kwargs)
 
         self.ckan_name = ckan_name if ckan_name is not None else self.name
@@ -129,17 +279,41 @@ class CKANEntity(Entity):
     def create_to_ckan(self, init_data):
         """Convert the data to the CKAN format.
 
-        The CKAN format is a JSON object with the following structure:
+        The CKAN format is a JSON object with the fields in the correct format
+        for the CKAN API creation operation.
+
+        Conversion is done under the guidance of the CKAN schema of this entity.
+
+        Args:
+            init_data: The data to convert.
+        Returns:
+            The data in the CKAN format.
         """
         init_data = self.ckan_schema.dump(init_data)
         return init_data
 
     def update_to_ckan(self, update_data, current_obj):
-        """Convert the data to the CKAN format for updating."""
-        return self.create_to_ckan(update_data)
+        """Convert the data to the CKAN format for updating.
+
+        This method is used to convert the update data to the CKAN format for updating
+        an existing entity. It may need to fetch the current object from the database
+        to properly merge the update data.
+
+        Args:
+            update_data: The data to convert.
+            current_obj: The current object in the database, or None if not available.
+        """
+        update_data = self.create_to_ckan(update_data)
+        return update_data
 
     def load_from_ckan(self, ci):
-        """Convert the data from the CKAN format."""
+        """Convert the data from the CKAN format.
+
+        Args:
+            ci: The data to convert.
+        Returns:
+            The converted data object.
+        """
         ci = self.ckan_schema.load(ci)
         return ci
 
@@ -151,12 +325,28 @@ class CKANEntity(Entity):
             if val < 0:
                 raise DataError(f"{name} must be nonnegative")
 
-    def list_entities(self, limit: Optional[int] = None, offset: Optional[int] = None):
+    def list(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        """List the entities of this type.
+
+        Args:
+            limit: The maximum number of entities to return.
+            offset: The offset to start listing entities from.
+        Returns:
+            A list of entity IDs.
+        """
         self.check_limit_offset(limit, "limit")
         self.check_limit_offset(offset, "offset")
         return ckan_request(self.ckan_api_list, limit=limit, offset=offset)
 
-    def fetch_entities(self, limit: Optional[int] = None, offset: Optional[int] = None):
+    def fetch(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        """Fetch the entities of this type.
+
+        Args:
+            limit: The maximum number of entities to return.
+            offset: The offset to start fetching entities from.
+        Returns:
+            A list of entity objects.
+        """
         entids = self.list_entities(limit=limit, offset=offset)
         ents = []
         for eid in entids:
@@ -164,27 +354,26 @@ class CKANEntity(Entity):
             ents.append(e)
         return ents
 
-    def read_entity(self, eid: str):
-        """Read an entity from CKAN. This method bypasses any authorization checks."""
+    def get(self, eid: str):
+        """Read an entity from CKAN.
+
+        This method bypasses any authorization checks.
+
+        Args:
+            eid: The ID of the entity to read.
+        Returns:
+            The entity object.
+        """
         obj = ckan_request(self.ckan_api_show, id=eid, context={"entity": self.name})
         return self.load_from_ckan(obj)
 
-    def get_entity(self, eid: str):
-        """Get an entity from CKAN.
-
-        This method implements the GET endpoint for the entity, including authorizing the request.
-
-        Arguments:
-            eid: the ID of the entity to get
-        Returns:
-            the entity object
-        """
-        return self.read_entity(eid)
-
-    def create_entity(self, init_data):
+    def create(self, init_data):
         """Create an entity in CKAN.
 
-        This method implements the POST endpoint for the entity, including authorizing the request.
+        Args:
+            init_data: The data to create the entity with.
+        Returns:
+            The created entity object.
         """
         context = {"entity": self.name}
 
@@ -194,14 +383,30 @@ class CKANEntity(Entity):
         logger.info("Created %s id=%s", self.name, obj["id"])
         return self.load_from_ckan(obj)
 
-    def delete_entity(self, eid: str, purge=False):
+    def delete(self, eid: str, purge=False):
+        """Delete an entity from CKAN.
+
+        Args:
+            eid: The ID of the entity to delete.
+            purge: Whether to purge the entity.
+        Returns:
+            The result of the delete operation in CKAN, if any.
+        """
         ckan_cmd = self.ckan_api_purge if purge else self.ckan_api_delete
         context = {"entity": self.name}
         result = ckan_request(ckan_cmd, id=eid, context=context)
         logger.info("%s %s id=%s", "Purged" if purge else "Deleted", self.name, eid)
         return result
 
-    def update_entity(self, eid: str, entity_data):
+    def update(self, eid: str, entity_data):
+        """Update an entity in CKAN.
+
+        Args:
+            eid: The ID of the entity to update.
+            entity_data: The data to update the entity with.
+        Returns:
+            The updated entity object.
+        """
         context = {"entity": self.name}
 
         # Convert to CKAN properly
@@ -210,7 +415,15 @@ class CKANEntity(Entity):
         obj = ckan_request(self.ckan_api_update, id=eid, context=context, json=ck_data)
         return self.load_from_ckan(obj)
 
-    def patch_entity(self, eid: str, patch_data):
+    def patch(self, eid: str, patch_data):
+        """Patch an entity in CKAN.
+
+        Args:
+            eid: The ID of the entity to patch.
+            patch_data: The data to patch the entity with.
+        Returns:
+            The patched entity object.
+        """
         context = {"entity": self.name}
 
         ckpatch_data = self.update_to_ckan(patch_data, eid)
@@ -224,6 +437,19 @@ class CKANEntity(Entity):
 def create_capacity_schema(
     name, capacities: re.Pattern | list[str] | None
 ) -> schema.Schema:
+    """Create a schema for a capacity field.
+
+    This function creates a schema for a capacity field, which is used to specify the role
+    of a member in a group or organization. The schema can be customized to accept specific
+    values or patterns for the capacity field.
+
+    Args:
+        name: The name of the schema.
+        capacities: The valid values or pattern for the capacity field.
+    Returns:
+        The capacity schema.
+    """
+
     if isinstance(capacities, list):
         if capacities == []:
             logger.critical("Empty list of capacities")
@@ -295,40 +521,49 @@ class EntityWithExtras(CKANEntity):
     """
 
     def __init__(self, *args, extras_table: str, **kwargs):
+        """Initialize the entity with extras.
+
+        Args:
+            extras_table: the name of the table where the extras are stored. This is either
+                'package' or 'group'.
+        """
+
         super().__init__(*args, **kwargs)
 
         self.has_extras = True
         self.extras_table = extras_table
 
-    def provide_extras_for_update(self, update_data, current_obj):
-        # Here, we check if we need to provide the full 'extras' object for
-        # proper merging. This is needed when either an 'extras' field, or
-        # any of the 'extra_attributes' is provided.
-
-        extras_present = "extras" in update_data
-
-        if extras_present or any(
-            attr in update_data for attr in self.ckan_schema.opts.extra_attributes
-        ):
-            # Fetch the full 'extras' object directly from the database
-            curextras = db_fetch_entity_extras(current_obj, self.extras_table)
-
-            # Add the curextras object to the update data
-            update_extras = update_data.setdefault("extras", {})
-            # Note that we are purposely using a name with spaces...
-            update_extras["current extras object"] = curextras
-            update_extras["extras update present"] = extras_present
-
     def update_to_ckan(self, update_data, current_obj):
-        if self.ckan_schema is not None:
-            # We may need to 'instrument' our update data before dumping
-            # can be done
-            if self.ckan_schema.opts.extra_attributes:
-                self.provide_extras_for_update(update_data, current_obj)
-            update_data = self.ckan_schema.dump(update_data)
-            return update_data
-        else:
-            return super().update_to_ckan(update_data, current_obj)
+        """Convert the data to the CKAN format for updating.
+
+        This method is overloaded to handle the 'extras' field, supporting
+        entities implemented by the 'package' or 'group' in CKAN.
+        Instances may declare attributes that are actually stored in the CKAN
+        'extras' field.
+
+        When updating such entities, we need to merge the update spec with
+        the current CKAN-stored extras. This method helps in this process
+        by providing the full 'extras' object for proper merging later on
+        by the ckan_schema.dump() method.
+        """
+
+        if self.ckan_schema.opts.extra_attributes:
+            extras_present = "extras" in update_data
+
+            if extras_present or any(
+                attr in update_data for attr in self.ckan_schema.opts.extra_attributes
+            ):
+                # Fetch the full 'extras' object directly from the database
+                curextras = db_fetch_entity_extras(current_obj, self.extras_table)
+
+                # Add the curextras object to the update data
+                update_extras = update_data.setdefault("extras", {})
+                # Note that we are purposely using a name with spaces...
+                update_extras["current extras object"] = curextras
+                update_extras["extras update present"] = extras_present
+
+        update_data = self.ckan_schema.dump(update_data)
+        return update_data
 
 
 class CKANEntityOptions(SchemaOpts):
@@ -510,7 +745,7 @@ class EntityWithMembers(EntityWithExtras):
         for m in self.members:
             m.parent = self
 
-    def read_entity(self, eid: str):
+    def get(self, eid: str):
         #
         # Because of a bug in CKAN code, getting CKAN groups and orgs fails (CKAN returns 'internal error')
         # when there are cycles between groups. To ameliorate this, we need to pass the 'include_groups=False'
@@ -628,19 +863,18 @@ class PackageEntity(EntityWithExtras):
         """Filter the list of packages by ID, leaving only packages of one type."""
         return filter_list_by_type(idlist, self.package_type, idattr="name")
 
-    def create_entity(self, init_data):
+    def create(self, init_data):
         # Make sure we have the two compulsory fields
         if "name" not in init_data:
             raise DataError("Missing name")
         if "owner_org" not in init_data:
             raise DataError("Missing owner_org")
-        if "type" in init_data:
-            if init_data["type"] != self.package_type:
-                raise DataError(f"Invalid type: {init_data['type']}")
+        if "type" in init_data and init_data["type"] != self.package_type:
+            raise DataError(f"Invalid type: {init_data['type']}")
 
         # Force this!
         init_data["type"] = self.package_type
-        return super().create_entity(init_data)
+        return super().create(init_data)
 
 
 class TagList(fields.Field):
@@ -763,45 +997,3 @@ class PackageCKANSchema(EntityWithExtrasCKANSchema):
     class Meta:
         # Exclude all else from CKAN
         unknown = EXCLUDE
-
-
-class _some_lists:
-    # The additional attributes are removed from our schema.
-    additional = [
-        "tracking_summary",
-        "plugin_data",
-        "num_resources",
-        "num_tags",
-        "organization",
-        "isopen",
-        "license_id",
-        "license_title",
-        "license_url",
-        "relationships_as_object",
-        "relationships_as_subject",
-    ]
-
-    # These are the attributes of a proper object.
-    fields = [
-        "id",
-        "metadata_created",
-        "metadata_modified",
-        "creator_user_id",
-        "type",
-        "name",
-        "state",
-        "owner_org",
-        "private",
-        "title",
-        "author",
-        "author_email",
-        "maintainer",
-        "maintainer_email",
-        "notes",
-        "url",
-        "version",
-        "resources",
-        "groups",
-        "extras",
-        "tags",
-    ]

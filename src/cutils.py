@@ -7,7 +7,7 @@ from typing import Optional
 
 import requests
 from apiflask import Schema, fields, validators
-from marshmallow import EXCLUDE, INCLUDE
+from marshmallow import EXCLUDE, INCLUDE, post_dump
 
 import schema
 import utils
@@ -22,6 +22,7 @@ from entity import (
     PackageEntity,
     PackageSchema,
 )
+from exceptions import DataError
 from routes.users import api_user_editor
 
 logger = logging.getLogger(__name__)
@@ -645,7 +646,7 @@ DATASET = PackageEntity(
 class ResourceSchema(Schema):
     id = fields.UUID(dump_only=True)
     created = fields.DateTime(dump_only=True)
-    last_modified = fields.DateTime(dump_only=True, allow_none=True)
+    last_modified = fields.DateTime(allow_none=True)
     package_id = fields.UUID(required=True)
 
     url = fields.String(allow_none=True)
@@ -671,7 +672,7 @@ class ResourceSchema(Schema):
 class ResourceCKANSchema(Schema):
     id = fields.String()
     created = fields.DateTime(load_only=True)
-    last_modified = fields.DateTime(load_only=True)
+    last_modified = fields.DateTime(allow_none=True)
 
     package_id = fields.String()
 
@@ -690,6 +691,10 @@ class ResourceCKANSchema(Schema):
     class Meta:
         unknown = INCLUDE
 
+    @post_dump(pass_original=True)
+    def include_resource_extras(self, data, original, **kwargs):
+        return original | data
+
 
 RESOURCE = CKANEntity(
     "resource",
@@ -697,7 +702,7 @@ RESOURCE = CKANEntity(
     ResourceSchema(),
     ResourceSchema(partial=True),
     ckan_name="resource",
-    ckan_schema=ResourceCKANSchema,
+    ckan_schema=ResourceCKANSchema(),
 )
 
 
@@ -799,16 +804,44 @@ ORGANIZATION.members = [
 # ------------------------------------------------------------
 
 
+class TagSchema(Schema):
+    id = fields.UUID(dump_only=True)
+    name = schema.TagName()
+    vocabulary_id = fields.String(required=True, allow_none=True)
+
+
+class TagCKANSchema(Schema):
+    id = fields.String()
+    name = schema.TagName()
+    vocabulary_id = fields.String(allow_none=True)
+
+    class Meta:
+        unknown = EXCLUDE
+
+
 class VocabularySchema(Schema):
     id = fields.UUID(dump_only=True)
     name = schema.NameID()
-    tags = fields.List(fields.String, required=True)
+    # tags = fields.List(schema.TagName, required=True)
+    tags = fields.List(fields.Raw, required=True)
 
 
 class VocabularyCKANSchema(Schema):
     id = fields.String()
     name = schema.NameID()
-    tags = fields.List(fields.String)
+    tags = fields.List(fields.Raw)
+
+    # @post_dump
+    def convert_tags(self, data, **kwargs):
+        tags = data.get("tags", [])
+        data["tags"] = [{"name": tag} for tag in tags]
+        return data
+
+    # @pre_load
+    def unwrap_tags(self, data, **kwargs):
+        tags = data.get("tags", [])
+        data["tags"] = [tag["name"] for tag in tags]
+        return data
 
     class Meta:
         unknown = EXCLUDE
@@ -829,32 +862,99 @@ class VocabularyEntity(CKANEntity):
     def list_entities(self, limit=None, offset=None):
         """Return the list of vocabulary names"""
         # CKAN returns a list of objects, breaking the API.
-        entities = ckan_request(self.ckan_api_list, limit=limit, offset=offset)
+        entities = ckan_request(self.ckan_api_list)
         return [e["name"] for e in entities]
 
     def fetch_entities(self, limit=None, offset=None):
-        entities = ckan_request(self.ckan_api_list, limit=limit, offset=offset)
+        """Return the list of vocabulary objects.
+
+        This method is actually calling the CKAN API to fetch the list
+        of vocabulary objects.
+
+        Args:
+            limit (int): This argument is ignored.
+            offset (int): This argument is ignored.
+        """
+        entities = ckan_request(self.ckan_api_list)
         return [self.load_from_ckan(e) for e in entities]
+
+    def delete(self, eid: str, purge=False):
+        """Delete a vocabulary.
+
+        To delete a vocabulary in CKAN, it is necessary to first delete all tags
+        associated with it. This method will do that.
+
+        Args:
+            eid (str): The ID or name of the vocabulary to delete.
+            purge (bool): Actually, this is ignored. Vocabulary deletion is a purge.
+        """
+        # Fetch the vocabulary object
+        vocab = self.get(eid)
+
+        # Delete all tags associated with the vocabulary
+        for tag in vocab["tags"]:
+            TAG.delete(tag["id"])
+
+        # Delete the vocabulary
+        return super().delete(eid)
 
 
 VOCABULARY = VocabularyEntity()
 
 
-class TagSchema(Schema):
-    id = fields.UUID(dump_only=True)
-    name = schema.NameID()
-    vocabulary_id = fields.String(required=True)
+class TagEntity(CKANEntity):
+    def __init__(self):
+        super().__init__(
+            "tag",
+            "tags",
+            TagSchema(),
+            None,
+            ckan_name="tag",
+            ckan_schema=TagCKANSchema(),
+        )
+
+    def create(self, data: dict):
+        """Create a new vocabulary tag object in CKAN."""
+        name = data["name"]
+        vocab = data["vocabulary_id"]
+        if vocab is None:
+            raise DataError("Vocabulary ID is required to create a tag.")
+        obj = ckan_request(
+            self.ckan_api_create,
+            name=name,
+            vocabulary_id=vocab,
+            context={"entity": self.name},
+        )
+        return self.load_from_ckan(obj)
+
+    def get(self, eid: str):
+        """Return a tag object by name or id."""
+
+        # Check if we have a tagspec
+        if ":" in eid:
+            vocab, tag = eid.split(":")
+            obj = ckan_request(
+                self.ckan_api_show,
+                id=tag,
+                vocabulary_id=vocab,
+                context={"entity": self.name},
+            )
+            return self.load_from_ckan(obj)
+        else:
+            # Either we have a free tag name or a UUID, so..,
+            return super().get(eid)
+
+    def delete(self, eid: str, purge=False):
+        if ":" in eid:
+            vocab, tag = eid.split(":")
+            return ckan_request(
+                self.ckan_api_delete,
+                id=tag,
+                vocabulary_id=vocab,
+                context={"entity": self.name},
+            )
+        else:
+            return super().delete(eid)
 
 
-class TagCKANSchema(Schema):
-    id = fields.String()
-    name = schema.NameID()
-    vocabulary_id = fields.String()
-
-    class Meta:
-        unknown = EXCLUDE
-
-
-TAG = CKANEntity(
-    "tag", "tags", TagSchema(), None, ckan_name="tag", ckan_schema=TagCKANSchema()
-)
+TAG = TagEntity()

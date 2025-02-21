@@ -83,11 +83,32 @@ class EntityListResponse(Schema):
 
 
 class NameID(String):
-    """Datasets, groups and organizations, tags, etc, have name field which is unique and immutable."""
+    """Datasets, groups and organizations, etc, have name field which is unique and immutable."""
 
-    def __init__(self):
+    def __init__(self, required=True, **kwargs):
         super().__init__(
-            required=True, validate=[Length(2, 100), Regexp(r"^[a-z0-9_-]{2,100}$")]
+            required=required, validate=[Regexp(r"^[a-z0-9_-]{2,100}$")], **kwargs
+        )
+
+
+from tags import TAGNAME_PATTERN, TAGSPEC_PATTERN
+
+
+class TagName(String):
+    """Datasets, groups and organizations, etc, have name field which is unique and immutable."""
+
+    def __init__(self, required=True, **kwargs):
+        super().__init__(
+            required=required, validate=[Regexp(TAGNAME_PATTERN.pattern)], **kwargs
+        )
+
+
+class TagSpec(String):
+    """Datasets, groups and organizations, etc, have name field which is unique and immutable."""
+
+    def __init__(self, required=True, **kwargs):
+        super().__init__(
+            required=required, validate=[Regexp(TAGSPEC_PATTERN.pattern)], **kwargs
         )
 
 

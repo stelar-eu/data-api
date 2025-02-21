@@ -390,7 +390,7 @@ class ProcessEntity(PackageEntity):
         else:
             raise DataError("The package is not a workflow package.", workflow)
 
-    def create_entity(self, init_attr):
+    def create(self, init_attr):
         """Create a new process.
 
         This method overrides the create_entity method of the CKANEntity class.
@@ -444,21 +444,7 @@ class ProcessEntity(PackageEntity):
         process = self._enhance_process_package_from_db(process)
         return process
 
-    def get_entity(self, id):
-        """Get a process by its ID.
-
-        This method overrides the get_entity method of the CKANEntity class.
-
-        Args:
-            id: The ID of the process to be retrieved.
-
-        Returns:
-            The process with the specified ID.
-        """
-        process = super().get_entity(id)
-        return process
-
-    def update_entity(self, id, update_attr):
+    def update(self, id, update_attr):
         raise NotAllowedError(
             "Process update is not supported. Processes are updated by patch only."
         )
@@ -480,7 +466,7 @@ class ProcessEntity(PackageEntity):
         ]
     )
 
-    def patch_entity(self, id: str, patch_attr):
+    def patch(self, id: str, patch_attr):
         # Get the process
         process = self.get_entity(id)
 
@@ -557,7 +543,7 @@ class ProcessEntity(PackageEntity):
 
         return new_process
 
-    def delete_entity(self, id, purge=False):
+    def delete(self, id, purge=False):
         if purge:
             raise NotAllowedError("Purging is not supported for processes.")
         process = self.get_entity(id)

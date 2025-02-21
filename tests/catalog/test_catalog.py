@@ -143,7 +143,7 @@ def test_save_tags(tagspec, tagobject, app):
 
 @pytest.mark.parametrize(
     "entity",
-    [DATASET, GROUP, ORGANIZATION, VOCABULARY],
+    [DATASET, GROUP, ORGANIZATION],
 )
 def test_list_entity(entity, app):
     with app.app_context():
@@ -155,6 +155,15 @@ def test_list_entity(entity, app):
 
             for e in elist:
                 assert isinstance(e, str)
+
+
+def test_list_vocabulary(app):
+    with app.app_context():
+        vlist = VOCABULARY.list_entities()
+
+        assert isinstance(vlist, list)
+        for v in vlist:
+            assert isinstance(v, str)
 
 
 def test_manage_dataset(app):
