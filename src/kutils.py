@@ -1,12 +1,11 @@
 import base64
 import datetime
+import logging
 import re
 import smtplib
 import ssl
 import uuid
 from io import BytesIO
-from backend.ckan import ckan_request
-import logging
 
 import flask
 import jwt
@@ -21,8 +20,10 @@ from keycloak import (
 )
 
 import sql_utils
+from backend.ckan import ckan_request
 
 logger = logging.getLogger(__name__)
+
 
 def is_valid_uuid(s):
     try:
@@ -56,7 +57,7 @@ def email_username_unique(username, email):
 def convert_iat_to_date(timestamp):
     date = None
     if timestamp:
-        date = datetime.datetime.fromtimestamp(timestamp / 1000.0).strftime("%d-%m-%Y")
+        date = datetime.datetime.fromtimestamp(timestamp / 1000.0).isoformat()
         return date
     else:
         return None
@@ -87,21 +88,17 @@ def reset_password_init_flow(email):
 
     user_rep = keycloak_admin.get_users(query={"email": email})
     if user_rep:
-        try:
-            kuuid = user_rep[0].get("id")
-            if is_valid_uuid(kuuid):
-                send_reset_password_email(
-                    to_email=email,
-                    rstoken=generate_reset_token(user_rep[0].get("id")),
-                    user_id=user_rep[0].get("id"),
-                    fullname=user_rep[0].get("firstName")
-                    + " "
-                    + user_rep[0].get("lastName"),
-                )
-                return True
-
-        except Exception as e:
-            raise
+        kuuid = user_rep[0].get("id")
+        if is_valid_uuid(kuuid):
+            send_reset_password_email(
+                to_email=email,
+                rstoken=generate_reset_token(user_rep[0].get("id")),
+                user_id=user_rep[0].get("id"),
+                fullname=user_rep[0].get("firstName")
+                + " "
+                + user_rep[0].get("lastName"),
+            )
+            return True
 
 
 def verify_reset_token(token, user_id):
@@ -418,7 +415,7 @@ def get_token(username, password):
             return token
         else:
             return None
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -664,7 +661,7 @@ def create_user_with_password(
         ckan_payload = {
             "name": username,
             "email": email,
-            "password": password, 
+            "password": password,
         }
 
         try:
@@ -784,6 +781,8 @@ def get_user(user_id=None):
                 "username": user_representation.get("username"),
                 "email": user_representation.get("email"),
                 "fullname": f"{user_representation.get('firstName', '')} {user_representation.get('lastName', '')}".strip(),
+                "first_name": user_representation.get("firstName"),
+                "last_name": user_representation.get("lastName"),
                 "joined_date": creation_date,
                 "id": user_representation.get("id"),
                 "roles": filtered_roles,
@@ -871,6 +870,8 @@ def get_users_from_keycloak(offset, limit):
                 "username": user.get("username"),
                 "email": user.get("email"),
                 "fullname": f"{user.get('firstName', '')} {user.get('lastName', '')}".strip(),
+                "first_name": user.get("firstName"),
+                "last_name": user.get("lastName"),
                 "joined_date": creation_date,
                 "id": user.get("id"),
                 "roles": filtered_roles,

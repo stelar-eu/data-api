@@ -43,13 +43,13 @@ import re
 from typing import TYPE_CHECKING, Optional
 
 from apiflask import Schema, fields, validators
-from marshmallow import EXCLUDE, SchemaOpts, post_dump, pre_load
+from marshmallow import EXCLUDE, SchemaOpts, missing, post_dump, pre_load
 from psycopg2 import sql
 
 import schema
 from backend.ckan import ckan_request, filter_list_by_type
 from backend.pgsql import execSql, transaction
-from exceptions import DataError
+from exceptions import BackendLogicError, DataError
 from tags import tag_object_to_string, tag_string_to_object
 
 if TYPE_CHECKING:
@@ -303,7 +303,7 @@ class CKANEntity(Entity):
             update_data: The data to convert.
             current_obj: The current object in the database, or None if not available.
         """
-        update_data = self.create_to_ckan(update_data)
+        update_data = self.ckan_schema.dump(update_data)
         return update_data
 
     def load_from_ckan(self, ci):
@@ -564,6 +564,32 @@ class EntityWithExtras(CKANEntity):
 
         update_data = self.ckan_schema.dump(update_data)
         return update_data
+
+    def create_to_ckan(self, init_data):
+        """Transform data to CKAN format for creation requests.
+
+        When creating, if we have extras-based attributes, we need to
+        provide values so that they can be put in the extras field.
+        This is the load_default, or, if allow_none, it is none.
+        """
+
+        for attr in self.ckan_schema.opts.extra_attributes:
+            if attr in init_data:
+                continue
+
+            field = self.ckan_schema.fields[attr]
+            load_default = field.load_default
+
+            if load_default is not missing:
+                init_data[attr] = load_default
+            elif field.allow_none:
+                init_data[attr] = None
+            else:
+                raise BackendLogicError(
+                    f"Attribute {attr} is required on create, for {self.name}"
+                )
+
+        return super().create_to_ckan(init_data)
 
 
 class CKANEntityOptions(SchemaOpts):
