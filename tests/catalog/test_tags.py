@@ -1,8 +1,21 @@
+import pyjq
 import pytest
 
 
+# An auto-fixture that deletes the 'test_vocab1' vocabulary
+# if it exists!
 @pytest.fixture()
-def vocab1(app_client):
+def clean_vocab1(DC):
+    try:
+        for tag in pyjq.all(".result.tags|.[]|.id", DC.vocabulary_show(id="vocab1")):
+            DC.tag_delete(tag)
+        DC.vocabulary_delete(id="vocab1")
+    except Exception:
+        pass
+
+
+@pytest.fixture()
+def vocab1(app_client, clean_vocab1):
     response = app_client.post(
         "/api/v2/vocabulary",
         json={

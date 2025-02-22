@@ -49,7 +49,7 @@ from psycopg2 import sql
 import schema
 from backend.ckan import ckan_request, filter_list_by_type
 from backend.pgsql import execSql, transaction
-from exceptions import BackendLogicError, DataError
+from exceptions import BackendLogicError, DataError, NotFoundError
 from tags import tag_object_to_string, tag_string_to_object
 
 if TYPE_CHECKING:
@@ -365,6 +365,10 @@ class CKANEntity(Entity):
             The entity object.
         """
         obj = ckan_request(self.ckan_api_show, id=eid, context={"entity": self.name})
+        # Check the type of the CKAN object (for those CKAN objects that have type)
+        objtype = obj.get("type", self.name)
+        if objtype != self.name:
+            raise NotFoundError(f"{self.name} not found, ID belongs to {objtype}")
         return self.load_from_ckan(obj)
 
     def create(self, init_data):

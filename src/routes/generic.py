@@ -10,7 +10,7 @@ from flask import request
 
 import schema
 from auth import security_doc, token_active
-from entity import Entity, MemberEntity
+from entity import Entity, EntityWithMembers, MemberEntity
 from exceptions import APIException, InternalException
 
 gen_logger = getLogger(__name__)
@@ -462,7 +462,7 @@ def generate_endpoints(entity: Entity, bp: APIBlueprint, logger: Logger):
 
     for op in entity.operations:
         entity.endpoints[op] = GENERATOR[op](entity, bp, logger)
-    if isinstance(entity, MemberEntity):
+    if isinstance(entity, EntityWithMembers):
         for me in entity.members:
             for op in me.operations:
                 me.endpoints[op] = GENERATOR[op](me, bp, logger)
