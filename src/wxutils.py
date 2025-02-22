@@ -370,7 +370,7 @@ class ProcessEntity(PackageEntity):
 
         return package
 
-    def validate_workflow(self, workflow):
+    def validate_workflow(self, workflow: str | uuid.UUID):
         """Check that the workflow ID is a valid 'workflow' package.
 
         Args:
@@ -385,11 +385,12 @@ class ProcessEntity(PackageEntity):
                 package
 
         """
-        wf = ckan_request("package_show", id=workflow, context={"entity": "workflow"})
+        wfid = str(workflow)
+        wf = ckan_request("package_show", id=wfid, context={"entity": "workflow"})
         if wf["type"] == "workflow":
             return wf["id"]
         else:
-            raise DataError("The package is not a workflow package.", workflow)
+            raise DataError("The entity is not a workflow.", workflow)
 
     def create(self, init_attr):
         """Create a new process.
