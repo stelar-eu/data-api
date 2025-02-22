@@ -250,7 +250,7 @@ sql_workflow_execution_templates = {
         """,
     "workflow_get_tasks": """\
         SELECT 
-            tsk.task_uuid, 
+            tsk.task_uuid as task_exec_id, 
             tsk.state, 
             tsk.start_date, 
             tsk.end_date, 

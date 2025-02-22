@@ -10,7 +10,7 @@ import wxutils
 from auth import token_active
 
 # Input schema for validating and structuring several API requests
-from routes.generic import generate_endpoints
+from routes.generic import generate_endpoints, render_api_output
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,7 @@ generate_endpoints(wflow.WORKFLOW, workflows_bp, logger)
 @workflows_bp.doc(tags=["RESTful Workflow Operations"])
 @workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
 @token_active
+@render_api_output(logger)
 def api_get_task_metadata(task_id):
     """Return the metadata of the specific Task Execution. This JSON contains the task's state, metrics, messages, image, and other details.
 
@@ -49,25 +50,8 @@ def api_get_task_metadata(task_id):
         - 404: Task is not found
         - 500: An unknown error occurred
     """
-    try:
-        resp = wxutils.get_task_metadata(task_id)
-        return {"success": True, "result": {"task": resp}, "help": request.url}, 200
-
-    except ValueError as ve:
-        return {
-            "success": False,
-            "error": {"name": f"Error: {ve}", "__type": "Task Not Found Error"},
-            "help": request.url,
-        }, 404
-    except RuntimeError as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Task Creation Runtime Error",
-            },
-            "success": False,
-        }, 500
+    resp = wxutils.get_task_metadata(task_id)
+    return resp
 
 
 @workflows_bp.route("/tasks", methods=["POST"])

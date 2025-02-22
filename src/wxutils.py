@@ -674,6 +674,8 @@ def create_task(json_data, token):
     except Exception:
         raise ValueError
 
+    # breakpoint()
+
     try:
         tags = {}
 
@@ -689,8 +691,8 @@ def create_task(json_data, token):
         if workflow is None:
             raise RuntimeError("Workflow does not exist!")
 
-        if workflow.get("state") != "running":
-            raise AttributeError("Workflow is committed and will not accept tasks!")
+        if workflow.get("exec_state") != "running":
+            raise ConflictError("Workflow is committed and will not accept tasks!")
 
         start_date = datetime.now().isoformat()
         state = "running"
@@ -902,27 +904,21 @@ def get_task_metadata(task_id):
     """
 
     try:
-        d = dict()
-
-        t = sql_utils.task_execution_read(task_id)
-        if t:
-            d.update(sql_utils.task_execution_read(task_id))
-
-            if d["tags"].get("tool_image"):
-                d["tool_image"] = d["tags"]["tool_image"]
-
-            if d["tags"].get("tool_name"):
-                d["tool_name"] = d["tags"]["tool_name"]
+        d = sql_utils.task_execution_read(task_id)
+        if d:
+            if d["tags"]:
+                if d["tags"].get("tool_image"):
+                    d["tool_image"] = d["tags"]["tool_image"]
+                if d["tags"].get("tool_name"):
+                    d["tool_name"] = d["tags"]["tool_name"]
 
             state = d["state"]
 
-            if state != "failed" and state != "succeeded":
-                return d
+            if state in ["failed", "succeeded"]:
+                d["messages"] = d["tags"]["log"]
 
-            d["messages"] = d["tags"]["log"]
-
-            d["output"] = sql_utils.task_execution_read_outputs_sql(task_id)
-            d["metrics"] = sql_utils.task_execution_metrics_read_sql(task_id)
+                d["output"] = sql_utils.task_execution_read_outputs_sql(task_id)
+                d["metrics"] = sql_utils.task_execution_metrics_read_sql(task_id)
 
             return d
         else:
@@ -930,7 +926,8 @@ def get_task_metadata(task_id):
     except ValueError:
         raise
     except Exception as e:
-        raise RuntimeError(f"Task Metadata Could Not Be Retrieved. {e}")
+        raise
+        # raise RuntimeError(f"Task Metadata Could Not Be Retrieved. {e}")
 
 
 def get_task_logs(task_id):
