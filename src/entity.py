@@ -867,23 +867,26 @@ class PackageEntity(EntityWithExtras):
         super().__init__(*args, extras_table="package", ckan_name="package", **kwargs)
         self.package_type = package_type
         self.ckan_api_purge = "dataset_purge"
+        self.list_names = True
 
     def list_entities(self, limit=None, offset=None):
         self.check_limit_offset(limit, "limit")
         self.check_limit_offset(offset, "offset")
 
-        # Package-derived entities are filtered by type using SQL, since
-        # the package_list API call does not support filtering by type.
-        result = execSql(
+        # Return names or IDs?
+        list_attr = "name" if self.list_names else "id"
+        sql_query = sql.SQL(
             """\
-            SELECT id 
+            SELECT {list_attr} 
             FROM package 
             WHERE state = 'active' AND type = %s
             ORDER BY name
-            LIMIT %s OFFSET %s""",
-            [self.package_type, limit, offset],
-        )
-        return [row["id"] for row in result]
+            LIMIT %s OFFSET %s"""
+        ).format(list_attr=sql.Identifier(list_attr))
+        # Package-derived entities are filtered by type using SQL, since
+        # the package_list API call does not support filtering by type.
+        result = execSql(sql_query, [self.package_type, limit, offset])
+        return [row[list_attr] for row in result]
 
     def filter_ids(self, idlist: list[str]) -> list[dict]:
         """Filter the list of packages by ID, leaving only packages of one type."""
