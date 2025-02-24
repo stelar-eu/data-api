@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-import pyjq
+# import pyjq
 import pytest
 from marshmallow import ValidationError
 

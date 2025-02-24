@@ -106,9 +106,7 @@
                 <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown"
                     aria-label="Open user menu">
                     <span class="avatar avatar-sm">
-                        {% set initials = session.get('USER_NAME', 'Guest').split() %}
-                        {% set initials = (initials[0][0] + (initials[1][0] if initials|length > 1 else '')).upper() %}
-                        {{ initials if initials != 'G' else 'G' }}
+
                     </span>
                     <div class="d-none d-xl-block ps-2">
                         <div>{{ session.get('USER_NAME', 'Guest') }}</div>

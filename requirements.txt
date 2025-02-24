@@ -19,4 +19,4 @@ Pillow==11.0.0
 pyjwt==2.10.1
 
 # For the tests
-pyjq==2.6
+# pyjq==2.6

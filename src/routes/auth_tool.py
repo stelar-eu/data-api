@@ -8,7 +8,7 @@ from flask import (
     request,
     session,
 )
-
+import logging
 import kutils
 import kutils as ku
 import monitor_module as mon
@@ -16,11 +16,14 @@ import mutils as mu
 import reconciliation_module as rec
 import schema
 import sql_utils
+import auth_module as am
 from auth import admin_required, auth, security_doc
 
 auth_tool_bp = APIBlueprint(
     "auth_tool_blueprint", __name__, tag="Authorization Management"
 )
+
+logger = logging.getLogger(__name__)
 
 
 @auth_tool_bp.route("/layout", methods=["POST"])
@@ -146,17 +149,42 @@ def create_roles_function():
         yaml_str = request.data
 
         roles_list = []
+        new_policy_list = []
 
         # Process roles
         for role in yaml_content["roles"]:
             for perm in role["permissions"]:
-                role_dict = {
-                    "name": role["name"],
-                    "permissions": role["permissions"],
-                    # "resource": perm['resource']
-                }
-            roles_list.append(role_dict)
 
+                match perm:
+                    case {"action": a, "resource": p}:
+
+                        role_dict = {
+                            "name": role["name"],
+                            "permissions": perm,
+                            # "resource": perm['resource']
+                        }
+                        logger.debug(f"Role: {role_dict}")
+                        roles_list.append(role_dict)
+
+                        for item in roles_list:
+                            role_name = item.get("name")
+                            realm_role_name = ku.create_realm_role(keycloak_admin, role_name)
+                            policy_name_list = mu.create_policy(item["permissions"])
+                            new_policy_list.extend(policy_name_list)
+                            for policy in policy_name_list:
+                                client_role_name = ku.create_client_role(
+                                    keycloak_admin, "minio", client_id, policy
+                                )  ##check on that
+                                keycloak_admin.add_composite_realm_roles_to_role(
+                                    realm_role_name,
+                                    [keycloak_admin.get_client_role(client_id, client_role_name)],
+                                )
+
+                       
+                    case {"action": a, "resource_spec": spec}:
+                        am.parse_permissions(role["name"], perm)
+
+        ########################## reconsile roles and policies ############################           
         existing_realm_roles = mon.get_current_realm_roles(keycloak_admin)
         existing_policies = mon.get_current_policies()
         existing_client_roles = mon.get_current_client_roles(keycloak_admin)
@@ -165,7 +193,7 @@ def create_roles_function():
         ku.delete_realm_roles(keycloak_admin, roles_to_delete)
 
         policies_to_delete, policy_names_set = rec.update_policies_from_yaml(
-            roles_list, existing_policies
+            new_policy_list, existing_policies
         )
         mu.delete_policies(policies_to_delete)
 
@@ -173,20 +201,8 @@ def create_roles_function():
             policy_names_set, existing_client_roles
         )
         ku.delete_client_roles(keycloak_admin, client_roles_to_delete)
-
-        for item in roles_list:
-            role_name = item.get("name")
-            realm_role_name = ku.create_realm_role(keycloak_admin, role_name)
-            policy_name_list = mu.create_policy(item["permissions"])
-            for policy in policy_name_list:
-                client_role_name = ku.create_client_role(
-                    keycloak_admin, "minio", client_id, policy
-                )  ##check on that
-                keycloak_admin.add_composite_realm_roles_to_role(
-                    realm_role_name,
-                    [keycloak_admin.get_client_role(client_id, client_role_name)],
-                )
-
+        ####################################################################################
+        ########################## store policy file to db #################################
         policy_id = str(uuid.uuid4())
         user_id = ""
 
@@ -210,7 +226,7 @@ def create_roles_function():
                     "__type": "Policy Not Stored Error",
                 },
                 "success": False,
-            }, 500
+            }, 500               
 
     except Exception as e:
         return {
@@ -221,6 +237,24 @@ def create_roles_function():
             },
             "success": False,
         }, 500
+    
+@auth_tool_bp.route("/policy/check_access_test", methods=["POST"])
+def check_access_test():
+    """
+    Test the access control of the KLMS by checking if a user with a given role can perform a given action on a given resource.
+    """
+
+    # Read the file content and load it as a dictionary
+    data_content = request.get_json()
+
+    try:
+        access = am.check_access(data_content["user_roles"], data_content["action"], data_content["resource"])
+        if access:
+            return jsonify({"access granted": access}), 200
+        else:
+            return jsonify({"access granted": access}), 403
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @auth_tool_bp.route("/policy/representation/<policy_filter>", methods=["GET"])
