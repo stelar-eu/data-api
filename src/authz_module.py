@@ -1,5 +1,10 @@
 from typing import Any
 from abc import ABC, abstractmethod
+import monitor_module as mon
+import reconciliation_module as rec
+import kutils as ku
+import mutils as mu
+import yaml
 
 action_permissions = {}
 
@@ -159,7 +164,6 @@ def parse_permissions(role_name,perm):
     # return action_permissions
 
     
-
 def check_access(user_roles, action, resource):
     global action_permissions
     action_perms = action_permissions.get(action, {})
@@ -174,3 +178,73 @@ def check_access(user_roles, action, resource):
 
     return False  # Denied if no role grants permission
 
+
+
+def parse_authz_config(config):
+    # initialize keycloak admin through service accounts
+        keycloak_admin = ku.init_admin_client_with_credentials()
+
+        # #get minio client id
+        client_id = keycloak_admin.get_client_id("minio")
+
+        # Read the file content and load it as a dictionary
+        yaml_content = yaml.safe_load(config)
+        # yaml_str = request.data
+
+        roles_list = []
+        new_policy_list = []
+
+        # Process roles
+        for role in yaml_content["roles"]:
+            for perm in role["permissions"]:
+
+                match perm:
+                    case {"action": a, "resource": p}:
+                        
+                        role_dict = {
+                            "name": role["name"],
+                            "permissions": perm,
+                            # "resource": perm['resource']
+                        }
+                        
+                        roles_list.append(role_dict)
+
+                        for item in roles_list:
+                            role_name = item.get("name")
+                            realm_role_name = ku.create_realm_role(keycloak_admin, role_name)
+                            policy_name_list = mu.create_policy(item["permissions"])
+                            new_policy_list.extend(policy_name_list)
+                            for policy in policy_name_list:
+                                client_role_name = ku.create_client_role(
+                                    keycloak_admin, "minio", client_id, policy
+                                )  ##check on that
+                                keycloak_admin.add_composite_realm_roles_to_role(
+                                    realm_role_name,
+                                    [keycloak_admin.get_client_role(client_id, client_role_name)],
+                                )
+
+                       
+                    case {"action": a, "resource_spec": spec}:
+                        
+                        parse_permissions(role["name"], perm)
+
+        ########################## reconsile roles and policies ############################
+                
+        existing_realm_roles = mon.get_current_realm_roles(keycloak_admin)
+        existing_policies = mon.get_current_policies()
+        existing_client_roles = mon.get_current_client_roles(keycloak_admin)
+
+        roles_to_delete = rec.update_roles_from_yaml(roles_list, existing_realm_roles)
+        ku.delete_realm_roles(keycloak_admin, roles_to_delete)
+
+        policies_to_delete, policy_names_set = rec.update_policies_from_yaml(
+            new_policy_list, existing_policies
+        )
+        mu.delete_policies(policies_to_delete)
+
+        client_roles_to_delete = rec.update_client_roles(
+            policy_names_set, existing_client_roles
+        )
+        ku.delete_client_roles(keycloak_admin, client_roles_to_delete)
+
+        return yaml_content
