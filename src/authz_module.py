@@ -5,19 +5,178 @@ import reconciliation_module as rec
 import kutils as ku
 import mutils as mu
 import yaml
+import logging
+
+logger = logging.getLogger(__name__)
 
 action_permissions = {}
 
-class ResourceSpec(ABC):
+class AuthorizationModule:
+
+    def __init__(self, config):
+        logger.info("Initializing the Authorization Module")
+        self.config = self.parse_authz_config(config)
+
+    def create_permissions(self, role_name, perm):
+        raise NotImplementedError
+
+    def reconcile(self):
+        raise NotImplementedError
+    
+    def parse_authz_config(self,config):
+        new_permissions = {}
+        # Read the file content and load it as a dictionary
+        yaml_content = yaml.safe_load(config)
+        
+        logging.info("Parsing the yaml file")
+        resource_obj = ResourcePermissionsType()
+        resource_spec_obj = ResourceSpecPermissionsType()
+        # Process roles
+        for role in yaml_content["roles"]:
+            for perm in role["permissions"]:
+                match perm:
+                    case {"action": a, "resource": p}:
+                        logger.info("Processing resourceType permissions")
+                        resource_obj.create_permissions(role["name"],perm)   
+                    case {"action": a, "resource_spec": spec}:
+                        logger.info("Processing resourceSpecType permissions")
+                        new_perms = resource_spec_obj.create_permissions(role["name"], perm)
+                        for key, value in new_perms.items():
+                            if key in new_permissions:
+                                # Merge nested dict: key -> role_name -> list of specs.
+                                for role_name, specs in value.items():
+                                    if role_name in new_permissions[key]:
+                                        new_permissions[key][role_name].extend(specs)
+                                    else:
+                                        new_permissions[key][role_name] = specs
+                            else:
+                                new_permissions[key] = value
+
+        ########################## reconsile roles and policies ############################
+        resource_obj.reconcile()
+        resource_spec_obj.reconcile(new_permissions)    
+        
+        return yaml_content
+
+    def __call__(self):
+        return self.config
+    
+class ResourceSpecPermissionsType(AuthorizationModule):
+
+    def __init__(self):
+        pass
+    
+    def parse_resource_spec(self,spec):
+        match spec:
+            case {"type": t, "group": g, "capacity": c}:
+                return GMspec(type=t, group=g, capacity=c)
+            case {"type": t, "org": o, "capacity": c}:
+                return OMSpec(type=t, org=o, capacity=c)
+            case {"group": g, "capacity": c}:
+                return UMspec(group=g, capacity=c)
+            case {"attr": a, "operation": o, "value": v}:
+                return AttrSpec(attr=a, operation=o, value=v)
+            case _:
+                raise ValueError("Invalid resource specification")
+                  
+    def create_permissions(self,role_name, perm):
+        # global action_permissions
+        permissions = {}
+        # action_permissions.clear()
+        
+        logger.info("Creating resource_spec permissions")
+        actions = perm["action"]
+        if isinstance(actions, str):
+            actions = [actions]  # Normalize to list if a single action is provided
+        logger.info("Parsing resource specs")
+        # Parse resource specs
+        resource_specs = [self.parse_resource_spec(r) for r in perm["resource_spec"]]
+
+        # Build the action-first structure directly
+        for action in actions:
+            if action not in permissions:
+                permissions[action] = {}
+
+            if role_name not in permissions[action]:
+                permissions[action][role_name] = []
+
+            permissions[action][role_name].append(resource_specs)
+        
+        return permissions
+       
+    def reconcile(self,new_permissions):
+        global action_permissions
+        action_permissions = new_permissions
+
+        
+    
+class ResourcePermissionsType(AuthorizationModule):
+
+    def __init__(self):
+        logger.info("Initializing ResourcePermissionsType")
+        self.roles_list = []
+        self.new_policy_list = []
+        self.keycloak_admin = ku.init_admin_client_with_credentials()
+        self.client_id = self.keycloak_admin.get_client_id("minio")
+
+    
+    def create_permissions(self, role, perm):
+        logger.info("Creating role dict")
+        role_dict = {
+            "name": role,
+            "permissions": perm,
+            # "resource": perm['resource']
+        }
+        logger.info("Appending role dict to roles_list")
+        self.roles_list.append(role_dict)
+
+        logger.info("Creating roles and policies")
+        for item in self.roles_list:
+            role_name = item.get("name")
+            realm_role_name = ku.create_realm_role(self.keycloak_admin, role_name)
+            policy_name_list = mu.create_policy(item["permissions"])
+            self.new_policy_list.extend(policy_name_list)
+            for policy in policy_name_list:
+                client_role_name = ku.create_client_role(
+                    self.keycloak_admin, "minio", self.client_id, policy
+                )  ##check on that
+                self.keycloak_admin.add_composite_realm_roles_to_role(
+                    realm_role_name,
+                    [self.keycloak_admin.get_client_role(self.client_id, client_role_name)],
+                )
+        logger.info("Role and policy creation completed")
+            
+
+    def reconcile(self):
+        existing_realm_roles = mon.get_current_realm_roles(self.keycloak_admin)
+        existing_policies = mon.get_current_policies()
+        existing_client_roles = mon.get_current_client_roles(self.keycloak_admin)
+
+        roles_to_delete = rec.update_roles_from_yaml(self.roles_list, existing_realm_roles)
+        ku.delete_realm_roles(self.keycloak_admin, roles_to_delete)
+
+        policies_to_delete, policy_names_set = rec.update_policies_from_yaml(
+            self.new_policy_list, existing_policies
+        )
+        mu.delete_policies(policies_to_delete)
+
+        client_roles_to_delete = rec.update_client_roles(
+            policy_names_set, existing_client_roles
+        )
+        ku.delete_client_roles(self.keycloak_admin, client_roles_to_delete)
+
+
+
+class ResourceSpec:
     """
     Abstract base class for resource specifications.
     """
-    @abstractmethod
+    
     def auth(self,resource) -> bool:
         """
         Determines if a given resource matches this specification.
         """
-        pass
+        raise NotImplementedError
 
 
 class AttrSpec(ResourceSpec):
@@ -90,7 +249,7 @@ class OMSpec(ResourceSpec):
         self.org = org
         self.capacity = capacity
 
-    def auth(self, resource, action, context) -> bool:
+    def auth(self, resource) -> bool:
         if resource.get("type",None) != self.type:
             return False
 
@@ -127,43 +286,6 @@ class UMspec(ResourceSpec):
 
 
 
-def parse_resource_spec(spec):
-    match spec:
-        case {"type": t, "group": g, "capacity": c}:
-            return GMspec(type=t, group=g, capacity=c)
-        case {"type": t, "org": o, "capacity": c}:
-            return OMSpec(type=t, org=o, capacity=c)
-        case {"group": g, "capacity": c}:
-            return UMspec(group=g, capacity=c)
-        case {"attr": a, "operation": o, "value": v}:
-            return AttrSpec(attr=a, operation=o, value=v)
-        case _:
-            raise ValueError("Invalid resource specification")
-
-
-def parse_permissions(role_name,perm):
-    global action_permissions
-
-    actions = perm["action"]
-    if isinstance(actions, str):
-        actions = [actions]  # Normalize to list if a single action is provided
-
-    # Parse resource specs
-    resource_specs = [parse_resource_spec(r) for r in perm["resource_spec"]]
-
-    # Build the action-first structure directly
-    for action in actions:
-        if action not in action_permissions:
-            action_permissions[action] = {}
-
-        if role_name not in action_permissions[action]:
-            action_permissions[action][role_name] = []
-
-        action_permissions[action][role_name].append(resource_specs)
-
-    # return action_permissions
-
-    
 def check_access(user_roles, action, resource):
     global action_permissions
     action_perms = action_permissions.get(action, {})
@@ -177,74 +299,3 @@ def check_access(user_roles, action, resource):
                 return True  # Early exit on valid permission
 
     return False  # Denied if no role grants permission
-
-
-
-def parse_authz_config(config):
-    # initialize keycloak admin through service accounts
-        keycloak_admin = ku.init_admin_client_with_credentials()
-
-        # #get minio client id
-        client_id = keycloak_admin.get_client_id("minio")
-
-        # Read the file content and load it as a dictionary
-        yaml_content = yaml.safe_load(config)
-        # yaml_str = request.data
-
-        roles_list = []
-        new_policy_list = []
-
-        # Process roles
-        for role in yaml_content["roles"]:
-            for perm in role["permissions"]:
-
-                match perm:
-                    case {"action": a, "resource": p}:
-                        
-                        role_dict = {
-                            "name": role["name"],
-                            "permissions": perm,
-                            # "resource": perm['resource']
-                        }
-                        
-                        roles_list.append(role_dict)
-
-                        for item in roles_list:
-                            role_name = item.get("name")
-                            realm_role_name = ku.create_realm_role(keycloak_admin, role_name)
-                            policy_name_list = mu.create_policy(item["permissions"])
-                            new_policy_list.extend(policy_name_list)
-                            for policy in policy_name_list:
-                                client_role_name = ku.create_client_role(
-                                    keycloak_admin, "minio", client_id, policy
-                                )  ##check on that
-                                keycloak_admin.add_composite_realm_roles_to_role(
-                                    realm_role_name,
-                                    [keycloak_admin.get_client_role(client_id, client_role_name)],
-                                )
-
-                       
-                    case {"action": a, "resource_spec": spec}:
-                        
-                        parse_permissions(role["name"], perm)
-
-        ########################## reconsile roles and policies ############################
-                
-        existing_realm_roles = mon.get_current_realm_roles(keycloak_admin)
-        existing_policies = mon.get_current_policies()
-        existing_client_roles = mon.get_current_client_roles(keycloak_admin)
-
-        roles_to_delete = rec.update_roles_from_yaml(roles_list, existing_realm_roles)
-        ku.delete_realm_roles(keycloak_admin, roles_to_delete)
-
-        policies_to_delete, policy_names_set = rec.update_policies_from_yaml(
-            new_policy_list, existing_policies
-        )
-        mu.delete_policies(policies_to_delete)
-
-        client_roles_to_delete = rec.update_client_roles(
-            policy_names_set, existing_client_roles
-        )
-        ku.delete_client_roles(keycloak_admin, client_roles_to_delete)
-
-        return yaml_content
