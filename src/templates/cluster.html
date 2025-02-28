@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-    <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>STELAR | Cluster Settings</title>
 
     <link rel="preload" href="https://code.jquery.com/jquery-3.6.0.min.js" as="script">
@@ -11,253 +12,344 @@
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js" as="script">
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">   
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.5/ace.js" type="text/javascript" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.5/ace.js" type="text/javascript"
+        charset="utf-8"></script>
 
     <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
     <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
 </head>
+
 <body>
     <div class="page">
-        {%  include 'header.html' %}
+        {% include 'header.html' %}
         <div class="page-wrapper">
-        <div class="page-header d-print-none">
-            <div class="container-xl">
-            <div class="row g-2 align-items-center">
-                <div class="col">
-                <div class="page-pretitle">
-                    ADMINISTRATION
-                </div>
-                <h2 class="page-title">
-                    Cluster Settings
-                </h2>
+            <div class="page-header d-print-none">
+                <div class="container-xl">
+                    <div class="row g-2 align-items-center">
+                        <div class="col">
+                            <div class="page-pretitle">
+                                ADMINISTRATION
+                            </div>
+                            <h2 class="page-title">
+                                Cluster Settings
+                            </h2>
+                        </div>
+                    </div>
                 </div>
             </div>
-            </div>
-        </div>
-        <div class="page-body">
-            <div class="container container-xl">
-              <div class="card card-md">
-                <div class="card-body">
-                    <div class="row row-cards">
-                       <div class="col-lg-12">
-                            <h2 class="mb-3">User Settings</h2>
-                            <p class="text-secondary mb-3">
-                                Manage your organization users, edit their details or add new users
-                            </p>
-                            <div class="card-body border-bottom">
-                                <div class="d-flex">
-                                    <div class="ms-auto d-flex ">
-                                        <div class="input-icon">
-                                            <span class="input-icon-addon">
-                                              <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" /><path d="M21 21l-6 -6" /></svg>
-                                            </span>
-                                            <input type="text" value="" class="form-control" placeholder="Search User" id="user-search-box" aria-label="User Filtered Search">
+            <div class="page-body">
+                <div class="container container-xl">
+                    <div class="card card-md">
+                        <div class="card-body">
+                            <div class="row row-cards">
+                                <div class="col-lg-12">
+                                    <h2 class="mb-3">User Settings</h2>
+                                    <p class="text-secondary mb-3">
+                                        Manage your organization users, edit their details or add new users
+                                    </p>
+                                    <div class="card-body border-bottom">
+                                        <div class="d-flex">
+                                            <div class="ms-auto d-flex ">
+                                                <div class="input-icon">
+                                                    <span class="input-icon-addon">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24"
+                                                            height="24" viewBox="0 0 24 24" stroke-width="2"
+                                                            stroke="currentColor" fill="none" stroke-linecap="round"
+                                                            stroke-linejoin="round">
+                                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                            <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+                                                            <path d="M21 21l-6 -6" />
+                                                        </svg>
+                                                    </span>
+                                                    <input type="text" value="" class="form-control"
+                                                        placeholder="Search User" id="user-search-box"
+                                                        aria-label="User Filtered Search">
+                                                </div>
+                                            </div>
+                                            <div class="ms-2 d-inline-block d-none">
+                                                <button class="btn btn-sm btn-outline-secondary"
+                                                    id="clear-user-search-btn">Clear</button>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="ms-2 d-inline-block d-none">
-                                        <button class="btn btn-sm btn-outline-secondary" id="clear-user-search-btn">Clear</button>
-                                      </div>
+                                    <div class="table-responsive">
+                                        <table class="table table-vcenter card-table" id="users-table">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 15%;">Username</th>
+                                                    <th style="width: 22%;">Name</th>
+                                                    <th style="width: 23%;">Email</th>
+                                                    <th style="width: 10%;">Joined Organization</th>
+                                                    <th style="width: 22%;">Roles</th>
+                                                    <th style="width: 8%;">Activation Status</th>
+                                                    <th class="w-1"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="user-body" class="placeholder-glow">
+
+                                                {% for i in range(8) %}
+                                                <tr>
+                                                    <td>
+                                                        <div class="col-auto">
+                                                            <div class="placeholder placeholder-xs col-6"></div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="col-auto">
+                                                            <div class="placeholder placeholder-xs col-9"></div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="col-auto">
+                                                            <div class="placeholder placeholder-xs col-9"></div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="col-auto">
+                                                            <div class="placeholder placeholder-xs col-6"></div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="col-auto">
+                                                            <div class="placeholder placeholder-xs col-9"></div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="col-auto">
+                                                            <div class="placeholder placeholder-xs col-6"></div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="col-auto">
+                                                            <div class="placeholder placeholder-xs col-9"></div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+
+                                        <div class="card-footer d-flex align-items-center" id="pagination-container">
+                                            <p class="m-0 text-secondary">Showing <span id="start"></span> to <span
+                                                    id="end"></span> of <span id="total"></span> entries</p>
+                                            <ul class="pagination m-0 ms-auto" id="pagination-numbers">
+                                                <li class="page-item" id="prev-page">
+                                                    <a class="page-link" tabindex="-1" aria-disabled="true">prev </a>
+                                                </li>
+                                                <li class="page-item active"><a class="page-link" data-page="1">1</a>
+                                                </li>
+                                                <li class="page-item" id="next-page">
+                                                    <a class="page-link"> next</a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="table-responsive">
-                                <table class="table table-vcenter card-table" id="users-table">
-                                    <thead>
-                                    <tr>
-                                        <th style="width: 15%;">Username</th>
-                                        <th style="width: 22%;">Name</th>
-                                        <th style="width: 23%;">Email</th>
-                                        <th style="width: 10%;">Joined Organization</th>
-                                        <th style="width: 22%;">Roles</th>
-                                        <th style="width: 8%;">Activation Status</th>
-                                        <th class="w-1"></th>
-                                    </tr>
-                                    </thead>     
-                                    <tbody id="user-body">                      
-                                    </tbody>
-                                </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="container container-xl mt-4">
+                    <div class="card card-md">
+                        <div class="card-body">
+                            <div class="row row-cards">
+                                <div class="col-lg-4">
+                                    <h2 class="mb-3">Authorization Policy Management</h2>
+                                    <p class="text-secondary mb-4">
+                                        Manage the authorization rules applied to MinIO resources within the KLMS
+                                        cluster.
+                                    </p>
+                                    <div class="card">
+                                        <div class="list-group card-list-group">
 
-                                <div class="card-footer d-flex align-items-center" id="pagination-container">
-                                    <p class="m-0 text-secondary">Showing <span id="start"></span> to <span id="end"></span> of <span id="total"></span> entries</p>
-                                    <ul class="pagination m-0 ms-auto" id="pagination-numbers">
-                                        <li class="page-item" id="prev-page">
-                                            <a class="page-link"  tabindex="-1" aria-disabled="true">prev </a>
-                                        </li>
-                                        <li class="page-item active"><a class="page-link" data-page="1">1</a></li>
-                                        <li class="page-item" id="next-page">
-                                            <a class="page-link" > next</a>
-                                        </li>
-                                    </ul>
+
+
+
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-8">
+                                    <div class="d-flex justify-content-end mb-3" id="editor-header">
+                                        <button id="download-policy-btn" class="btn btn-primary">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="me-2 text-white icon icon-tabler icons-tabler-outline icon-tabler-download">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
+                                                <path d="M7 11l5 5l5 -5" />
+                                                <path d="M12 4l0 12" />
+                                            </svg>
+                                            Download YAML</button>
+                                        <div>
+                                        </div>
+                                        <button id="clear-policy-btn" class="btn btn-secondary ms-2">Clear
+                                            Editor</button>
+                                    </div>
+                                    <div id="editor" style="border-radius:5px; height: 40rem; width: 100%;">
+
+                                    </div>
+                                    <div class="d-flex justify-content-end mt-3" id="editor-footer">
+                                        <button id="apply-policy-btn" class="btn btn-primary">Apply YAML as new
+                                            Policy</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>              
-            </div>
-          </div>
-          <div class="container container-xl mt-4">
-            <div class="card card-md">
-                <div class="card-body">
-                    <div class="row row-cards">
-                        <div class="col-lg-4">
-                             <h2 class="mb-3">Authorization Policy Management</h2>
-                             <p class="text-secondary mb-4">
-                                 Manage the authorization rules applied to MinIO resources within the KLMS cluster. 
-                             </p>
-                             <div class="card">
-                                <div class="list-group card-list-group">
-                                 
-                                    
+                </div>
 
-
+                <div class="container container-xl mt-4">
+                    <div class="card card-md">
+                        <div class="card-body">
+                            <div class="row row-cards">
+                                <div class="col-lg-12">
+                                    <h2 class="mb-3">Tool Settings</h2>
+                                    <p class="text-secondary mb-4">
+                                        Manage the data tool images that are allowed to be run in the KLMS cluster
+                                    </p>
+                                    <div class="table-responsive">
+                                        <table class="table table-vcenter card-table">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 25%;">Tool</th>
+                                                    <th style="width: 25%;">Image Name</th>
+                                                    <th style="width: 25%;">Source Code Repo</th>
+                                                    <th style="width: 15%;">Owner</th>
+                                                    <th style="width: 10%;">Execution Allowed</th>
+                                                    <th class="w-1"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tool-body">
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                              </div>
+                            </div>
                         </div>
-
-                        <div class="col-lg-8">
-                            <div class="d-flex justify-content-end mb-3" id="editor-header">
-                                <button id="download-policy-btn" class="btn btn-primary">
-                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 text-white icon icon-tabler icons-tabler-outline icon-tabler-download"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" /><path d="M7 11l5 5l5 -5" /><path d="M12 4l0 12" /></svg>
-                                    Download YAML</button>
-                                <div>
+                    </div>
+                </div>
+                <div class="modal modal-blur fade" id="verify-delete-user" tabindex="-1" role="dialog"
+                    aria-hidden="true">
+                    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <div class="modal-status bg-danger"></div>
+                            <div class="modal-body text-center py-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon mb-2 text-danger icon-lg" width="24"
+                                    height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24V0H0z" fill="none" />
+                                    <path
+                                        d="M10.24 3.957l-8.422 14.06a1.989 1.989 0 0 0 1.7 2.983h16.845a1.989 1.989 0 0 0 1.7 -2.983l-8.423 -14.06a1.989 1.989 0 0 0 -3.4 0z" />
+                                    <path d="M12 9v4" />
+                                    <path d="M12 17h.01" />
+                                </svg>
+                                <h3>Are you sure?</h3>
+                                <div class="text-secondary">
+                                    Do you really wish to delete user <span id="verify-user-name"
+                                        class="fw-bold"></span>?
+                                    This action is irreversible.
+                                    <span hidden id="verify-user-id-del"></span>
                                 </div>
-                                <button id="clear-policy-btn" class="btn btn-secondary ms-2">Clear Editor</button>
                             </div>
-                            <div id="editor" style="border-radius:5px; height: 40rem; width: 100%;">
+                            <div class="modal-footer">
+                                <div class="w-100">
+                                    <div class="row">
+                                        <div class="col"><a href="#" class="btn w-100" data-bs-dismiss="modal">
+                                                Cancel
+                                            </a></div>
+                                        <div class="col">
+                                            <button id="confirm-delete-user-btn" class="btn btn-danger w-100">
+                                                Delete User
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal modal-blur fade" id="modal-edit-user" tabindex="-1" role="dialog" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Edit User</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="edit-user-form">
+                                    <input type="hidden" id="user-id" name="user-id"> <!-- Hidden field for user ID -->
+                                    <div class="mb-3">
+                                        <label class="form-label">Username</label>
+                                        <input type="text" class="form-control" id="edit-username" name="username"
+                                            placeholder="Enter username" disabled>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Full Name</label>
+                                        <input type="text" class="form-control" id="edit-fullname" name="fullname"
+                                            placeholder="Enter full name">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="edit-email" name="email"
+                                            placeholder="Enter email address">
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-label">User Roles</div>
+                                        <div id="role-checkboxes">
+                                            <!-- Roles checkboxes will be dynamically injected here -->
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Activation Status</label>
+                                        <div class="d-flex">
+                                            <label class="form-check form-switch mt-2">
+                                                <input class="form-check-input" type="checkbox"
+                                                    id="edit-active-account">
+                                                <span class="form-check-label">Active account</span>
+                                            </label>
+                                            <button class="btn btn-success ms-3" id="send-activation-email-btn"
+                                                disabled>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                    class="icon text-white me-2 icon-tabler icons-tabler-outline icon-tabler-send">
+                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                    <path d="M10 14l11 -11" />
+                                                    <path
+                                                        d="M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a.55 .55 0 0 1 0 -1l18 -6.5" />
+                                                </svg>
+                                                </svg>
+                                                Send activation email
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <small class="form-text text-muted">If a user has an active session, they need to
+                                        logout and login again for any changes to take effect.</small>
 
                             </div>
-                            <div class="d-flex justify-content-end mt-3" id="editor-footer">
-                                <button id="apply-policy-btn" class="btn btn-primary">Apply YAML as new Policy</button>
+                            <div class="modal-footer" id="user-modal-footer">
+                                <button type="button" class="btn btn-link link-secondary"
+                                    data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary" id="save-user-btn">Save changes</button>
                             </div>
+                            </form>
                         </div>
                     </div>
                 </div>
-            </div>
-          </div>
 
-          <div class="container container-xl mt-4">
-            <div class="card card-md">
-              <div class="card-body">
-                  <div class="row row-cards">
-                     <div class="col-lg-12">
-                          <h2 class="mb-3">Tool Settings</h2>
-                          <p class="text-secondary mb-4">
-                              Manage the data tool images that are allowed to be run in the KLMS cluster
-                          </p>
-                          <div class="table-responsive">
-                              <table class="table table-vcenter card-table">
-                                  <thead>
-                                  <tr>
-                                      <th style="width: 25%;">Tool</th>
-                                      <th style="width: 25%;">Image Name</th>
-                                      <th style="width: 25%;">Source Code Repo</th>
-                                      <th style="width: 15%;">Owner</th>
-                                      <th style="width: 10%;">Execution Allowed</th>
-                                      <th class="w-1"></th>
-                                  </tr>
-                                  </thead>     
-                                  <tbody id="tool-body">                      
-                                  </tbody>
-                              </table>
-                          </div>
-                      </div>
-                  </div>
-              </div>              
-          </div>
-        </div>
-        <div class="modal modal-blur fade" id="verify-delete-user" tabindex="-1" role="dialog" aria-hidden="true">
-            <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
-              <div class="modal-content">
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                <div class="modal-status bg-danger"></div>
-                <div class="modal-body text-center py-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon mb-2 text-danger icon-lg" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24V0H0z" fill="none"/><path d="M10.24 3.957l-8.422 14.06a1.989 1.989 0 0 0 1.7 2.983h16.845a1.989 1.989 0 0 0 1.7 -2.983l-8.423 -14.06a1.989 1.989 0 0 0 -3.4 0z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
-                    <h3>Are you sure?</h3>
-                    <div class="text-secondary">
-                        Do you really wish to delete user <span id="verify-user-name" class="fw-bold"></span>? 
-                        This action is irreversible.
-                        <span hidden id="verify-user-id-del"></span>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                  <div class="w-100">
-                    <div class="row">
-                      <div class="col"><a href="#" class="btn w-100" data-bs-dismiss="modal">
-                          Cancel
-                        </a></div>
-                        <div class="col">
-                            <button id="confirm-delete-user-btn" class="btn btn-danger w-100">
-                              Delete User
-                            </button>
-                        </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                {% include 'footer.html' %}
             </div>
         </div>
-        <div class="modal modal-blur fade" id="modal-edit-user" tabindex="-1" role="dialog" aria-hidden="true">
-            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h5 class="modal-title">Edit User</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                  <form id="edit-user-form">
-                    <input type="hidden" id="user-id" name="user-id"> <!-- Hidden field for user ID -->
-                    <div class="mb-3">
-                      <label class="form-label">Username</label>
-                      <input type="text" class="form-control" id="edit-username" name="username" placeholder="Enter username" disabled>
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label">Full Name</label>
-                      <input type="text" class="form-control" id="edit-fullname" name="fullname" placeholder="Enter full name">
-                    </div>            
-                    <div class="mb-3">
-                      <label class="form-label">Email</label>
-                      <input type="email" class="form-control" id="edit-email" name="email" placeholder="Enter email address">
-                    </div>
-                    <div class="mb-3">
-                        <div class="form-label">User Roles</div>
-                        <div id="role-checkboxes">
-                            <!-- Roles checkboxes will be dynamically injected here -->
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label">Activation Status</label>
-                        <div class="d-flex">
-                        <label class="form-check form-switch mt-2">
-                            <input class="form-check-input" type="checkbox" id="edit-active-account">
-                            <span class="form-check-label">Active account</span>
-                         </label>
-                        <button class="btn btn-success ms-3" id="send-activation-email-btn" disabled>
-                        <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon text-white me-2 icon-tabler icons-tabler-outline icon-tabler-send"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 14l11 -11" /><path d="M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a.55 .55 0 0 1 0 -1l18 -6.5" /></svg>
-                          </svg>
-                        Send activation email
-                        </button>
-                    </div>
-                    </div>
-                    <small class="form-text text-muted">If a user has an active session, they need to logout and login again for any changes to take effect.</small>
-                  
-                </div>
-                <div class="modal-footer" id="user-modal-footer">
-                  <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">Cancel</button>
-                  <button type="submit" class="btn btn-primary" id="save-user-btn">Save changes</button>
-                </div>
-                </form>
-              </div>
-            </div>
-          </div>
-          
-        {% include 'footer.html' %}
-        </div>
-        </div>
-        <script>        
+        <script>
             function downloadPolicy() {
                 const editor = ace.edit('editor');
-                const yamlContent = editor.getValue(); 
+                const yamlContent = editor.getValue();
 
                 // Get the policy ID from the currently selected policy
                 const selectedPolicy = document.querySelector('.list-group-item.bg-purple-lt'); // Find the highlighted policy
@@ -290,16 +382,16 @@
         <script>
             $(document).ready(function () {
                 const apiUrl = `{{url_for('auth_tool_blueprint.api_list_all_policies')}}`;
-                const representationUrl =  `{{url_for('auth_tool_blueprint.get_policy_function', policy_filter='')}}`;
+                const representationUrl = `{{url_for('auth_tool_blueprint.get_policy_function', policy_filter='')}}`;
                 const listGroup = $('.list-group.card-list-group');
                 const editor = ace.edit('editor');
-        
+
                 function createPolicyItem(policy) {
                     const isActive = policy.active ? 'Active' : '';
                     const badge = policy.active
                         ? '<span class="status status-green">Active</span>'
                         : '';
-        
+
                     return `
                         <div class="cursor-pointer list-group-item" id="${policy.policy_uuid}">
                             <div class="row align-items-center">
@@ -321,7 +413,7 @@
                             </div>
                         </div>`;
                 }
-        
+
                 // Fetch policies and populate the list
                 function fetchPolicies() {
                     $.ajax({
@@ -331,8 +423,8 @@
                         success: function (data) {
                             const policies = data.result.policies;
                             policies.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                            listGroup.empty(); 
-        
+                            listGroup.empty();
+
                             let activePolicyId = null;
 
                             // Populate policies
@@ -353,7 +445,7 @@
                                 $("#editor-footer .alert").remove();
                                 $("#editor-footer .spinner-border").remove();
                             });
-        
+
                             if (activePolicyId) {
                                 const activePolicyElement = $(`#${activePolicyId}`);
                                 activePolicyElement.addClass('bg-purple-lt');
@@ -365,7 +457,7 @@
                         }
                     });
                 }
-                
+
                 // Fetch policy representation and update the editor
                 function fetchPolicyRepresentation(policyId) {
                     const url = `${representationUrl}/${policyId}`;
@@ -381,14 +473,14 @@
                         }
                     });
                 }
-        
+
                 fetchPolicies();
 
                 $('#apply-policy-btn').on('click', function () {
                     $("#editor-footer .alert").remove();
                     $("#editor-footer .spinner-border").remove();
 
-                    const yamlContent = editor.getValue(); 
+                    const yamlContent = editor.getValue();
                     const loader = '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
                     $("#editor-footer").prepend(loader)
 
@@ -429,49 +521,49 @@
                     showPrintMargin: false,
                     wrap: true,
                 });
-        
+
                 // Add padding inside the editor
-                editor.renderer.setScrollMargin(10, 10, 10, 10); 
+                editor.renderer.setScrollMargin(10, 10, 10, 10);
                 // Prevent page scrolling when scrolling inside the editor
                 editor.container.addEventListener('wheel', function (e) {
                     e.stopPropagation(); // Prevent the event from propagating to parent elements
                 }, { passive: true });
-                
+
             });
         </script>
         <script>
-        $(document).ready(function () {
-            $('#edit-active-account').change(function () {
-                if ($(this).is(':checked')) {
-                    $('#send-activation-email-btn').prop('disabled', false);
-                } else {
-                    $('#send-activation-email-btn').prop('disabled', true);
-                }
-            });
-
-            $('#send-activation-email-btn').click(function (e) {
-                e.preventDefault();
-
-                $("#user-modal-footer .alert").remove();
-
-                const userId = $('#user-id').val();
-
-                $.ajax({
-                    url: "{{ url_for('users_blueprint.send_activation_email') }}",
-                    type: "POST",
-                    contentType: "application/json",
-                    data: JSON.stringify({ id: userId }),
-                    success: function (response) {
-                        // Add success alert
-                        $("#user-modal-footer").prepend('<div class="alert alert-success me-auto p-2" role="alert">Activation Email Sent!</div>');
-                    },
-                    error: function (xhr, status, error) {
-                        // Add error alert
-                        $("#user-modal-footer").prepend('<div class="alert alert-danger me-auto p-2" role="alert">Activation Email Failed to Send!</div>');
+            $(document).ready(function () {
+                $('#edit-active-account').change(function () {
+                    if ($(this).is(':checked')) {
+                        $('#send-activation-email-btn').prop('disabled', false);
+                    } else {
+                        $('#send-activation-email-btn').prop('disabled', true);
                     }
                 });
+
+                $('#send-activation-email-btn').click(function (e) {
+                    e.preventDefault();
+
+                    $("#user-modal-footer .alert").remove();
+
+                    const userId = $('#user-id').val();
+
+                    $.ajax({
+                        url: "{{ url_for('users_blueprint.send_activation_email') }}",
+                        type: "POST",
+                        contentType: "application/json",
+                        data: JSON.stringify({ id: userId }),
+                        success: function (response) {
+                            // Add success alert
+                            $("#user-modal-footer").prepend('<div class="alert alert-success me-auto p-2" role="alert">Activation Email Sent!</div>');
+                        },
+                        error: function (xhr, status, error) {
+                            // Add error alert
+                            $("#user-modal-footer").prepend('<div class="alert alert-danger me-auto p-2" role="alert">Activation Email Failed to Send!</div>');
+                        }
+                    });
+                });
             });
-        });
 
         </script>
         <script>
@@ -486,7 +578,7 @@
                     url: `{{url_for('users_blueprint.get_users')}}`,
                     method: 'GET',
                     dataType: 'json',
-                    success: function(response) {
+                    success: function (response) {
                         if (response.result.count > 0) {
                             allUsers = response.result.users;
                             filteredUsers = [...allUsers];
@@ -497,7 +589,7 @@
                             console.error("No users found.");
                         }
                     },
-                    error: function(response) {
+                    error: function (response) {
                         console.error("Error fetching users");
                     }
                 });
@@ -507,6 +599,7 @@
             function renderTable(page) {
                 const tableBody = $("#user-body");
                 tableBody.empty();
+                tableBody.removeClass('placeholder-glow');
 
                 const start = (page - 1) * maxUsersPerPage;
                 const end = Math.min(start + maxUsersPerPage, filteredUsers.length);
@@ -515,8 +608,8 @@
                 // Populate the table with user data
                 usersToShow.forEach(user => {
                     const roles = user.roles ? user.roles.join(', ') : 'None';
-                    const activeStatus = user.active 
-                        ? `<span class="status status-green">Active</span>` 
+                    const activeStatus = user.active
+                        ? `<span class="status status-green">Active</span>`
                         : `<span class="status status-red">Inactive</span>`;
 
                     // Action buttons (only added if username is not "admin")
@@ -582,19 +675,19 @@
                     });
                 }
                 totalUsers = filteredUsers.length;
-                currentPage = 1; 
+                currentPage = 1;
                 updatePagination();
                 renderTable(currentPage);
             }
 
             // Event listener for search box
-            $("input[id='user-search-box']").on("input", function() {
+            $("input[id='user-search-box']").on("input", function () {
                 const query = $(this).val();
                 searchUsers(query);
             });
 
             // Event listener for the clear button
-            $("#clear-user-search-btn").on("click", function() {
+            $("#clear-user-search-btn").on("click", function () {
                 // Clear the input field
                 $("#user-search-box").val('');
                 // Trigger the search function with an empty string to reset the table
@@ -641,7 +734,7 @@
                 `);
 
                 // Attach event listeners for pagination
-                $(".page-link").off("click").on("click", function(event) {
+                $(".page-link").off("click").on("click", function (event) {
                     event.preventDefault();
                     const selectedPage = $(this).data('page');
                     if (selectedPage && selectedPage !== currentPage) {
@@ -652,7 +745,7 @@
                 });
 
                 // "Prev" and "Next" buttons
-                $("#prev-page").off("click").on("click", function(event) {
+                $("#prev-page").off("click").on("click", function (event) {
                     event.preventDefault();
                     if (currentPage > 1) {
                         currentPage--;
@@ -661,7 +754,7 @@
                     }
                 });
 
-                $("#next-page").off("click").on("click", function(event) {
+                $("#next-page").off("click").on("click", function (event) {
                     event.preventDefault();
                     const totalPages = Math.ceil(filteredUsers.length / maxUsersPerPage);
                     if (currentPage < totalPages) {
@@ -673,19 +766,19 @@
             }
 
             // Fetch all users on page load
-            $(document).ready(function() {
+            $(document).ready(function () {
                 fetchAllUsers();
             });
 
             $('#modal-edit-user').on('hidden.bs.modal', function () {
                 // Clear input fields (text, email, date) and textareas
                 $(this).find('input[type="text"], input[type="email"], input[type="date"], textarea').val('');
-                
+
                 // Optionally reset checkboxes, uncheck all roles if needed
                 $(this).find('input[type="checkbox"]').prop('checked', false);
-                
+
                 // Remove any alerts from the modal footer
-                $("#user-modal-footer .alert").remove();  
+                $("#user-modal-footer .alert").remove();
             });
         </script>
 
@@ -698,7 +791,7 @@
                     url: `{{url_for('users_blueprint.api_get_roles')}}`,
                     method: 'GET',
                     dataType: 'json',
-                    success: function(response) {
+                    success: function (response) {
                         if (response.result.roles && Array.isArray(response.result.roles)) {
                             // Extract role names and store them
                             systemRoles = response.result.roles.map(role => role.name);
@@ -710,7 +803,7 @@
                             systemRoles = []; // Set an empty array if something is wrong
                         }
                     },
-                    error: function() {
+                    error: function () {
                         console.error("Error fetching roles");
                     }
                 });
@@ -720,7 +813,7 @@
             function renderRoleCheckboxes() {
                 const roleContainer = $('#role-checkboxes');
                 roleContainer.empty(); // Clear existing checkboxes
-                
+
                 // Loop through system roles and generate checkboxes
                 systemRoles.forEach(role => {
                     const checkboxHTML = `
@@ -735,7 +828,7 @@
             // Function to populate checkboxes based on user roles (check user-specific roles)
             function populateUserRoleCheckboxes(userRoles = []) {
                 // Loop through all checkboxes and check/uncheck based on user roles
-                $('#role-checkboxes input[type="checkbox"]').each(function() {
+                $('#role-checkboxes input[type="checkbox"]').each(function () {
                     const role = $(this).val();
                     if (userRoles.includes(role)) {
                         $(this).prop('checked', true); // Check this checkbox if user has the role
@@ -751,7 +844,7 @@
                     url: `{{ url_for('users_blueprint.api_get_user', user_id='') }}${userId}`,
                     method: 'GET',
                     dataType: 'json',
-                    success: function(response) {
+                    success: function (response) {
                         user = response.result.user
                         $('#edit-username').val(user.username);
                         $('#edit-fullname').val(user.fullname);
@@ -761,20 +854,20 @@
 
                         populateUserRoleCheckboxes(user.roles);
                     },
-                    error: function() {
+                    error: function () {
                         console.error("Error fetching user data");
                     }
                 });
             }
 
             // Event listener for when the Edit button is clicked
-            $(document).on('click', '.edit-user-btn', function() {
-                const userId = $(this).data('user-id'); 
-                fetchUserData(userId); 
+            $(document).on('click', '.edit-user-btn', function () {
+                const userId = $(this).data('user-id');
+                fetchUserData(userId);
             });
 
             // Fetch system roles on page load
-            $(document).ready(function() {
+            $(document).ready(function () {
                 fetchSystemRoles();
             });
 
@@ -826,13 +919,13 @@
                     type: 'PATCH',
                     contentType: 'application/json',
                     data: JSON.stringify({ roles }),
-                    success: function(response) {
+                    success: function (response) {
                         $("#user-modal-footer .alert").remove();
                         $("#user-modal-footer .spinner-border ").remove();
                         $("#user-modal-footer").prepend('<div class="alert alert-success me-auto p-2" role="alert">User updated successfully</div>');
                         fetchAllUsers();
                     },
-                    error: function(response) {
+                    error: function (response) {
                         $("#user-modal-footer .alert").remove();
                         $("#user-modal-footer .spinner-border ").remove();
                         $("#user-modal-footer").prepend(`<div class="alert alert-danger me-auto p-2" role="alert">Failed to update user roles</div>`);
@@ -840,15 +933,15 @@
                 });
             }
 
-           
+
             // Event listener for the form submission of the edit user modal
-            $("#edit-user-form").on("submit", function(event) {
+            $("#edit-user-form").on("submit", function (event) {
                 event.preventDefault();
 
                 let userId = $("#user-id").val()
 
-                const fullName = $("#edit-fullname").val().trim().split(' '); 
-                const firstName = fullName[0] || ''; 
+                const fullName = $("#edit-fullname").val().trim().split(' ');
+                const firstName = fullName[0] || '';
                 const lastName = fullName.slice(1).join(' ') || '';
 
                 const userData = {
@@ -859,8 +952,8 @@
                 };
 
                 const roles = [];
-                $('#role-checkboxes input[type="checkbox"]:checked').each(function() {
-                    roles.push($(this).val()); 
+                $('#role-checkboxes input[type="checkbox"]:checked').each(function () {
+                    roles.push($(this).val());
                 });
 
 
@@ -879,23 +972,23 @@
                 });
 
                 $("#user-modal-footer .alert").remove();
-                
+
                 const loader = '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
                 $("#user-modal-footer").prepend(loader)
 
                 $.ajax({
                     url: `{{ url_for('users_blueprint.api_put_user', user_id='') }}${userId}`,
                     type: 'PATCH',
-                    contentType: 'application/json', 
+                    contentType: 'application/json',
                     data: JSON.stringify(userData),
-                    success: function(response) {
-                        if (response.result.user.warning){
+                    success: function (response) {
+                        if (response.result.user.warning) {
                             $("#user-modal-footer").prepend('<div class="alert alert-danger me-auto p-2" role="alert">Administrator account cannot be modified!</div>');
-                        } else {                            
-                            patchUserRoles(userId, roles); 
+                        } else {
+                            patchUserRoles(userId, roles);
                         }
                     },
-                    error: function(response) {
+                    error: function (response) {
                         $("#user-modal-footer .alert").remove();
                         $("#user-modal-footer .spinner-border ").remove();
                         $("#user-modal-footer").prepend(`<div class="alert alert-danger me-auto p-2" role="alert">Failed to update user</div>`);
@@ -904,14 +997,15 @@
 
             });
 
-        
+
             // Event listener to remove is-invalid class when the user starts typing
-            $("#edit-fullname, #edit-email").on("input", function() {
+            $("#edit-fullname, #edit-email").on("input", function () {
                 if ($(this).val().trim() !== '') {
                     $(this).removeClass('is-invalid');
                 }
             });
 
         </script>
-    </body>
+</body>
+
 </html>
