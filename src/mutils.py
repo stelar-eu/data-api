@@ -11,6 +11,8 @@ from minio import Minio
 from minio.commonconfig import CopySource
 from minio.error import S3Error
 
+from exceptions import InternalException
+
 
 def initialize_minio_admin(ac_key, sec_key, token):
     config = current_app.config["settings"]
@@ -57,7 +59,7 @@ def get_temp_minio_credentials(access_token):
     # Properly make a POST request to MinIO's STS endpoint
     response = requests.post(url=minio_url, params=minio_body)
     # Handle the response, parse XML if successful
-    if response.status_code == 200:
+    if response.status_code in range(200, 300):
         try:
             # Parse the XML response
             root = ET.fromstring(response.text)
@@ -104,9 +106,10 @@ def get_temp_minio_credentials(access_token):
                     "SessionToken": session_token,
                 }
         except ET.ParseError as e:
-            print("Failed to parse XML:", e)
+            raise InternalException("Failed to parse XML:", e) from e
     else:
-        raise Exception("Credentials not found in the STS response")
+        # raise Exception("Credentials not found in the STS response")
+        response.raise_for_status()
 
 
 def evaluate_write_access(credentials, bucket_name, object_name):
