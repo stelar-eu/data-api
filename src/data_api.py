@@ -4,6 +4,7 @@ import re
 import uuid
 from datetime import date
 from datetime import datetime as datetime
+from urllib.parse import urljoin, urlparse, urlunparse
 
 import pandas as pd
 import psycopg2
@@ -148,16 +149,31 @@ def help():
     """
 
     # EXAMPLE: curl -X GET http://127.0.0.1:9055/
+    settings = app.config["settings"]
+    extra_help = {
+        sname: settings[s]
+        for s, sname in [
+            ("MINIO_API_EXT_URL", "s3_api"),
+            ("KEYCLOAK_ISSUER_URL", "keycloak_issuer_url"),
+            ("KEYCLOAK_REALM", "keycloak_realm"),
+            ("KEYCLOAK_EXT_URL", "keycloak_url"),
+            ("KLMS_DOMAIN_NAME", "klms_dns_domain"),
+            ("MINIO_CONSOLE_URL", "minio_console_url"),
+            ("MAIN_EXT_URL", "klms_root_url"),
+        ]
+        if s in settings
+    }
 
     response = {
         "help": request.base_url,
         "success": True,
         "result": {
             "message": "Data API for managing resources in STELAR Knowledge Lake Management System.",
-            "OpenAPI specifications": request.base_url + "specs",
-            "Swagger UI": request.base_url + "docs",
-            "Console": request.base_url + "console/v1/",
-        },
+            "OpenAPI specifications": request.root_url + "specs",
+            "Swagger UI": request.root_url + "docs",
+            "Console": request.root_url + "console/v1/",
+        }
+        | extra_help,
     }
 
     return jsonify(response)
