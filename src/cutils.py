@@ -704,6 +704,8 @@ RESOURCE = CKANEntity(
     ckan_name="resource",
     ckan_schema=ResourceCKANSchema(),
 )
+RESOURCE.operations.remove("list")
+RESOURCE.operations.remove("fetch")
 
 
 # ------------------------------------------------------------
