@@ -101,7 +101,6 @@ def format_datetime(value):
     return "N/A"
 
 
-# Register the filter in your app
 app.jinja_env.filters["format_datetime"] = format_datetime
 #######################################
 
@@ -1938,9 +1937,9 @@ def api_dataset_publish(json_data):
     if specs.get("extra_metadata") is not None:
         # Convert this metadata to a JSON array with {"key":"...", "value":"..."} pairs as required to be stored as extras in CKAN
         extra_metadata = {}
-        extra_metadata[
-            "id"
-        ] = package_id  # Must specify the id of the newly created package
+        extra_metadata["id"] = (
+            package_id  # Must specify the id of the newly created package
+        )
         extra_metadata["extras"] = utils.handle_extras(specs["extra_metadata"])
         # Make a POST request to the CKAN API to patch the newly created package with the extra metadata
         resp_extras = requests.post(
@@ -1966,9 +1965,9 @@ def api_dataset_publish(json_data):
     # TODO: Replace with the respective API function?
     if specs.get("profile_metadata") is not None:
         resource_metadata = specs["profile_metadata"]
-        resource_metadata[
-            "package_id"
-        ] = package_id  # Must specify the id of the newly created package
+        resource_metadata["package_id"] = (
+            package_id  # Must specify the id of the newly created package
+        )
         if resource_metadata.get("file") is not None:
             # Make a POST request to the CKAN API to upload the file from the specified path
             with open(resource_metadata["file"], "rb") as f:
