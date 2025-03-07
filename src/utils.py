@@ -288,7 +288,7 @@ sql_workflow_execution_templates = {
     "task_insert_output_spec_plain_path": "INSERT INTO klms.task_output_spec(task_uuid, output_name, output_address) VALUES(%s, %s, %s)",
     "task_read_output_spec_for_tool": "SELECT output_name, output_address FROM klms.task_output_spec WHERE task_uuid = %s",
     "task_read_secret_template": "SELECT key, value FROM klms.task_secret WHERE task_uuid = %s",
-    "task_read_template": "SELECT task_uuid AS task_exec_id, creator_user_id as creator, workflow_uuid AS workflow_exec_id, state, start_date, end_date FROM klms.task_execution WHERE task_uuid = %s",
+    "task_read_template": "SELECT task_uuid AS task_id, creator_user_id as creator, workflow_uuid AS process_id, state, start_date, end_date FROM klms.task_execution WHERE task_uuid = %s",
     "task_read_tags_template": "SELECT key, value FROM klms.task_tag WHERE task_uuid = %s",
     "task_read_input_group_names_by": "SELECT DISTINCT input_group_name FROM klms.task_input WHERE task_uuid = %s",
     "task_read_uuid_inputs": "SELECT resource_id FROM klms.task_input WHERE task_uuid= %s AND input_path IS NULL",
@@ -1095,9 +1095,9 @@ def processRdfGraphProfile(resource_id, prof, sql):
     degree_centrality_distribution["distr_id"] = str(
         uuid.uuid1()
     )  # Generate a UUID for this distribution
-    rdfgraph_metadata[
-        "degree_centrality_distribution"
-    ] = degree_centrality_distribution["distr_id"]
+    rdfgraph_metadata["degree_centrality_distribution"] = (
+        degree_centrality_distribution["distr_id"]
+    )
     sql.append(
         prepareInsertSql(degree_centrality_distribution, "klms.numerical_distribution")
     )
@@ -1188,9 +1188,9 @@ def processTextualProfile(resource_id, prof, sql):
                     sentence_length_distribution, "klms.numerical_distribution"
                 )
             )
-            text_metadata[
-                "sentence_length_distribution"
-            ] = sentence_length_distribution["distr_id"]
+            text_metadata["sentence_length_distribution"] = (
+                sentence_length_distribution["distr_id"]
+            )
         if "word_length_distribution" in var:
             word_length_distribution = cleanupDict(
                 copy.deepcopy(var["word_length_distribution"]),
