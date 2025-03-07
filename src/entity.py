@@ -51,7 +51,6 @@ from backend.ckan import ckan_request, filter_list_by_type
 from backend.pgsql import execSql, transaction
 from exceptions import BackendLogicError, DataError, NotFoundError
 from tags import tag_object_to_string, tag_string_to_object
-from authz_module import check_access
 
 if TYPE_CHECKING:
     from requests import Response
@@ -156,14 +155,8 @@ class Entity:
         Returns:
             The entity object.
         """
-        try:
-            access = check_access(["data_engineer"], f"read_{self.name}", eid)
-            if access:
-                return self.get(eid)
-            else:
-                return schema.APIResponse(help="klms-error",error={"__type":"Forbiddden error","message":"Your are not allowed to perfrom this action"})
-        except Exception as e:
-            return 500
+        return self.get(eid)
+          
             
 
     def create_entity(self, init_data):

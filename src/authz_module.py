@@ -7,7 +7,7 @@ import mutils as mu
 import yaml
 import logging
 from flask import g
-from backend.ckan import ckan_request, filter_list_by_type
+from backend.ckan import ckan_request
 
 logger = logging.getLogger(__name__)
 
@@ -168,7 +168,6 @@ class ResourcePermissionsType(AuthorizationModule):
         ku.delete_client_roles(self.keycloak_admin, client_roles_to_delete)
 
 
-
 class ResourceSpec:
     """
     Abstract base class for resource specifications.
@@ -195,6 +194,25 @@ class AttrSpec(ResourceSpec):
         self.op = getattr(self, self.operation, None)
         if self.op is None:
             raise ValueError("Invalid operation")
+    
+    def fetch_resource(self, resource):
+        # Cache the resource in flask.g.ckan_resources if resource is given as an ID (a string)
+        if isinstance(resource, str):
+            if not hasattr(g, "ckan_resources"):
+                g.ckan_resources = {}
+            if resource in g.ckan_resources:
+                logger.info("Resource retrieved from flask.g cache")
+                return g.ckan_resources[resource]
+            if g.entity and g.entity in ["dataset", "workflow", "process", "tool"]:
+                logger.info("ckan request for package show")
+                fetched = ckan_request("package_show", id=resource, context={"entity": g.entity})
+                logger.info("Resource fetched from CKAN")
+            else:
+                fetched = ckan_request(f"{g.entity}_show", resource)
+            g.ckan_resources[resource] = fetched
+            return fetched
+        else:
+            return resource
 
     def from_value(self) -> Any:
         "Return the actual value from the value spec"
@@ -218,7 +236,8 @@ class AttrSpec(ResourceSpec):
         return lhs == rhs
     
     def auth(self, resource):
-        lhs = resource.get(self.attr, ...)
+        fetched_resource = self.fetch_resource(resource)
+        lhs = fetched_resource.get(self.attr, ...)
         if lhs is ...:
             return False
         rhs = self.from_value()
@@ -252,12 +271,12 @@ class GMspec(ResourceSpec):
             if resource in g.ckan_resources:
                 logger.info("Resource retrieved from flask.g cache")
                 return g.ckan_resources[resource]
-            if self.type in ["dataset", "workflow", "process", "tool"]:
+            if g.entity and g.entity in ["dataset", "workflow", "process", "tool"]:
                 logger.info("ckan request for package show")
-                fetched = ckan_request("package_show", id=resource, context={"entity": self.type})
+                fetched = ckan_request("package_show", id=resource, context={"entity": g.entity})
                 logger.info("Resource fetched from CKAN")
             else:
-                fetched = ckan_request(f"{self.type}_show", resource)
+                fetched = ckan_request(f"{g.entity}_show", resource)
             g.ckan_resources[resource] = fetched
             return fetched
         else:
@@ -403,12 +422,12 @@ class OMSpec(ResourceSpec):
             if resource in g.ckan_resources:
                 logger.info("Resource retrieved from flask.g cache")
                 return g.ckan_resources[resource]
-            if self.type in ["dataset", "workflow", "process", "tool"]:
+            if g.entity and g.entity in ["dataset", "workflow", "process", "tool"]:
                 logger.info("ckan request for package show")
-                fetched = ckan_request("package_show", id=resource, context={"entity": self.type})
+                fetched = ckan_request("package_show", id=resource, context={"entity": g.entity})
                 logger.info("Resource fetched from CKAN")
             else:
-                fetched = ckan_request(f"{self.type}_show", resource)
+                fetched = ckan_request(f"{g.entity}_show", resource)
             g.ckan_resources[resource] = fetched
             return fetched
         else:

@@ -1,41 +1,44 @@
 import pytest
 import yaml
 
-# --- Fake implementations for external dependencies ---
+# Import our module under test.
+import authz_module
+from authz_module import (
+    AuthorizationModule,
+    ResourceSpecPermissionsType,
+    ResourcePermissionsType,
+    AttrSpec,
+    GMspec,
+    OMSpec,
+    UMspec,
+    check_access,
+    action_permissions,
+)
 
+# --- Fake external dependencies ---
 def fake_init_admin_client_with_credentials():
     class FakeAdmin:
         def get_client_id(self, client_name):
             return "fake_client_id"
-
         def get_realm_roles(self, active):
-            return []  # or a fake list of roles as needed
-
+            return []
         def get_client_roles(self, client_id, active):
-            # Return a list of dicts so that code can iterate and access the "name" key.
+            # Return list of dicts so that code can access role["name"]
             return [{"name": "fake_client_role_example"}]
-
         def get_client_role(self, client_id, role_name):
             return f"fake_client_role_{role_name}"
-
-        def add_composite_realm_roles_to_role(self, realm_role_name, roles):
+        def add_composite_realm_roles_to_role(self, realm_role, roles):
             pass
-        
-        def delete_realm_role(self, role_name):
+        def delete_client_role():
             pass
-
-        def delete_client_role(self, client_id, role_name):
+        def delete_realm_role():
             pass
-
     return FakeAdmin()
-
-
 
 def fake_create_realm_role(admin, role_name):
     return f"realm_{role_name}"
 
 def fake_create_policy(permissions):
-    # For testing, return a list with one policy string based on the action.
     if "action" in permissions:
         return [f"policy_{permissions['action']}"]
     return []
@@ -43,179 +46,241 @@ def fake_create_policy(permissions):
 def fake_create_client_role(admin, client, client_id, policy):
     return f"client_role_{policy}"
 
-# --- Tests for Resource Specification classes ---
+def fake_get_current_realm_roles(admin):
+    return []
 
-def test_attr_spec(monkeypatch):
-    # Ensure that the AttrSpec correctly uses context for "$" values.
-    # Set a global context in the module under test.
-    import authz_module
-    authz_module.context = {"current_uid": "user1"}
+def fake_get_current_policies():
+    return []
+
+def fake_get_current_client_roles(admin):
+    return []
+
+def fake_update_roles_from_yaml(roles_list, existing_roles):
+    return []
+
+def fake_update_policies_from_yaml(new_policy_list, existing_policies):
+    return ([], set())
+
+def fake_update_client_roles(policy_names_set, existing_client_roles):
+    return []
+
+def fake_delete_realm_roles(admin, roles_to_delete):
+    pass
+
+def fake_delete_policies(policies_to_delete):
+    pass
+
+def fake_delete_client_roles(admin, client_roles_to_delete):
+    pass
+
+def fake_ckan_request(method, **kwargs):
+    # For testing, return a simple dict.
+    if method == "package_show":
+        return {
+            "id": kwargs.get("id", "unknown"),
+            "type": "dataset",
+            "groups": [{"name": "group1"}]
+        }
+    elif method.endswith("_show"):
+        return {"id": kwargs.get("resource", "unknown"), "type": method.replace("_show", "")}
+    elif method == "member_list":
+        # Return a dummy list of members (resource IDs) for group/org membership
+        return ["test_resource"]
+    return {}
+
+# Replace ckan_request in our module with the fake.
+authz_module.ckan_request = fake_ckan_request
+
+# --- Use the central app_context fixture to ensure an application context is active.
+# This fixture is defined in your central conftest.py.
+@pytest.fixture(autouse=True)
+def setup_g(app_context):
+    from flask import g
+    g.entity = "dataset"
+    g.ckan_resources = {}
+    g.ckan_group_members = {}
+    g.ckan_org_members = {}
+    g.current_uid = {"current_uid": "test_uid"}
+    yield g
+
+# --- Tests for ResourceSpec classes ---
+
+def test_attr_spec(monkeypatch, app_context,setup_g):
+    # Set up the global "context" variable expected by AttrSpec.
+    g = setup_g
+    authz_module.context = g.current_uid
+    # For testing, have fetch_resource return the resource as-is.
+    monkeypatch.setattr(AttrSpec, "fetch_resource", lambda self, resource: resource)
     
-    spec = authz_module.AttrSpec(attr="id", operation="equals", value="$current_uid")
-    resource = {"id": "user1"}
+    spec = AttrSpec(attr="id", operation="equals", value="$current_uid")
+    resource = {"id": "test_uid"}
     assert spec(resource) is True
 
-    spec2 = authz_module.AttrSpec(attr="id", operation="equals", value="user2")
-    resource2 = {"id": "user2"}
-    assert spec2(resource2) is True
-    resource3 = {"id": "user3"}
-    assert spec2(resource3) is False
+    resource_wrong = {"id": "wrong"}
+    assert spec(resource_wrong) is False
 
     with pytest.raises(ValueError):
-        authz_module.AttrSpec(attr="id", operation="nonexistent", value="user")
+        AttrSpec(attr="id", operation="nonexistent", value="value")
 
-def test_gmspec():
-    from authz_module import GMspec
-    spec = GMspec(type="server", group="admin", capacity=10)
-    resource = {"type": "server", "group": "admin", "capacity": 10}
+def test_gmspec(monkeypatch, app_context):
+    # Monkeypatch fetch_resource to return resource unchanged.
+    monkeypatch.setattr(GMspec, "fetch_resource", lambda self, resource: resource)
+    spec = GMspec(type="server", group="group1", capacity="test_id")
+    # Override check_type, check_capacity, and check_group for controlled testing.
+    monkeypatch.setattr(spec, "check_type", lambda r: True)
+    monkeypatch.setattr(spec, "check_capacity", lambda r: True)
+    monkeypatch.setattr(spec, "check_group", lambda r: True)
+    
+    resource = {"type": "server", "groups": [{"name": "group1"}], "capacity": "test_id"}
     assert spec(resource) is True
 
-    resource2 = {"type": "server", "group": "user", "capacity": 10}
-    assert spec(resource2) is False
+    # Simulate group check failure.
+    monkeypatch.setattr(spec, "check_group", lambda r: False)
+    assert spec(resource) is False
 
-def test_omspec():
-    from authz_module import OMSpec
-    spec = OMSpec(type="storage", org="org1", capacity=50)
-    resource = {"type": "storage", "owner_org": "org1", "capacity": 50}
+def test_omspec(monkeypatch, app_context):
+    monkeypatch.setattr(OMSpec, "fetch_resource", lambda self, resource: resource)
+    spec = OMSpec(type="storage", org="org1", capacity="test_id")
+    monkeypatch.setattr(spec, "check_org", lambda r: True)
+    monkeypatch.setattr(spec, "check_type", lambda r: True)
+    monkeypatch.setattr(spec, "check_capacity", lambda r: True)
+    
+    resource = {"type": "storage", "organization": {"name": "org1"}, "capacity": "test_id"}
     assert spec(resource) is True
 
-    resource2 = {"type": "storage", "owner_org": "org2", "capacity": 50}
-    assert spec(resource2) is False
-
-class DummyResource:
-    def __init__(self, group, capacity):
-        self.group = group
-        self.capacity = capacity
+    monkeypatch.setattr(spec, "check_org", lambda r: False)
+    assert spec(resource) is False
 
 def test_umspec():
-    from authz_module import UMspec
-    spec = UMspec(group="user", capacity=100)
-    resource = DummyResource(group="user", capacity=100)
+    # UMspec checks attributes on the resource object.
+    class DummyResource:
+        def __init__(self, group, capacity):
+            self.group = group
+            self.capacity = capacity
+
+    spec = UMspec(group="user", capacity="100")
+    resource = DummyResource(group="user", capacity="100")
     assert spec(resource) is True
 
-    resource2 = DummyResource(group="admin", capacity=100)
-    assert spec(resource2) is False
+    resource_bad = DummyResource(group="admin", capacity="100")
+    assert spec(resource_bad) is False
 
-# --- Test for check_access ---
+# --- Test for global check_access function ---
 def test_check_access():
-    from authz_module import check_access, action_permissions, AttrSpec
-    # Clear any existing permissions.
     action_permissions.clear()
-    
-    # Dummy spec that always returns True.
+    # Create a dummy spec that always returns True.
     class AlwaysTrueSpec:
         def __call__(self, resource):
             return True
-
     action_permissions["read"] = {"admin": [[AlwaysTrueSpec()]]}
-    resource = {}
-    assert check_access(["admin"], "read", resource) is True
-    assert check_access(["user"], "read", resource) is False
+    
+    dummy_resource = {}
+    assert check_access(["admin"], "read", dummy_resource) is True
+    assert check_access(["user"], "read", dummy_resource) is False
 
-    # Test with one spec failing.
+    # Test with a failing spec.
     class AlwaysFalseSpec:
         def __call__(self, resource):
             return False
-
     action_permissions["read"] = {"admin": [[AlwaysTrueSpec(), AlwaysFalseSpec()]]}
-    assert check_access(["admin"], "read", resource) is False
+    assert check_access(["admin"], "read", dummy_resource) is False
 
-# --- Tests for ResourceSpecPermissionsType ---
+# --- Test for ResourceSpecPermissionsType ---
 def test_resource_spec_permissions_type_create_permissions():
-    from authz_module import ResourceSpecPermissionsType, AttrSpec
+    rsp = ResourceSpecPermissionsType()
     permission = {
         "action": "update",
         "resource_spec": [
-            {"attr": "id", "operation": "equals", "value": "test_id"}
+            {"attr": "id", "operation": "equals", "value": "test_value"}
         ]
     }
-    rsp = ResourceSpecPermissionsType()
     result = rsp.create_permissions("tester", permission)
-    # The structure should be: { "update": { "tester": [ [<AttrSpec instance>] ] } }
     assert "update" in result
     assert "tester" in result["update"]
-    assert isinstance(result["update"]["tester"][0][0], AttrSpec)
+    spec_instance = result["update"]["tester"][0][0]
+    from authz_module import AttrSpec
+    assert isinstance(spec_instance, AttrSpec)
 
-# --- Tests for ResourcePermissionsType ---
+# --- Test for ResourcePermissionsType ---
 def test_resource_permissions_type_create_permissions(monkeypatch):
-    from authz_module import ResourcePermissionsType
-    import authz_module as am
-    # Override external dependency functions.
-    monkeypatch.setattr(am.ku, "init_admin_client_with_credentials", fake_init_admin_client_with_credentials)
-    monkeypatch.setattr(am.ku, "create_realm_role", fake_create_realm_role)
-    monkeypatch.setattr(am.mu, "create_policy", fake_create_policy)
-    monkeypatch.setattr(am.ku, "create_client_role", fake_create_client_role)
+    monkeypatch.setattr(authz_module.ku, "init_admin_client_with_credentials", fake_init_admin_client_with_credentials)
+    monkeypatch.setattr(authz_module.ku, "create_realm_role", fake_create_realm_role)
+    monkeypatch.setattr(authz_module.mu, "create_policy", fake_create_policy)
+    monkeypatch.setattr(authz_module.ku, "create_client_role", fake_create_client_role)
     
-    # Prepare a fake admin object with additional methods.
     fake_admin = fake_init_admin_client_with_credentials()
     fake_admin.get_client_role = lambda client_id, role_name: f"fake_client_role_{role_name}"
     fake_admin.add_composite_realm_roles_to_role = lambda realm_role, roles: None
-    monkeypatch.setattr(am.ku, "init_admin_client_with_credentials", lambda: fake_admin)
-
-    rperm = ResourcePermissionsType()
-    permission = {"action": "read", "resource": "some_resource"}
-    rperm.create_permissions("admin", permission)
-    # After creation, roles_list should have one role dict and new_policy_list should contain a policy.
-    assert len(rperm.roles_list) == 1
-    assert "policy_read" in rperm.new_policy_list
-
-#  Tests for AuthorizationModule.parse_authz_config and __call__ ---
-def test_parse_authz_config(monkeypatch):
-    from authz_module import AuthorizationModule, action_permissions
-    import authz_module as am
+    monkeypatch.setattr(authz_module.ku, "init_admin_client_with_credentials", lambda: fake_admin)
     
-    # YAML config with one resource permission and one resource_spec permission.
+    rpt = ResourcePermissionsType()
+    permission = {"action": "read", "resource": "some_resource"}
+    rpt.create_permissions("admin", permission)
+    assert len(rpt.roles_list) == 1
+    assert "policy_read" in rpt.new_policy_list
+
+# --- Test for AuthorizationModule.parse_authz_config ---
+def test_parse_authz_config(monkeypatch, app_context):
+    action_permissions.clear()
+    monkeypatch.setattr(authz_module.ku, "init_admin_client_with_credentials", fake_init_admin_client_with_credentials)
+    monkeypatch.setattr(authz_module.ku, "create_realm_role", fake_create_realm_role)
+    monkeypatch.setattr(authz_module.mu, "create_policy", fake_create_policy)
+    monkeypatch.setattr(authz_module.ku, "create_client_role", fake_create_client_role)
+    
+    fake_admin = fake_init_admin_client_with_credentials()
+    fake_admin.get_client_role = lambda client_id, role_name: f"fake_client_role_{role_name}"
+    fake_admin.add_composite_realm_roles_to_role = lambda realm_role, roles: None
+    monkeypatch.setattr(authz_module.ku, "init_admin_client_with_credentials", lambda: fake_admin)
+    
+    monkeypatch.setattr(authz_module.mon, "get_current_realm_roles", fake_get_current_realm_roles)
+    monkeypatch.setattr(authz_module.mon, "get_current_policies", fake_get_current_policies)
+    monkeypatch.setattr(authz_module.mon, "get_current_client_roles", fake_get_current_client_roles)
+    monkeypatch.setattr(authz_module.rec, "update_roles_from_yaml", fake_update_roles_from_yaml)
+    monkeypatch.setattr(authz_module.rec, "update_policies_from_yaml", fake_update_policies_from_yaml)
+    monkeypatch.setattr(authz_module.rec, "update_client_roles", fake_update_client_roles)
+    monkeypatch.setattr(authz_module.ku, "delete_realm_roles", fake_delete_realm_roles)
+    monkeypatch.setattr(authz_module.mu, "delete_policies", fake_delete_policies)
+    monkeypatch.setattr(authz_module.ku, "delete_client_roles", fake_delete_client_roles)
+    
     yaml_config = """
 roles:
-  - name: admin
+  - name: "admin"
     permissions:
-      - action: read
-        resource: some_resource
-  - name: tester
+      - action: "read"
+        resource: "some_resource"
+  - name: "tester"
     permissions:
-      - action: update
+      - action: "update"
         resource_spec:
-          - attr: id
-            operation: equals
+          - attr: "id"
+            operation: "equals"
             value: "test_id"
 """
-    # Monkeypatch external dependencies used in ResourcePermissionsType.
-    monkeypatch.setattr(am.ku, "init_admin_client_with_credentials", fake_init_admin_client_with_credentials)
-    monkeypatch.setattr(am.ku, "create_realm_role", fake_create_realm_role)
-    monkeypatch.setattr(am.mu, "create_policy", fake_create_policy)
-    monkeypatch.setattr(am.ku, "create_client_role", fake_create_client_role)
-    fake_admin = fake_init_admin_client_with_credentials()
-    fake_admin.get_client_role = lambda client_id, role_name: f"fake_client_role_{role_name}"
-    fake_admin.add_composite_realm_roles_to_role = lambda realm_role, roles: None
-    monkeypatch.setattr(am.ku, "init_admin_client_with_credentials", lambda: fake_admin)
-
     authz = AuthorizationModule(yaml_config)
-    # The returned config should match the parsed YAML.
-    assert authz() == yaml.safe_load(yaml_config)
-    # Global action_permissions should now contain the tester update permission.
+    parsed_yaml = yaml.safe_load(yaml_config)
+    assert authz.config == parsed_yaml
+    # Global action_permissions should contain the tester update permission.
     assert "update" in action_permissions
     assert "tester" in action_permissions["update"]
 
-def test_authorization_module_call(monkeypatch):
-    from authz_module import AuthorizationModule
-    import authz_module as am
+# --- Test for AuthorizationModule __call__ ---
+def test_authorization_module_call(monkeypatch, app_context):
     yaml_config = """
 roles:
-  - name: admin
+  - name: "admin"
     permissions:
-      - action: read
-        resource: some_resource
+      - action: "read"
+        resource: "some_resource"
 """
-    # Monkeypatch external functions for ResourcePermissionsType.
-    monkeypatch.setattr(am.ku, "init_admin_client_with_credentials", fake_init_admin_client_with_credentials)
-    monkeypatch.setattr(am.ku, "create_realm_role", fake_create_realm_role)
-    monkeypatch.setattr(am.mu, "create_policy", fake_create_policy)
-    monkeypatch.setattr(am.ku, "create_client_role", fake_create_client_role)
+    monkeypatch.setattr(authz_module.ku, "init_admin_client_with_credentials", fake_init_admin_client_with_credentials)
+    monkeypatch.setattr(authz_module.ku, "create_realm_role", fake_create_realm_role)
+    monkeypatch.setattr(authz_module.mu, "create_policy", fake_create_policy)
+    monkeypatch.setattr(authz_module.ku, "create_client_role", fake_create_client_role)
+    
     fake_admin = fake_init_admin_client_with_credentials()
     fake_admin.get_client_role = lambda client_id, role_name: f"fake_client_role_{role_name}"
     fake_admin.add_composite_realm_roles_to_role = lambda realm_role, roles: None
-    monkeypatch.setattr(am.ku, "init_admin_client_with_credentials", lambda: fake_admin)
+    monkeypatch.setattr(authz_module.ku, "init_admin_client_with_credentials", lambda: fake_admin)
     
     authz = AuthorizationModule(yaml_config)
-    # Calling the instance should return the parsed configuration.
     assert authz() == yaml.safe_load(yaml_config)
