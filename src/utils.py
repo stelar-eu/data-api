@@ -4,6 +4,7 @@ import copy
 import json
 import logging
 import random
+import re
 import urllib.parse
 import uuid
 from datetime import datetime
@@ -411,6 +412,47 @@ def create_CKAN_headers(API_TOKEN):
     package_headers = {"Authorization": API_TOKEN, "Content-Type": "application/json"}
     resource_headers = {"X-CKAN-API-Key": API_TOKEN}
     return package_headers, resource_headers
+
+
+def is_valid_url(url):
+    """Check if a string is a valid URL. Valid URLs are of the form 'protocol://hostname[:port]/path'.
+    Args:
+        url: The string to be checked.
+    Returns:
+        A boolean value indicating whether the string is a valid
+    """
+    pattern = re.compile(r"^(s3|https|http|tcp|smb|ftp)://[a-zA-Z0-9.-]+(?:/[^\s]*)?$")
+    return bool(pattern.match(url))
+
+
+def is_valid_uuid(s):
+    """Check if a string is a valid UUID. Valid UUIDs are of the form 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.
+    Args:
+        s: The string to be checked.
+    Returns:
+        A boolean value indicating whether the string is a valid UUID.
+    """
+    try:
+        # Try converting the string to a UUID object
+        uuid_obj = uuid.UUID(s)
+        # Check if the string matches the canonical form of the UUID (with lowercase hexadecimal and hyphens)
+        return str(uuid_obj) == s
+    except Exception:
+        return False
+
+
+def validate_email(email):
+    """
+    Validates an email address. Raises a ValueError if the email is invalid.
+
+    :param email: The email address to validate (string).
+    :raises ValueError: If the email is not a valid format.
+    """
+    # Regular expression for validating an email
+    email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+
+    if not re.match(email_regex, email):
+        raise ValueError(f"Invalid email address: {email}")
 
 
 def validate_spatial(geometry):
