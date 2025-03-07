@@ -16,7 +16,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.5/ace.js" type="text/javascript"
         charset="utf-8"></script>
-
+    <script src="{{ url_for('static', filename='utils.js') }}"></script>
     <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
     <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
 </head>
@@ -305,30 +305,46 @@
                                             <!-- Roles checkboxes will be dynamically injected here -->
                                         </div>
                                     </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Activation Status</label>
-                                        <div class="d-flex">
-                                            <label class="form-check form-switch mt-2">
-                                                <input class="form-check-input" type="checkbox"
-                                                    id="edit-active-account">
-                                                <span class="form-check-label">Active account</span>
-                                            </label>
-                                            <button class="btn btn-success ms-3" id="send-activation-email-btn"
-                                                disabled>
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                                    class="icon text-white me-2 icon-tabler icons-tabler-outline icon-tabler-send">
-                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                    <path d="M10 14l11 -11" />
-                                                    <path
-                                                        d="M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a.55 .55 0 0 1 0 -1l18 -6.5" />
-                                                </svg>
-                                                </svg>
-                                                Send activation email
-                                            </button>
+                                    <div class="row g-3">
+                                        <div class="col-8">
+                                            <div class="mb-3">
+                                                <label class="form-label">Activation Status</label>
+                                                <div class="d-flex">
+                                                    <label class="form-check form-switch mt-2">
+                                                        <input class="form-check-input cursor-pointer" type="checkbox"
+                                                            id="edit-active-account">
+                                                        <span class="form-check-label">Active Account</span>
+                                                    </label>
+                                                    <button class="btn btn-success ms-3" id="send-activation-email-btn"
+                                                        disabled>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2" stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            class="icon text-white me-2 icon-tabler icons-tabler-outline icon-tabler-send">
+                                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                            <path d="M10 14l11 -11" />
+                                                            <path
+                                                                d="M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a.55 .55 0 0 1 0 -1l18 -6.5" />
+                                                        </svg>
+                                                        </svg>
+                                                        Send activation email
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md">
+                                            <div class="mb-3">
+                                                <label class="form-label">Verification Status</label>
+                                                <label class="form-check form-switch mt-3">
+                                                    <input class="form-check-input cursor-pointer" type="checkbox"
+                                                        id="edit-verified-email">
+                                                    <span class="form-check-label">Verified Email</span>
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
+
                                     <small class="form-text text-muted">If a user has an active session, they need to
                                         logout and login again for any changes to take effect.</small>
 
@@ -493,11 +509,11 @@
                             fetchPolicies();
                             fetchSystemRoles();
                             $("#editor-footer .spinner-border ").remove();
-                            $("#editor-footer").prepend(`<div class="alert alert-success me-auto p-2" role="alert">Policy Applied Succesful</div>`);
+                            $("#editor-footer").prepend(createAlertElement('success', 'Policy Applied & Saved'));
                         },
                         error: function (xhr, status, error) {
                             $("#editor-footer .spinner-border ").remove();
-                            $("#editor-footer").prepend(`<div class="alert alert-danger me-auto p-2" role="alert">Failed to Apply Policy</div>`);
+                            $("#editor-footer").prepend(createAlertElement('danger', 'Failed to apply policy'));
                         }
                     });
                 });
@@ -555,11 +571,11 @@
                         data: JSON.stringify({ id: userId }),
                         success: function (response) {
                             // Add success alert
-                            $("#user-modal-footer").prepend('<div class="alert alert-success me-auto p-2" role="alert">Activation Email Sent!</div>');
+                            $("#user-modal-footer").prepend(createAlertElement('success', 'Activation Email Sent'));
                         },
                         error: function (xhr, status, error) {
                             // Add error alert
-                            $("#user-modal-footer").prepend('<div class="alert alert-danger me-auto p-2" role="alert">Activation Email Failed to Send!</div>');
+                            $("#user-modal-footer").prepend(createAlertElement('danger', 'Failed to sent email'));
                         }
                     });
                 });
@@ -631,7 +647,7 @@
                             <td>${user.username}</td>
                             <td class="text-secondary">${user.fullname || 'N/A'}</td>
                             <td><a href="mailto:${user.email || 'Not set'}" class="text-reset">${user.email || 'Not set'}</a></td>
-                            <td class="text-secondary">${user.joined_date || 'N/A'}</td>
+                              <td class="text-secondary">${user.joined_date ? formatDate(user.joined_date) : 'N/A'}</td>
                             <td class="text-secondary">${roles}</td>
                             <td class="text-center">${activeStatus}</td>
                             <td>${actionButtons}</td>
@@ -658,6 +674,16 @@
                 updatePageDetails(page, usersToShow.length);
             }
 
+            function formatDate(isoString) {
+                const date = new Date(isoString);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+
+                return `${day}-${month}-${year} ${hours}:${minutes}`;
+            }
 
             // Search function to filter users by name, username, email, or role
             function searchUsers(query) {
@@ -773,12 +799,9 @@
             $('#modal-edit-user').on('hidden.bs.modal', function () {
                 // Clear input fields (text, email, date) and textareas
                 $(this).find('input[type="text"], input[type="email"], input[type="date"], textarea').val('');
-
-                // Optionally reset checkboxes, uncheck all roles if needed
                 $(this).find('input[type="checkbox"]').prop('checked', false);
-
-                // Remove any alerts from the modal footer
                 $("#user-modal-footer .alert").remove();
+                $("#user-modal-footer .spinner-border ").remove();
             });
         </script>
 
@@ -793,14 +816,11 @@
                     dataType: 'json',
                     success: function (response) {
                         if (response.result.roles && Array.isArray(response.result.roles)) {
-                            // Extract role names and store them
                             systemRoles = response.result.roles.map(role => role.name);
-
-                            // Render checkboxes with the system roles, initially unchecked
                             renderRoleCheckboxes();
                         } else {
                             console.error("Unexpected format for roles");
-                            systemRoles = []; // Set an empty array if something is wrong
+                            systemRoles = [];
                         }
                     },
                     error: function () {
@@ -818,7 +838,7 @@
                 systemRoles.forEach(role => {
                     const checkboxHTML = `
                         <label class="form-check form-check-inline">
-                            <input class="form-check-input" type="checkbox" name="roles" value="${role}">
+                            <input class="form-check-input cursor-pointer" type="checkbox" name="roles" value="${role}">
                             <span class="form-check-label">${role}</span>
                         </label>`;
                     roleContainer.append(checkboxHTML);
@@ -851,6 +871,7 @@
                         $('#edit-email').val(user.email);
                         $('#user-id').val(user.id);
                         $('#edit-active-account').prop('checked', user.active);
+                        $('#edit-verified-email').prop('checked', user.email_verified)
 
                         populateUserRoleCheckboxes(user.roles);
                     },
@@ -876,18 +897,18 @@
         <script>
 
             $(document).on("click", ".del-user-btn", function () {
-                const userId = $(this).data("user-id"); // Get the user ID from the button
+                const userId = $(this).data("user-id");
                 $("#verify-user-id-del").text(userId); // Display the user ID in the modal
-                $("#verify-delete-user").modal("show"); // Show the modal
+                $("#verify-delete-user").modal("show");
             });
 
             $(document).on("click", ".del-user-btn", function () {
-                const userId = $(this).data("user-id"); // Get the user ID from the button
-                const userName = $(this).closest('tr').find('td:first').text(); // Assuming the username is in the first column
+                const userId = $(this).data("user-id");
+                const userName = $(this).closest('tr').find('td:first').text();
                 $("#verify-user-id-del").text(userId); // Set the user ID in the hidden span
                 $("#verify-user-name").text(userName); // Display the user's name in the modal
                 $("#confirm-delete-user-btn").data("user-id", userId); // Store the user ID in the delete confirmation button
-                $("#verify-delete-user").modal("show"); // Show the modal
+                $("#verify-delete-user").modal("show");
             });
 
             $("#confirm-delete-user-btn").on("click", function () {
@@ -898,7 +919,7 @@
                         type: "DELETE",
                         success: function (response) {
                             alert("User deleted successfully.");
-                            $("#verify-delete-user").modal("hide"); // Hide the modal
+                            $("#verify-delete-user").modal("hide");
                         },
                         error: function (xhr, status, error) {
                             let errorMessage = "Failed to delete user.";
@@ -922,13 +943,13 @@
                     success: function (response) {
                         $("#user-modal-footer .alert").remove();
                         $("#user-modal-footer .spinner-border ").remove();
-                        $("#user-modal-footer").prepend('<div class="alert alert-success me-auto p-2" role="alert">User updated successfully</div>');
+                        $("#user-modal-footer").prepend(createAlertElement('success', 'User updated'));
                         fetchAllUsers();
                     },
                     error: function (response) {
                         $("#user-modal-footer .alert").remove();
                         $("#user-modal-footer .spinner-border ").remove();
-                        $("#user-modal-footer").prepend(`<div class="alert alert-danger me-auto p-2" role="alert">Failed to update user roles</div>`);
+                        $("#user-modal-footer").prepend(createAlertElement('danger', 'Failed to update user'));
                     }
                 });
             }
@@ -948,7 +969,8 @@
                     firstName: firstName,
                     lastName: lastName,
                     email: $("#edit-email").val().trim(),
-                    enabled: $("#edit-active-account").is(':checked')
+                    enabled: $("#edit-active-account").is(':checked'),
+                    emailVerified: $("#edit-verified-email").is(':checked')
                 };
 
                 const roles = [];
@@ -972,9 +994,7 @@
                 });
 
                 $("#user-modal-footer .alert").remove();
-
-                const loader = '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
-                $("#user-modal-footer").prepend(loader)
+                $("#user-modal-footer").prepend(createLoaderElement())
 
                 $.ajax({
                     url: `{{ url_for('users_blueprint.api_put_user', user_id='') }}${userId}`,
@@ -982,8 +1002,10 @@
                     contentType: 'application/json',
                     data: JSON.stringify(userData),
                     success: function (response) {
-                        if (response.result.user.warning) {
-                            $("#user-modal-footer").prepend('<div class="alert alert-danger me-auto p-2" role="alert">Administrator account cannot be modified!</div>');
+                        if (response.result.warning) {
+                            $("#user-modal-footer .alert").remove();
+                            $("#user-modal-footer .spinner-border ").remove();
+                            $("#user-modal-footer").prepend(createAlertElement('danger', 'Administrator account can not be updated.'));
                         } else {
                             patchUserRoles(userId, roles);
                         }
@@ -991,7 +1013,7 @@
                     error: function (response) {
                         $("#user-modal-footer .alert").remove();
                         $("#user-modal-footer .spinner-border ").remove();
-                        $("#user-modal-footer").prepend(`<div class="alert alert-danger me-auto p-2" role="alert">Failed to update user</div>`);
+                        $("#user-modal-footer").prepend(createAlertElement('danger', 'Failed to update user.'));
                     }
                 });
 

@@ -367,7 +367,8 @@ def api_put_user(user_id, json_data):
         email = json_data.get("email")
         first_name = json_data.get("firstName")
         last_name = json_data.get("lastName")
-        enabled = json_data.get("enabled", True)
+        enabled = json_data.get("enabled")
+        email_verified = json_data.get("emailVerified")
 
         user_upd = kutils.update_user(
             user_id=user_id,
@@ -375,11 +376,12 @@ def api_put_user(user_id, json_data):
             last_name=last_name,
             email=email,
             enabled=enabled,
+            email_verified=email_verified,
         )
         if user_upd:
             return {
                 "success": True,
-                "result": {"user": user_upd},
+                "result": user_upd,
                 "help": request.url,
             }, 200
         else:
