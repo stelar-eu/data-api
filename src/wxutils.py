@@ -16,7 +16,7 @@ import sql_utils
 import utils
 from backend.ckan import ckan_request
 from backend.pgsql import transaction
-from entity import PackageCKANSchema, PackageEntity
+from entity import Entity, PackageCKANSchema, PackageEntity
 from exceptions import (
     BackendLogicError,
     ConflictError,
@@ -609,6 +609,56 @@ def get_workflow_tasks(workflow_id):
         raise NotFoundError("Workflow does not exist.", workflow_id)
 
     return sql_utils.workflow_get_tasks(workflow_id)
+
+
+"""
+    Tasks:
+    ===================
+    Tasks are discrete units of tool logic execution that operate a set of computations.
+    They are either executed as Kubernetes Jobs within the KLMS cluster or
+    deployed in a remote environment, depending on the specific execution requirements.
+    While the concept of a Task can be interpreted as a generic execution, we mainly 
+    use tasks as vessels for the execution of the STELAR Tools on data 
+    
+    Task executions are mainly recorded in the database, while their presence
+    in the data catalog, enfolded within 'Process' packages, is still under discussion.
+
+    A 'Process' serves as a parent entity for a collection of tasks, structuring them into
+    a sequential chain of execution steps, where each corresponds to a distinct task.
+    All tasks within the same Process are designed to execute a coordinated sequence
+    of computations, ensuring a structured and systematic workflow execution.
+
+    --------- Process --------
+    |  -----    -----        |       
+    |  | T | -> | T | -> ... |
+    |  -----    -----        |
+    --------------------------
+
+    Each Task is identified by a UUID by which is universally known to the entire 
+    ecosystem of components.
+
+    Database is responsible for storing the following generic fields:
+    - uuid: The unique identifier of the Task in UUID format.
+    - workflow_uuid: The unique identifier of the 'Process' the task belongs to.
+    - creator: The username (unique) of the user who created the process.
+    - state: The state of the process. Can be 'running', 'failed', 'succeeded'.
+    - start_date: The date and time when the process was started.
+    - end_date: The date and time when the process was completed.
+
+    Each Task requires a plan upon which the executor will adhere on to execute it.
+    The specifications required vary per task and tool type
+
+    Of the above, all are read-only except 'exec_state' which can be updated by the user,
+    (albeit, only once, from 'running' to either 'failed' or 'succeeded').
+"""
+
+
+class TaskCreationSchema(Schema):
+    pass
+
+
+class Task(Entity):
+    pass
 
 
 def update_task_state(task_id, state):

@@ -4,6 +4,7 @@ import re
 import uuid
 from datetime import date
 from datetime import datetime as datetime
+from urllib.parse import urljoin, urlparse, urlunparse
 
 import pandas as pd
 import psycopg2
@@ -100,7 +101,6 @@ def format_datetime(value):
     return "N/A"
 
 
-# Register the filter in your app
 app.jinja_env.filters["format_datetime"] = format_datetime
 #######################################
 
@@ -148,16 +148,31 @@ def help():
     """
 
     # EXAMPLE: curl -X GET http://127.0.0.1:9055/
+    settings = app.config["settings"]
+    extra_help = {
+        sname: settings[s]
+        for s, sname in [
+            ("MINIO_API_EXT_URL", "s3_api"),
+            ("KEYCLOAK_ISSUER_URL", "keycloak_issuer_url"),
+            ("KEYCLOAK_REALM", "keycloak_realm"),
+            ("KEYCLOAK_EXT_URL", "keycloak_url"),
+            ("KLMS_DOMAIN_NAME", "klms_dns_domain"),
+            ("MINIO_CONSOLE_URL", "minio_console_url"),
+            ("MAIN_EXT_URL", "klms_root_url"),
+        ]
+        if s in settings
+    }
 
     response = {
         "help": request.base_url,
         "success": True,
         "result": {
             "message": "Data API for managing resources in STELAR Knowledge Lake Management System.",
-            "OpenAPI specifications": request.base_url + "specs",
-            "Swagger UI": request.base_url + "docs",
-            "Console": request.base_url + "console/v1/",
-        },
+            "OpenAPI specifications": request.root_url + "specs",
+            "Swagger UI": request.root_url + "docs",
+            "Console": request.root_url + "console/v1/",
+        }
+        | extra_help,
     }
 
     return jsonify(response)
@@ -1922,9 +1937,9 @@ def api_dataset_publish(json_data):
     if specs.get("extra_metadata") is not None:
         # Convert this metadata to a JSON array with {"key":"...", "value":"..."} pairs as required to be stored as extras in CKAN
         extra_metadata = {}
-        extra_metadata[
-            "id"
-        ] = package_id  # Must specify the id of the newly created package
+        extra_metadata["id"] = (
+            package_id  # Must specify the id of the newly created package
+        )
         extra_metadata["extras"] = utils.handle_extras(specs["extra_metadata"])
         # Make a POST request to the CKAN API to patch the newly created package with the extra metadata
         resp_extras = requests.post(
@@ -1950,9 +1965,9 @@ def api_dataset_publish(json_data):
     # TODO: Replace with the respective API function?
     if specs.get("profile_metadata") is not None:
         resource_metadata = specs["profile_metadata"]
-        resource_metadata[
-            "package_id"
-        ] = package_id  # Must specify the id of the newly created package
+        resource_metadata["package_id"] = (
+            package_id  # Must specify the id of the newly created package
+        )
         if resource_metadata.get("file") is not None:
             # Make a POST request to the CKAN API to upload the file from the specified path
             with open(resource_metadata["file"], "rb") as f:

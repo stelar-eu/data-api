@@ -4,7 +4,7 @@ import ssl
 
 import requests
 from apiflask import APIBlueprint
-from flask import current_app, jsonify, request, url_for
+from flask import current_app, jsonify, request, session, url_for
 
 import kutils
 import mutils
@@ -141,6 +141,9 @@ def api_token_create(json_data):
     return {
         "token": token["access_token"],
         "refresh_token": token["refresh_token"],
+        "expires_in": token["expires_in"],
+        "refresh_expires_in": token["refresh_expires_in"],
+        "token_type": token["token_type"],
     }
 
 
@@ -185,6 +188,9 @@ def api_token_refresh(json_data):
                 "result": {
                     "token": token["access_token"],
                     "refresh_token": token["refresh_token"],
+                    "expires_in": token["expires_in"],
+                    "refresh_expires_in": token["refresh_expires_in"],
+                    "token_type": token["token_type"],
                 },
                 "success": True,
             }, 200
@@ -687,7 +693,10 @@ def api_acquire_s3_creds():
     """
 
     try:
-        access_token = request.headers["Authorization"].replace("Bearer ", "")
+        access_token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        if not access_token:
+            access_token = session.get("access_token")
+
         config = current_app.config["settings"]
         minio_url = config["MINIO_API_EXT_URL"]
         creds = mutils.get_temp_minio_credentials(access_token=access_token)

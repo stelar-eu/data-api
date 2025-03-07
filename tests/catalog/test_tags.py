@@ -28,7 +28,6 @@ def clean_vocab1(DC):
 
 @pytest.fixture()
 def vocab1(app_client, clean_vocab1):
-def vocab1(app_client, clean_vocab1):
     response = app_client.post(
         "/api/v2/vocabulary",
         json={
