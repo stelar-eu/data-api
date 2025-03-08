@@ -1,4 +1,4 @@
-import pyjq
+import jmespath
 import pytest
 
 
@@ -7,7 +7,8 @@ import pytest
 @pytest.fixture()
 def clean_vocab1(DC):
     try:
-        for tag in pyjq.all(".result.tags|.[]|.id", DC.vocabulary_show(id="vocab1")):
+        voc = DC.vocabulary_show(name="vocab1")
+        for tag in jmespath.search("result.tags[].id", voc):
             DC.tag_delete(tag)
         DC.vocabulary_delete(id="vocab1")
     except Exception:

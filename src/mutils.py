@@ -6,7 +6,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 
 import requests
-from flask import current_app, jsonify, make_response, render_template, request, session
+from flask import current_app, make_response
 from minio import Minio
 from minio.commonconfig import CopySource
 from minio.error import S3Error
@@ -275,101 +275,101 @@ def generate_random_hash(policy_json) -> str:
     return policy_hash
 
 
-def create_policy(perm_info):
+def create_policy(perm):
     policy_names_list = []
 
-    for perm in perm_info:
-        if perm["action"] == "read,write":  # na to do
-            action = ["s3:GetObject", "s3:PutObject"]
-        elif perm["action"] == "read":
-            action = ["s3:GetObject"]
-        elif perm["action"] == "write":
-            action = ["s3:PutObject"]
+    # for perm in perm_info:
+    if perm["action"] == "read,write":  # na to do
+        action = ["s3:GetObject", "s3:PutObject"]
+    elif perm["action"] == "read":
+        action = ["s3:GetObject"]
+    elif perm["action"] == "write":
+        action = ["s3:PutObject"]
 
-        resource_part = perm["resource"].split("/", 1)
-        if len(resource_part[1].replace("*", "")) > 1:
-            resource_sub_part = resource_part[1]
-            policy_document = [
-                {
-                    "Effect": "Allow",
-                    "Action": ["s3:ListAllMyBuckets", "s3:GetBucketLocation"],
-                    "Resource": ["arn:aws:s3:::*"],
-                    # "Condition": {"StringLike": {"s3:prefix": [f"{perm['resource']}"]}}
+    resource_part = perm["resource"].split("/", 1)
+    if len(resource_part[1].replace("*", "")) > 1:
+        resource_sub_part = resource_part[1]
+        policy_document = [
+            {
+                "Effect": "Allow",
+                "Action": ["s3:ListAllMyBuckets", "s3:GetBucketLocation"],
+                "Resource": ["arn:aws:s3:::*"],
+                # "Condition": {"StringLike": {"s3:prefix": [f"{perm['resource']}"]}}
+            },
+            # {
+            #     "Effect": "Allow",
+            #     "Action": ["s3:ListBucket"],
+            #     "Resource": ["arn:aws:s3:::" + perm['resource'].split('/')[0]],
+            #     "Condition": {"StringEquals": {"s3:prefix": ["",f"{perm['resource'].replace('*','').split('/')[1]}/"],"s3:delimiter":["/"]}}
+            # },
+            {
+                "Effect": "Allow",
+                "Action": ["s3:ListBucket"],
+                "Resource": ["arn:aws:s3:::" + perm["resource"].split("/")[0]],
+                "Condition": {
+                    "StringLike": {"s3:prefix": [f"{resource_sub_part}"]}
                 },
-                # {
-                #     "Effect": "Allow",
-                #     "Action": ["s3:ListBucket"],
-                #     "Resource": ["arn:aws:s3:::" + perm['resource'].split('/')[0]],
-                #     "Condition": {"StringEquals": {"s3:prefix": ["",f"{perm['resource'].replace('*','').split('/')[1]}/"],"s3:delimiter":["/"]}}
-                # },
-                {
-                    "Effect": "Allow",
-                    "Action": ["s3:ListBucket"],
-                    "Resource": ["arn:aws:s3:::" + perm["resource"].split("/")[0]],
-                    "Condition": {
-                        "StringLike": {"s3:prefix": [f"{resource_sub_part}"]}
-                    },
-                },
-                {
-                    "Effect": "Allow",
-                    "Action": action,
-                    "Resource": ["arn:aws:s3:::" + perm["resource"]],
-                },
-            ]
-        else:
-            policy_document = [
-                {
-                    "Effect": "Allow",
-                    "Action": ["s3:ListAllMyBuckets", "s3:GetBucketLocation"],
-                    "Resource": ["arn:aws:s3:::*"],
-                    # "Condition": {"StringLike": {"s3:prefix": [f"{perm['resource']}"]}}
-                },
-                {
-                    "Effect": "Allow",
-                    "Action": ["s3:ListBucket"],
-                    "Resource": ["arn:aws:s3:::" + perm["resource"].split("/")[0]],
-                },
-                {
-                    "Effect": "Allow",
-                    "Action": action,
-                    "Resource": ["arn:aws:s3:::" + perm["resource"]],
-                },
-            ]
+            },
+            {
+                "Effect": "Allow",
+                "Action": action,
+                "Resource": ["arn:aws:s3:::" + perm["resource"]],
+            },
+        ]
+    else:
+        policy_document = [
+            {
+                "Effect": "Allow",
+                "Action": ["s3:ListAllMyBuckets", "s3:GetBucketLocation"],
+                "Resource": ["arn:aws:s3:::*"],
+                # "Condition": {"StringLike": {"s3:prefix": [f"{perm['resource']}"]}}
+            },
+            {
+                "Effect": "Allow",
+                "Action": ["s3:ListBucket"],
+                "Resource": ["arn:aws:s3:::" + perm["resource"].split("/")[0]],
+            },
+            {
+                "Effect": "Allow",
+                "Action": action,
+                "Resource": ["arn:aws:s3:::" + perm["resource"]],
+            },
+        ]
 
-        # Define the policy
-        policy = {"Version": "2012-10-17", "Statement": policy_document}
+    # Define the policy
+    policy = {"Version": "2012-10-17", "Statement": policy_document}
 
-        # Convert the policy dictionary to a JSON string
+    # Convert the policy dictionary to a JSON string
 
-        policy_json = json.dumps(policy)
+    policy_json = json.dumps(policy)
 
-        hashed_policy_name = generate_random_hash(policy_json)
+    hashed_policy_name = generate_random_hash(policy_json)
 
-        policy_file = f"{hashed_policy_name}.json"
-        with open(policy_file, "w") as file:
-            file.write(policy_json)
+    policy_file = f"{hashed_policy_name}.json"
+    with open(policy_file, "w") as file:
+        file.write(policy_json)
 
-        try:
-            # Create the policy using mc client
-            subprocess.run(
-                [
-                    "mc",
-                    "admin",
-                    "policy",
-                    "create",
-                    "myminio",
-                    hashed_policy_name,
-                    policy_file,
-                ],
-                check=True,
-            )
-            print(f"Policy '{hashed_policy_name}' created successfully.")
+    try:
+        # Create the policy using mc client
+        subprocess.run(
+            [
+                "mc",
+                "admin",
+                "policy",
+                "create",
+                "myminio",
+                hashed_policy_name,
+                policy_file,
+            ],
+            check=True,
+        )
+        print(f"Policy '{hashed_policy_name}' created successfully.")
 
-            # Apply the policy to the user
-        except subprocess.CalledProcessError as err:
-            print(f"Error occurred: {err}")
+        # Apply the policy to the user
+    except subprocess.CalledProcessError as err:
+        print(f"Error occurred: {err}")
 
-        policy_names_list.append(hashed_policy_name)
+    policy_names_list.append(hashed_policy_name)
 
     return policy_names_list
 
