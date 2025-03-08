@@ -26,35 +26,9 @@ from exceptions import (
     NotAllowedError,
     NotFoundError,
 )
+from utils import is_valid_url, is_valid_uuid
 
 logger = logging.getLogger(__name__)
-
-
-def is_valid_url(url):
-    """Check if a string is a valid URL. Valid URLs are of the form 'protocol://hostname[:port]/path'.
-    Args:
-        url: The string to be checked.
-    Returns:
-        A boolean value indicating whether the string is a valid
-    """
-    pattern = re.compile(r"^(s3|https|http|tcp|smb|ftp)://[a-zA-Z0-9.-]+(?:/[^\s]*)?$")
-    return bool(pattern.match(url))
-
-
-def is_valid_uuid(s):
-    """Check if a string is a valid UUID. Valid UUIDs are of the form 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.
-    Args:
-        s: The string to be checked.
-    Returns:
-        A boolean value indicating whether the string is a valid UUID.
-    """
-    try:
-        # Try converting the string to a UUID object
-        uuid_obj = uuid.UUID(s)
-        # Check if the string matches the canonical form of the UUID (with lowercase hexadecimal and hyphens)
-        return str(uuid_obj) == s
-    except Exception:
-        return False
 
 
 def generate_task_signature(task_id):
@@ -770,6 +744,39 @@ class Task(Entity):
         else:
             raise NotFoundError(str(id))
 
+    def generate_signature(self, id):
+        """Generates a signature for a given task_id by salting it with the secret key of the flask app
+        and hashing it with SHA256.
+
+        Args:
+            id: The id of the Task for which the signature will be generated.
+        Raises:
+            RuntimeError: If the secret key is not properly set for the server.
+        """
+        secret_key = current_app.secret_key
+
+        if not secret_key:
+            raise RuntimeError("Secret key is not set in the Flask app.")
+
+        # Salting the task_id with the secret key and encrypting it.
+        salted_task_id = id + secret_key
+        return hashlib.sha256(salted_task_id.encode()).hexdigest()
+
+    def verify_signature(self, id, signature):
+        """Verifies the signature of a given Task ID by comparing it with the
+           signature generated using the secret key of the flask app.
+
+        Args:
+            id: The id of the Task for which we want to validate its signature
+            signature: The signature under examination
+
+        Returns:
+            boolean: Is signature valid
+        Raises:
+            RuntimeError: If the secret key is not properly set for the server.
+        """
+        return signature == generate_task_signature(id)
+
     def get(self, id):
         """Reads the metadata of a task if it exists.
 
@@ -869,7 +876,6 @@ class Task(Entity):
 # The TASK entity singleton
 #
 TASK = Task()
-
 #
 #
 # ------------------------------------------
