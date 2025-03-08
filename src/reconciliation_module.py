@@ -14,21 +14,10 @@ default_keycloak_roles = {
     "offline_access",
     "create-realm",
     "uma_authorization",
+    "puller",
+    "pusher",
 }
 default_client_roles = {"consoleAdmin"}
-
-
-def generate_random_hash() -> str:
-    # Generate 32 random bytes
-    random_bytes = os.urandom(32)
-
-    # Create a SHA-256 hash object
-    hash_object = hashlib.sha256(random_bytes)
-
-    # Get the hexadecimal representation of the hash
-    hash_hex = hash_object.hexdigest()
-
-    return hash_hex
 
 
 def update_roles_from_yaml(roles_list, existing_realm_roles):
@@ -46,11 +35,7 @@ def update_roles_from_yaml(roles_list, existing_realm_roles):
 
 
 def update_policies_from_yaml(roles_list, existing_policies):
-    policy_names_set = set()
-    for role in roles_list:
-        for perm in role["permissions"]:
-            hashed_policy_name = generate_random_hash()
-            policy_names_set.update({hashed_policy_name})
+    policy_names_set = set(roles_list)
 
     # Create a set from the output lines
     policies_to_delete = (

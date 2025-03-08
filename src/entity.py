@@ -156,6 +156,8 @@ class Entity:
             The entity object.
         """
         return self.get(eid)
+          
+            
 
     def create_entity(self, init_data):
         """Create a new entity.
@@ -482,7 +484,7 @@ def create_capacity_schema(
     return AddMember
 
 
-AnyCapacity = create_capacity_schema("AnyCapacity", None)
+AnyCapacity = create_capacity_schema("AnyCapacity", re.compile(r"[\w\d_]*"))
 UserGroupCapacity = create_capacity_schema("UserGroupCapacity", ["editor", "member"])
 UserOrgCapacity = create_capacity_schema(
     "UserOrgCapacity", ["admin", "editor", "member"]
@@ -745,6 +747,43 @@ class MemberEntity:
             parent.members.append(self)
         self.endpoints = {}
 
+    def add_member_entity(self, eid: str, member_id: str, capacity: str):
+        """Add a member to a group or org.
+
+        This method performs authorization checks and then calls the
+        add_member() method.
+
+        Arguments:
+            eid: the ID of the group or org
+            member_id: the ID of the member
+            capacity: the capacity of the member
+        """
+        return self.add_member(eid, member_id, capacity)
+
+    def remove_member_entity(self, eid: str, member_id: str):
+        """Remove a member from a group or org.
+
+        This method performs authorization checks and then calls the
+        remove_member() method.
+
+        Arguments:
+            eid: the ID of the group or org
+            member_id: the ID of the member
+        """
+        return self.remove_member(eid, member_id)
+
+    def list_member_entities(self, eid: str, capacity: str | None = None):
+        """List the members of a group or org.
+
+        This method performs authorization checks and then calls the
+        list_members() method.
+
+        Arguments:
+            eid: the ID of the group or org
+            capacity: the capacity of the members to list, or None to list all members.
+        """
+        return self.list_members(eid, capacity)
+
     def add_member(self, eid: str, member_id: str, capacity: str):
         context = {"member_entity": self.child.name}
         self.parent.add_member(
@@ -757,9 +796,23 @@ class MemberEntity:
 
     def list_members(self, eid: str, capacity: str | None = None) -> list[dict]:
         context = {"member_entity": self.child.name}
-        return self.parent.list_members(
+
+        # Get the list of members from the parent entity
+        mlist = self.parent.list_members(
             eid, self.member_kind, capacity=capacity, context=context
         )
+
+        if self.member_kind == "package":
+            # Filter the list of members by type
+            idlist = [m[0] for m in mlist]
+            pkg_type = self.child.package_type
+            flist = filter_list_by_type(idlist, pkg_type)
+            fset = set(flist)
+
+            return [[m[0], pkg_type, m[2]] for m in mlist if m[0] in fset]
+
+        else:
+            return mlist
 
 
 class EntityWithMembers(EntityWithExtras):

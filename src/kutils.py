@@ -24,7 +24,10 @@ from keycloak.keycloak_openid import KeycloakOpenID
 
 import sql_utils
 from backend.ckan import ckan_request
+
+from exceptions import BackendError, InternalException, InvalidError
 from utils import is_valid_uuid, validate_email
+
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +84,7 @@ def username_unique(username):
     existing_users = keycloak_admin.get_users({"username": username})
 
     if existing_users:
-        raise ValueError(f"A user with the username '{username}' already exists.")
+        raise InvalidError(f"A user with the username '{username}' already exists.")
 
 
 def reset_password_init_flow(email):
@@ -150,7 +153,7 @@ def email_unique(email):
     # Check for existing users with the same email
     existing_emails = keycloak_admin.get_users({"email": email})
     if existing_emails:
-        raise ValueError(f"A user with the email '{email}' already exists.")
+        raise InvalidError(f"A user with the email '{email}' already exists.")
 
 
 def initialize_keycloak_openid():
@@ -663,6 +666,8 @@ def create_user_with_password(
 
         ckan_payload = {
             "name": username,
+            "id": user_id,
+            "fullname": f"{first_name} {last_name}",
             "email": email,
             "password": password,
         }
@@ -672,14 +677,12 @@ def create_user_with_password(
             logger.debug("CKAN Response: %s", obj)
         except Exception as e:
             logger.error("Error while calling ckan_request: %s", str(e), exc_info=True)
+            keycloak_admin.delete_user(user_id)
+            raise BackendError("Error while creating user") from e
 
         return user_id
     except KeycloakAuthenticationError as e:
-        return None
-    except ValueError as ve:
-        raise ValueError(ve)
-    except Exception as e:
-        return None
+        raise InternalException("Keycloak authentication error") from e
 
 
 def update_user(
@@ -744,11 +747,7 @@ def update_user(
         return updated_user_json
 
     except KeycloakAuthenticationError as e:
-        return None
-    except ValueError as ve:
-        raise ValueError(ve)
-    except Exception as e:
-        return None
+        raise InternalException("Keycloak authentication error") from e
 
 
 def get_user(user_id=None):

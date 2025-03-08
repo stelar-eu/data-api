@@ -231,10 +231,8 @@ def filter_list_by_type(
         """\
         SELECT {idattr}
         FROM {tablename}
-        WHERE {idattr} =ANY(%s) AND type = %s""".format(
-            idattr=sql.Identifier(idattr), tablename=sql.Identifier(tablename)
-        )
-    )
+        WHERE {idattr} =ANY(%s) AND type = %s"""
+    ).format(idattr=sql.Identifier(idattr), tablename=sql.Identifier(tablename))
     # Pluck out the IDs from the list of tuples
     with transaction() as conn:
         with conn.cursor() as cur:

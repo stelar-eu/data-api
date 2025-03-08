@@ -24,6 +24,8 @@ from entity import (
 )
 from exceptions import DataError
 from routes.users import api_user_editor
+from tools import TOOL
+from wflow import WORKFLOW
 
 logger = logging.getLogger(__name__)
 
@@ -788,16 +790,40 @@ ORGANIZATION = EntityWithMembers(
     ckan_schema=EntityWithMembersCKANSchema(),
 )
 
+
+#
+# Users are not implemented as Entities yet, so to make them members we need to customize the MemberEntity
+# class.
+#
+
+_USER = CKANEntity("user", "users", None, None, ckan_name="user", ckan_schema=None)
+
+
+class UserMember(MemberEntity):
+    """Specialize member entity for users.
+
+    This is needed because the current implementation for users is not
+    based on the Entity class.
+    """
+
+    def __init__(self, group, capacity):
+        super().__init__(group, _USER, capacity)
+
+
 GROUP.members = [
     MemberEntity(GROUP, DATASET, AnyCapacity),
+    MemberEntity(GROUP, WORKFLOW, AnyCapacity),
+    MemberEntity(GROUP, TOOL, AnyCapacity),
     MemberEntity(GROUP, GROUP, AnyCapacity),
-    # users: editor, member
+    UserMember(GROUP, AnyCapacity),
 ]
 
 ORGANIZATION.members = [
     MemberEntity(ORGANIZATION, DATASET, AnyCapacity),
+    MemberEntity(ORGANIZATION, WORKFLOW, AnyCapacity),
+    MemberEntity(ORGANIZATION, TOOL, AnyCapacity),
     MemberEntity(ORGANIZATION, GROUP, AnyCapacity),
-    # users: editor, member, admin
+    UserMember(ORGANIZATION, AnyCapacity),
 ]
 
 
