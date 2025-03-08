@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-# import pyjq
+import jmespath
 import pytest
 from marshmallow import ValidationError
 
@@ -129,7 +129,7 @@ def test_process_api_create_failed(app_client, DC, mdb_conn):
     assert response.status_code == 422
     data = response.get_json()
     assert data["success"] is False
-    assert "owner_org" in pyjq.all("..|objects|keys_unsorted[]", data)
+    assert "owner_org" in jmespath.search("error.detail.json", data)
 
 
 def test_process_api_create_minimal(app_client, DC, mdb_conn):
