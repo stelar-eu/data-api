@@ -18,19 +18,19 @@ workflows_bp = APIBlueprint(
     "rest_workflows_blueprint", __name__, tag="RESTful Workflow Operations"
 )
 
-#########################################################
-##################### WORKFLOWS #########################
-#########################################################
+# --------------------------------------------------------
+# ---------------------- WORKFLOWS -----------------------
+# --------------------------------------------------------
 
-logger.info(f"Generating endpoints for process")
+logger.info("Generating endpoints for process")
 generate_endpoints(wxutils.PROCESS, workflows_bp, logger)
 generate_endpoints(tools.TOOL, workflows_bp, logger)
 generate_endpoints(wflow.WORKFLOW, workflows_bp, logger)
 
 
-#########################################################
-######################## TASKS ##########################
-#########################################################
+# --------------------------------------------------------
+# ------------------------ TASKS -------------------------
+# --------------------------------------------------------
 
 
 @workflows_bp.route("/tasks/<task_id>", methods=["GET"])
@@ -39,7 +39,7 @@ generate_endpoints(wflow.WORKFLOW, workflows_bp, logger)
 @token_active
 @render_api_output(logger)
 def api_get_task_metadata(task_id):
-    """Return the metadata of the specific Task Execution. This JSON contains the task's state, metrics, messages, image, and other details.
+    """Return the metadata of the specific Task. This JSON contains the task's state, metrics, messages, image, and other details.
 
     Args:
         task_id: The unique identifier of the Task Execution.
@@ -50,7 +50,7 @@ def api_get_task_metadata(task_id):
         - 404: Task is not found
         - 500: An unknown error occurred
     """
-    resp = wxutils.get_task_metadata(task_id)
+    resp = wxutils.TASK.get_entity(task_id)
     return resp
 
 

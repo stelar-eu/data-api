@@ -4,6 +4,7 @@ import re
 import uuid
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from typing import Optional
 
 import requests
 from apiflask import Schema, fields, validators
@@ -618,7 +619,8 @@ def get_workflow_tasks(workflow_id):
     They are either executed as Kubernetes Jobs within the KLMS cluster or
     deployed in a remote environment, depending on the specific execution requirements.
     While the concept of a Task can be interpreted as a generic execution, we mainly 
-    use tasks as vessels for the execution of the STELAR Tools on data 
+    use tasks as vessels for the execution of the STELAR Tools on data present in the storage
+    layer, indexed by the data catalog packages.
     
     Task executions are mainly recorded in the database, while their presence
     in the data catalog, enfolded within 'Process' packages, is still under discussion.
@@ -629,36 +631,248 @@ def get_workflow_tasks(workflow_id):
     of computations, ensuring a structured and systematic workflow execution.
 
     --------- Process --------
-    |  -----    -----        |       
+    |  -----    -----        |
     |  | T | -> | T | -> ... |
     |  -----    -----        |
     --------------------------
 
-    Each Task is identified by a UUID by which is universally known to the entire 
+    Each Task is identified by a UUID, by which it is universally known to the entire
     ecosystem of components.
 
     Database is responsible for storing the following generic fields:
     - uuid: The unique identifier of the Task in UUID format.
-    - workflow_uuid: The unique identifier of the 'Process' the task belongs to.
+    - process_uuid: The unique identifier of the 'Process' the task belongs to.
     - creator: The username (unique) of the user who created the process.
     - state: The state of the process. Can be 'running', 'failed', 'succeeded'.
     - start_date: The date and time when the process was started.
     - end_date: The date and time when the process was completed.
 
-    Each Task requires a plan upon which the executor will adhere on to execute it.
-    The specifications required vary per task and tool type
-
     Of the above, all are read-only except 'exec_state' which can be updated by the user,
     (albeit, only once, from 'running' to either 'failed' or 'succeeded').
+
+    A Task requires a plan upon which the executor will adhere on to perform it.
+    The specifications required vary per task and tool type. We set the below attributes
+    as the minimum required definitions for the creation of a task. Attributes outlined
+    below may be referring to other entities present in the data catalog of STELAR.
+    - parameters: Tool specific parameters in a dict format { k:str -> v:object }
+    - datasets: The datasets used either as inputs or as destination for outputs. Can be UUIDs
+                of existing packages or specs for creating new ones. Each can be referenced by 
+                its assigned friendly name.
+    - inputs: The inputs of the execution. Can be UUIDs corresponding to datasets, resources or
+              plain paths. Dataset UUIDs are translated to all 'owned' resources of the dataset
+              (if no filter provided) while Resource UUIDs are translated into the path pointed by it.
+              Dataset UUIDs can be also accompanied by a filter in the form UUID::filter
+              which is applied with respect to the relation of the resources to the parent dataset (UUID).
+              A special 'ctx' package identifier can be used as a reference to a package and is translated
+              to the 'Process' package UUID the Task belongs to. 'ctx' can be used as any classic
+              dataset UUID (ctx or ctx::filter).
+              Note that inputs are organized in nested arrays of strings in the form of a dict:
+              inputs : { k:str -> v:list(str) }. We may refer to 'k' to as input_group_name in DB terms.
+    - outputs: The output files specs. Comprises of specs about the path the output should 
+               be saved to and about the handling that should be applied in a metadata level
+               (New resource of a referenced dataset, Replacement of an existing resource, Do nothing)
+               Partially, this information is propagated to the tool
+               defining the destination path of the execution outputs.
+    - secrets: A special field that contains sensitive information which is required by the tool
+               but should not be accessible to anyone other than the creator user. (Visible upon
+               signing of the request using special generated signature).
+    - image: The docker image, already pushed to the STELAR embedded registry, used to
+             execute the tool and handle the input/output handling to/from it.
+            
+    Note that not all parameters are exclusively required to execute every Task. Each tool 
+    is unique and requires custom configuration for execution.
+
 """
 
 
-class TaskCreationSchema(Schema):
+class TaskInputSchema(Schema):
     pass
+
+
+class TaskOutputSchema(Schema):
+    pass
+
+
+class TaskDatasetSchema(Schema):
+    pass
+
+
+# Besides the state, all other params are dump_only
+class TaskSchema(Schema):
+    "Schema for creation, read and update of a Task Entity"
+
+    class Meta:
+        datetimeformat = "iso"
+
+    id = fields.UUID(dump_only=True)
+    process_id = fields.UUID(required=True)
+    secrets = fields.Dict(values=fields.Raw(), allow_none=True)
+    inputs = TaskInputSchema()
+    outputs = TaskOutputSchema()
+    datasets = TaskDatasetSchema()
+    parameters = fields.Dict(required=False, values=fields.Raw(), allow_none=True)
+    name = fields.String(required=True)
+    # Limit the execution ability only to internally stored images in the STELAR registry.
+    # TODO: The registry domain should be populated by an appropriate environment variable.
+    image = fields.String(
+        required=False,
+        allow_none=False,
+        validate=lambda value: re.match(
+            r"^img\.stelar\.gr/stelar/[a-zA-Z0-9_-]+:[a-zA-Z0-9._-]+$", value
+        ),
+    )
+    exec_state = fields.String(
+        validate=validators.OneOf(["running", "failed", "succeeded"]), dump_only=True
+    )
+    creator = fields.String(dump_only=True)
+    start_date = fields.DateTime(dump_only=True)
+    end_date = fields.DateTime(dump_only=True, allow_none=True)
+    tags = fields.Dict(
+        keys=fields.String, values=fields.String(), required=False, allow_none=True
+    )
 
 
 class Task(Entity):
-    pass
+    def __init__(self):
+        super().__init__(
+            "task",
+            "tasks",
+            TaskSchema(),
+            TaskSchema(partial=True),
+        )
+        self.operations.remove("update")
+
+    def list(
+        self,
+        process_id: uuid.UUID,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ):
+        """Return the tasks of a given process by providing the ID of it."""
+
+        sql_utils.workflow_get_tasks(process_id)
+
+    def validate_task(self, id: uuid.UUID):
+        """Check that the ID provided is an existing Task.
+
+        Args:
+            id : The ID of the Task for which the existence is validated.
+
+        Returns:
+            The ID of the Task if it exists.
+
+        Raises:
+            NotFoundError if the Task does not exist
+        """
+        task = sql_utils.task_execution_read(id)
+        if task:
+            return task["task_id"]
+        else:
+            raise NotFoundError(str(id))
+
+    def get(self, id):
+        """Reads the metadata of a task if it exists.
+
+        This method invokes sql_utils methods to structure a
+        verbose representation of a task by its ID.
+
+        Args:
+            id: The UUID of the task
+        Return:
+            The Task representation
+        Raises:
+            NotFoundError: If the Task does not exist
+        """
+        # Check that the tasks exists and we may fetch it.
+        self.validate_task(id)
+
+        task = sql_utils.task_execution_read(id)
+
+        # Delegate some specific tags as top-level attributes in the final repr.
+        if task["tags"]:
+            if task["tags"].get("tool_image"):
+                task["tool_image"] = task["tags"]["tool_image"]
+            if task["tags"].get("tool_name"):
+                task["tool_name"] = task["tags"]["tool_name"]
+
+        if task["state"] in ["failed", "succeeded"]:
+            task["messages"] = task["tags"]["log"]
+            task["output"] = sql_utils.task_execution_read_outputs_sql(id)
+            task["metrics"] = sql_utils.task_execution_metrics_read_sql(id)
+        return task
+
+    def update(self, id, update_attr):
+        raise NotAllowedError(
+            "Task update is not supported. Tasks are updated by patch only."
+        )
+
+    def _create_task(self, creator_user: str, **attributes):
+        pass
+
+    def create(self):
+        self._create_task(kutils.current_user())
+        return None
+
+    def patch(self, id: uuid, state):
+        """Patches the current state of an existing Task.
+        Allows, for the time being, updating the state of the task to 'succeeded' or 'failed'.
+        Other fields of the task are immutable or not patchable.
+
+        Keyword arguments:
+            state: The new state of the task. One of 'succeeded', 'failed'.
+        Raises:
+            NotFoundError: If the task is not found.
+        """
+        # Fetch the task and update its state.
+        task = self.get_entity(id)
+        self.set_exec_state(task["id"], state)
+
+    def get_input_spec(self):
+        pass
+
+    def save_output(self):
+        pass
+
+    def set_exec_state(self, id, state):
+        # Validate the current state of the Task to allow
+        # changes only if it is running.
+        task = self.get_entity(id)
+
+        if task["exec_state"] == state:
+            return
+        if task["exec_state"] == "running" and state in ["failed", "succeeded"]:
+            end_date = datetime.now()
+            sql_utils.task_execution_update(id, state, end_date)
+        else:
+            raise ConflictError(
+                "Exec state can only change from running to failed or succeeded."
+            )
+
+    def delete(self, id, purge=False):
+        """Deletes a task by its ID if it exists
+
+        Args:
+            id: The UUID of the Task to delete.
+        Raises:
+            ConflictError: If a running Task was attempted to be deleted.
+            NotFoundError: If a Task with the given ID is not found.
+        """
+        task = self.get_entity(id)
+        if task["exec_state"] == "running":
+            raise ConflictError("Cannot delete a running task.")
+        with transaction():
+            sql_utils.task_execution_delete(id)
+
+
+# ------------------------------------------
+#
+# The TASK entity singleton
+#
+TASK = Task()
+
+#
+#
+# ------------------------------------------
 
 
 def update_task_state(task_id, state):
@@ -1332,7 +1546,7 @@ def map_state_to_execution_status(state):
     if isinstance(state, int):  # If state is an HTTP code
         if 200 <= state < 300:  # Success HTTP codes
             return "succeeded"
-        else:  # Other HTTP codes represent failure
+        else:
             return "failed"
     elif isinstance(state, str):  # If state is a string like "success", "error"
         state = state.lower()
