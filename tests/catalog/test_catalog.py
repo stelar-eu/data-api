@@ -65,7 +65,7 @@ def test_entity_creation(app):
     )
     assert e.ckan_name == "package"
     assert e.has_extras and e.has_tags
-    assert all(op in e.operations for op in Entity.OPERATIONS)
+    assert all(op in e.operations for op in Entity.OPERATIONS if op != "search")
 
 
 extras_pairs = [

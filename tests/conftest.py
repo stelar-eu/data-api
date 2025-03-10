@@ -6,6 +6,7 @@
 # in test files.
 from __future__ import annotations
 
+import json
 import socket
 import subprocess
 import time
@@ -267,3 +268,11 @@ def mdb_conn(mdb_dsn):
         yield conn
     finally:
         conn.close()
+
+
+@pytest.fixture
+def ckan_solr_schema_cached():
+    """Return the CKAN Solr schema as a json object."""
+    with open("tests/data/ckan_solr_schema.json") as f:
+        rsp = json.load(f)
+        return rsp["result"]["schema"]

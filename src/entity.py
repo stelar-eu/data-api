@@ -50,6 +50,7 @@ import schema
 from backend.ckan import ckan_request, filter_list_by_type
 from backend.pgsql import execSql, transaction
 from exceptions import BackendLogicError, DataError, NotFoundError
+from search import entity_search
 from tags import tag_object_to_string, tag_string_to_object
 
 if TYPE_CHECKING:
@@ -82,6 +83,7 @@ class Entity:
     OPERATIONS = [
         "list",
         "fetch",
+        "search",
         "show",
         "create",
         "delete",
@@ -112,6 +114,7 @@ class Entity:
 
         # Store the endpoint functions
         self.operations = Entity.OPERATIONS.copy()
+        self.operations.remove("search")
         if update_schema is None:
             self.operations.remove("update")
             self.operations.remove("patch")
@@ -145,6 +148,18 @@ class Entity:
         """
         return self.fetch(limit=limit, offset=offset)
 
+    def search_entities(self, query_spec: dict) -> list:
+        """Search for entities of this type.
+
+        This method is used to search for entities of this type. It returns a list of entity objects.
+
+        Args:
+            query_spec: The query specification. This is a dict validated by `schema.EntitySearchQyery`
+        Returns:
+            A list of entity objects.
+        """
+        return self.search(query_spec)
+
     def get_entity(self, eid: str):
         """Get an entity by ID.
 
@@ -156,8 +171,6 @@ class Entity:
             The entity object.
         """
         return self.get(eid)
-          
-            
 
     def create_entity(self, init_data):
         """Create a new entity.
@@ -914,6 +927,9 @@ class PackageEntity(EntityWithExtras):
     - processes
     - workflows
     - tools
+
+    Apart from standard operations, they also
+    provide for search.
     """
 
     def __init__(self, *args, package_type: str, **kwargs):
@@ -921,8 +937,14 @@ class PackageEntity(EntityWithExtras):
         self.package_type = package_type
         self.ckan_api_purge = "dataset_purge"
         self.list_names = True
+        self.operations.append("search")
+        self.search_query_schema = schema.EntitySearchQuery()
 
-    def list_entities(self, limit=None, offset=None):
+    def list(self, limit=None, offset=None):
+        """Return a list of package-based entities.
+
+        This method is used to list the package-based entities of a given type.
+        """
         self.check_limit_offset(limit, "limit")
         self.check_limit_offset(offset, "offset")
 
@@ -961,6 +983,52 @@ class PackageEntity(EntityWithExtras):
         # Force this!
         init_data["type"] = self.package_type
         return super().create(init_data)
+
+    def search(self, query_spec: dict) -> list:
+        """Search for packages.
+
+        This method is used to search for packages based on a query string.
+
+        Args:
+            q: The query string to search for.
+            limit: The maximum number of packages to return.
+            offset: The offset to start listing packages from.
+        Returns:
+            A list of package objects.
+
+        q: str = None,
+        fq: list[str] = [],
+        fl: list[str] = None,
+        facet: dict = None,
+        sort: str = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+
+        """
+        fl = query_spec.get("fl", None)
+        limit = query_spec.get("limit", None)
+        offset = query_spec.get("offset", None)
+
+        self.check_limit_offset(limit, "limit")
+        self.check_limit_offset(offset, "offset")
+
+        result = entity_search(
+            self.package_type,
+            q=query_spec.get("q", None),
+            fq=query_spec.get("fq", []),
+            fl=fl,
+            facet=query_spec.get("facet", None),
+            sort=query_spec.get("sort", None),
+            limit=limit,
+            offset=offset,
+        )
+
+        # If fl is None, return proper entity objects
+        if fl is None:
+            new_results = [self.load_from_ckan(obj) for obj in result["results"]]
+            result["results"] = new_results
+
+        return result
 
 
 class TagList(fields.Field):
