@@ -24,6 +24,7 @@ from entity import (
 )
 from exceptions import DataError
 from routes.users import api_user_editor
+from search import resource_search
 from tools import TOOL
 from wflow import WORKFLOW
 
@@ -698,17 +699,45 @@ class ResourceCKANSchema(Schema):
         return original | data
 
 
-RESOURCE = CKANEntity(
-    "resource",
-    "resources",
-    ResourceSchema(),
-    ResourceSchema(partial=True),
-    ckan_name="resource",
-    ckan_schema=ResourceCKANSchema(),
-)
-RESOURCE.operations.remove("list")
-RESOURCE.operations.remove("fetch")
+class ResourceEntity(CKANEntity):
+    def __init__(self):
+        super().__init__(
+            "resource",
+            "resources",
+            ResourceSchema(),
+            ResourceSchema(partial=True),
+            ckan_name="resource",
+            ckan_schema=ResourceCKANSchema(),
+        )
+        self.operations.remove("list")
+        self.operations.remove("fetch")
+        self.operations.append("search")
+        self.search_query_schema = schema.ResourceSearchQuery()
 
+    def search(self, query_spec):
+        """Search for resources in the catalog.
+
+        Args:
+            query_spec (dict): A dictionary containing the search query parameters.
+
+        Returns:
+            list: A list of resource objects that match the search criteria.
+        """
+        query = query_spec["query"]
+        order_by = query_spec.get("order_by", None)
+        limit = query_spec.get("limit", None)
+        offset = query_spec.get("offset", None)
+
+        # Perform the search
+        result = resource_search(query, order_by=order_by, limit=limit, offset=offset)
+
+        # Properly format the search results
+        new_results = [self.load_from_ckan(r) for r in result["results"]]
+        result["results"] = new_results
+        return result
+
+
+RESOURCE = ResourceEntity()
 
 # ------------------------------------------------------------
 # Groups and Organizations

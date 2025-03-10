@@ -82,6 +82,11 @@ class EntityListResponse(Schema):
     result = List(Dict(), required=False)
 
 
+class PaginationParameters(Schema):
+    limit = Integer(required=False, example="100", validates=Range(min=1))
+    offset = Integer(required=False, example="0", validates=Range(min=0))
+
+
 class NameID(String):
     """Datasets, groups and organizations, etc, have name field which is unique and immutable."""
 
@@ -215,6 +220,31 @@ class TagCreationRequest(EntityCreationRequest):
     vocabulary_id = String(required=True)
 
 
+class FacetSearchSpec(Schema):
+    fields = List(String, example=["author"], required=True)
+    mincount = Integer(required=False, example=5)
+    limit = Integer(required=False, example=50)
+
+
+class EntitySearchQuery(PaginationParameters):
+    q = String(required=False, example="title_ngram:water")
+    fq = List(String, required=False, example=["+organization:athenarc"])
+    fl = List(
+        String,
+        required=False,
+        example=["name", "title"],
+        allow_none=True,
+        load_default=None,
+    )
+    sort = String(required=False, example="title asc")
+    facet = Nested(FacetSearchSpec, required=False)
+
+
+class ResourceSearchQuery(PaginationParameters):
+    query = List(String, example=["format:JSON"])
+    order_by = String(required=False, example="name")
+
+
 # =============================================
 #
 #  Older non-generic schema definitions
@@ -278,11 +308,6 @@ class Identifier(Schema):
             "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
         },
     )
-
-
-class PaginationParameters(Schema):
-    limit = Integer(required=False, example="100", validates=Range(min=1))
-    offset = Integer(required=False, example="0", validates=Range(min=0))
 
 
 class RolesInput(Schema):

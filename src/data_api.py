@@ -1,3 +1,12 @@
+#
+# We need to configure logging as the first thing to do...
+#
+import logging
+
+import logsys
+
+logsys.configure()
+
 import json
 import os
 import re
@@ -20,11 +29,6 @@ from psycopg2.extras import RealDictCursor
 import execution
 import kutils
 
-# Create an instance of this API; by default, its OpenAPI-compliant specification
-# will be generated under folder /specs
-# logging.basicConfig(level=logging.DEBUG)
-import logsys
-
 # Input schemata for validating several API requests
 import schema
 import sql_utils
@@ -46,9 +50,12 @@ from routes.settings import settings_bp
 from routes.users import api_user_editor, users_bp
 from routes.workflows import workflows_bp
 
+# fmt: on
+
+
 # from container_utils import create_container
 
-logsys.configure()
+logger = logging.getLogger(__name__)
 
 app = APIFlask(__name__, spec_path="/specs", docs_path="/docs")
 app.secret_key = os.getenv("SESSION_SECRET_KEY", "None")
@@ -89,6 +96,11 @@ app.register_blueprint(admin_bp, url_prefix="/console/v1/admin")
 app.register_blueprint(auth_tool_bp, url_prefix="/api/v1/auth")
 app.register_blueprint(catalog_bp, url_prefix="/api/v2")
 app.register_blueprint(workflows_bp, url_prefix="/api/v2")
+
+logger.info("Blueprints registered successfully.")
+logger.debug("Endpoints: %s", app.url_map)
+
+
 ############################################################
 
 
@@ -1937,9 +1949,9 @@ def api_dataset_publish(json_data):
     if specs.get("extra_metadata") is not None:
         # Convert this metadata to a JSON array with {"key":"...", "value":"..."} pairs as required to be stored as extras in CKAN
         extra_metadata = {}
-        extra_metadata["id"] = (
-            package_id  # Must specify the id of the newly created package
-        )
+        extra_metadata[
+            "id"
+        ] = package_id  # Must specify the id of the newly created package
         extra_metadata["extras"] = utils.handle_extras(specs["extra_metadata"])
         # Make a POST request to the CKAN API to patch the newly created package with the extra metadata
         resp_extras = requests.post(
@@ -1965,9 +1977,9 @@ def api_dataset_publish(json_data):
     # TODO: Replace with the respective API function?
     if specs.get("profile_metadata") is not None:
         resource_metadata = specs["profile_metadata"]
-        resource_metadata["package_id"] = (
-            package_id  # Must specify the id of the newly created package
-        )
+        resource_metadata[
+            "package_id"
+        ] = package_id  # Must specify the id of the newly created package
         if resource_metadata.get("file") is not None:
             # Make a POST request to the CKAN API to upload the file from the specified path
             with open(resource_metadata["file"], "rb") as f:
@@ -3205,18 +3217,20 @@ def main(app):
     app.config["settings"] = {
         "FLASK_RUN_HOST": os.getenv("FLASK_RUN_HOST", "0.0.0.0"),
         "FLASK_RUN_PORT": os.getenv("FLASK_RUN_PORT", "80"),
-        "FLASK_DEBUG": os.getenv("FLASK_DEBUG", "True") == "True",
+        "FLASK_DEBUG": os.getenv("FLASK_DEBUG", "True").lower() == "true",
         "API_TITLE": os.getenv("API_TITLE", "KLMS Data API"),
         "API_VERSION": os.getenv("API_VERSION", "1.0.0"),
         "SPEC_FORMAT": os.getenv("API_SPEC_FORMAT", "json"),
-        "AUTO_SERVERS": os.getenv("API_AUTO_SERVERS", "True") == "True",
-        "AUTO_TAGS": os.getenv("API_AUTO_TAGS", "False") == "True",
-        "AUTO_OPERATION_SUMMARY": os.getenv("API_AUTO_OPERATION_SUMMARY", "True")
-        == "True",
+        "AUTO_SERVERS": os.getenv("API_AUTO_SERVERS", "True").lower() == "true",
+        "AUTO_TAGS": os.getenv("API_AUTO_TAGS", "False").lower() == "true",
+        "AUTO_OPERATION_SUMMARY": os.getenv(
+            "API_AUTO_OPERATION_SUMMARY", "True"
+        ).lower()
+        == "true",
         "AUTO_OPERATION_DESCRIPTION": os.getenv(
             "API_AUTO_OPERATION_DESCRIPTION", "True"
-        )
-        == "True",
+        ).lower()
+        == "true",
         "TAGS": json.loads(
             os.getenv(
                 "API_TAGS",
@@ -3271,13 +3285,7 @@ def main(app):
         "SMTP_PORT": os.getenv("SMTP_PORT", "465"),
         "SMTP_EMAIL": os.getenv("SMTP_EMAIL", "info@stelar.gr"),
         "SMTP_PASSWORD": os.getenv("SMTP_PASSWORD", "None"),
-        "execution": {
-            "engine": (
-                os.getenv("EXECUTION_ENGINE")
-                if "EXECUTION_ENGINE" in os.environ
-                else "none"
-            )
-        },
+        "execution": {"engine": os.getenv("EXECUTION_ENGINE", "none")},
     }
 
     # Apply configuration settings for this API
