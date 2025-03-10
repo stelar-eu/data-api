@@ -10,7 +10,7 @@ from flask import request
 
 import schema
 from auth import security_doc, token_active
-from entity import Entity, EntityWithMembers, MemberEntity
+from entity import Entity, EntityWithMembers, MemberEntity, PackageEntity
 from exceptions import APIException, InternalException
 
 gen_logger = getLogger(__name__)
@@ -120,6 +120,11 @@ def error_responses(status_list: List[int]):
                 "description": "Bad request. This error implies that the data sent in the request is invalid.",
                 "content": {"application/json": {"schema": schema.APIErrorResponse}},
             }
+        elif status == 401:
+            responses[401] = {
+                "description": "Unauthorized request. This error implies that the user is not authenticated.",
+                "content": {"application/json": {"schema": schema.APIErrorResponse}},
+            }
         elif status == 403:
             responses[403] = {
                 "description": "Forbidden request. This error implies that the user is not authorized to perform "
@@ -145,6 +150,11 @@ def error_responses(status_list: List[int]):
             responses[500] = {
                 "description": "Internal server error. The error may be caused by a bug in the server, or some malfunction in"
                 "some other service.",
+                "content": {"application/json": {"schema": schema.APIErrorResponse}},
+            }
+        elif status == 502:
+            responses[500] = {
+                "description": "Backend error. The is caused by some malfunction in a backend service.",
                 "content": {"application/json": {"schema": schema.APIErrorResponse}},
             }
         else:
@@ -209,6 +219,59 @@ def generate_fetch_entities(entity: Entity, bp: APIBlueprint, logger: Logger):
         return entity.fetch_entities(limit=limit, offset=offset)
 
     return generic_fetch_entities
+
+
+def generate_search_entities(entity: Entity, bp: APIBlueprint, logger: Logger):
+    """Generates the entity search endpoints"""
+
+    from textwrap import dedent
+
+    doc_description = f"""
+        This function allows clients to search for {entity.collection_name} in the catalog using a query spec.
+        """
+
+    if isinstance(entity, PackageEntity):
+        doc_description += """
+        The query spec can include a full-text query, filters, sorting, and faceting.        
+        The query facility is based on Apache Solr and the query syntax is described at:
+        https://lucene.apache.org/solr/guide/8_9/the-standard-query-parser.html
+        """
+    else:  # A resource entity
+        doc_description += """
+        The 'query' parameter is a required field.  It is a string of the form
+        ``{field}:{term}`` or a list of strings, each of the same form. Within
+        each string, ``{field}`` is a field or extra field on the Resource domain
+        object.
+
+        If ``{field}`` is ``"hash"``, then an attempt is made to match the
+        `{term}` as a *prefix* of the ``Resource.hash`` field.
+
+        If ``{field}`` is an extra field, then an attempt is made to match against
+        the extra fields stored against the Resource.
+
+        ``order_by`` is the field to order by. Only ordering one field is available, 
+        and in ascending order only.
+
+        """
+    doc_description = dedent(doc_description)
+
+    @bp.post(f"/search/{entity.collection_name}")
+    @bp.input(entity.search_query_schema, location="json")
+    @bp.output(schema.APIResponse, status_code=200)
+    @bp.doc(
+        summary=f"Search {entity.collection_name} in the Data Catalog",
+        description=doc_description,
+        tags=["RESTful Search Operations"],
+        security=security_doc,
+        responses=error_responses([409]),
+    )
+    @token_active
+    @render_api_output(logger)
+    @rename_endpoint(f"api_search_{entity.collection_name}")
+    def generic_search_entities(json_data):
+        return entity.search_entities(json_data)
+
+    return generic_search_entities
 
 
 def generate_get_entity(entity: Entity, bp: APIBlueprint, logger: Logger):
@@ -435,6 +498,7 @@ def generate_list_members(
 GENERATOR = {
     "list": generate_list_entities,
     "fetch": generate_fetch_entities,
+    "search": generate_search_entities,
     "show": generate_get_entity,
     "delete": generate_delete_entity,
     "create": generate_create_entity,
@@ -459,11 +523,16 @@ def generate_endpoints(entity: Entity, bp: APIBlueprint, logger: Logger):
         A dictionary with the generated endpoints.
     """
     logger.info(f"Generating endpoints for {entity.name}")
-
     for op in entity.operations:
-        entity.endpoints[op] = GENERATOR[op](entity, bp, logger)
+        if op not in entity.endpoints:
+            logger.debug(f"Generating endpoint for {entity.name} operation {op}")
+            entity.endpoints[op] = GENERATOR[op](entity, bp, logger)
     if isinstance(entity, EntityWithMembers):
         for me in entity.members:
             for op in me.operations:
-                me.endpoints[op] = GENERATOR[op](me, bp, logger)
+                if op not in me.endpoints:
+                    logger.debug(
+                        f"Generating endpoint for {entity.name} operation {op} member {me.child.name}"
+                    )
+                    me.endpoints[op] = GENERATOR[op](me, bp, logger)
     return entity.endpoints

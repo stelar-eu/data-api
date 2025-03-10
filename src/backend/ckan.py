@@ -239,3 +239,11 @@ def filter_list_by_type(
             cur.execute(query, (id_list, etype))
             rows = cur.fetchall()
     return [row[0] for row in rows]
+
+
+def get_solr_schema():
+    """Get the Solr schema."""
+    response = requests.get("http://solr:8983/solr/ckan/schema")
+    if response.status_code != 200:
+        raise BackendError(500, "solr", "Failed to fetch schema", response.status_code)
+    return response.json()["schema"]
