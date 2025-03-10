@@ -88,8 +88,10 @@ def entity_search(
         if isinstance(fq, str):
             fq = [fq]
         check_list_of_strings(fq, "fq")
-        params["fq"] = fq
+    else:
+        fq = []
     fq.append(f"+type:{etype}")
+    params["fq_list"] = fq
 
     if fl is not None:
         if isinstance(fl, str):
