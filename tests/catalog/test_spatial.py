@@ -3,6 +3,64 @@ import jmespath
 import pytest
 
 from cutils import DATASET, DatasetCKANSchema
+from spatial import GeoJSONGeomValidator
+
+
+def test_geojson_geom_validator():
+    v = GeoJSONGeomValidator()
+
+    assert v({"type": "Point", "coordinates": [1, 2]})
+    assert v({"type": "LineString", "coordinates": [[1, 2], [3, 4]]})
+    assert v(
+        {
+            "type": "Polygon",
+            "coordinates": [
+                [[1, 2], [3, 4], [5, 6], [1, 2]],
+                [[2, 3], [4, 5], [6, 7], [2, 3]],
+            ],
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    "geom",
+    [
+        # Try rectangle
+        geojson.Polygon([[(1, 2), (4, 2), (4, 6), (1, 6), (1, 2)]]),
+        # Try triangle
+        geojson.Polygon([[(1, 2), (4, 2), (4, 6), (1, 2)]]),
+        # Try rectangle with hole
+        geojson.Polygon(
+            [
+                [(1, 2), (4, 2), (4, 6), (1, 6), (1, 2)],
+                [(2, 3), (3, 3), (3, 5), (2, 5), (2, 3)],
+            ]
+        ),
+        # Try line
+        geojson.LineString([(1, 2), (4, 2), (4, 6), (1, 6)]),
+        # Try multipoint
+        geojson.MultiPoint([(1, 2), (4, 2), (4, 6), (1, 6)]),
+    ],
+)
+def test_geojson_geom_validator_valid(geom):
+    v = GeoJSONGeomValidator()
+    assert v(geom)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        # Invalid GeoJSON
+        "not a valid GeoJSON string",
+        # Invalid GeoJSON type
+        {"type": "Invalid", "coordinates": [1, 2]},
+        # Invalid GeoJSON coordinates
+        {"type": "Point", "coordinates": 1},
+    ],
+)
+def test_geojson_geom_validator_invalid(data):
+    v = GeoJSONGeomValidator()
+    assert not v(data)
 
 
 def test_schema_encode_spatial_data():
@@ -200,3 +258,106 @@ def test_create_spatial_dataset(app_context, geom):
     assert "test-dataset" not in jmespath.search("results[*].name", search)
 
     DATASET.delete("test-dataset", purge=True)
+
+
+@pytest.mark.parametrize(
+    "geom",
+    [
+        # Try rectangle
+        geojson.Polygon([[(1, 2), (4, 2), (4, 6), (1, 6), (1, 2)]]),
+        # Try triangle
+        geojson.Polygon([[(1, 2), (4, 2), (4, 6), (1, 2)]]),
+        # Try rectangle with hole
+        geojson.Polygon(
+            [
+                [(1, 2), (4, 2), (4, 6), (1, 6), (1, 2)],
+                [(2, 3), (3, 3), (3, 5), (2, 5), (2, 3)],
+            ]
+        ),
+        # Try line
+        geojson.LineString([(1, 2), (4, 2), (4, 6), (1, 6)]),
+        # Try multipoint
+        geojson.MultiPoint([(1, 2), (4, 2), (4, 6), (1, 6)]),
+        # Note: single points DO NOT WORK!!
+        # The search fails to return them!
+    ],
+)
+def test_api_create_spatial_dataset(app_client, geom):
+    # Create a test dataset with spatial data
+    response = app_client.delete("/api/v2/dataset/test-dataset?purge=true")
+
+    assert geom.is_valid
+
+    data = {
+        "name": "test-dataset",
+        "owner_org": "stelar-klms",
+        "title": "Test Dataset",
+        "spatial": geom,
+        "extras": {"pytest": "temporary"},
+    }
+
+    response = app_client.post("/api/v2/dataset", json=data)
+    assert response.status_code == 200
+
+    d = response.json["result"]
+    assert d["name"] == "test-dataset"
+    assert d["title"] == "Test Dataset"
+    assert d["spatial"] == geom
+    assert d["extras"] == {"pytest": "temporary"}
+
+    # Check that the dataset can be retrieved
+    response = app_client.get("/api/v2/dataset/test-dataset")
+    assert response.status_code == 200
+    dset = response.json["result"]
+    assert dset["name"] == "test-dataset"
+    assert dset["title"] == "Test Dataset"
+    assert dset["spatial"] == geom
+    assert dset["extras"] == {"pytest": "temporary"}
+
+    # Check that the dataset can be found by normal search
+    response = app_client.post(
+        "/api/v2/search/datasets", json={"q": "name:test-dataset", "fl": ["name"]}
+    )
+    assert response.status_code == 200
+    assert "test-dataset" in jmespath.search("result.results[*].name", response.json)
+
+    # Check that the dataset can be found by spatial search
+    response = app_client.post(
+        "/api/v2/search/datasets",
+        json={"bbox": [-180, -90, 180, 90], "fl": ["name"]},
+    )
+    assert response.status_code == 200
+    assert "test-dataset" in jmespath.search("result.results[*].name", response.json)
+
+    # Delete the spatial attribute
+    response = app_client.delete("/api/v2/dataset/test-dataset?purge=true")
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        # Invalid GeoJSON
+        "not a valid GeoJSON string",
+        # Invalid GeoJSON type
+        {"type": "Invalid", "coordinates": [1, 2]},
+        # Invalid GeoJSON coordinates
+        {"type": "Point", "coordinates": 1},
+    ],
+)
+def test_api_dataset_create_invalid(app_client, data):
+    # Create a test dataset with spatial data
+    app_client.delete("/api/v2/dataset/test-dataset?purge=true")
+
+    data = {
+        "name": "test-dataset",
+        "owner_org": "stelar-klms",
+        "title": "Test Dataset",
+        "spatial": data,
+        "extras": {"pytest": "temporary"},
+    }
+
+    response = app_client.post("/api/v2/dataset", json=data)
+    assert response.status_code == 422
+
+    app_client.delete("/api/v2/dataset/test-dataset?purge=true")

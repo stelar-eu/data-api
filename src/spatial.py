@@ -27,16 +27,19 @@ class Spatial(Field):
 class GeoJSONGeomValidator(types.Validator):
     def __call__(self, value: Any):
         try:
-            return geojson.loads(value).is_valid
-        except ValueError:
+            # return geojson.loads(value).is_valid
+            return geojson.GeoJSON.to_instance(value).is_valid
+        except Exception:
             return False
 
 
-class GeoJSONGeom(Raw):
+class GeoJSONGeom(Field):
     """A field for the dataset 'spatial' attribute."""
 
-    def __(
-        self, validate: types.Validator | Iterable[types.Validator] | None, **kwargs
+    def __init__(
+        self,
+        validate: types.Validator | Iterable[types.Validator] | None = None,
+        **kwargs
     ):
         gjv = GeoJSONGeomValidator()
         if validate is None:
