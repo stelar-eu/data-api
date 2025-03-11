@@ -345,6 +345,25 @@ class ProcessEntity(PackageEntity):
 
         return package
 
+    def validate_process(self, process: uuid.UUID):
+        """Check that a given ID corresponds to an existing process.
+
+        Args:
+            process: The ID of the process to validate.
+
+        Returns:
+            The ID if the process exists.
+        Raises:
+            NotFoundError if the process does not exist
+            ValidationError if a package with the given ID exists but
+                is not a process package.
+        """
+        proc = ckan_request("package_show", id=process, context={"entity": "process"})
+        if proc["type"] == "process":
+            return proc["id"]
+        else:
+            raise DataError("The entity is not a process", process)
+
     def validate_workflow(self, workflow: str | uuid.UUID):
         """Check that the workflow ID is a valid 'workflow' package.
 
@@ -813,8 +832,294 @@ class Task(Entity):
             "Task update is not supported. Tasks are updated by patch only."
         )
 
-    def _create_task(self, creator_user: str, **attributes):
-        pass
+    def parse_inputs(self, id: uuid.UUID, process_id: uuid.UUID, inputs: dict):
+        """Parses the input provided in the Task Spec
+
+        The input spec is a field in the broader JSON that describes the Task.
+        It is a nested dictionary with the following structure:
+
+        "inputs": {
+            "myinput0": [
+                       "6a909646-9218-4e75-902d-0cbef791bc3e",
+                       "11b5d161-d6e6-4d3a-beaa-873cd3e74e0c::relation_filter",
+                       "s3://klms-bucket/klms/data",
+                      ]
+            "myinput1": [
+                        "11b5d161-d6e6-4d3a-beaa-873cd3e74e0c",
+                        "s3://klms-bucket/data/*",
+                        "ctx::relation_filter",
+                      ]
+        }
+
+        Each artifact can be:
+
+        1. Resource UUID: A reference to a resource in the Catalog. Each entry
+                          one is translated to the resource
+        2. Dataset UUID (UUID::filter): A reference to a dataset in the Catalog. Each entry is
+                         expanded to the dataset resource paths. If filter is provided,
+                         the resources are filtered accordingly with respect to their
+                         relation to the dataset.
+        3. Context (ctx::filter):  A reference to the Process package the Task belongs to.
+                                   Treated in the same way as a dataset UUID.
+
+        4. Plain URL:  A URL of the form 'protocol://hostname[:port]/path'. Wildcards for S3
+                       paths are also supported (s3://klms-bucket/data/*).
+                       The wildcards are unfolded during the generation of the input destined
+                       to reach the actual tool runtime.
+        Args:
+            id: The ID of the newly created Task.
+            process_id: The ID of the process the task belongs to.
+            inputs: The inputs of the task as provided in the Task Spec.
+        """
+        for group in inputs:
+            # Maintain a list of resources to be inserted in the database as
+            # inputs of the task
+            input_artifacts = list()
+
+            for val in inputs[group]:
+                artifact_uuid, filter_value = None, None
+                # Extract possible filter from val
+                if "::" in val:
+                    artifact_uuid, filter_value = val.split("::", 1)
+
+                # Check if the input value corresponds to an artifact from the Catalog,
+                # a plain path or a reference to the 'Process' package (ctx).
+                if is_valid_uuid(artifact_uuid or val):
+                    if cutils.is_package(artifact_uuid or val):
+                        # Pass dataset_uuid and filter_value to get_package_resources
+                        # to fetch resources matching the query.
+                        # TODO: DPETROU: Consider changing this to DATASET.get_entity
+                        # to align it with the authorization model. This requires a
+                        # cascading permission set initiating from 'task_create'.
+                        dataset_resources = [
+                            resource["id"]
+                            for resource in cutils.get_package_resources(
+                                artifact_uuid or val, filter_value
+                            )
+                        ]
+                        input_artifacts.extend(dataset_resources)
+
+                    elif cutils.is_resource(artifact_uuid or val):
+                        input_artifacts.append(artifact_uuid or val)
+
+                elif re.match(r"ctx(::.*)?", artifact_uuid or val):
+                    # Handle the special case of 'ctx' which refers to the 'Process' package
+                    # the task belongs to. Validate the existence and type of package first.
+                    PROCESS.validate_process(process_id)
+
+                    # Fetch the resources of the 'Process' package and append them to the input list.
+                    process_resources = [
+                        resource["id"]
+                        for resource in cutils.get_package_resources(
+                            process_id, artifact_uuid or val, filter_value
+                        )
+                    ]
+                    input_artifacts.extend(process_resources)
+
+                elif is_valid_url(val):
+                    # We delegate URLs that are not referenced by the Catalog.
+                    # Acceptable URLs are of the form 'protocol://hostname[:port]/path'
+                    # Wildcard support is also provided for S3 paths (s3://bucket/klms/data/*)
+                    # The wildcards are unfolded during the generation of the input spec destined
+                    # to the tool.
+                    input_artifacts.append(val)
+
+            # Insert the input artifacts in the database. Exception or errors are
+            # catched through the 'transaction' context of the caller function.
+            sql_utils.task_execution_insert_input(id, input_artifacts, group)
+
+    def create_task(self, creator_user: str, **spec):
+        """Creates a new Task under a Process according to spec
+
+        Args:
+            creator_user: The username of the user creating the Task
+            spec: The JSON describing the specs of the Task to create.
+
+        Raises:
+            NotFoundError: If the Process is not found
+        """
+
+        process_id = spec.get("process_id")
+        inputs = spec.get("inputs")
+        outputs = spec.get("outputs")
+        datasets = spec.get("datasets")
+        secrets = spec.get("secrets")
+        parameters = spec.get("parameters")
+        tags = spec.get("tags", {})
+
+        # Validate the process existence
+        PROCESS.validate_process(process_id)
+
+        # Validate the state of the process, as only running processes may accept tasks
+        if PROCESS.get_entity(process_id).get("exec_state") != "running":
+            raise ConflictError(
+                f"Process '{process_id}' is not running and it may not accept tasks"
+            )
+
+        # Generate the ID and start date of the Task under creation
+        sdate = datetime.now().isoformat()
+        task_id = str(uuid.uuid4())
+
+        with transaction():
+            # Create the execution of the task in the database
+            sql_utils.task_execution_create(
+                task_id, process_id, sdate, "running", creator_user, tags
+            )
+
+            # Parse the inputs. Performs insertion in the database, failures
+            # handled by the transaction context.
+            self.parse_inputs(task_id, process_id, inputs)
+
+        try:
+
+            parameters = {k: str(v) for k, v in parameters.items()}
+            response = sql_utils.task_execution_insert_parameters(
+                task_exec_id, parameters
+            )
+
+            if not response:
+                raise RuntimeError(
+                    "Task could not be created due to a database error regarding parameters."
+                )
+
+            if secrets:
+                response = sql_utils.task_execution_insert_secrets(
+                    task_exec_id, secrets
+                )
+                if not response:
+                    raise RuntimeError(
+                        "Task could not be created due to a database error regarding secrets."
+                    )
+
+            # Future datasets are datasets that are going to be used for storing metadata when the task is completed.
+            if datasets:
+                for dataset in datasets:
+                    value = datasets[dataset]
+                    # Handle the case where the value is a package_id
+                    if is_valid_uuid(value):
+                        responses = (
+                            sql_utils.task_execution_insert_future_package_existing(
+                                task_exec_id=task_exec_id,
+                                package_id=value,
+                                package_friendly_name=dataset,
+                            )
+                        )
+                        if not responses:
+                            raise RuntimeError(
+                                "Task could not be created due to a database error regarding future datasets."
+                            )
+                    # Handle the case where the value is a package_dict
+                    elif utils.is_valid_package_dict(value):
+                        encoded_details = utils.encode_to_base64(value)
+                        responses = (
+                            sql_utils.task_execution_insert_future_package_details(
+                                task_exec_id=task_exec_id,
+                                package_details=encoded_details,
+                                package_friendly_name=dataset,
+                            )
+                        )
+                        if not responses:
+                            raise RuntimeError(
+                                "Task could not be created due to a database error regarding future datasets."
+                            )
+
+            # Handle output spec to store the details of actions that need to be taken after the task is completed regarding the output files and their metadata.
+            if outputs:
+                for output in outputs:
+                    if isinstance(outputs[output], dict):
+                        output_spec = outputs[output]
+                        if not output_spec.get("url"):
+                            raise ValueError(
+                                "Output spec must contain a URL as an output for file key: "
+                                + output
+                            )
+                        else:
+                            url = output_spec.get("url", None)
+                            # if not is_valid_url(url):
+                            #     continue
+                            # Handle the metadata related fields and cases
+                            if output_spec.get("resource", None):
+                                # Case where there is an existing resource that we want to overwrite its data
+                                resource = output_spec.get("resource")
+                                if is_valid_uuid(resource):
+                                    response = sql_utils.task_execution_insert_output_spec_existing_resource(
+                                        task_exec_id,
+                                        output,
+                                        url,
+                                        resource,
+                                        output_spec.get("resource_action", "REPLACE"),
+                                    )
+                                    if not response:
+                                        raise RuntimeError(
+                                            "Task could not be created due to a database error regarding output spec at output: "
+                                            + output
+                                        )
+
+                                # Case where we want to create a resource in a dataset specified in the datasets above.
+                                elif isinstance(resource, dict) and output_spec.get(
+                                    "dataset", None
+                                ):
+                                    dataset_friendly_name = output_spec.get("dataset")
+                                    if dataset_friendly_name in datasets.keys():
+                                        response = sql_utils.task_execution_insert_output_spec_new_resource(
+                                            task_exec_id,
+                                            output,
+                                            url,
+                                            dataset_friendly_name,
+                                            resource.get("name", ""),
+                                            resource.get("label", ""),
+                                        )
+                                        if not response:
+                                            raise RuntimeError(
+                                                "Task could not be created due to a database error regarding output spec at output: "
+                                                + output
+                                            )
+                                    else:
+                                        raise RuntimeError(
+                                            f"Dataset friendly name `{dataset_friendly_name}` not found in declared datasets."
+                                        )
+
+                            # Case where we don't want any metadata to be tracked for this output file.
+                            else:
+                                logger.debug(output + " : " + url)
+                                response = sql_utils.task_execution_insert_output_spec_plain_path(
+                                    task_exec_id, output, url
+                                )
+                                if not response:
+                                    raise RuntimeError(
+                                        "Task could not be created due to a database error regarding output spec at output: "
+                                        + output
+                                    )
+
+            # Task can also be executed outside the cluster, in that case image was specified so we create
+            # a job conditionally.
+
+            # Check if 'docker image' or 'tool name' fields exists inside json_data
+            if json_data.get("tool_name"):
+                tags["tool_name"] = json_data.get("tool_name", None)
+
+            if json_data.get("docker_image"):
+                engine = execution.exec_engine()
+                token = "Bearer " + token
+                task_signature = generate_task_signature(task_exec_id)
+                tags["container_id"], tags["job_id"] = engine.create_task(
+                    json_data.get("docker_image"), token, task_exec_id, task_signature
+                )
+                tags["tool_image"] = json_data.get("docker_image")
+
+            response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
+            if not response:
+                raise RuntimeError(
+                    "Task could not be created due to an execution engine error."
+                )
+
+            return {
+                "task_exec_id": task_exec_id,
+                "job_id": tags.get("job_id", "Remote Task Mode"),
+                "signature": generate_task_signature(task_exec_id),
+            }
+        except Exception as e:
+            raise RuntimeError(f"Task could not be created. {e}")
 
     def create(self):
         self._create_task(kutils.current_user())
