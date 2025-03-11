@@ -694,8 +694,11 @@ def task_execution_insert_parameters(task_exec_id, parameters):
                 "task_insert_parameters_template"
             ]
 
+            # Convert the value to a valid JSON string
+            json_value = json.dumps(value)
+
             # Execute the SQL command in the database
-            resp = pgsql.execSql(sql, (task_exec_id, key, value))
+            resp = pgsql.execSql(sql, (task_exec_id, key, json_value))
             if "status" in resp:
                 if not resp.get("status"):
                     return False
@@ -1090,15 +1093,11 @@ def task_execution_input_read_sql(task_exec_id):
     Returns:
         A JSON with the input resourced ids or path grouped by input group name.
     """
-
-    config = current_app.config["settings"]
-
     sql_groups = utils.sql_workflow_execution_templates[
         "task_read_input_group_names_by"
     ]
     resp = pgsql.execSql(sql_groups, (task_exec_id,))
 
-    logging.debug(resp)
     inputs = dict()
 
     if resp and len(resp) > 0:

@@ -319,7 +319,7 @@ sql_workflow_execution_templates = {
                                                LEFT JOIN public.resource as rsrc 
                                                ON tsk_out.dataset_id = rsrc.id
                                                WHERE task_uuid = %s""",
-    "task_read_dataset_by_uuid_template": """SELECT package_friendly_name, package_details, pacakge_uuid "
+    "task_read_dataset_by_uuid_template": """SELECT package_friendly_name, package_details, package_uuid
                                              FROM klms.task_future_output_packages WHERE task_uuid = %s AND package_friendly_name = %s""",
     #
     "task_insert_input_dataset_template": "INSERT INTO klms.task_input(task_uuid, order_num, dataset_id) VALUES (%s, %s, %s)",
@@ -646,24 +646,8 @@ def decode_from_base64(base64_string):
 
 
 def is_valid_package_dict(obj):
-    required_keys = {"name", "title", "tags", "notes", "extras", "spatial"}
+    required_keys = {"name", "tags", "notes"}
     return isinstance(obj, dict) and required_keys.issubset(obj.keys())
-
-
-def is_valid_uuid(s):
-    """Check if a string is a valid UUID. Valid UUIDs are of the form 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.
-    Args:
-        s: The string to be checked.
-    Returns:
-        A boolean value indicating whether the string is a valid UUID.
-    """
-    try:
-        # Try converting the string to a UUID object
-        uuid_obj = uuid.UUID(s)
-        # Check if the string matches the canonical form of the UUID (with lowercase hexadecimal and hyphens)
-        return str(uuid_obj) == s
-    except Exception:
-        return False
 
 
 def assign_scores(

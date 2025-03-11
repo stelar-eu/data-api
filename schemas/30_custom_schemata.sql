@@ -246,7 +246,7 @@ CREATE INDEX IF NOT EXISTS klms_metrics_idx_value ON klms.metrics(value);
 CREATE TABLE IF NOT EXISTS klms.parameters
 ( task_uuid varchar(64) NOT NULL,
   "key" text NOT NULL, 
-  "value" text,
+  "value" jsonb NOT NULL,
   PRIMARY KEY (task_uuid, "key"),
   CONSTRAINT fk_task_parameters_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE
 );
@@ -254,7 +254,7 @@ CREATE TABLE IF NOT EXISTS klms.parameters
 -- Index key value pairs for faster search:
 
 CREATE INDEX IF NOT EXISTS klms_parameters_idx_key ON klms.parameters(key);
-CREATE INDEX IF NOT EXISTS klms_parameters_idx_value ON klms.parameters(value);
+CREATE INDEX IF NOT EXISTS klms_parameters_idx_value ON klms.parameters USING gin(value);
 
 
 CREATE TABLE IF NOT EXISTS klms.task_input
