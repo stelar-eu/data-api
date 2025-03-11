@@ -692,14 +692,15 @@ class EntityWithExtrasCKANSchema(Schema):
         attrs = {}
         for attr in self.opts.extra_attributes:
             if attr in data:
+                value = data.pop(attr)
                 if attr in self.opts.extra_attributes_raw:
-                    if not isinstance(data[attr], str | None):
+                    if not isinstance(value, str | None):
                         raise InternalException(
                             f"Raw attribute {attr} must be a string or None at folding time"
                         )
-                    attrs[attr] = data[attr]
+                    attrs[attr] = value
                 else:
-                    attrs[attr] = json.dumps(data[attr])
+                    attrs[attr] = json.dumps(value)
 
         if (not attrs) and extras is None:
             return

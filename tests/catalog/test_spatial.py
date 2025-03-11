@@ -14,6 +14,7 @@ def test_schema_encode_spatial_data():
 
     assert out["extras"]
     assert out["extras"][0]["key"] == "spatial"
+    assert "spatial" not in out
     assert isinstance(out["extras"][0]["value"], str)
     assert geojson.loads(out["extras"][0]["value"]) == point
 
@@ -21,6 +22,7 @@ def test_schema_encode_spatial_data():
     assert out["extras"]
     assert out["extras"][0]["key"] == "spatial"
     assert out["extras"][0]["value"] is None
+    assert "spatial" not in out
 
 
 def test_schema_encode_spatial_nodata():
@@ -29,13 +31,11 @@ def test_schema_encode_spatial_nodata():
     # No mention of spatial data
     out = s.dump({"extras": {"foo": "bar"}})
     assert out == {"extras": [{"key": "foo", "value": '"bar"'}]}
+    assert "spatial" not in out
 
     out = s.dump({"extras": {"foo": "bar"}})
     assert out == {"extras": [{"key": "foo", "value": '"bar"'}]}
-
-    # Spatial data that exists is retained
-    point = {"type": "Point", "coordinates": [1, 2]}
-    point_str = geojson.dumps(point)
+    assert "spatial" not in out
 
 
 def dump_for_update(ckan_schema, update_data, curextras):
@@ -67,22 +67,27 @@ def test_schema_encode_spatial_update_data():
     point2_str = geojson.dumps(point2)
 
     out = dump_for_update(s, {"spatial": point2}, {"spatial": point1_str})
+    assert "spatial" not in out
     assert out["extras"] == [{"key": "spatial", "value": point2_str}]
+    assert "spatial" not in out
 
     out = dump_for_update(s, {"spatial": None}, {"spatial": point1_str})
     assert out["extras"] == [{"key": "spatial", "value": None}]
+    assert "spatial" not in out
 
     out = dump_for_update(s, {"spatial": point2}, {"zfoo": "bar"})
     assert_equal_extras_lists(
         out["extras"],
         [{"key": "spatial", "value": point2_str}, {"key": "zfoo", "value": "bar"}],
     )
+    assert "spatial" not in out
 
     out = dump_for_update(s, {"spatial": None}, {"zfoo": "bar"})
     assert_equal_extras_lists(
         out["extras"],
         [{"key": "spatial", "value": None}, {"key": "zfoo", "value": "bar"}],
     )
+    assert "spatial" not in out
 
     out = dump_for_update(
         s, {"spatial": point2}, {"spatial": point1_str, "zfoo": "bar"}
@@ -91,12 +96,14 @@ def test_schema_encode_spatial_update_data():
         out["extras"],
         [{"key": "spatial", "value": point2_str}, {"key": "zfoo", "value": "bar"}],
     )
+    assert "spatial" not in out
 
     out = dump_for_update(s, {"spatial": None}, {"spatial": point1_str, "zfoo": "bar"})
     assert_equal_extras_lists(
         out["extras"],
         [{"key": "spatial", "value": None}, {"key": "zfoo", "value": "bar"}],
     )
+    assert "spatial" not in out
 
 
 def test_schema_decode_spatial_data():
