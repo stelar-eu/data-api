@@ -25,6 +25,7 @@ from exceptions import (
     InvalidError,
     NotAllowedError,
     NotFoundError,
+    AuthorizationError,
 )
 from utils import is_valid_url, is_valid_uuid
 
@@ -836,6 +837,36 @@ class Task(Entity):
             "Task update is not supported. Tasks are updated by patch only."
         )
 
+    def set_exec_state(self, id, state):
+        # Validate the current state of the Task to allow
+        # changes only if it is running.
+        task = self.get_entity(id)
+
+        if task["exec_state"] == state:
+            return
+        if task["exec_state"] == "running" and state in ["failed", "succeeded"]:
+            end_date = datetime.now()
+            sql_utils.task_execution_update(id, state, end_date)
+        else:
+            raise ConflictError(
+                "Exec state can only change from running to failed or succeeded."
+            )
+
+    def delete(self, id, purge=False):
+        """Deletes a task by its ID if it exists
+
+        Args:
+            id: The UUID of the Task to delete.
+        Raises:
+            ConflictError: If a running Task was attempted to be deleted.
+            NotFoundError: If a Task with the given ID is not found.
+        """
+        task = self.get_entity(id)
+        if task["exec_state"] == "running":
+            raise ConflictError("Cannot delete a running task.")
+        with transaction():
+            sql_utils.task_execution_delete(id)
+
     def parse_inputs(self, id: uuid.UUID, process_id: uuid.UUID, inputs: dict):
         """Parses the input provided in the Task Spec
 
@@ -1085,11 +1116,14 @@ class Task(Entity):
             }
         }
 
+        Each of the outputs specs define:
+            1. The URL where the output should be saved.
+            2. The way and the dataset where the output should be saved as a resource (if so specified)
+
         Args:
             id: The ID of the newly created Task.
             outputs: The outputs of the task as provided in the Task Spec.
         """
-
         for output, spec in outputs.items():
             if isinstance(spec, dict):
                 url = spec.get("url")
@@ -1296,7 +1330,7 @@ class Task(Entity):
         if the signature is valid. Signature is generated on task creation time.
 
         An example of the input spec is as follows:
-        
+
         {
             "inputs": {
                 "group1": [
@@ -1318,11 +1352,11 @@ class Task(Entity):
                 "skey": "SECRET_KEY",
                 "stoken": "SESSION_TOKEN"
             },
-            "secrets": { 
+            "secrets": {
                 "openai_key": "API_KEY",
             }
         }
-        
+
         Args:
             id: The ID of the Task
             token: The token of the actor user
@@ -1330,7 +1364,7 @@ class Task(Entity):
 
         Returns:
             A dictionary with the input spec of the Task including the inputs, outputs and parameters.
-            
+
         Raises:
             NotFoundError: If the Task is not found.
         """
@@ -1389,38 +1423,125 @@ class Task(Entity):
 
         return task_input_spec
 
-    def save_output(self):
-        pass
+    def handle_output_key(self, id: uuid.UUID, key: str, path: str):
+        """Handles all scenarios on how to save an output of a Task execution in the data catalog.
+        Args:
+            id: The ID of the Task
+            key: The key of the output
+            path: The path where the output was actually saved by the task
 
-    def set_exec_state(self, id, state):
-        # Validate the current state of the Task to allow
-        # changes only if it is running.
-        task = self.get_entity(id)
+        Returns
+            The ID of the resource created in the catalog or updated.
 
-        if task["exec_state"] == state:
-            return
-        if task["exec_state"] == "running" and state in ["failed", "succeeded"]:
-            end_date = datetime.now()
-            sql_utils.task_execution_update(id, state, end_date)
-        else:
-            raise ConflictError(
-                "Exec state can only change from running to failed or succeeded."
-            )
+        Raises:
+            NotFoundError: If a resource tended to be updated does not exist. If a dataset
+                            referenced in the output spec does not exist.
+        """
+        output_spec = sql_utils.task_read_output_spec_of_file(id, key)
+        if output_spec:
+            # Handle the case where an existing resource should be updated with the new output path of the tool output.
+            if output_spec.get("resource_id"):
+                cutils.RESOURCE.update_entity(
+                    output_spec.get("resource_id"),
+                    {
+                        "url": path,
+                        "name": output_spec.get("resource_name"),
+                        "relation": output_spec.get("resource_label"),
+                    },
+                )
+                return output_spec.get("resource_id")
 
-    def delete(self, id, purge=False):
-        """Deletes a task by its ID if it exists
+            # Handle the case where a refenence to a dataset is included in the spec
+            # and we need to create a new resource in that dataset or also create the dataset itself.
+            elif output_spec.get("dataset_friendly_name"):
+                # Package does not exist, should be created
+                if output_spec.get("package_details"):
+                    decoded_package = utils.decode_from_base64(
+                        output_spec.get("package_details")
+                    )
+
+                    try:
+                        package_id = cutils.DATASET.create_entity(decoded_package)["id"]
+                    except Exception:
+                        # Package already exists
+                        # TODO: DPETROU: change this to get_entity of the dataset class
+                        package_id = cutils.get_package(
+                            id="0", title=decoded_package.get("title")
+                        )["id"]
+
+                    res_id = cutils.RESOURCE.create_entity(
+                        {
+                            "package_id": package_id,
+                            "name": output_spec.get("resource_name"),
+                            "url": path,
+                            "relation": output_spec.get("resource_label"),
+                        }
+                    )["id"]
+                    return res_id
+
+                # Package exists, we should create a resource inside it
+                elif output_spec.get("package_uuid"):
+                    res_id = cutils.RESOURCE.create_entity(
+                        {
+                            "package_id": output_spec.get("package_uuid"),
+                            "name": output_spec.get("resource_name"),
+                            "url": path,
+                            "relation": output_spec.get("resource_label"),
+                        }
+                    )["id"]
+                    return res_id
+
+    def save_output(self, id: uuid.UUID, signature: str, **spec):
+        """Saves the output of a Task execution in the database upon spec.
+
+        The output spec is a field in the broader JSON that describes the Task
+        and is provided during the creation of the Task. Upon this spec the outputs
+        provided by the end of the execution are treated.
 
         Args:
-            id: The UUID of the Task to delete.
-        Raises:
-            ConflictError: If a running Task was attempted to be deleted.
-            NotFoundError: If a Task with the given ID is not found.
+            id: The ID of the Task
+            signature: The signature of the Task to validate.
+            spec: The JSON describing the outputs generated by the Task and the state
+                  it concluded to.
+
+
         """
-        task = self.get_entity(id)
-        if task["exec_state"] == "running":
-            raise ConflictError("Cannot delete a running task.")
-        with transaction():
-            sql_utils.task_execution_delete(id)
+        # The only measure of verification used to ensure the validity of the request
+        # is the signature. The signature is generated on task creation time and is
+        # used by the Task runtime to publish the output of the execution.
+        if not self.verify_signature(id, signature):
+            raise AuthorizationError("Invalid Task Signature. Access Denied.")
+
+        # Validate the task existence
+        self.validate_task()
+
+        # Parse the output JSON provided in the request
+        outputs = spec.get("output", {})
+        actual_resource_output = []
+
+        # Handle each output the tool produced in metadata terms i.e. publish
+        # appropriately resources in the catalog upon specifications provided
+        # during the task creation. We maintain a list of the actual resources
+        # the task registered in the catalog.
+        # TODO: DPETROU: Consider also registering paths that were generated
+        # but have no presence in the catalog.
+        for output, path in outputs.items():
+            actual_resource_output.append(self.handle_output_key(id, output, path))
+
+        # Register the actual resources registered in the catalog by the task
+        if actual_resource_output:
+            sql_utils.task_execution_insert_output(id, actual_resource_output)
+
+        # Now handle the metrics, messages and state of the task.
+        sql_utils.task_execution_insert_metrics(id, spec.get("status"))
+        sql_utils.task_execution_insert_log(id, spec.get("messages"))
+
+        if "error" in spec:
+            self.set_exec_state(id, "failed")
+
+        elif spec.get("status"):
+            map_state = map_state_to_execution_status(spec.get("status"))
+            self.set_exec_state(id, map_state)
 
 
 # ------------------------------------------
@@ -1433,42 +1554,6 @@ TASK = Task()
 # ------------------------------------------
 
 
-def update_task_state(task_id, state):
-    """Update the state of a task. If the state is
-    'failed' or 'succeeded', the end date is also updated
-    to the current time.
-
-    Args:
-        task_id: The unique identifier of the workflow process.
-        state: The new state of the workflow process. ('running', 'failed', 'succeeded')
-    Returns:
-        A boolean value indicating whether the state was successfully updated.
-    Raises:
-    """
-    if not task_id:
-        raise AttributeError("Workflow ID is required.")
-
-    try:
-        if get_task_info(task_id) is None:
-            raise ValueError("Workflow does not exist.")
-
-        if state in ["failed", "succeeded"]:
-            end_date = datetime.now().isoformat()
-            response = sql_utils.task_execution_update(task_id, state, end_date)
-            if not response:
-                return False
-        else:
-            response = sql_utils.task_execution_update(
-                task_id, state, "1970-01-01 00:00:01"
-            )
-            if not response:
-                return False
-
-        return True, state
-    except Exception as e:
-        raise RuntimeError(f"Workflow State Could Not Be Updated. {e}")
-
-
 def delete_workflow_process(workflow_id):
     """Delete a workflow process.
     Args:
@@ -1477,46 +1562,6 @@ def delete_workflow_process(workflow_id):
         RuntimeError: If the workflow process could not be deleted.
     """
     PROCESS.delete_entity(workflow_id)
-
-
-def get_task_metadata(task_id):
-    """Retrieve the metadata for a task execution.
-
-    Provides the metadata for a task execution, including the state,
-    start and end time, and the tags. The metadata is used to monitor
-    the progress of a task execution.
-
-    Args:
-           task_id: The unique identifier of the task execution.
-    Returns:
-           A JSON with the metadata for the specified task id.
-    """
-
-    try:
-        d = sql_utils.task_execution_read(task_id)
-        if d:
-            if d["tags"]:
-                if d["tags"].get("tool_image"):
-                    d["tool_image"] = d["tags"]["tool_image"]
-                if d["tags"].get("tool_name"):
-                    d["tool_name"] = d["tags"]["tool_name"]
-
-            state = d["state"]
-
-            if state in ["failed", "succeeded"]:
-                d["messages"] = d["tags"]["log"]
-
-                d["output"] = sql_utils.task_execution_read_outputs_sql(task_id)
-                d["metrics"] = sql_utils.task_execution_metrics_read_sql(task_id)
-
-            return d
-        else:
-            raise ValueError("Task does not exist.")
-    except ValueError:
-        raise
-    except Exception as e:
-        raise
-        # raise RuntimeError(f"Task Metadata Could Not Be Retrieved. {e}")
 
 
 def get_task_logs(task_id):
@@ -1549,132 +1594,6 @@ def get_task_info(task_id):
     engine = execution.exec_engine()
     logs = engine.get_task_info(task_id)
     return logs
-
-
-def get_task_output_json(task_id, signature, output_json):
-    """
-    Update the task execution with the output JSON provided. The output JSON includes the state, metrics, messages, and the output files.
-    Args:
-        task_id: The unique identifier of the task execution.
-        signature: The signature of the task execution.
-        output_json: The output JSON for the task execution.
-    Returns:
-        A boolean value indicating whether the output JSON was successfully updated.
-    Raises:
-        AssertionError: If the task signature is invalid.
-        AttributeError: If the task ID is invalid.
-        ValueError: If the task does not exist.
-    """
-
-    if not verify_task_signature(task_id, signature):
-        raise AssertionError("Invalid Task Signature.")
-
-    if not is_valid_uuid(task_id):
-        raise AttributeError("Invalid Task ID provided.")
-
-    if sql_utils.task_execution_read(task_id) is None:
-        raise ValueError("Task does not exist.")
-
-    outputs = output_json.get("output", {})
-    actual_resource_output = []
-    for output in outputs:
-        output_url = outputs[output]
-        output_spec = sql_utils.task_read_output_spec_of_file(task_id, output)
-        if output_spec:
-            if output_url == output_spec.get("output_address", ""):
-                # Handle the case where an existing resource should be updated with the new output path of the tool output.
-                if output_spec.get("resource_id"):
-                    updated_metadata = {}
-                    if output_spec.get("resource_name"):
-                        updated_metadata["name"] = output_spec.get("resource_name")
-                    if output_spec.get("resource_label"):
-                        updated_metadata["relation"] = output_spec.get("resource_label")
-                    updated_metadata["url"] = output_url
-                    try:
-                        resource = cutils.patch_resource(
-                            output_spec.get("resource_id"), updated_metadata
-                        )
-                        if resource.get("id"):
-                            actual_resource_output.append(resource.get("id"))
-                    except Exception:
-                        pass
-
-                # Handle the case where a refenence to a dataset is included in the spec and we need to create a new resource in that dataset.
-                # or also create the dataset itself.
-                if output_spec.get("dataset_friendly_name"):
-                    # Package does not exist, should be created
-                    if output_spec.get("package_details"):
-                        try:
-                            decoded_package = utils.decode_from_base64(
-                                output_spec.get("package_details")
-                            )
-                            try:
-                                new_pkg = cutils.create_package(
-                                    basic_metadata=decoded_package
-                                )
-                            except Exception:
-                                # Package already exists
-                                new_pkg = cutils.get_package(
-                                    id="0", title=decoded_package.get("title")
-                                )
-                            if new_pkg.get("id"):
-                                resource_metadata = {}
-                                resource_metadata["name"] = output_spec.get(
-                                    "resource_name"
-                                )
-                                resource_metadata["url"] = output_url
-                                resource = cutils.create_resource(
-                                    new_pkg.get("id"),
-                                    resource_metadata,
-                                    output_spec.get("resource_label"),
-                                )
-                                if resource.get("id"):
-                                    actual_resource_output.append(resource.get("id"))
-                        except Exception:
-                            continue
-                    # Package exists, we should create a resource inside it
-                    elif output_spec.get("package_uuid"):
-                        try:
-                            resource_metadata = {}
-                            resource_metadata["name"] = output_spec.get("resource_name")
-                            resource_metadata["url"] = output_url
-                            resource = cutils.create_resource(
-                                output_spec.get("package_uuid"),
-                                resource_metadata,
-                                output_spec.get("resource_label"),
-                            )
-                            if resource.get("id"):
-                                actual_resource_output.append(resource.get("id"))
-                        except Exception:
-                            continue
-
-    # Register the actual resources registered in the catalog by the task
-    if actual_resource_output:
-        sql_utils.task_execution_insert_output(task_id, actual_resource_output)
-
-    # Now handle the metrics, messages and state of the task.
-    state = output_json.get("status")
-    messages = output_json.get("message")
-    metrics = output_json.get("metrics")
-
-    if metrics:
-        sql_utils.task_execution_insert_metrics(task_id, metrics)
-
-    if messages:
-        sql_utils.task_execution_insert_log(task_id, messages)
-
-    if "error" in output_json:
-        map_state = "failed"
-        sql_utils.task_execution_update(
-            task_id, map_state, end_date=datetime.now().isoformat()
-        )
-    elif state:
-        map_state = map_state_to_execution_status(state)
-        sql_utils.task_execution_update(
-            task_id, map_state, end_date=datetime.now().isoformat()
-        )
-
-    return True
 
 
 # Map HTTP status codes or other indicators to states
