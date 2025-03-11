@@ -252,6 +252,31 @@ def current_user():
     return flask.g.current_user
 
 
+def current_token():
+    """Return the current token from the session or the request headers.
+
+    When the 'Authorization' header is present in the request, the user is fetched using the access token in the header.
+    else, the user is fetched using the access token stored in the session.
+
+    NOTE: This is a bit fragile, since it assumes that the header 'Authorization' is always present in the request.
+    Properly, a check would be needed.
+
+    Returns:
+        dict: The token.
+    """
+    if "access_token" not in flask.g:
+        from flask import request
+
+        match request.headers.get("Authorization", "").split(" "):
+            case ["Bearer", access_token]:
+                pass
+            case _:
+                access_token = session.get("access_token")
+
+        flask.g.access_token = access_token
+    return flask.g.access_token
+
+
 def user_has_2fa(user_id):
     if is_valid_uuid(user_id):
         return sql_utils.two_factor_user_has_2fa(user_id=user_id)
