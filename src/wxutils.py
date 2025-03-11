@@ -2,13 +2,11 @@ import hashlib
 import logging
 import re
 import uuid
-import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Optional
 
-import requests
 from apiflask import Schema, fields, validators
-from flask import current_app, jsonify
+from flask import current_app
 from mutils import get_temp_minio_credentials, expand_wildcard_path
 import cutils
 import execution
