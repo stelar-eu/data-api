@@ -193,173 +193,6 @@ def help():
 ################################## SEARCH OPERATIONS ########################################
 
 
-@app.route("/api/v1/catalog/tags", methods=["GET"])
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Search Operations"])
-def api_tags():
-    """List all tags associated with datasets (packages) maintained in CKAN.
-
-    Args:
-
-    Returns:
-        A JSON with all available tags.
-    """
-
-    # EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/catalog/tags
-
-    config = current_app.config["settings"]
-
-    # Make a GET request to the CKAN API with the parameters
-    # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(
-        config["CKAN_API"] + "tag_list"
-    )  # , headers=config.package_headers) # auth=HTTPBasicAuth(config.username, config.password))
-
-    return response.json()
-
-
-@app.route("/api/v1/catalog/vocabularies", methods=["GET"])
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Search Operations"])
-def api_vocabularies():
-    """List all vocabularies employed in metadata for datasets (packages) maintained in CKAN.
-
-    Args:
-
-    Returns:
-        A JSON with all available vocabularies.
-    """
-
-    # EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/catalog/vocabularies
-
-    config = current_app.config["settings"]
-
-    # Make a GET request to the CKAN API with the parameters
-    # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(
-        config["CKAN_API"] + "vocabulary_list"
-    )  # , headers=config.package_headers) # auth=HTTPBasicAuth(config.username, config.password))
-
-    return response.json()
-
-
-@app.route("/api/v1/catalog/all", methods=["GET"])
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Search Operations"])
-def api_datasets():
-    """List the identifiers of all datasets (packages) maintained in CKAN that are accessible by the user.
-
-    Args:
-
-    Returns:
-        A JSON with the names of all datasets accessible by the user.
-    """
-
-    # EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/catalog/all
-
-    config = current_app.config["settings"]
-
-    # Make a GET request to the CKAN API with the parameters
-    # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(
-        config["CKAN_API"] + "package_list"
-    )  # , headers=config.package_headers) # auth=HTTPBasicAuth(config.username, config.password))
-
-    return response.json()
-
-
-@app.route("/api/v1/catalog", methods=["GET"])
-@app.input(
-    schema.Identifier, location="query", example="cf0c3c59-fc41-48c9-a529-6b9feff42991"
-)
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Search Operations"])
-def api_dataset_id(query_data):
-    """Get all metadata available for a dataset (i.e., CKAN package) that is accessible by the user.
-
-    Args:
-        id: The unique identifier of the dataset as listed in CKAN.
-
-    Returns:
-        A JSON with all metadata maintained in CKAN for the specified dataset.
-    """
-
-    # EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/catalog?id=lakes-of-greece
-    #     OR: curl -X GET http://127.0.0.1:9055/api/v1/catalog?id=cf0c3c59-fc41-48c9-a529-6b9feff42991
-
-    config = current_app.config["settings"]
-
-    # Check if an ID (name) for a dataset was provided in the request
-    if "id" in query_data:
-        id = query_data["id"]
-    else:
-        response = {
-            "success": False,
-            "help": request.url + "?id=",
-            "error": {
-                "__type": "No specifications",
-                "name": [
-                    "No identifier provided. Please specify the id of the requested dataset."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # Make a GET request to the CKAN API with the parameters
-    # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(
-        config["CKAN_API"] + "package_show?id=" + id
-    )  # , headers=config.package_headers)  #auth=HTTPBasicAuth(config.username, config.password))
-
-    return response.json()
-
-
-@app.route("/api/v1/catalog/metadata/all", methods=["GET"])
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Search Operations"])
-def api_metadata_all_packages():
-    config = current_app.config["settings"]
-
-    package_list_url = f"{config['API_URL']}api/v1/catalog/all"
-    package_metadata_url = f"{config['API_URL']}api/v1/catalog?id="
-
-    # Fetch the list of IDs from the first endpoint
-    response = requests.get(package_list_url)
-    if response.status_code != 200:
-        return jsonify({"error": "Failed to fetch package list"}), 500
-
-    data = response.json()
-
-    # Check if the response is successful and contains the result
-    if not data.get("success", False) or "result" not in data:
-        return jsonify({"error": "Invalid response from package list API"}), 500
-
-    ids_list = data["result"]
-
-    # Aggregate metadata for all the IDs
-    all_metadata = []
-    for package_id in ids_list:
-        # Fetch metadata for each package using the second endpoint
-        metadata_url = package_metadata_url + package_id
-        metadata_response = requests.get(metadata_url)
-        if metadata_response.status_code == 200:
-            metadata_data = metadata_response.json()
-            if metadata_data.get("success", False):
-                # Append the result of each successful call
-                all_metadata.append(metadata_data["result"])
-            else:
-                all_metadata.append(
-                    {"error": f"Failed to fetch metadata for ID {package_id}"}
-                )
-        else:
-            all_metadata.append(
-                {"error": f"Failed to fetch metadata for ID {package_id}"}
-            )
-
-    # Return all metadata in a single response
-    return jsonify({"result": all_metadata, "success": True})
-
-
 @app.route("/api/v1/dataset/export_zenodo", methods=["GET"])
 @app.input(
     schema.Identifier, location="query", example="cf0c3c59-fc41-48c9-a529-6b9feff42991"
@@ -613,81 +446,6 @@ def api_package_search(query_data):
 
     # Pass an empty data frame to report the original SOLR scores; no facet specs need be added; no profiling attributes involved
     return utils.assign_scores(response, pd.DataFrame(), {}, {}, [])
-
-
-@app.route("/api/v1/resource", methods=["GET"])
-@app.input(
-    schema.Identifier, location="query", example="6dc36257-abb6-45b5-b3bb-5f94160fc2ee"
-)
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Search Operations"])
-def api_resource_id(query_data):
-    """Get all metadata available for a resource that is accessible by the user.
-
-    Args:
-        id: The unique identifier of the resource as listed in CKAN.
-
-    Returns:
-        A JSON with all metadata maintained in CKAN for the specified resource.
-    """
-
-    # EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/resource?id=6dc36257-abb6-45b5-b3bb-5f94160fc2ee
-
-    config = current_app.config["settings"]
-
-    if request.headers:
-        if request.headers:
-            package_headers, resource_headers = utils.create_CKAN_headers(
-                get_demo_ckan_token()
-            )
-        else:
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {
-                    "__type": "Authorization Error",
-                    "name": [
-                        "No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "Authorization Error",
-                "name": [
-                    "No headers specified. Please specify headers for your request, including a valid API TOKEN."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # Check if an ID (name) for a dataset was provided as argument
-    if "id" in query_data:
-        id = query_data["id"]
-    else:
-        response = {
-            "success": False,
-            "help": request.url + "?id=",
-            "error": {
-                "__type": "No specifications",
-                "name": [
-                    "No identifier provided. Please specify the id of the requested resource."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # Make a GET request to the CKAN API with the parameters
-    # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(
-        config["CKAN_API"] + "resource_show?id=" + id, headers=resource_headers
-    )  # auth=HTTPBasicAuth(config.username, config.password))
-
-    return response.json()
 
 
 @app.route("/api/v1/resource/search", methods=["GET"])
@@ -1782,47 +1540,47 @@ def api_catalog_rank(json_data):
 ############################### PUBLISHING OPERATIONS ############################
 
 
-@app.route("/api/v1/catalog/publish", methods=["POST"])
-@app.input(
-    schema.Dataset,
-    location="json",
-    example={
-        "basic_metadata": {
-            "title": "Test Data API 1",
-            "notes": "This dataset contains Points of Interest extracted from OpenStreetMap",
-            "tags": ["STELAR", "OpenStreetMap", "Geospatial", "Bavaria"],
-        },
-        "extra_metadata": {
-            "INSPIRE theme": "Imagery",
-            "theme": ["Earth Sciences", "Landuse", "http://eurovoc.europa.eu/4630"],
-            "language": ["ca", "en", "es"],
-            "spatial": {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        [12.362, 45.39],
-                        [12.485, 45.39],
-                        [12.485, 45.576],
-                        [12.362, 45.576],
-                        [12.362, 45.39],
-                    ]
-                ],
-            },
-            "temporal_start": "2023-01-31T11:33:54.132Z",
-            "temporal_end": "2023-01-31T11:35:48.593Z",
-        },
-        "profile_metadata": {
-            "url": "https://raw.githubusercontent.com/stelar-eu/data-profiler/main/examples/output/timeseries_profile.json",
-            "name": "Time series profile in JSON",
-            "description": "This is the profile of a time series in JSON format",
-            "resource_type": "Tabular",
-            "format": "JSON",
-            "resource_tags": ["Profile", "Computed with STELAR Profiler"],
-        },
-    },
-)
-@app.output(schema.ResponseAmbiguous, status_code=200)
-@app.doc(tags=["Publishing Operations"], security=security_doc)
+# @app.route("/api/v1/catalog/publish", methods=["POST"])
+# @app.input(
+#     schema.Dataset,
+#     location="json",
+#     example={
+#         "basic_metadata": {
+#             "title": "Test Data API 1",
+#             "notes": "This dataset contains Points of Interest extracted from OpenStreetMap",
+#             "tags": ["STELAR", "OpenStreetMap", "Geospatial", "Bavaria"],
+#         },
+#         "extra_metadata": {
+#             "INSPIRE theme": "Imagery",
+#             "theme": ["Earth Sciences", "Landuse", "http://eurovoc.europa.eu/4630"],
+#             "language": ["ca", "en", "es"],
+#             "spatial": {
+#                 "type": "Polygon",
+#                 "coordinates": [
+#                     [
+#                         [12.362, 45.39],
+#                         [12.485, 45.39],
+#                         [12.485, 45.576],
+#                         [12.362, 45.576],
+#                         [12.362, 45.39],
+#                     ]
+#                 ],
+#             },
+#             "temporal_start": "2023-01-31T11:33:54.132Z",
+#             "temporal_end": "2023-01-31T11:35:48.593Z",
+#         },
+#         "profile_metadata": {
+#             "url": "https://raw.githubusercontent.com/stelar-eu/data-profiler/main/examples/output/timeseries_profile.json",
+#             "name": "Time series profile in JSON",
+#             "description": "This is the profile of a time series in JSON format",
+#             "resource_type": "Tabular",
+#             "format": "JSON",
+#             "resource_tags": ["Profile", "Computed with STELAR Profiler"],
+#         },
+#     },
+# )
+# @app.output(schema.ResponseAmbiguous, status_code=200)
+# @app.doc(tags=["Publishing Operations"], security=security_doc)
 @token_active
 def api_dataset_publish(json_data):
     """Publish a new dataset in the Catalog.
@@ -1949,9 +1707,9 @@ def api_dataset_publish(json_data):
     if specs.get("extra_metadata") is not None:
         # Convert this metadata to a JSON array with {"key":"...", "value":"..."} pairs as required to be stored as extras in CKAN
         extra_metadata = {}
-        extra_metadata[
-            "id"
-        ] = package_id  # Must specify the id of the newly created package
+        extra_metadata["id"] = (
+            package_id  # Must specify the id of the newly created package
+        )
         extra_metadata["extras"] = utils.handle_extras(specs["extra_metadata"])
         # Make a POST request to the CKAN API to patch the newly created package with the extra metadata
         resp_extras = requests.post(
@@ -1977,9 +1735,9 @@ def api_dataset_publish(json_data):
     # TODO: Replace with the respective API function?
     if specs.get("profile_metadata") is not None:
         resource_metadata = specs["profile_metadata"]
-        resource_metadata[
-            "package_id"
-        ] = package_id  # Must specify the id of the newly created package
+        resource_metadata["package_id"] = (
+            package_id  # Must specify the id of the newly created package
+        )
         if resource_metadata.get("file") is not None:
             # Make a POST request to the CKAN API to upload the file from the specified path
             with open(resource_metadata["file"], "rb") as f:
@@ -2043,223 +1801,6 @@ def api_dataset_publish(json_data):
 
     response = {"success": success, "help": request.url, "result": result}
     return jsonify(response)
-
-
-@app.route("/api/v1/dataset/register", methods=["POST"])
-@app.input(
-    schema.Package,
-    location="json",
-    example={
-        "package_metadata": {
-            "title": "Test Data API 1",
-            "notes": "This dataset contains Points of Interest extracted from OpenStreetMap",
-            "tags": [
-                {"name": "STELAR"},
-                {"name": "OpenStreetMap"},
-                {"name": "Geospatial"},
-                {"name": "Berlin"},
-            ],
-            "extras": [
-                {"key": "custom_tags", "value": "http://www.w3.org/ns/dcat#Dataset"},
-                {"key": "INSPIRE theme", "value": "Location"},
-                {"key": "Topic", "value": "POI"},
-            ],
-            "name": "test_data_api_1",
-            "private": "false",
-            "version": "0.3",
-            "owner_org": "athenarc",
-        }
-    },
-)
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Publishing Operations"], security=security_doc)
-@token_active
-def api_dataset_register(json_data):
-    """Register a new dataset according to CKAN specifications. The user will become the publisher of this dataset.
-
-    Args:
-        data: A JSON with basic metadata information (as required by CKAN) provided by the publisher about the new dataset.
-
-    Returns:
-        A JSON with the CKAN response to the registration request.
-    """
-
-    # EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/dataset/register -d '{"package_metadata": {"title": "Test Data API 1", "notes": "This dataset contains Points of Interest extracted from OpenStreetMap", "tags": [{"name": "STELAR"}, {"name": "OpenStreetMap"},{"name": "Geospatial"},{"name": "Berlin"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}],"name": "test_data_api_1","private": "false","version": "0.3","owner_org": "athenarc"}}'
-
-    config = current_app.config["settings"]
-
-    if request.headers:
-        if request.headers.get("Api-Token") is not None:
-            package_headers, resource_headers = utils.create_CKAN_headers(
-                request.headers["Api-Token"]
-            )
-        else:
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {
-                    "__type": "Authorization Error",
-                    "name": [
-                        "No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "Authorization Error",
-                "name": [
-                    "No headers specified. Please specify headers for your request, including a valid API TOKEN."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    if request.data:
-        metadata = json.loads(
-            request.data.decode("utf-8")
-        )  # json.loads(json.dumps(str(request.data)))
-        if "package_metadata" in metadata:
-            package_metadata = metadata["package_metadata"]
-        else:
-            response = {
-                "success": False,
-                "help": request.url + "?q=",
-                "error": {
-                    "__type": "No specifications",
-                    "name": [
-                        "No metadata provided for publishing in the Catalog. Please specify at least some basic metadata (title, notes, tags, etc.) for the dataset you wish to publish."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "No specifications",
-                "name": [
-                    "No metadata provided for publishing in the Catalog. Please specify at least some basic metadata (title, notes, tags, etc.) for the dataset you wish to publish."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # Make a POST request to the CKAN API with the parameters
-    response = requests.post(
-        config["CKAN_API"] + "package_create",
-        json=package_metadata,
-        headers=package_headers,
-    )  # auth=HTTPBasicAuth(config.username, config.password))
-
-    return response.json()
-
-
-@app.route("/api/v1/dataset/patch", methods=["POST"])
-@app.input(
-    schema.Package,
-    location="json",
-    example={
-        "package_metadata": {
-            "id": "test_data_api_1",
-            "tags": [{"name": "Patch"}],
-            "extras": [
-                {"key": "custom_tags", "value": "http://www.w3.org/ns/dcat#Dataset"},
-                {"key": "INSPIRE theme", "value": "Location"},
-                {"key": "Topic", "value": "POI"},
-            ],
-        }
-    },
-)
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Publishing Operations"], security=security_doc)
-@token_active
-def api_dataset_patch(json_data):
-    """Patch more metadata to an existing dataset according to CKAN specifications. The user will become the publisher of this dataset.
-
-    Args:
-        data: A JSON with additional metadata information provided by the publisher about the new dataset.
-
-    Returns:
-        A JSON with the CKAN response to the patch request.
-    """
-
-    # EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/dataset/patch -d '{"package_metadata": {"id": "test_data_api_1", "tags": [{"name": "Patch"}],"extras": [{"key": "custom_tags","value": "http://www.w3.org/ns/dcat#Dataset"},{"key": "INSPIRE theme", "value": "Location"},{"key": "Topic", "value": "POI"}] }}'
-
-    config = current_app.config["settings"]
-
-    if request.headers:
-        if request.headers.get("Api-Token") is not None:
-            package_headers, resource_headers = utils.create_CKAN_headers(
-                get_demo_ckan_token()
-            )
-        else:
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {
-                    "__type": "Authorization Error",
-                    "name": [
-                        "No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "Authorization Error",
-                "name": [
-                    "No headers specified. Please specify headers for your request, including a valid API TOKEN."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    if request.data:
-        metadata = json.loads(
-            request.data.decode("utf-8")
-        )  # json.loads(json.dumps(str(request.data)))
-        if "package_metadata" in metadata:
-            package_metadata = metadata["package_metadata"]
-        else:
-            response = {
-                "success": False,
-                "help": request.url + "?q=",
-                "error": {
-                    "__type": "No specifications",
-                    "name": [
-                        "No metadata provided for updating this dataset in the Catalog. Please specify metadata for the dataset you wish to patch."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "No specifications",
-                "name": [
-                    "No metadata provided for updating this dataset in the Catalog. Please specify metadata for the dataset you wish to patch."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # Make a POST request to the CKAN API to patch the newly created package with the extra metadata
-    response = requests.post(
-        config["CKAN_API"] + "package_patch",
-        json=package_metadata,
-        headers=package_headers,
-    )  # auth=HTTPBasicAuth(config.username, config.password))
-    return response.json()
 
 
 @app.route("/api/v1/profile/publish", methods=["POST"])
@@ -2504,146 +2045,25 @@ def api_profile_store(json_data):
         return jsonify(response)
 
 
-@app.route("/api/v1/resource/upload", methods=["POST"])
-@app.input(
-    schema.Resource,
-    location="json",
-    example={
-        "resource_metadata": {
-            "package_id": "test_data_api_1",
-            "file": "/data/examples/single_field_LAI-2.json",
-            "name": "LAI profile in JSON",
-            "description": "This is the profile of the Leaf Area Index in JSON format",
-            "format": "JSON",
-            "resource_tags": ["Profile", "Computed with STELAR Profiler"],
-        }
-    },
-)
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Publishing Operations"], security=security_doc)
-@token_active
-def api_resource_upload(json_data):
-    """Upload a resource to an existing dataset according to CKAN specifications. The user will become the publisher of this resource.
-
-    Args:
-        data: A JSON with all metadata information provided by the publisher about the new resource.
-
-    Returns:
-        A JSON with the CKAN response to the publishing request.
-    """
-
-    # EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/resource/upload -d '{"resource_metadata": {"package_id": "test_data_api_1", "file":"/data/examples/single_field_LAI-2.json", "name": "LAI profile in JSON", "description": "This is the profile of the Leaf Area Index in JSON format", "format": "JSON", "resource_tags": ["Profile","Computed with STELAR Profiler"]}}'
-
-    config = current_app.config["settings"]
-
-    if request.headers:
-        if request.headers.get("Api-Token") is not None:
-            package_headers, resource_headers = utils.create_CKAN_headers(
-                request.headers["Api-Token"]
-            )
-        else:
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {
-                    "__type": "Authorization Error",
-                    "name": [
-                        "No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "Authorization Error",
-                "name": [
-                    "No headers specified. Please specify headers for your request, including a valid API TOKEN."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    if request.data:
-        metadata = json.loads(
-            request.data.decode("utf-8")
-        )  # json.loads(json.dumps(str(request.data)))
-        if "resource_metadata" in metadata:
-            resource_metadata = metadata["resource_metadata"]
-        else:
-            response = {
-                "success": False,
-                "help": request.url + "?q=",
-                "error": {
-                    "__type": "No specifications",
-                    "name": [
-                        "No metadata provided for updating this resource in the Catalog. Please specify metadata for the resource you wish to upload."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "No specifications",
-                "name": [
-                    "No metadata provided for publishing this resource in the Catalog. Please specify metadata for the resource you wish to upload."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # Get file path to access the resource, but remove it from the JSON
-    file = resource_metadata["file"]
-    resource_metadata.pop("file", None)  # will not crash if this JSON has no key 'file'
-
-    # Make a POST request to the CKAN API with the parameters
-    with open(file, "rb") as f:
-        #        print('Resource file found!')
-        response = requests.post(
-            config["CKAN_API"] + "resource_create",
-            data=resource_metadata,
-            headers=resource_headers,
-            files=[("upload", f)],
-        )
-        return response.json()
-
-    response = {
-        "success": False,
-        "help": request.url,
-        "error": {
-            "__type": "Not found",
-            "name": [
-                "The specified file resource is not found or could not be accessed."
-            ],
-        },
-    }
-    return jsonify(response)
-
-
-@app.route("/api/v1/resource/link", methods=["POST"])
-@app.input(
-    schema.Resource,
-    location="json",
-    example={
-        "resource_metadata": {
-            "package_id": "test_data_api_1",
-            "url": "https://data.smartdublin.ie/dataset/09870e46-26a3-4dc2-b632-4d1fba5092f9/resource/40a718a8-cb99-468d-962b-af4fed4b0def/download/bleeperbike_map.geojson",
-            "name": "Test GeoJSON resource",
-            "description": "This is the test resource in GeoJSON format",
-            "format": "GeoJSON",
-            "resource_type": "Tabular",
-            "resource_tags": ["Link to external resource", "Found in the Web"],
-        }
-    },
-)
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Publishing Operations"], security=security_doc)
-@token_active
+# @app.route("/api/v1/resource/link", methods=["POST"])
+# @app.input(
+#     schema.Resource,
+#     location="json",
+#     example={
+#         "resource_metadata": {
+#             "package_id": "test_data_api_1",
+#             "url": "https://data.smartdublin.ie/dataset/09870e46-26a3-4dc2-b632-4d1fba5092f9/resource/40a718a8-cb99-468d-962b-af4fed4b0def/download/bleeperbike_map.geojson",
+#             "name": "Test GeoJSON resource",
+#             "description": "This is the test resource in GeoJSON format",
+#             "format": "GeoJSON",
+#             "resource_type": "Tabular",
+#             "resource_tags": ["Link to external resource", "Found in the Web"],
+#         }
+#     },
+# )
+# @app.output(schema.ResponseOK, status_code=200)
+# @app.doc(tags=["Publishing Operations"], security=security_doc)
+# @token_active
 def api_resource_link(json_data):
     """Associate a resource (with its URL) to an existing dataset in CKAN. The user will become the publisher of this resource.
 
@@ -2738,350 +2158,19 @@ def api_resource_link(json_data):
     return response.json()
 
 
-@app.route("/api/v1/workflow/publish", methods=["POST"])
-@app.input(
-    schema.Package,
-    location="json",
-    example={
-        "package_metadata": {
-            "title": "Test workflow",
-            "notes": "This workflow performs entity matching",
-            "tags": ["STELAR", "Entity matching", "Entity resolution"],
-        }
-    },
-)
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Publishing Operations"], security=security_doc)
-@token_active
-def api_workflow_publish(json_data):
-    """Publish a new workflow as a CKAN package. The user will become the publisher of this workflow.
-
-    Args:
-        data: A JSON with basic metadata information (as required by CKAN) provided by the publisher about the new workflow.
-
-    Returns:
-        A JSON with the CKAN response to the publishing request.
-    """
-
-    # EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/workflow/publish -d '{"package_metadata": {"title": "Test workflow", "notes": "This workflow performs entity matching", "tags": ["STELAR", "Entity matching", "Entity resolution"]}'
-
-    config = current_app.config["settings"]
-
-    if request.headers:
-        if request.headers:
-            package_headers, resource_headers = utils.create_CKAN_headers(
-                get_demo_ckan_token()
-            )
-        else:
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {
-                    "__type": "Authorization Error",
-                    "name": [
-                        "No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "Authorization Error",
-                "name": [
-                    "No headers specified. Please specify headers for your request, including a valid API TOKEN."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    if request.data:
-        metadata = json.loads(
-            request.data.decode("utf-8")
-        )  # json.loads(json.dumps(str(request.data)))
-        if "package_metadata" in metadata:
-            package_metadata = metadata["package_metadata"]
-            # Also create the name of the new CKAN package from its title (assuming that this is unique)
-            package_metadata["name"] = re.sub(
-                r"[\W_]+", "_", package_metadata["title"]
-            ).lower()
-            # Convert the tags into the format required by CKAN
-            package_metadata["tags"] += ["Workflow"]
-            package_metadata["tags"] = utils.handle_keywords(package_metadata["tags"])
-            # package_metadata['type'] = 'workflow'   # Must specify that this is not a dataset, but a workflow
-            # Internal call to find the organization where the user belongs to (derived from API token)
-            resp_org = api_user_editor()
-            if resp_org["success"]:
-                org_json = resp_org["result"]
-                if len(org_json) > 0:
-                    for item in org_json:
-                        if (
-                            item["type"] == "organization"
-                            and item["state"] == "active"
-                            and item["capacity"] in ("admin", "editor")
-                        ):
-                            package_metadata["owner_org"] = org_json[0][
-                                "name"
-                            ]  # CAUTION! Taking the first organization where this user is editor
-                            break
-        else:
-            response = {
-                "success": False,
-                "help": request.url + "?q=",
-                "error": {
-                    "__type": "No specifications",
-                    "name": [
-                        "No metadata provided for publishing in the Catalog. Please specify at least some basic metadata (title, notes, tags, etc.) for the workflow you wish to publish."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "No specifications",
-                "name": [
-                    "No metadata provided for publishing in the Catalog. Please specify at least some basic metadata (title, notes, tags, etc.) for the workflow you wish to publish."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # Make a POST request to the CKAN API with the parameters
-    response = requests.post(
-        config["CKAN_API"] + "package_create",
-        json=package_metadata,
-        headers=package_headers,
-    )  # auth=HTTPBasicAuth(config.username, config.password))
-
-    if response.status_code == 200:
-        result = {}
-        package_id = response.json()["result"]["id"]
-        result["package_id"] = package_id  # Return the package_id only
-        response = {"success": True, "help": request.url, "result": result}
-        return jsonify(response)
-    else:
-        return jsonify(response)
-
-
-################################ WORKFLOW OPERATIONS ##########################
-
-
-@app.route("/api/v1/workflow/execution/create", methods=["POST"])
-@app.input(
-    schema.Workflow_Input,
-    location="json",
-    example={
-        # "workflow_id": "workflow_id",
-        "tags": {}
-    },
-)
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Tracking Operations"], security=security_doc)
-@token_active
-def api_workflow_execution_create(json_data):
-    """Create a Workflow Execution under a specific defined workflow.
-
-    Args:
-        data: A JSON with the ID of the Workflow and the tags to add.
-
-    Returns:
-        A JSON with the Workflow Execution ID.
-    """
-    try:
-        userinfo = kutils.get_user_by_token(
-            request.headers.get("Authorization").split(" ")[1]
-        )
-        if userinfo:
-            user_id = userinfo.get("preferred_username")
-        else:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "message": "User info not found in api_workflow_execution_create",
-                    }
-                ),
-                500,
-            )
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-    try:
-        workflow_exec_id = str(uuid.uuid4())
-        start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        state = "running"
-        response = sql_utils.workflow_execution_create(
-            workflow_exec_id,
-            start_date,
-            state,
-            user_id,
-            json_data.get("package_id", None),
-            json_data.get("tags", None),
-        )
-        if not response:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "message": "Workflow Execution could not be created.",
-                    }
-                ),
-                500,
-            )
-
-        return jsonify({"success": True, "workflow_exec_id": workflow_exec_id}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route("/api/v1/workflow/execution/read", methods=["GET"])
-@app.input(
-    schema.Identifier, location="query", example="24a976c4-fd84-47ef-92cc-5d5582bcaf41"
-)
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Tracking Operations"], security=security_doc)
-@token_active
-def api_workflow_execution_read(query_data):
-    """Return the metadata of the given Workflow Execution id.
-
-    Args:
-        id: The unique identifier of the Workflow Exection.
-
-    Returns:
-        A JSON with the required metadata.
-    """
-
-    # EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/execution/read?id=24a976c4-fd84-47ef-92cc-5d5582bcaf41
-
-    # workflow_exec_id = request.args.id
-    workflow_exec_id = query_data["id"]
-
-    try:
-        #### GET METADATA FROM KG
-        metadata = sql_utils.workflow_execution_read(workflow_exec_id)
-
-        return jsonify({"success": True, "metadata": metadata}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route("/api/v1/workflow/execution/commit", methods=["POST"])
-@app.input(
-    schema.Workflow_Commit,
-    location="json",
-    example={
-        "workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41",
-        "state": "succeeded",
-    },
-)
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Tracking Operations"], security=security_doc)
-@token_active
-def api_workflow_execution_commit(json_data):
-    """Store the results of the Workflow Execution.
-
-    Args:
-        data: A JSON with the id of the Worfklow Execution and the state of the task.
-
-    Returns:
-        A JSON with the result of the update.
-    """
-
-    # EXAMPLE: curl -X POST -H 'Content-Type: application/json'
-    #       -H 'Api-Token: XXXXXXXXX'
-    #       http://127.0.0.1:9055/api/v1/workflow/execution/commit
-    #       -d '{"workflow_exec_id": "24a976c4-fd84-47ef-92cc-5d5582bcaf41",
-    #               "state": "succeeded"}'
-
-    workflow_exec_id = json_data["workflow_exec_id"]
-    state = json_data["state"]
-
-    try:
-        #### UPDATE TASK EXECUTION
-        end_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        response = sql_utils.workflow_execution_update(
-            workflow_exec_id, state, end_date
-        )
-        if not response:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "message": "Workflow Execution could not be commited.",
-                    }
-                ),
-                500,
-            )
-
-        return jsonify({"success": True}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route("/api/v1/workflow/execution/delete", methods=["GET"])
-@app.input(
-    schema.Identifier, location="query", example="24a976c4-fd84-47ef-92cc-5d5582bcaf41"
-)
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Tracking Operations"], security=security_doc)
-@token_active
-def api_workflow_execution_delete(query_data):
-    """Delete the given Workflow Execution id.
-
-    Args:
-        id: The unique identifier of the Worfklow Exection.
-
-    Returns:
-        A JSON with the corresponding message.
-    """
-
-    # EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/workflow/execution/delete?id=24a976c4-fd84-47ef-92cc-5d5582bcaf41
-
-    # workflow_exec_id = request.args.id
-    workflow_exec_id = query_data["id"]
-    try:
-        response = sql_utils.workflow_execution_delete(workflow_exec_id)
-        if not response:
-            return (
-                jsonify(
-                    {
-                        "success": True,
-                        "message": f"The Task {workflow_exec_id} could not be deleted.",
-                    }
-                ),
-                500,
-            )
-        return (
-            jsonify(
-                {
-                    "success": True,
-                    "message": f"The Task {workflow_exec_id} was deleted successfully",
-                }
-            ),
-            200,
-        )
-    except Exception as e:
-        return jsonify({"success": True, "message": str(e)}), 500
-
-
-@app.route("/api/v1/workflow/statistics", methods=["POST"])
-@app.input(
-    schema.Workflow_Statistics,
-    location="json",
-    example={
-        "workflow_tags": ["A3-4"],
-        "metrics": ["food_tags", "total_tags", "f1_micro", "f1_macro", "f1_weighted"],
-        "parameters": ["k", "model"],
-    },
-)
-# @app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Tracking Operations"], security=security_doc)
-@token_active
+# @app.route("/api/v1/workflow/statistics", methods=["POST"])
+# @app.input(
+#     schema.Workflow_Statistics,
+#     location="json",
+#     example={
+#         "workflow_tags": ["A3-4"],
+#         "metrics": ["food_tags", "total_tags", "f1_micro", "f1_macro", "f1_weighted"],
+#         "parameters": ["k", "model"],
+#     },
+# )
+# # @app.output(schema.ResponseOK, status_code=200)
+# @app.doc(tags=["Tracking Operations"], security=security_doc)
+# @token_active
 def api_workflow_statistics(json_data):
     """Fetch statistics for each Worfklow Execution for a specific group of
     workflow executions.
@@ -3111,53 +2200,6 @@ def api_workflow_statistics(json_data):
                 ),
                 500,
             )
-        return jsonify({"success": True, "result": response}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route("/api/v1/workflow/tasks", methods=["GET"])
-@app.doc(tags=["Tracking Operations"], security=security_doc)
-@app.input(
-    schema.Identifier, location="query", example="24a976c4-fd84-47ef-92cc-5d5582bcaf41"
-)
-@token_active
-def api_workflow_tasks(query_data):
-    """Fetch the tasks for a given Workflow Execution
-
-    Args:
-        params: A JSON with the id of the Workflow Execution
-
-    Returns:
-        A JSON with the result of the tasks per workflow
-    """
-    # Retrieve query parameters from the request
-    wf_exec_id = query_data["id"]
-
-    if not wf_exec_id:
-        return (
-            jsonify({"success": False, "message": "Missing required parameter: id"}),
-            400,
-        )
-
-    try:
-        response = sql_utils.workflow_get_tasks(wf_exec_id)
-        return jsonify({"success": True, "result": response}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route("/api/v1/workflows", methods=["GET"])
-@app.doc(tags=["Tracking Operations"], security=security_doc)
-@token_active
-def api_workflow_all():
-    """Fetch all parameters for all workflow executions
-
-    Returns:
-        A JSON with the results of all workflow executions
-    """
-    try:
-        response = sql_utils.workflow_get_all()
         return jsonify({"success": True, "result": response}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
