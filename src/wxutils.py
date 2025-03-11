@@ -9,7 +9,7 @@ from typing import Optional
 import requests
 from apiflask import Schema, fields, validators
 from flask import current_app, jsonify
-
+from mutils import get_temp_minio_credentials, expand_wildcard_path
 import cutils
 import execution
 import kutils
@@ -358,7 +358,9 @@ class ProcessEntity(PackageEntity):
             ValidationError if a package with the given ID exists but
                 is not a process package.
         """
-        proc = ckan_request("package_show", id=process, context={"entity": "process"})
+        proc = ckan_request(
+            "package_show", id=str(process), context={"entity": "process"}
+        )
         if proc["type"] == "process":
             return proc["id"]
         else:
@@ -699,10 +701,10 @@ class TaskSchema(Schema):
 
     id = fields.UUID(dump_only=True)
     process_id = fields.UUID(required=True)
-    secrets = fields.Dict(values=fields.Raw(), allow_none=True)
-    inputs = TaskInputSchema()
-    outputs = TaskOutputSchema()
-    datasets = TaskDatasetSchema()
+    secrets = fields.Dict(values=fields.Raw(), allow_none=True, required=False)
+    inputs = fields.Dict(values=fields.Raw(), required=False)
+    outputs = fields.Dict(values=fields.Raw(), required=False)
+    datasets = fields.Dict(values=fields.Raw(), required=False)
     parameters = fields.Dict(required=False, values=fields.Raw(), allow_none=True)
     name = fields.String(required=True)
     # Limit the execution ability only to internally stored images in the STELAR registry.
@@ -715,7 +717,9 @@ class TaskSchema(Schema):
         ),
     )
     exec_state = fields.String(
-        validate=validators.OneOf(["running", "failed", "succeeded"]), dump_only=True
+        validate=validators.OneOf(["running", "failed", "succeeded"]),
+        dump_only=True,
+        required=False,
     )
     creator = fields.String(dump_only=True)
     start_date = fields.DateTime(dump_only=True)
@@ -917,7 +921,7 @@ class Task(Entity):
                     process_resources = [
                         resource["id"]
                         for resource in cutils.get_package_resources(
-                            process_id, artifact_uuid or val, filter_value
+                            process_id, filter_value
                         )
                     ]
                     input_artifacts.extend(process_resources)
@@ -948,7 +952,8 @@ class Task(Entity):
             sql_utils.task_execution_insert_input(id, input_artifacts, group)
 
     def dataset_exists(self, id: uuid.UUID, dataset_friendly_name: str):
-        """Check if the dataset friendly name is a valid Task dataset.
+        """Check if the dataset friendly name is a valid Task dataset
+           and already exists.
 
         Args:
             id: The ID of the Task by which the dataset is referenced
@@ -960,6 +965,27 @@ class Task(Entity):
         package = sql_utils.task_read_dataset(id, dataset_friendly_name)
 
         if package and package.get("package_uuid") is not None:
+            return True
+
+        return False
+
+    def validate_dataset(self, id: uuid.UUID, dataset_friendly_name: str):
+        """Check if the dataset friendly name is a valid Task dataset
+           and referenced in the 'datasets' field.
+
+        Args:
+            id: The ID of the Task by which the dataset is referenced
+            dataset_friendly_name: The friendly name of the dataset to validate.
+
+        Returns:
+            True if the dataset is correctly referenced at 'datasets', False otherwise.
+        """
+        package = sql_utils.task_read_dataset(id, dataset_friendly_name)
+
+        if package and (
+            package.get("package_uuid") is not None
+            or package.get("package_details") is not None
+        ):
             return True
 
         return False
@@ -986,8 +1012,7 @@ class Task(Entity):
             id: The ID of the newly created Task.
             parameters: The parameters of the task as provided in the Task Spec.
         """
-        for param, value in parameters.items():
-            sql_utils.task_execution_insert_parameters(id, param, value)
+        sql_utils.task_execution_insert_parameters(id, parameters)
 
     def parse_datasets(self, id: uuid.UUID, datasets: dict):
         """Parses the datasets provided in the Task Spec
@@ -1009,6 +1034,7 @@ class Task(Entity):
         }
 
         Datasets can be referenced in other places of the Task Spec using their friendly name.
+        Mainly in the inputs and outputs specs.
 
         Args:
             id: The ID of the newly created Task.
@@ -1032,7 +1058,77 @@ class Task(Entity):
                     package_friendly_name=dataset,
                 )
 
-    def create_task(self, creator_user: str, **spec):
+    def parse_outputs(self, id: uuid.UUID, outputs: dict):
+        """Parses the output provided in the Task Spec
+
+        It is highly recommended to use this method within a 'transaction()' context
+        to ensure that the outputs are inserted in the database in a consistent manner.
+
+        The output spec is a field in the broader JSON that describes the Task.
+        It is a dictionary with the following structure:
+
+        "outputs": {
+            "output0": {
+                "url": "s3://klms-bucket/klms/data.txt",
+                "resource": "6a909646-9218-4e75-902d-0cbef791bc3e",
+            },
+            "output1": {
+                "url": "s3://klms-bucket/klms/data.json",
+                "dataset": "dataset1",
+                "resource": {
+                    "name": "Entity Matching Experiment Result 1",
+                    "relation": "owned"
+                }
+            },
+            "output2": {
+                "url": "s3://klms-bucket/klms/log.txt"
+            }
+        }
+
+        Args:
+            id: The ID of the newly created Task.
+            outputs: The outputs of the task as provided in the Task Spec.
+        """
+
+        for output, spec in outputs.items():
+            if isinstance(spec, dict):
+                url = spec.get("url")
+                if not url:
+                    raise DataError(
+                        "Output spec must contain a URL as an output path for file: "
+                        + output
+                    )
+                resource = spec.get("resource")
+                if resource:
+                    if is_valid_uuid(resource):
+                        sql_utils.task_execution_insert_output_spec_existing_resource(
+                            task_exec_id=id,
+                            output_name=output,
+                            output_address=url,
+                            resource=resource,
+                            resource_action=spec.get("resource_action", "REPLACE"),
+                        )
+                    elif isinstance(resource, dict) and spec.get("dataset"):
+                        dataset_friendly_name = spec.get("dataset")
+                        if self.validate_dataset(id, dataset_friendly_name):
+                            sql_utils.task_execution_insert_output_spec_new_resource(
+                                task_exec_id=id,
+                                output_name=output,
+                                output_address=url,
+                                dataset_friendly_name=dataset_friendly_name,
+                                resource_name=resource.get("name", ""),
+                                resource_label=resource.get("label", ""),
+                            )
+                        else:
+                            raise ConflictError(
+                                f"Dataset friendly name `{dataset_friendly_name}` not found in declared datasets."
+                            )
+                else:
+                    sql_utils.task_execution_insert_output_spec_plain_path(
+                        task_exec_id=id, output=output, url=url
+                    )
+
+    def create_task(self, creator_user: str, token: str, **spec):
         """Creates a new Task under a Process according to spec
 
         Args:
@@ -1042,14 +1138,14 @@ class Task(Entity):
         Raises:
             NotFoundError: If the Process is not found
         """
-
-        process_id = spec.get("process_id")
+        process_id = str(spec.get("process_id"))
         inputs = spec.get("inputs")
-        outputs = spec.get("outputs")
+        outputs = spec.get("outputs", {})
         datasets = spec.get("datasets")
         secrets = spec.get("secrets")
         parameters = spec.get("parameters")
         tags = spec.get("tags", {})
+        image = spec.get("image")
 
         # Validate the process existence
         PROCESS.validate_process(process_id)
@@ -1075,8 +1171,11 @@ class Task(Entity):
         with transaction():
             # Create the execution of the task in the database
             sql_utils.task_execution_create(
-                task_id, process_id, sdate, "running", creator_user, tags
+                task_id, process_id, sdate, "created", creator_user, tags
             )
+
+            # Clear the tags to avoid future conflicts
+            tags = {}
 
             # Parse the datasets. Performs insertion in the database, failures
             # handled by the transaction context.
@@ -1094,137 +1193,33 @@ class Task(Entity):
             # catched through the 'transaction' context.
             sql_utils.task_execution_insert_secrets(task_id, secrets)
 
-            # Future datasets are datasets that are going to be used for storing metadata when the task is completed.
-            if datasets:
-                for dataset in datasets:
-                    value = datasets[dataset]
-                    # Handle the case where the value is a package_id
-                    if is_valid_uuid(value):
-                        responses = (
-                            sql_utils.task_execution_insert_future_package_existing(
-                                task_exec_id=task_exec_id,
-                                package_id=value,
-                                package_friendly_name=dataset,
-                            )
-                        )
-                        if not responses:
-                            raise RuntimeError(
-                                "Task could not be created due to a database error regarding future datasets."
-                            )
-                    # Handle the case where the value is a package_dict
-                    elif utils.is_valid_package_dict(value):
-                        encoded_details = utils.encode_to_base64(value)
-                        responses = (
-                            sql_utils.task_execution_insert_future_package_details(
-                                task_exec_id=task_exec_id,
-                                package_details=encoded_details,
-                                package_friendly_name=dataset,
-                            )
-                        )
-                        if not responses:
-                            raise RuntimeError(
-                                "Task could not be created due to a database error regarding future datasets."
-                            )
+            # Insert the output specs in the database. Exception or errors are
+            # catched through the 'transaction' context.
+            self.parse_outputs(task_id, outputs)
 
-            # Handle output spec to store the details of actions that need to be taken after the task is completed regarding the output files and their metadata.
-            if outputs:
-                for output in outputs:
-                    if isinstance(outputs[output], dict):
-                        output_spec = outputs[output]
-                        if not output_spec.get("url"):
-                            raise ValueError(
-                                "Output spec must contain a URL as an output for file key: "
-                                + output
-                            )
-                        else:
-                            url = output_spec.get("url", None)
-                            # if not is_valid_url(url):
-                            #     continue
-                            # Handle the metadata related fields and cases
-                            if output_spec.get("resource", None):
-                                # Case where there is an existing resource that we want to overwrite its data
-                                resource = output_spec.get("resource")
-                                if is_valid_uuid(resource):
-                                    response = sql_utils.task_execution_insert_output_spec_existing_resource(
-                                        task_exec_id,
-                                        output,
-                                        url,
-                                        resource,
-                                        output_spec.get("resource_action", "REPLACE"),
-                                    )
-                                    if not response:
-                                        raise RuntimeError(
-                                            "Task could not be created due to a database error regarding output spec at output: "
-                                            + output
-                                        )
-
-                                # Case where we want to create a resource in a dataset specified in the datasets above.
-                                elif isinstance(resource, dict) and output_spec.get(
-                                    "dataset", None
-                                ):
-                                    dataset_friendly_name = output_spec.get("dataset")
-                                    if dataset_friendly_name in datasets.keys():
-                                        response = sql_utils.task_execution_insert_output_spec_new_resource(
-                                            task_exec_id,
-                                            output,
-                                            url,
-                                            dataset_friendly_name,
-                                            resource.get("name", ""),
-                                            resource.get("label", ""),
-                                        )
-                                        if not response:
-                                            raise RuntimeError(
-                                                "Task could not be created due to a database error regarding output spec at output: "
-                                                + output
-                                            )
-                                    else:
-                                        raise RuntimeError(
-                                            f"Dataset friendly name `{dataset_friendly_name}` not found in declared datasets."
-                                        )
-
-                            # Case where we don't want any metadata to be tracked for this output file.
-                            else:
-                                logger.debug(output + " : " + url)
-                                response = sql_utils.task_execution_insert_output_spec_plain_path(
-                                    task_exec_id, output, url
-                                )
-                                if not response:
-                                    raise RuntimeError(
-                                        "Task could not be created due to a database error regarding output spec at output: "
-                                        + output
-                                    )
-
-            # Task can also be executed outside the cluster, in that case image was specified so we create
-            # a job conditionally.
-
-            # Check if 'docker image' or 'tool name' fields exists inside json_data
-            if json_data.get("tool_name"):
-                tags["tool_name"] = json_data.get("tool_name", None)
-
-            if json_data.get("docker_image"):
+            # If the task is to be executed in the cluster, create the task execution
+            # on the engine and store the container_id and job_id in the database as task tags.
+            if image:
                 engine = execution.exec_engine()
                 token = "Bearer " + token
-                task_signature = generate_task_signature(task_exec_id)
+                task_signature = self.generate_signature(task_id)
                 tags["container_id"], tags["job_id"] = engine.create_task(
-                    json_data.get("docker_image"), token, task_exec_id, task_signature
+                    image, token, task_id, task_signature
                 )
-                tags["tool_image"] = json_data.get("docker_image")
 
-            response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
-            if not response:
-                raise RuntimeError(
-                    "Task could not be created due to an execution engine error."
-                )
+                sql_utils.task_execution_update(task_id, "running", tags=tags)
 
             return {
-                "task_exec_id": task_exec_id,
-                "job_id": tags.get("job_id", "Remote Task Mode"),
-                "signature": generate_task_signature(task_exec_id),
+                "id": task_id,
+                "job_id": tags.get("job_id", "__external__"),
+                "signature": generate_task_signature(task_id),
             }
 
-    def create(self):
-        self._create_task(kutils.current_user())
-        return None
+    def create(self, init_data):
+        """Creates a new Task under a Process according to spec"""
+        return self.create_task(
+            kutils.current_user().get("username"), kutils.current_token(), **init_data
+        )
 
     def patch(self, id: uuid, state):
         """Patches the current state of an existing Task.
@@ -1240,8 +1235,159 @@ class Task(Entity):
         task = self.get_entity(id)
         self.set_exec_state(task["id"], state)
 
-    def get_input_spec(self):
-        pass
+    def delegate_input_artifacts(
+        self, id: uuid.UUID, inputs: dict, credentials: dict = None
+    ):
+        """
+        Delegate the input artifacts to the appropriate URLs
+        based on their type. Supports translating wildcard paths
+        from S3 to their actual paths (limited to paths with s3://)
+
+        Args:
+            id: The ID of the Task
+            inputs: The inputs of the Task as fetched from the database
+        Returns:
+            A dictionary with the input artifacts delegated to their URLs
+            organized by the input group name.
+        """
+
+        # Delegate the input artifacts to the appropriate URLs
+        # based on their type.
+        delegated_inputs = {}
+        for input_group in inputs:
+            delegated_inputs[input_group] = []
+            for artifact in inputs[input_group]:
+                if is_valid_uuid(artifact):
+                    # Fetch the resource path from the Catalog
+                    artifact = cutils.RESOURCE.get_entity(artifact)["url"]
+                    if artifact:
+                        # If we have access to the data layer through the user's credentials
+                        # we unfold wilcard paths for S3 URLs to their actual paths.
+                        if credentials:
+                            if (
+                                isinstance(artifact, str)
+                                and artifact.startswith("s3://")
+                                and artifact.endswith("/*")
+                            ):
+                                expanded_paths = expand_wildcard_path(
+                                    artifact, credentials=credentials
+                                )
+                                if expanded_paths:
+                                    delegated_inputs[input_group].extend(expanded_paths)
+                                    continue
+
+                        delegated_inputs[input_group].append(artifact)
+                elif is_valid_url(artifact):
+                    # Delegate the URL as is
+                    delegated_inputs[input_group].append(artifact)
+        return delegated_inputs
+
+    def get_input(self, id: uuid.UUID, token: str = None, signature: str = None):
+        """Fetches the input spec of a Task including inputs, outputs and params.
+
+        The spec is provided in a dictionary format and includes the inputs, outputs
+        and parameters of the Task. The inputs are delegated to the appropriate URLs
+        based on their type. The final product is a dictionary of input groups that
+        contain the URLs of the artifacts. Wildcard paths for S3 URLs are unfolded
+        to their actual paths if the user has access to the data layer through the
+        provided credentials.
+
+        The method also verifies the signature of the request to include secret information
+        if the signature is valid. Signature is generated on task creation time.
+
+        An example of the input spec is as follows:
+        
+        {
+            "inputs": {
+                "group1": [
+                    "s3://bucket/path/to/object",
+                    "s3://bucket/path/of/object"
+                ]
+            },
+            "outputs": {
+                "file1": "s3://bucket2/path/to/write",
+                "file2": "s3://bucket2/path/to/output"
+            },
+            "parameters: {
+                depth: 14,
+                keyword: "foo",
+            },
+            "minio": {
+                "endpoint_url": "https://minio.stelar.gr",
+                "id": "ACCESS_KEY",
+                "skey": "SECRET_KEY",
+                "stoken": "SESSION_TOKEN"
+            },
+            "secrets": { 
+                "openai_key": "API_KEY",
+            }
+        }
+        
+        Args:
+            id: The ID of the Task
+            token: The token of the actor user
+            signature: The signature of the request to include secret information
+
+        Returns:
+            A dictionary with the input spec of the Task including the inputs, outputs and parameters.
+            
+        Raises:
+            NotFoundError: If the Task is not found.
+        """
+
+        self.validate_task(id)
+        id = str(id)
+
+        # Fetch the input groups and the parameters for the task execution from the database
+        inputs = sql_utils.task_execution_input_read_sql(id)
+        parameters = sql_utils.task_execution_parameters_read_sql(id)
+
+        credentials = None
+        if token:
+            credentials = get_temp_minio_credentials(token)
+
+        # Delegate the input artifacts to the appropriate URLs
+        # based on their type. The final product is a dictionary
+        # of input groups that contain the URLs of the artifacts.
+        delegated_inputs = self.delegate_input_artifacts(id, inputs, credentials)
+
+        # Read the paths for the output files that the tool is directed to write to.
+        outputs = sql_utils.task_read_output_spec(id)
+
+        # Construct the output destined to reach the task runtime
+        task_input_spec = {}
+        task_input_spec["inputs"] = delegated_inputs if delegated_inputs else {}
+        task_input_spec["parameters"] = parameters if parameters else {}
+        task_input_spec["outputs"] = outputs if outputs else {}
+
+        # If the request is signed, we verify the signature to include secret information.
+        if signature:
+            if self.verify_signature(id, signature):
+                # Fetch the secrets for the task execution from the database
+                secrets = sql_utils.task_execution_read_secrets(id)
+                if secrets:
+                    secrets_dict = {
+                        secret["key"]: secret["value"] for secret in secrets
+                    }
+                    task_input_spec.update({"secrets": secrets_dict})
+                task_input_spec["signature_verified"] = True
+
+        # Fetch the app config to include the MinIO API url.
+        config = current_app.config["settings"]
+
+        if credentials:
+            # If credentials were generated, propagate them to the
+            # task input spec to allow the tool to access the data layer.
+            task_input_spec["minio"] = {
+                "endpoint_url": config["MINIO_API_EXT_URL"],
+                "id": credentials["AccessKeyId"],
+                "key": credentials["SecretAccessKey"],
+                "skey": credentials["SessionToken"],
+            }
+        else:
+            task_input_spec["minio"] = {"endpoint_url": config["MINIO_API_EXT_URL"]}
+
+        return task_input_spec
 
     def save_output(self):
         pass
@@ -1333,240 +1479,6 @@ def delete_workflow_process(workflow_id):
     PROCESS.delete_entity(workflow_id)
 
 
-def create_task(json_data, token):
-    """Create a new task execution.
-
-    Creates a new task execution based on the input JSON provided. The task execution is associated with a workflow execution
-    which is used to monitor the progress of the tasks belonging to it and acting as a shared context for the tasks.
-
-    Args:
-           json_data: The input JSON for the task execution.
-           token: The access token for the user.
-    Returns:
-           A JSON with the task execution ID and the job ID (if the task is executed in the cluster).
-    """
-    try:
-        userinfo = kutils.get_user_by_token(token)
-        creator_user_id = userinfo.get("preferred_username", None)
-    except Exception:
-        raise ValueError
-
-    # breakpoint()
-
-    try:
-        tags = {}
-
-        workflow_exec_id = json_data["workflow_exec_id"]
-        input = json_data.get("inputs")
-        parameters = json_data.get("parameters")
-        datasets = json_data.get("datasets")
-        secrets = json_data.get("secrets")
-        outputs = json_data.get("outputs")
-
-        #### CHECK WORKFLOW EXECUTION STATE AND EXISTENCE
-        workflow = sql_utils.workflow_execution_read(workflow_exec_id)
-        if workflow is None:
-            raise RuntimeError("Workflow does not exist!")
-
-        if workflow.get("exec_state") != "running":
-            raise ConflictError("Workflow is committed and will not accept tasks!")
-
-        start_date = datetime.now().isoformat()
-        state = "running"
-        task_exec_id = str(uuid.uuid4())
-
-        response = sql_utils.task_execution_create(
-            task_exec_id, workflow_exec_id, start_date, state, creator_user_id
-        )
-        if not response:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "message": "Workflow Execution could not be created.",
-                    }
-                ),
-                500,
-            )
-        if input:
-            for key in input:
-                resources = []
-                input_group_name = key
-                for val in input[key]:
-                    dataset_uuid, filter_value = None, None
-                    # Extract possible filter from val
-                    if "::" in val:
-                        dataset_uuid, filter_value = val.split("::", 1)
-
-                    # Check if the value is a valid UUID
-                    if is_valid_uuid(dataset_uuid or val):
-                        if cutils.is_package(dataset_uuid or val):
-                            # Pass dataset_uuid and filter_value to get_package_resources
-                            dataset_resources = [
-                                resource["id"]
-                                for resource in cutils.get_package_resources(
-                                    dataset_uuid or val, filter_value
-                                )
-                            ]
-                            resources.extend(dataset_resources)
-                        elif cutils.is_resource(dataset_uuid or val):
-                            resources.append(dataset_uuid or val)
-                    elif is_valid_url(val):
-                        resources.append(val)
-
-                response = sql_utils.task_execution_insert_input(
-                    task_exec_id, resources, input_group_name
-                )
-
-                if not response:
-                    raise RuntimeError(
-                        "Task could not be created due to a database error."
-                    )
-
-        parameters = {k: str(v) for k, v in parameters.items()}
-        response = sql_utils.task_execution_insert_parameters(task_exec_id, parameters)
-
-        if not response:
-            raise RuntimeError(
-                "Task could not be created due to a database error regarding parameters."
-            )
-
-        if secrets:
-            response = sql_utils.task_execution_insert_secrets(task_exec_id, secrets)
-            if not response:
-                raise RuntimeError(
-                    "Task could not be created due to a database error regarding secrets."
-                )
-
-        # Future datasets are datasets that are going to be used for storing metadata when the task is completed.
-        if datasets:
-            for dataset in datasets:
-                value = datasets[dataset]
-                # Handle the case where the value is a package_id
-                if is_valid_uuid(value):
-                    responses = sql_utils.task_execution_insert_future_package_existing(
-                        task_exec_id=task_exec_id,
-                        package_id=value,
-                        package_friendly_name=dataset,
-                    )
-                    if not responses:
-                        raise RuntimeError(
-                            "Task could not be created due to a database error regarding future datasets."
-                        )
-                # Handle the case where the value is a package_dict
-                elif utils.is_valid_package_dict(value):
-                    encoded_details = utils.encode_to_base64(value)
-                    responses = sql_utils.task_execution_insert_future_package_details(
-                        task_exec_id=task_exec_id,
-                        package_details=encoded_details,
-                        package_friendly_name=dataset,
-                    )
-                    if not responses:
-                        raise RuntimeError(
-                            "Task could not be created due to a database error regarding future datasets."
-                        )
-
-        # Handle output spec to store the details of actions that need to be taken after the task is completed regarding the output files and their metadata.
-        if outputs:
-            for output in outputs:
-                if isinstance(outputs[output], dict):
-                    output_spec = outputs[output]
-                    if not output_spec.get("url"):
-                        raise ValueError(
-                            "Output spec must contain a URL as an output for file key: "
-                            + output
-                        )
-                    else:
-                        url = output_spec.get("url", None)
-                        # if not is_valid_url(url):
-                        #     continue
-                        # Handle the metadata related fields and cases
-                        if output_spec.get("resource", None):
-                            # Case where there is an existing resource that we want to overwrite its data
-                            resource = output_spec.get("resource")
-                            if is_valid_uuid(resource):
-                                response = sql_utils.task_execution_insert_output_spec_existing_resource(
-                                    task_exec_id,
-                                    output,
-                                    url,
-                                    resource,
-                                    output_spec.get("resource_action", "REPLACE"),
-                                )
-                                if not response:
-                                    raise RuntimeError(
-                                        "Task could not be created due to a database error regarding output spec at output: "
-                                        + output
-                                    )
-
-                            # Case where we want to create a resource in a dataset specified in the datasets above.
-                            elif isinstance(resource, dict) and output_spec.get(
-                                "dataset", None
-                            ):
-                                dataset_friendly_name = output_spec.get("dataset")
-                                if dataset_friendly_name in datasets.keys():
-                                    response = sql_utils.task_execution_insert_output_spec_new_resource(
-                                        task_exec_id,
-                                        output,
-                                        url,
-                                        dataset_friendly_name,
-                                        resource.get("name", ""),
-                                        resource.get("label", ""),
-                                    )
-                                    if not response:
-                                        raise RuntimeError(
-                                            "Task could not be created due to a database error regarding output spec at output: "
-                                            + output
-                                        )
-                                else:
-                                    raise RuntimeError(
-                                        f"Dataset friendly name `{dataset_friendly_name}` not found in declared datasets."
-                                    )
-
-                        # Case where we don't want any metadata to be tracked for this output file.
-                        else:
-                            logger.debug(output + " : " + url)
-                            response = (
-                                sql_utils.task_execution_insert_output_spec_plain_path(
-                                    task_exec_id, output, url
-                                )
-                            )
-                            if not response:
-                                raise RuntimeError(
-                                    "Task could not be created due to a database error regarding output spec at output: "
-                                    + output
-                                )
-
-        # Task can also be executed outside the cluster, in that case image was specified so we create
-        # a job conditionally.
-
-        # Check if 'docker image' or 'tool name' fields exists inside json_data
-        if json_data.get("tool_name"):
-            tags["tool_name"] = json_data.get("tool_name", None)
-
-        if json_data.get("docker_image"):
-            engine = execution.exec_engine()
-            token = "Bearer " + token
-            task_signature = generate_task_signature(task_exec_id)
-            tags["container_id"], tags["job_id"] = engine.create_task(
-                json_data.get("docker_image"), token, task_exec_id, task_signature
-            )
-            tags["tool_image"] = json_data.get("docker_image")
-
-        response = sql_utils.task_execution_update(task_exec_id, state, tags=tags)
-        if not response:
-            raise RuntimeError(
-                "Task could not be created due to an execution engine error."
-            )
-
-        return {
-            "task_exec_id": task_exec_id,
-            "job_id": tags.get("job_id", "Remote Task Mode"),
-            "signature": generate_task_signature(task_exec_id),
-        }
-    except Exception as e:
-        raise RuntimeError(f"Task could not be created. {e}")
-
-
 def get_task_metadata(task_id):
     """Retrieve the metadata for a task execution.
 
@@ -1637,194 +1549,6 @@ def get_task_info(task_id):
     engine = execution.exec_engine()
     logs = engine.get_task_info(task_id)
     return logs
-
-
-def delete_task(task_id):
-    """Delete a task execution.
-
-    Deletes a task execution based on the input task id provided. The task execution is removed from the database
-    and the deletion cascades to the associated input groups, parameters, and outputs (specs).
-
-    Args:
-           task_id: The unique identifier of the task execution.
-    Returns:
-           A boolean value indicating whether the task execution was successfully deleted.
-    """
-    try:
-        # Check if the task exists. Throws an exception if it does not.
-        get_task_metadata(task_id)
-        response = sql_utils.task_execution_delete(task_id)
-        return bool(response)
-
-    except ValueError:
-        raise
-    except Exception:
-        return False
-
-
-def get_task_input_json(
-    task_id, signature=None, access_token=None, show_resource_ids=False
-):
-    """Retrieve the input JSON for a task execution. This is the JSON the tool finally receives.
-
-    Provides the input JSON for a task execution, including the input groups and the parameters.
-    The input JSON is used to create a task execution.
-
-    Args:
-           task_id: The unique identifier of the task execution.
-           access_token: The access token for MinIO. (Default is None)
-    Returns:
-           A JSON with the input groups, parameters and MinIO credentials (if access_token was
-           provided and was valid) for the specified task id.
-    """
-    if is_valid_uuid(task_id):
-        task_exec_id = task_id
-        config = current_app.config["settings"]
-
-        # Check if the task exists
-        try:
-            get_task_metadata(task_exec_id)
-        except ValueError:
-            raise ValueError("Task does not exist.")
-
-        # Fetch the input groups and the parameters for the task execution from the database
-        input = sql_utils.task_execution_input_read_sql(task_exec_id)
-        parameters = sql_utils.task_execution_parameters_read_sql(task_exec_id)
-
-        access_key = secret_key = session_token = None
-
-        if access_token:
-            # Produce STS Token for MinIO Access
-            minio_body = {
-                "Action": "AssumeRoleWithWebIdentity",
-                "WebIdentityToken": access_token,
-                "Version": "2011-06-15",
-                "DurationSeconds": "86000",
-            }
-            minio_url = config["MINIO_API_EXT_URL"]
-
-            # Make a POST request to MinIO's STS endpoint to retrieve credentials, if any.
-            try:
-                response = requests.post(url=minio_url, params=minio_body, verify=False)
-            except requests.exceptions.RequestException:
-                pass
-
-            # Handle the response, parse XML if successful
-            if response.status_code == 200:
-                try:
-                    root = ET.fromstring(response.text)
-                    # Extracting relevant information from the XML
-                    credentials = root.find(
-                        ".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials"
-                    )
-                    if credentials is not None:
-                        access_key = (
-                            credentials.find(
-                                "{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId"
-                            ).text
-                            if credentials.find(
-                                "{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId"
-                            )
-                            is not None
-                            else None
-                        )
-                        secret_key = (
-                            credentials.find(
-                                "{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey"
-                            ).text
-                            if credentials.find(
-                                "{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey"
-                            )
-                            is not None
-                            else None
-                        )
-                        session_token = (
-                            credentials.find(
-                                "{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken"
-                            ).text
-                            if credentials.find(
-                                "{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken"
-                            )
-                            is not None
-                            else None
-                        )
-                except ET.ParseError as e:
-                    pass
-
-        try:
-            # Fetch the URL/Path pointed by each artifact in the inputs spec (or pass it as plain path)
-            input_paths = dict()
-            # We allow grouping of inputs in the JSON tool spec. For each group, we fetch the paths of the artifacts or URLs.
-            for group in input:
-                # We maintain a list of paths for each group(field) into a dictionary
-                input_paths[group] = list()
-                for artifact in input[group]:
-                    # If the artifact is a URL, we directly append it to the list, else we fetch the path from CKAN
-                    if is_valid_uuid(artifact):
-                        if show_resource_ids:
-                            artifact_id = artifact
-                            artifact = {}
-                            artifact["path"] = api_artifact_id(artifact_id)
-                            artifact["id"] = artifact_id
-
-                        else:
-                            artifact = api_artifact_id(artifact)
-
-                        if artifact is None:
-                            continue
-
-                    if show_resource_ids and not isinstance(artifact, dict):
-                        temp = {}
-                        temp["path"] = artifact
-                        temp["id"] = None
-                        artifact = temp
-
-                    input_paths[group].append(artifact)
-
-            # Check if credentials are not None, else we return the input paths and parameters only.
-            if access_key and secret_key and session_token:
-                result = {
-                    "inputs": input_paths,
-                    "parameters": parameters,
-                    "minio": {
-                        "endpoint_url": minio_url,
-                        "id": access_key,
-                        "key": secret_key,
-                        "skey": session_token,
-                    },
-                }
-            else:
-                result = {
-                    "input": input_paths,
-                    "parameters": parameters,
-                    "minio": {"endpoint_url": config["MINIO_API_EXT_URL"]},
-                }
-
-            # Read the paths for the output files that the tool will write to.
-            output = sql_utils.task_read_output_spec(task_exec_id)
-            if output:
-                result["outputs"] = output
-
-            # If the request is signed, we verify the signature to include secret information.
-            if signature:
-                if verify_task_signature(task_exec_id, signature):
-                    # Fetch the secrets for the task execution from the database
-                    secrets = sql_utils.task_execution_read_secrets(task_exec_id)
-                    if secrets:
-                        secrets_dict = {}
-                        # Iterate over the list of secrets and add key-value pairs to the new dictionary
-                        secrets_dict = {
-                            secret["key"]: secret["value"] for secret in secrets
-                        }
-                        result.update({"secrets": secrets_dict})
-                    result["signature_verified"] = True
-
-            return result
-
-        except Exception as e:
-            raise RuntimeError(f"Task Input Could Not Be Retrieved. {e}")
-    else:
-        raise AttributeError("Invalid Task ID provided.")
 
 
 def get_task_output_json(task_id, signature, output_json):
