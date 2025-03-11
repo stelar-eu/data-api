@@ -932,6 +932,18 @@ def task_read_output_spec_of_file(task_exec_id, file_key):
         return None
 
 
+def task_read_dataset(task_id, dataset_friendly_name):
+    sql = utils.sql_workflow_execution_templates["task_read_dataset_by_uuid_template"]
+
+    resp = pgsql.execSql(sql, (task_id, dataset_friendly_name))
+
+    if resp and len(resp) > 0:
+        dataset = resp[0]
+        return dataset
+    else:
+        return None
+
+
 def task_execution_read(task_exec_id):
     """Returns metadata recorded in the database about the given task execution. User-specified tags are included in the returned response.
 

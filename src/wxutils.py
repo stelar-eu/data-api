@@ -835,6 +835,9 @@ class Task(Entity):
     def parse_inputs(self, id: uuid.UUID, process_id: uuid.UUID, inputs: dict):
         """Parses the input provided in the Task Spec
 
+        It is highly recommended to use this method within a 'transaction()' context
+        to ensure that the inputs are inserted in the database in a consistent manner.
+
         The input spec is a field in the broader JSON that describes the Task.
         It is a nested dictionary with the following structure:
 
@@ -866,6 +869,9 @@ class Task(Entity):
                        paths are also supported (s3://klms-bucket/data/*).
                        The wildcards are unfolded during the generation of the input destined
                        to reach the actual tool runtime.
+        5. Task Dataset (name::filter): A friendly name of a dataset that is part of the Task.
+                          The dataset is validated to exist in the Task and its resources are
+                          expanded to the input list upon filter.
         Args:
             id: The ID of the newly created Task.
             process_id: The ID of the process the task belongs to.
@@ -924,9 +930,107 @@ class Task(Entity):
                     # to the tool.
                     input_artifacts.append(val)
 
+                elif self.dataset_exists(id, artifact_uuid or val):
+                    # Handle the case where the value is a dataset friendly name
+                    # and the dataset exists in the Task.
+                    package = sql_utils.task_read_dataset(id, artifact_uuid or val)
+                    if package and package.get("package_uuid") is not None:
+                        package_resources = [
+                            resource["id"]
+                            for resource in cutils.get_package_resources(
+                                package.get("package_uuid"), filter_value
+                            )
+                        ]
+                    input_artifacts.extend(package_resources)
+
             # Insert the input artifacts in the database. Exception or errors are
             # catched through the 'transaction' context of the caller function.
             sql_utils.task_execution_insert_input(id, input_artifacts, group)
+
+    def dataset_exists(self, id: uuid.UUID, dataset_friendly_name: str):
+        """Check if the dataset friendly name is a valid Task dataset.
+
+        Args:
+            id: The ID of the Task by which the dataset is referenced
+            dataset_friendly_name: The friendly name of the dataset to validate.
+
+        Returns:
+            True if the dataset exists, False otherwise.
+        """
+        package = sql_utils.task_read_dataset(id, dataset_friendly_name)
+
+        if package and package.get("package_uuid") is not None:
+            return True
+
+        return False
+
+    def parse_parameters(self, id: uuid.UUID, parameters: dict):
+        """Parses the parameters provided in the Task Spec
+
+        It is highly recommended to use this method within a 'transaction()' context
+        to ensure that the parameters are inserted in the database in a consistent manner.
+
+        The parameters spec is a field in the broader JSON that describes the Task.
+        It is a dictionary with the following structure:
+
+        "parameters": {
+            "param0": "value0",
+            "param1": 1234,
+            "param2": {
+                "key1": "value1",
+                "key2": 1234
+            },
+        }
+
+        Args:
+            id: The ID of the newly created Task.
+            parameters: The parameters of the task as provided in the Task Spec.
+        """
+        for param, value in parameters.items():
+            sql_utils.task_execution_insert_parameters(id, param, value)
+
+    def parse_datasets(self, id: uuid.UUID, datasets: dict):
+        """Parses the datasets provided in the Task Spec
+
+        It is highly recommended to use this method within a 'transaction()' context
+        to ensure that the datasets are inserted in the database in a consistent manner.
+
+        The datasets spec is a field in the broader JSON that describes the Task.
+        It is a dictionary with the following structure:
+
+        "datasets": {
+            "dataset0": "6a909646-9218-4e75-902d-0cbef791bc3e",
+            "dataset1": {
+                "name": "dataset1",
+                "title": "Title of the dataset",
+                "tags": ["tag1", "tag2"],
+                "spatial": {"type": "Polygon", "coordinates": [[[0, 0], [1, 1], [0, 1], [0, 0]]]},
+            }
+        }
+
+        Datasets can be referenced in other places of the Task Spec using their friendly name.
+
+        Args:
+            id: The ID of the newly created Task.
+            datasets: The datasets of the task as provided in the Task Spec.
+        """
+
+        for dataset, value in datasets.items():
+            # Handle the case where the value is a package_id
+            if is_valid_uuid(value) and cutils.is_package(value):
+                sql_utils.task_execution_insert_future_package_existing(
+                    task_exec_id=id,
+                    package_id=value,
+                    package_friendly_name=dataset,
+                )
+            # Handle the case where the value is a package_dict
+            elif utils.is_valid_package_dict(value):
+                encoded_details = utils.encode_to_base64(value)
+                sql_utils.task_execution_insert_future_package_details(
+                    task_exec_id=id,
+                    package_details=encoded_details,
+                    package_friendly_name=dataset,
+                )
 
     def create_task(self, creator_user: str, **spec):
         """Creates a new Task under a Process according to spec
@@ -960,36 +1064,35 @@ class Task(Entity):
         sdate = datetime.now().isoformat()
         task_id = str(uuid.uuid4())
 
+        # Store the name and image of the task in the tags table.
+        if "name" in spec:
+            tags["name"] = spec["name"]
+        if "image" in spec:
+            tags["image"] = spec["image"]
+
+        # Act within a transaction to ensure that the task is created in a consistent manner.
+        # Avoid partial creation of the task in the database leading to inconsistencies.
         with transaction():
             # Create the execution of the task in the database
             sql_utils.task_execution_create(
                 task_id, process_id, sdate, "running", creator_user, tags
             )
 
+            # Parse the datasets. Performs insertion in the database, failures
+            # handled by the transaction context.
+            self.parse_datasets(task_id, datasets)
+
             # Parse the inputs. Performs insertion in the database, failures
             # handled by the transaction context.
             self.parse_inputs(task_id, process_id, inputs)
 
-        try:
+            # Parse the params. Performs insertion in the database, failures
+            # handled by the transaction context.
+            self.parse_parameters(task_id, parameters)
 
-            parameters = {k: str(v) for k, v in parameters.items()}
-            response = sql_utils.task_execution_insert_parameters(
-                task_exec_id, parameters
-            )
-
-            if not response:
-                raise RuntimeError(
-                    "Task could not be created due to a database error regarding parameters."
-                )
-
-            if secrets:
-                response = sql_utils.task_execution_insert_secrets(
-                    task_exec_id, secrets
-                )
-                if not response:
-                    raise RuntimeError(
-                        "Task could not be created due to a database error regarding secrets."
-                    )
+            # Insert possible secrets in the database. Exception or errors are
+            # catched through the 'transaction' context.
+            sql_utils.task_execution_insert_secrets(task_id, secrets)
 
             # Future datasets are datasets that are going to be used for storing metadata when the task is completed.
             if datasets:
@@ -1118,8 +1221,6 @@ class Task(Entity):
                 "job_id": tags.get("job_id", "Remote Task Mode"),
                 "signature": generate_task_signature(task_exec_id),
             }
-        except Exception as e:
-            raise RuntimeError(f"Task could not be created. {e}")
 
     def create(self):
         self._create_task(kutils.current_user())
