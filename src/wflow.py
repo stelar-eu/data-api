@@ -7,7 +7,6 @@
 """
 
 from apiflask import fields, validators
-from marshmallow import EXCLUDE
 
 from entity import PackageCKANSchema, PackageEntity, PackageSchema
 
@@ -19,9 +18,8 @@ class WorkflowCKANSchema(PackageCKANSchema):
     # Use resources to represent images
     # images = fields.Raw(data_key="resources", load_only=True)
 
-    class Meta:
+    class Meta(PackageCKANSchema.Meta):
         exclude = ["url"]
-        unknown = EXCLUDE
         extra_attributes = ["executor"]
 
 
