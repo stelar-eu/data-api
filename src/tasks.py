@@ -238,13 +238,17 @@ class Task(Entity):
         self.validate_task(id)
 
         task = sql_utils.task_execution_read(id)
-
+        logger.debug(f"Task {id} fetched from the database: {task}")
         # Delegate some specific tags as top-level attributes in the final repr.
         if task["tags"]:
-            if task["tags"].get("tool_image"):
-                task["tool_image"] = task["tags"]["tool_image"]
-            if task["tags"].get("tool_name"):
-                task["tool_name"] = task["tags"]["tool_name"]
+            if task["tags"].get("__image__"):
+                task["image"] = task["tags"]["__image__"]
+            if task["tags"].get("__name__"):
+                task["name"] = task["tags"]["__name__"]
+
+        # Pop system reserved tags from the final dict.
+        task["tags"].pop("__image__", None)
+        task["tags"].pop("__name__", None)
 
         if task["state"] in ["failed", "succeeded"]:
             task["messages"] = task["tags"]["log"]
@@ -617,9 +621,9 @@ class Task(Entity):
 
         # Store the name and image of the task in the tags table.
         if "name" in spec:
-            tags["name"] = spec["name"]
+            tags["__name__"] = spec["name"]
         if "image" in spec:
-            tags["image"] = spec["image"]
+            tags["__image__"] = spec["image"]
 
         # Act within a transaction to ensure that the task is created in a consistent manner.
         # Avoid partial creation of the task in the database leading to inconsistencies.

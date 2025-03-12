@@ -258,13 +258,13 @@ sql_workflow_execution_templates = {
             (
                 SELECT tg.value 
                 FROM klms.task_tag tg 
-                WHERE tg.key = 'tool_image' AND tg.task_uuid=tsk.task_uuid
-            ) AS tool_image,
+                WHERE tg.key = '__image__' AND tg.task_uuid=tsk.task_uuid
+            ) AS image,
             (
                 SELECT tg.value 
                 FROM klms.task_tag tg 
-                WHERE tg.key = 'tool_name' AND tg.task_uuid=tsk.task_uuid
-            ) AS tool_name
+                WHERE tg.key = '__name__' AND tg.task_uuid=tsk.task_uuid
+            ) AS name
         FROM
             klms.task_execution AS tsk 
         WHERE
