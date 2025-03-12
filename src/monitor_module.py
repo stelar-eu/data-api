@@ -1,5 +1,5 @@
 import subprocess
-
+from backend.minio import minio_fetch_policies
 
 def get_current_realm_roles(keycloak_admin):
     # Get the list of existing realm roles from the system
@@ -10,19 +10,8 @@ def get_current_realm_roles(keycloak_admin):
 
 
 def get_current_policies():
-    command = "mc admin policy ls myminio"
-
-    result = subprocess.run(
-        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True
-    )
-
-    # Check if the command was successful
-    if result.returncode != 0:
-        print(f"Error running command: {result.stderr}")
-        return set()
-
-    # Split the output into lines or words (depending on the expected output format)
-    output_lines = result.stdout.splitlines()
+    
+    output_lines = minio_fetch_policies()
 
     return output_lines
 

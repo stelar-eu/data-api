@@ -10,7 +10,9 @@ from routes.generic import error_responses, generate_endpoints, render_api_outpu
 
 logger = logging.getLogger(__name__)
 
-catalog_bp = APIBlueprint("catalog_blueprint", __name__, tag="Data Catalog Operations")
+catalog_bp = APIBlueprint(
+    "catalog_blueprint", __name__, tag="RESTful Publishing Operations"
+)
 
 
 # --------------------------------------------------------

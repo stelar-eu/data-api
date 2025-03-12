@@ -24,6 +24,8 @@ from keycloak.keycloak_openid import KeycloakOpenID
 
 import sql_utils
 from backend.ckan import ckan_request
+from backend.pgsql import execSql
+
 
 from exceptions import BackendError, InternalException, InvalidError
 from utils import is_valid_uuid, validate_email
@@ -241,7 +243,7 @@ def current_user():
     """
     if "current_user" not in flask.g:
         from flask import request
-
+        logger.info("Fetching current user's info by token")
         match request.headers.get("Authorization", "").split(" "):
             case ["Bearer", access_token]:
                 pass
@@ -249,7 +251,33 @@ def current_user():
                 access_token = session.get("access_token")
 
         flask.g.current_user = get_user_by_token(access_token=access_token)
+    logger.info("User's info fetched from context")
     return flask.g.current_user
+
+
+def current_token():
+    """Return the current token from the session or the request headers.
+
+    When the 'Authorization' header is present in the request, the user is fetched using the access token in the header.
+    else, the user is fetched using the access token stored in the session.
+
+    NOTE: This is a bit fragile, since it assumes that the header 'Authorization' is always present in the request.
+    Properly, a check would be needed.
+
+    Returns:
+        dict: The token.
+    """
+    if "access_token" not in flask.g:
+        from flask import request
+
+        match request.headers.get("Authorization", "").split(" "):
+            case ["Bearer", access_token]:
+                pass
+            case _:
+                access_token = session.get("access_token")
+
+        flask.g.access_token = access_token
+    return flask.g.access_token
 
 
 def user_has_2fa(user_id):
@@ -679,6 +707,9 @@ def create_user_with_password(
             logger.error("Error while calling ckan_request: %s", str(e), exc_info=True)
             keycloak_admin.delete_user(user_id)
             raise BackendError("Error while creating user") from e
+        
+        query = "UPDATE public.\"user\" SET sysadmin = %s WHERE id = %s"
+        result = execSql(query, (True, user_id))
 
         return user_id
     except KeycloakAuthenticationError as e:

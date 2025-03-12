@@ -251,20 +251,20 @@ sql_workflow_execution_templates = {
         """,
     "workflow_get_tasks": """\
         SELECT 
-            tsk.task_uuid as task_exec_id, 
+            tsk.task_uuid as id, 
             tsk.state, 
             tsk.start_date, 
             tsk.end_date, 
             (
                 SELECT tg.value 
                 FROM klms.task_tag tg 
-                WHERE tg.key = 'tool_image' AND tg.task_uuid=tsk.task_uuid
-            ) AS tool_image,
+                WHERE tg.key = '__image__' AND tg.task_uuid=tsk.task_uuid
+            ) AS image,
             (
                 SELECT tg.value 
                 FROM klms.task_tag tg 
-                WHERE tg.key = 'tool_name' AND tg.task_uuid=tsk.task_uuid
-            ) AS tool_name
+                WHERE tg.key = '__name__' AND tg.task_uuid=tsk.task_uuid
+            ) AS name
         FROM
             klms.task_execution AS tsk 
         WHERE
@@ -319,6 +319,8 @@ sql_workflow_execution_templates = {
                                                LEFT JOIN public.resource as rsrc 
                                                ON tsk_out.dataset_id = rsrc.id
                                                WHERE task_uuid = %s""",
+    "task_read_dataset_by_uuid_template": """SELECT package_friendly_name, package_details, package_uuid
+                                             FROM klms.task_future_output_packages WHERE task_uuid = %s AND package_friendly_name = %s""",
     #
     "task_insert_input_dataset_template": "INSERT INTO klms.task_input(task_uuid, order_num, dataset_id) VALUES (%s, %s, %s)",
     "task_insert_output_dataset_template": "INSERT INTO klms.task_output(task_uuid, order_num, dataset_id) VALUES (%s, %s, %s)",
@@ -328,7 +330,7 @@ sql_workflow_execution_templates = {
     "task_insert_output_package": "INSERT INTO klms.task_output_package(task_uuid, package_uuid) VALUES (%s, %s)",
     #
     "task_insert_tags_template": "INSERT INTO klms.task_tag VALUES (%s, %s, %s)",
-    "task_insert_parameters_template": "INSERT INTO klms.parameters VALUES (%s, %s, %s)",
+    "task_insert_parameters_template": "INSERT INTO klms.parameters VALUES (%s, %s, %s::json)",
     "task_insert_metrics_template": "INSERT INTO klms.metrics VALUES (%s, %s, %s, now())",
     "workflow_read_statistics": """SELECT te.workflow_uuid, te.task_uuid, p.key, p.value
 FROM klms.task_execution te, klms.workflow_tag wt, klms.parameters p
@@ -644,24 +646,8 @@ def decode_from_base64(base64_string):
 
 
 def is_valid_package_dict(obj):
-    required_keys = {"title", "tags", "notes"}
+    required_keys = {"name", "tags", "notes"}
     return isinstance(obj, dict) and required_keys.issubset(obj.keys())
-
-
-def is_valid_uuid(s):
-    """Check if a string is a valid UUID. Valid UUIDs are of the form 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.
-    Args:
-        s: The string to be checked.
-    Returns:
-        A boolean value indicating whether the string is a valid UUID.
-    """
-    try:
-        # Try converting the string to a UUID object
-        uuid_obj = uuid.UUID(s)
-        # Check if the string matches the canonical form of the UUID (with lowercase hexadecimal and hyphens)
-        return str(uuid_obj) == s
-    except Exception:
-        return False
 
 
 def assign_scores(

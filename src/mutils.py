@@ -4,14 +4,17 @@ import json
 import logging
 import subprocess
 import xml.etree.ElementTree as ET
+import os
 
 import requests
 from flask import current_app, make_response
 from minio import Minio
 from minio.commonconfig import CopySource
 from minio.error import S3Error
+import backend.minio
+from backend.minio import minio_add_policy, minio_remove_policy  
 
-from exceptions import InternalException
+from exceptions import InternalException, AuthorizationError
 
 
 def initialize_minio_admin(ac_key, sec_key, token):
@@ -35,17 +38,13 @@ def get_temp_minio_credentials(access_token):
     config = current_app.config["settings"]
 
     if access_token is None:
+        raise AuthorizationError("No access token found in call arguments.")
+
+    if not isinstance(access_token, str):
         try:
-            raise ValueError("No access token found in call arguments.")
-        except ValueError as e:
-            # Handle the case where no token is found, return 401 Unauthorized
-            return make_response(
-                {
-                    "success": False,
-                    "error": {"__type": "Authorization Error", "name": [str(e)]},
-                },
-                401,
-            )
+            access_token = access_token["token"]
+        except (TypeError, KeyError):
+            raise AuthorizationError("Provided access token is not a valid string.")
 
     # Produce STS Token for MinIO Access
     minio_body = {
@@ -110,6 +109,42 @@ def get_temp_minio_credentials(access_token):
     else:
         # raise Exception("Credentials not found in the STS response")
         response.raise_for_status()
+
+
+def expand_wildcard_path(path, credentials, bucket_name=None):
+    # Remove "s3://" prefix if present
+
+    if path.startswith("s3://"):
+        path = path[5:]
+
+    # Determine bucket and object (or prefix) from the input
+    if bucket_name is None:
+        parts = path.split("/", 1)
+        if len(parts) != 2:
+            raise ValueError("Path must be in the format 'bucket/object_name'")
+        bucket_name, object_name = parts
+    else:
+        object_name = path
+
+    client = initialize_minio_admin(
+        ac_key=credentials["AccessKeyId"],
+        sec_key=credentials["SecretAccessKey"],
+        token=credentials["SessionToken"],
+    )
+
+    # Remove trailing '*' if present to get the prefix
+    prefix = object_name[:-1] if object_name.endswith("*") else object_name
+
+    expanded_paths = list()
+    objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
+
+    for obj in objects:
+        # Exclude the object that exactly matches the prefix
+        if obj.object_name == prefix or obj.object_name.endswith("/"):
+            continue
+        expanded_paths.append(f"s3://{bucket_name}/{obj.object_name}")
+
+    return expanded_paths
 
 
 def evaluate_write_access(credentials, bucket_name, object_name):
@@ -306,9 +341,7 @@ def create_policy(perm):
                 "Effect": "Allow",
                 "Action": ["s3:ListBucket"],
                 "Resource": ["arn:aws:s3:::" + perm["resource"].split("/")[0]],
-                "Condition": {
-                    "StringLike": {"s3:prefix": [f"{resource_sub_part}"]}
-                },
+                "Condition": {"StringLike": {"s3:prefix": [f"{resource_sub_part}"]}},
             },
             {
                 "Effect": "Allow",
@@ -349,25 +382,27 @@ def create_policy(perm):
     with open(policy_file, "w") as file:
         file.write(policy_json)
 
-    try:
-        # Create the policy using mc client
-        subprocess.run(
-            [
-                "mc",
-                "admin",
-                "policy",
-                "create",
-                "myminio",
-                hashed_policy_name,
-                policy_file,
-            ],
-            check=True,
-        )
-        print(f"Policy '{hashed_policy_name}' created successfully.")
+    minio_add_policy(hashed_policy_name, policy_file)
 
-        # Apply the policy to the user
-    except subprocess.CalledProcessError as err:
-        print(f"Error occurred: {err}")
+    # try:
+    #     # Create the policy using mc client
+    #     subprocess.run(
+    #         [
+    #             "mc",
+    #             "admin",
+    #             "policy",
+    #             "create",
+    #             "myminio",
+    #             hashed_policy_name,
+    #             policy_file,
+    #         ],
+    #         check=True,
+    #     )
+    #     print(f"Policy '{hashed_policy_name}' created successfully.")
+
+    #     # Apply the policy to the user
+    # except subprocess.CalledProcessError as err:
+    #     print(f"Error occurred: {err}")
 
     policy_names_list.append(hashed_policy_name)
 
@@ -377,4 +412,5 @@ def create_policy(perm):
 def delete_policies(policies_to_delete):
     for policy in policies_to_delete:
         # delete_command = "mc admin policy rm myminio " + policy
-        subprocess.run(["mc", "admin", "policy", "rm", "myminio", policy])
+        # subprocess.run(["mc", "admin", "policy", "rm", "myminio", policy]
+        minio_remove_policy(policy)

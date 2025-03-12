@@ -338,6 +338,7 @@ class UpdatedUser(Schema):
     firstName = String(required=False, validate=Length(0, 100))
     lastName = String(required=False, validate=Length(0, 100))
     enabled = Boolean(required=False)
+    emailVerified = Boolean(required=False)
 
 
 class UserRole(Schema):
