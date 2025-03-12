@@ -960,8 +960,60 @@ class Task(Entity):
             self.set_exec_state(id, "failed")
 
         elif spec.get("status"):
-            map_state = map_state_to_execution_status(spec.get("status"))
+            map_state = self.parse_state(spec.get("status"))
             self.set_exec_state(id, map_state)
+
+    def get_logs(self, id: uuid.UUID):
+        """Retrieve the logs for a task executed by the engine of the cluster.
+
+        Provides the logs for a task. The logs are used to monitor the progress of a
+        task execution and to debug issues.
+
+        Args:
+            task_id: The unique identifier of the task execution.
+        Returns:
+            A JSON with the logs for the specified task
+        """
+        engine = execution.exec_engine()
+        logs = engine.fetch_task_logs(str(id))
+        return logs
+
+    def get_job_info(self, id: uuid.UUID):
+        """Retrieve the info for a task execution.
+
+        Provides the state, logs for a task execution. The logs are used to monitor the progress
+        of a task execution and to debug issues.
+
+        Args:
+            task_id: The unique identifier of the task execution.
+        Returns:
+            A JSON with the logs for the specified task
+        """
+        engine = execution.exec_engine()
+        logs = engine.get_task_info(str(id))
+        return logs
+
+    def parse_state(state):
+        """Parse the state of the task execution during output handling"
+
+        Args:
+            state: The state of the task execution as provided by the tool runtime.
+        Returns:
+            The mapped state of the task execution in metadata terms. One of 'succeeded', 'failed'.
+        """
+        if isinstance(state, int):  # If state is an HTTP code
+            if 200 <= state < 300:  # Success HTTP codes
+                return "succeeded"
+            else:
+                return "failed"
+        elif isinstance(state, str):  # If state is a string like "success", "error"
+            state = state.lower()
+            if state in ["success", "succeeded"]:
+                return "succeeded"
+            elif state in ["error", "failed"]:
+                return "failed"
+        # Default to failed for unrecognized states
+        return "failed"
 
 
 # ------------------------------------------
@@ -972,52 +1024,3 @@ TASK = Task()
 #
 #
 # ------------------------------------------
-
-
-def get_task_logs(task_id):
-    """Retrieve the logs for a task execution.
-
-    Provides the logs for a task execution. The logs are used to monitor the progress of a
-    task execution and to debug issues.
-
-    Args:
-           task_id: The unique identifier of the task execution.
-    Returns:
-           A JSON with the logs for the specified task
-    """
-    engine = execution.exec_engine()
-    logs = engine.fetch_task_logs(task_id)
-    return logs
-
-
-def get_task_info(task_id):
-    """Retrieve the info for a task execution.
-
-    Provides the state, logs for a task execution. The logs are used to monitor the progress
-    of a task execution and to debug issues.
-
-    Args:
-           task_id: The unique identifier of the task execution.
-    Returns:
-           A JSON with the logs for the specified task
-    """
-    engine = execution.exec_engine()
-    logs = engine.get_task_info(task_id)
-    return logs
-
-
-# Map HTTP status codes or other indicators to states
-def map_state_to_execution_status(state):
-    if isinstance(state, int):  # If state is an HTTP code
-        if 200 <= state < 300:  # Success HTTP codes
-            return "succeeded"
-        else:
-            return "failed"
-    elif isinstance(state, str):  # If state is a string like "success", "error"
-        state = state.lower()
-        if state in ["success", "succeeded"]:
-            return "succeeded"
-        elif state in ["error", "failed"]:
-            return "failed"
-    # Default to failed for unrecognized states
-    return "failed"
