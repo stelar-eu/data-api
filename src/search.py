@@ -44,6 +44,7 @@ def entity_search(
     etype: str,
     *,
     q: str = None,
+    bbox: str | list[float] = None,
     fq: list[str] = [],
     fl: list[str] = "id",
     sort: str = "score desc, metadata_modified desc",
@@ -83,6 +84,13 @@ def entity_search(
 
     if q:
         params["q"] = q
+
+    if bbox is not None:
+        if isinstance(bbox, str):
+            bbox = [float(x) for x in bbox.split(",")]
+        if len(bbox) != 4:
+            raise DataError("bbox must have 4 values", bbox)
+        params["ext_bbox"] = bbox
 
     if fq:
         if isinstance(fq, str):

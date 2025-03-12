@@ -5,6 +5,7 @@ from apiflask.fields import (
     Constant,
     DateTime,
     Dict,
+    Float,
     Integer,
     List,
     Nested,
@@ -12,6 +13,8 @@ from apiflask.fields import (
 )
 from apiflask.validators import Length, OneOf, Range, Regexp
 from marshmallow import INCLUDE, ValidationError, fields, pre_load
+
+from tags import TAGNAME_PATTERN, TAGSPEC_PATTERN
 
 optional_basic_metadata = [
     "version",
@@ -24,7 +27,6 @@ optional_basic_metadata = [
     "type",
     "private",
 ]
-
 
 # ---------------------------------------------
 #  Schema for generic requests and responses
@@ -94,9 +96,6 @@ class NameID(String):
         super().__init__(
             required=required, validate=[Regexp(r"^[a-z0-9_-]{2,100}$")], **kwargs
         )
-
-
-from tags import TAGNAME_PATTERN, TAGSPEC_PATTERN
 
 
 class TagName(String):
@@ -228,6 +227,13 @@ class FacetSearchSpec(Schema):
 
 class EntitySearchQuery(PaginationParameters):
     q = String(required=False, example="title_ngram:water")
+    bbox = List(
+        Float,
+        required=False,
+        example=[20, 35, 30, 42],
+        validate=[Length(4)],
+        allow_none=True,
+    )
     fq = List(String, required=False, example=["+organization:athenarc"])
     fl = List(
         String,

@@ -15,7 +15,7 @@ class ToolCKANSchema(PackageCKANSchema):
     # Use resources to represent images
     images = fields.Raw(data_key="resources", load_only=True)
 
-    class Meta:
+    class Meta(PackageCKANSchema.Meta):
         exclude = ["title", "url"]
         unknown = EXCLUDE
         extra_attributes = ["programming_language", "inputs", "outputs", "parameters"]

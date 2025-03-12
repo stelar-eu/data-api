@@ -25,6 +25,7 @@ from entity import (
 from exceptions import DataError
 from routes.users import api_user_editor
 from search import resource_search
+from spatial import GeoJSONGeom, Spatial
 from tools import TOOL
 from wflow import WORKFLOW
 
@@ -629,11 +630,15 @@ def delete_resource(id: str):
 
 
 class DatasetSchema(PackageSchema):
-    pass
+    spatial = GeoJSONGeom(required=False, allow_none=True, dump_default=None)
 
 
 class DatasetCKANSchema(PackageCKANSchema):
-    pass
+    spatial = Spatial(required=False, allow_none=True, load_default=None)
+
+    class Meta(PackageCKANSchema.Meta):
+        extra_attributes = ["spatial"]
+        extra_attributes_raw = ["spatial"]
 
 
 DATASET = PackageEntity(
