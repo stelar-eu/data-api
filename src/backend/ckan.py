@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Optional
 from urllib.parse import urljoin
 
 import requests
-from flask import current_app
 from psycopg2 import sql
 
 from exceptions import (
@@ -67,9 +66,6 @@ def raw_request(
     Returns:
         requests.Response: The response object from the API.
     """
-    # Fetch the app config to gain access to URLs.
-    config = current_app.config["settings"]
-
     # The base url of the CKAN API endpoint
     # Should be sth like http://ckan:5000/api/3/action/
     # api_url = config["CKAN_API"]

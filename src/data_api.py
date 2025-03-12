@@ -1,3 +1,4 @@
+# flake8: noqa: E402
 #
 # We need to configure logging as the first thing to do...
 #

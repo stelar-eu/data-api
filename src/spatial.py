@@ -5,7 +5,7 @@
 from typing import Any, Iterable
 
 import geojson
-from apiflask.fields import Field, Raw
+from apiflask.fields import Field
 from marshmallow import ValidationError, types
 
 
