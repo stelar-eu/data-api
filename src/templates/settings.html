@@ -52,7 +52,7 @@
                             </div>
                             <div class="col-12 col-md-9 d-flex flex-column">
                                 <div class="card-body">
-                                    <h2 class="mb-4">My Organizational Account</h2>
+                                    <h2 class="mb-4">My Account</h2>
                                     <h1 class="card-title">
                                         {% if 'USER_NAME' in session %}
                                         {{ session['USER_NAME' ] }}
@@ -60,48 +60,56 @@
                                     </h1>
 
                                     <div class="row align-items-center">
-                                        <div class="col-auto"><span class="avatar avatar-xl"
-                                                style="background-image: url('{{ url_for('static', filename='avatar.png') }}')"></span>
+                                        <div class="col-auto">
+                                            <span class="avatar avatar-xl">
+                                                {% set user_name = session.get('USER_NAME') %}
+                                                {% if user_name and user_name.strip() %}
+                                                {{ user_name.split() | map('first') | map('upper') | join('') }}
+                                                {% else %}
+                                                U
+                                                {% endif %}
+                                            </span>
                                         </div>
-                                        <div class="col-auto"><a href="#" class="btn">
-                                                Change avatar
-                                            </a></div>
-                                        <div class="col-auto"><a href="#" class="btn btn-ghost-danger">
-                                                Delete avatar
-                                            </a></div>
-                                    </div>
-                                    <h3 class="card-title mt-3">
-                                        <div class="datagrid-item">
-                                            <div class="datagrid-title">Account Status</div>
-                                            <div class="datagrid-content">
-                                                <span class="status status-green">
-                                                    Active
-                                                </span>
+                                        <div class="col-auto d-flex flex-column">
+                                            <a href="#" class="btn mb-2">Change avatar</a>
+                                            <a href="#" class="btn btn-ghost-danger">Delete avatar</a>
+                                        </div>
+                                        <div class="col-auto ms-auto">
+                                            <div class="row text-center">
+                                                <div class="col text-nowrap">
+                                                    <div class="datagrid-item">
+                                                        <div class="datagrid-title">Account Status</div>
+                                                        <div class="datagrid-content">
+                                                            <span class="status status-green">Active</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col text-nowrap">
+                                                    <div class="datagrid-item">
+                                                        <div class="datagrid-title">Email Status</div>
+                                                        <div class="datagrid-content">
+                                                            {% if session["USER_EMAIL_VERIFIED"] %}
+                                                            <span class="status status-green">
+                                                                Verified
+                                                            </span>
+                                                            {% else %}
+                                                            <span class="status status-red">
+                                                                Unverified
+                                                            </span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </h3>
-                                    <div class="row g-3">
-                                        <div class="col-md">
-                                            <div class="form-label">Organization Name</div>
-                                            <input type="text" class="form-control" value="ATHENA Research Center"
-                                                disabled="disabled">
-                                        </div>
-                                        <div class="col-md">
-                                            <div class="form-label">Business ID</div>
-                                            <input type="text" class="form-control" value="560afc32"
-                                                disabled="disabled">
-                                        </div>
-                                        <div class="col-md">
-                                            <div class="form-label">Location</div>
-                                            <input type="text" class="form-control" value="Athens, Greece" ,
-                                                disabled="disabled">
-                                        </div>
                                     </div>
+
+
                                     <div class="row g-3 mt-1">
                                         <div class="col-md">
                                             <div class="form-label">Organization Roles</div>
                                             {% set excluded_roles = ['default-roles-master', 'offline_access',
-                                            'uma_authorization'] %}
+                                            'uma_authorization', 'create-realm'] %}
                                             {% set displayed_roles = session.get('USER_ROLES', [])
                                             | reject("in", excluded_roles)
                                             | map("replace", '-', ' ')
@@ -115,7 +123,7 @@
                                         <div class="col-md">
                                             <div class="form-label">Joined Organization</div>
                                             <input type="text" class="form-control"
-                                                value="{{ session['USER_CREATION_DATE'] if 'USER_CREATION_DATE' in session else '' }}"
+                                                value="{{ session['USER_CREATION_DATE']|datetimeformat('%d-%m-%Y %H:%M') if 'USER_CREATION_DATE' in session else '' }}"
                                                 disabled="disabled">
                                         </div>
                                     </div>
@@ -182,9 +190,10 @@
                                     </div>
                                     <div class="row g-3">
                                         <div class="col-md">
-                                            <h3 class="card-title mt-4">Generate Application Credentials</h3>
-                                            <p class="card-subtitle">Click the button below to generate STS MinIO
-                                                credentials</p>
+                                            <h3 class="card-title mt-4">Third-Party Application Credentials</h3>
+                                            <p class="card-subtitle">Generate credentials for the STELAR services
+                                                reflecting your account. This credentials may be used in third party
+                                                applications to access STELAR on your behalf.</p>
                                             <div>
                                                 <a class="btn" target="_blank" rel="noreferrer" data-bs-toggle="modal"
                                                     data-bs-target="#modal-creds">

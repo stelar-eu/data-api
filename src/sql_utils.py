@@ -694,8 +694,11 @@ def task_execution_insert_parameters(task_exec_id, parameters):
                 "task_insert_parameters_template"
             ]
 
+            # Convert the value to a valid JSON string
+            json_value = json.dumps(value)
+
             # Execute the SQL command in the database
-            resp = pgsql.execSql(sql, (task_exec_id, key, value))
+            resp = pgsql.execSql(sql, (task_exec_id, key, json_value))
             if "status" in resp:
                 if not resp.get("status"):
                     return False
@@ -932,6 +935,18 @@ def task_read_output_spec_of_file(task_exec_id, file_key):
         return None
 
 
+def task_read_dataset(task_id, dataset_friendly_name):
+    sql = utils.sql_workflow_execution_templates["task_read_dataset_by_uuid_template"]
+
+    resp = pgsql.execSql(sql, (task_id, dataset_friendly_name))
+
+    if resp and len(resp) > 0:
+        dataset = resp[0]
+        return dataset
+    else:
+        return None
+
+
 def task_execution_read(task_exec_id):
     """Returns metadata recorded in the database about the given task execution. User-specified tags are included in the returned response.
 
@@ -1078,15 +1093,11 @@ def task_execution_input_read_sql(task_exec_id):
     Returns:
         A JSON with the input resourced ids or path grouped by input group name.
     """
-
-    config = current_app.config["settings"]
-
     sql_groups = utils.sql_workflow_execution_templates[
         "task_read_input_group_names_by"
     ]
     resp = pgsql.execSql(sql_groups, (task_exec_id,))
 
-    logging.debug(resp)
     inputs = dict()
 
     if resp and len(resp) > 0:

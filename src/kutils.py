@@ -13,42 +13,57 @@ import pyotp
 import qrcode
 from flask import current_app, session, url_for
 from keycloak import (
-    KeycloakAdmin,
     KeycloakAuthenticationError,
     KeycloakGetError,
-    KeycloakOpenID,
 )
+
+from keycloak.openid_connection import KeycloakOpenIDConnection
+from keycloak.keycloak_admin import KeycloakAdmin
+from keycloak.keycloak_openid import KeycloakOpenID
+
 
 import sql_utils
 from backend.ckan import ckan_request
 from backend.pgsql import execSql
+
+
 from exceptions import BackendError, InternalException, InvalidError
+from utils import is_valid_uuid, validate_email
+
 
 logger = logging.getLogger(__name__)
 
 
-def is_valid_uuid(s):
-    try:
-        # Try converting the string to a UUID object
-        uuid_obj = uuid.UUID(s)
-        # Check if the string matches the canonical form of the UUID (with lowercase hexadecimal and hyphens)
-        return str(uuid_obj) == s
-    except ValueError:
-        return False
+# Init global connections to the Keycloak Server, to avoid bottlenecks imposed by previously
+# instantly established connections on request arrival.
+class KeycloakSingleton:
+    """Singleton class to hold a global Keycloak connection."""
+
+    _instance = None
+
+    @classmethod
+    def get_instance(cls):
+        """Ensure the instance is initialized inside an app context."""
+        if cls._instance is None:
+            cls._initialize_keycloak()
+        return cls._instance
+
+    @classmethod
+    def _initialize_keycloak(cls):
+        """Create Keycloak connection within the correct Flask context."""
+        app = current_app._get_current_object()
+        with app.app_context():  # Ensures app context is active
+            config = app.config["settings"]
+            cls._instance = KeycloakOpenIDConnection(
+                server_url=config["KEYCLOAK_URL"],
+                realm_name=config["REALM_NAME"],
+                client_id=config["KEYCLOAK_CLIENT_ID"],
+                client_secret_key=config["KEYCLOAK_CLIENT_SECRET"],
+                verify=True,
+            )
 
 
-def validate_email(email):
-    """
-    Validates an email address. Raises a ValueError if the email is invalid.
-
-    :param email: The email address to validate (string).
-    :raises ValueError: If the email is not a valid format.
-    """
-    # Regular expression for validating an email
-    email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-
-    if not re.match(email_regex, email):
-        raise ValueError(f"Invalid email address: {email}")
+KEYCLOAK_GENERIC_CONNECTION = KeycloakSingleton.get_instance
 
 
 def email_username_unique(username, email):
@@ -147,8 +162,8 @@ def initialize_keycloak_openid():
     config = current_app.config["settings"]
     return KeycloakOpenID(
         server_url=config["KEYCLOAK_URL"],
-        client_id=config["KEYCLOAK_CLIENT_ID"],
         realm_name=config["REALM_NAME"],
+        client_id=config["KEYCLOAK_CLIENT_ID"],
         client_secret_key=config["KEYCLOAK_CLIENT_SECRET"],
         verify=True,
     )
@@ -238,6 +253,31 @@ def current_user():
         flask.g.current_user = get_user_by_token(access_token=access_token)
     logger.info("User's info fetched from context")
     return flask.g.current_user
+
+
+def current_token():
+    """Return the current token from the session or the request headers.
+
+    When the 'Authorization' header is present in the request, the user is fetched using the access token in the header.
+    else, the user is fetched using the access token stored in the session.
+
+    NOTE: This is a bit fragile, since it assumes that the header 'Authorization' is always present in the request.
+    Properly, a check would be needed.
+
+    Returns:
+        dict: The token.
+    """
+    if "access_token" not in flask.g:
+        from flask import request
+
+        match request.headers.get("Authorization", "").split(" "):
+            case ["Bearer", access_token]:
+                pass
+            case _:
+                access_token = session.get("access_token")
+
+        flask.g.access_token = access_token
+    return flask.g.access_token
 
 
 def user_has_2fa(user_id):
@@ -430,18 +470,9 @@ def init_admin_client_with_credentials():
         KeycloakAdmin: An initialized KeycloakAdmin client
 
     """
-    config = current_app.config["settings"]
-
     try:
         # Initialize KeycloakAdmin client with the client service account
-        keycloak_admin = KeycloakAdmin(
-            server_url=config["KEYCLOAK_URL"],
-            realm_name=config["REALM_NAME"],
-            client_id=config["KEYCLOAK_CLIENT_ID"],
-            client_secret_key=config["KEYCLOAK_CLIENT_SECRET"],
-            verify=True,
-        )
-        return keycloak_admin
+        return KeycloakAdmin(connection=KEYCLOAK_GENERIC_CONNECTION())
 
     except Exception as e:
         raise RuntimeError(
@@ -1219,6 +1250,9 @@ STELAR KLMS
         with smtplib.SMTP_SSL(smtp_server, int(smtp_port), context=context) as server:
             server.login(sender_email, sender_password)
             server.sendmail(sender_email, to_email, full_message)
+    except Exception as e:
+        # Log the error
+        raise Exception(f"Error sending verification email: {str(e)}")
     except Exception as e:
         # Log the error
         raise Exception(f"Error sending verification email: {str(e)}")

@@ -23,6 +23,7 @@ from flask import (
 
 import cutils
 import kutils
+import processes
 import wxutils
 from auth import admin_required
 
@@ -234,7 +235,7 @@ def settings():
         created_at = TWO_FACTOR_AUTH.get("created_at")
         if created_at:
             TWO_FACTOR_AUTH["created_at"] = created_at.strftime("%d-%m-%Y %H:%M:%S")
-    except:
+    except Exception:
         pass
     return render_template_with_s3(
         "settings.html",
@@ -248,7 +249,8 @@ def settings():
 def workflows():
 
     # Retrieve list of WFs from DB
-    wf_metadata = wxutils.get_workflows()
+    wf_metadata = processes.PROCESS.list_entities()
+    logger.debug(wf_metadata)
 
     if wf_metadata is not None and wf_metadata != []:
         status_counts = {}
@@ -585,7 +587,7 @@ def reset_password(rs_token, user_id):
                 if expiration_time < datetime.now():
                     return redirect(url_for("dashboard_blueprint.login"))
                 else:
-                    return render_template("reset_password.html")
+                    return render_template("new_password.html")
             else:
                 return redirect(url_for("dashboard_blueprint.login"))
 
@@ -637,6 +639,9 @@ def login():
                 if userinfo:
                     session["USER_NAME"] = userinfo.get("name")
                     session["USER_EMAIL"] = userinfo.get("email")
+                    session["USER_EMAIL_VERIFIED"] = userinfo.get(
+                        "email_verified", False
+                    )
                     session["USER_USERNAME"] = userinfo.get("preferred_username")
                     session["USER_ROLES"] = userinfo.get("realm_access", {}).get(
                         "roles", []

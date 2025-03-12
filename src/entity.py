@@ -1,38 +1,37 @@
 """
 Contains the Entity class and its subclasses. 
 
-The Entity class is a base class for STELAR entities. The main responsibility of the Entity class is to provide 
-a common interface for interacting via the STELAR API. The class defines a set of operations that can be performed 
-on an entity, such as listing, fetching, creating, updating, and deleting. The specific implementation of these 
-operations is left to the subclasses. 
+The Entity class is a base class for STELAR entities. The main responsibility
+of the Entity class is to provide a common interface for interacting via the
+STELAR API. The class defines a set of operations that can be performed 
+on an entity, such as listing, fetching, creating, updating, and deleting. 
+The specific implementation of these operations is left to the subclasses. 
 
 
 CKAN-based entities:
 --------------------
 
-The main subclass of Entity is the CKANEntity class, which is used to handle entities that are stored in CKAN.
+The main subclass of Entity is the CKANEntity class, which is used to handle
+entities that are stored in CKAN.
 
-The CKANEntity class provides methods to interact with CKAN and to perform CRUD operations on the entities. 
-The subclasses of CKANEntity are used to customize specific CKAN entities, such as datasets, groups, and organizations. 
-The subclasses define the specific attributes and methods for each entity sub-type.
+The CKANEntity class provides methods to interact with CKAN and to perform CRUD
+operations on the entities. The subclasses of CKANEntity are used to customize
+specific CKAN entities, such as datasets, groups, and organizations. The subclasses
+define the specific attributes and methods for each entity sub-type.
 
-In particular, the EntityWithMembers class is used to handle CKAN entities that have members,
-that is, groups and organizations. It provides methods to add, remove, and list members of the
-group or organization. The MemberEntity class is used to customize the membership API in entities with
-members.
+In particular, the EntityWithMembers class is used to handle CKAN entities that
+have members, that is, groups and organizations. It provides methods to add, 
+remove, and list members of the group or organization. The MemberEntity class is 
+used to customize the membership API in entities with members.
 
-Also, the EntityWithExtras class is used to handle CKAN entities that have extras, that is, additional
-attributes stored in the 'extras' field in CKAN. The EntityWithExtrasCKANSchema class is used to define
-the schema for entities with extras in CKAN.
+Also, the EntityWithExtras class is used to handle CKAN entities that have extras,
+that is, additional attributes stored in the 'extras' field in CKAN. The 
+EntityWithExtrasCKANSchema class is used to define the schema for entities with
+extras in CKAN.
 
-The PackageEntity class is used to handle CKAN entities based on packages, such as datasets, processes,
-workflows, and tools. It provides methods to filter packages by type and to create, update, and delete
-packages.
-
-General function for CKAN-based entities:
-
-An 
-
+The PackageEntity class is used to handle CKAN entities based on packages, such
+as datasets, processes, workflows, and tools. It provides methods to filter packages
+by type and to create, update, and delete packages.
 """
 
 from __future__ import annotations
@@ -40,7 +39,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from apiflask import Schema, fields, validators
 from marshmallow import EXCLUDE, SchemaOpts, missing, post_dump, pre_load
@@ -49,11 +48,9 @@ from psycopg2 import sql
 import schema
 from backend.ckan import ckan_request, filter_list_by_type
 from backend.pgsql import execSql, transaction
-from exceptions import BackendLogicError, DataError, NotFoundError
+from exceptions import BackendLogicError, DataError, InternalException, NotFoundError
+from search import entity_search
 from tags import tag_object_to_string, tag_string_to_object
-
-if TYPE_CHECKING:
-    from requests import Response
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +67,8 @@ class Entity:
 
     The API defined in this class is the one used by the generic endpoint definitions.
 
-    The generic endpoint definitions use the API defined in the Entity class to implement the CRUD operations for the
-    entities. For this purpose, each Entity defines four fields:
+    The generic endpoint definitions use the API defined in the Entity class to implement
+    the CRUD operations for the entities. For this purpose, each Entity defines four fields:
 
     - name: the name of the entity
     - collection_name: the name of the collection of entities
@@ -82,6 +79,7 @@ class Entity:
     OPERATIONS = [
         "list",
         "fetch",
+        "search",
         "show",
         "create",
         "delete",
@@ -112,6 +110,7 @@ class Entity:
 
         # Store the endpoint functions
         self.operations = Entity.OPERATIONS.copy()
+        self.operations.remove("search")
         if update_schema is None:
             self.operations.remove("update")
             self.operations.remove("patch")
@@ -145,6 +144,18 @@ class Entity:
         """
         return self.fetch(limit=limit, offset=offset)
 
+    def search_entities(self, query_spec: dict) -> list:
+        """Search for entities of this type.
+
+        This method is used to search for entities of this type. It returns a list of entity objects.
+
+        Args:
+            query_spec: The query specification. This is a dict validated by `schema.EntitySearchQyery`
+        Returns:
+            A list of entity objects.
+        """
+        return self.search(query_spec)
+
     def get_entity(self, eid: str):
         """Get an entity by ID.
 
@@ -156,8 +167,6 @@ class Entity:
             The entity object.
         """
         return self.get(eid)
-          
-            
 
     def create_entity(self, init_data):
         """Create a new entity.
@@ -602,6 +611,11 @@ class CKANEntityOptions(SchemaOpts):
     def __init__(self, meta, **kwargs):
         super().__init__(meta, **kwargs)
         self.extra_attributes = getattr(meta, "extra_attributes", [])
+        self.extra_attributes_raw = getattr(meta, "extra_attributes_raw", [])
+        if any(a not in self.extra_attributes for a in self.extra_attributes_raw):
+            raise ValueError(
+                "extra_attributes_raw must be a subset of extra_attributes"
+            )
 
 
 class EntityWithExtrasCKANSchema(Schema):
@@ -649,7 +663,14 @@ class EntityWithExtrasCKANSchema(Schema):
     def load_extras(self, data, **kwargs):
         # Process the extras
         extras = data.get("extras", [])
-        data["extras"] = {e["key"]: self.jsload(e["value"]) for e in extras}
+        data_extras = {}
+        for e in extras:
+            k, v = e["key"], e["value"]
+            if k not in self.opts.extra_attributes_raw:
+                v = self.jsload(v)
+            data_extras[k] = v
+
+        data["extras"] = data_extras
         # Unfold the extra attributes
         self.unfold_fields(data)
         # Return the data to be loaded
@@ -668,11 +689,18 @@ class EntityWithExtrasCKANSchema(Schema):
         """
 
         extras = data.get("extras", None)
-        attrs = {
-            attr: json.dumps(data[attr])
-            for attr in self.opts.extra_attributes
-            if attr in data
-        }
+        attrs = {}
+        for attr in self.opts.extra_attributes:
+            if attr in data:
+                value = data.pop(attr)
+                if attr in self.opts.extra_attributes_raw:
+                    if not isinstance(value, str | None):
+                        raise InternalException(
+                            f"Raw attribute {attr} must be a string or None at folding time"
+                        )
+                    attrs[attr] = value
+                else:
+                    attrs[attr] = json.dumps(value)
 
         if (not attrs) and extras is None:
             return
@@ -914,6 +942,9 @@ class PackageEntity(EntityWithExtras):
     - processes
     - workflows
     - tools
+
+    Apart from standard operations, they also
+    provide for search.
     """
 
     def __init__(self, *args, package_type: str, **kwargs):
@@ -921,8 +952,14 @@ class PackageEntity(EntityWithExtras):
         self.package_type = package_type
         self.ckan_api_purge = "dataset_purge"
         self.list_names = True
+        self.operations.append("search")
+        self.search_query_schema = schema.EntitySearchQuery()
 
-    def list_entities(self, limit=None, offset=None):
+    def list(self, limit=None, offset=None):
+        """Return a list of package-based entities.
+
+        This method is used to list the package-based entities of a given type.
+        """
         self.check_limit_offset(limit, "limit")
         self.check_limit_offset(offset, "offset")
 
@@ -961,6 +998,59 @@ class PackageEntity(EntityWithExtras):
         # Force this!
         init_data["type"] = self.package_type
         return super().create(init_data)
+
+    def search(self, query_spec: dict) -> list:
+        """Search for packages.
+
+        This method is used to search for packages based on a query string.
+
+        Args:
+            q: The query string to search for.
+            limit: The maximum number of packages to return.
+            offset: The offset to start listing packages from.
+        Returns:
+            A list of package objects.
+
+        q: str = None,
+        bbox: list[float] = None,
+        fq: list[str] = [],
+        fl: list[str] = None,
+        facet: dict = None,
+        sort: str = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+
+        """
+        fl = query_spec.get("fl", None)
+        limit = query_spec.get("limit", None)
+        offset = query_spec.get("offset", None)
+
+        self.check_limit_offset(limit, "limit")
+        self.check_limit_offset(offset, "offset")
+
+        bbox = query_spec.get("bbox", None)
+        if bbox is not None:
+            if len(bbox) != 4:
+                raise DataError("bbox must have 4 numeric elements")
+
+        result = entity_search(
+            self.package_type,
+            q=query_spec.get("q", None),
+            bbox=bbox,
+            fq=query_spec.get("fq", []),
+            fl=fl,
+            facet=query_spec.get("facet", None),
+            sort=query_spec.get("sort", None),
+            limit=limit,
+            offset=offset,
+        )
+
+        # If fl is None, return proper entity objects
+        if fl is None:
+            new_results = [self.load_from_ckan(obj) for obj in result["results"]]
+            result["results"] = new_results
+
+        return result
 
 
 class TagList(fields.Field):

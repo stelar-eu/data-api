@@ -1,5 +1,15 @@
 import logging
 import logging.config
+import os
+
+_override = os.getenv("FLASK_DEBUG", "false").lower() in ["true", "1", "yes"]
+
+
+def override_level(level: str):
+    global _override
+    if _override:
+        return "DEBUG"
+    return level
 
 
 def configure():
@@ -19,7 +29,7 @@ def configure():
             "handlers": {
                 "cstderr": {
                     "class": "logging.StreamHandler",
-                    "level": "INFO",
+                    "level": override_level("INFO"),
                     "formatter": "standard",
                     "stream": "ext://sys.stderr",
                 },
@@ -37,18 +47,19 @@ def configure():
                 },
             },
             "root": {
-                "level": "DEBUG",
+                "level": override_level("INFO"),
                 "handlers": ["cstderr"],
             },
             "loggers": {
-                "httpx": {"level": "WARNING", "propagate": False},
-                "urllib3": {"level": "WARNING", "propagate": False},
-                "cutils": {"level": "DEBUG"},
-                "entity": {"level": "DEBUG"},
-                "data_api": {"level": "DEBUG"},
+                "httpx": {"level": override_level("WARNING"), "propagate": False},
+                "urllib3": {"level": override_level("WARNING"), "propagate": False},
                 "werkzeug": {"handlers": ["wz"], "propagate": False},
-                "routes": {"level": "DEBUG", "handlers": ["cstderr"]},
-                # "routes.catalog": {"level": "DEBUG"},
+                "cutils": {"level": override_level("WARNING")},
+                "entity": {"level": override_level("WARNING")},
+                "data_api": {"level": override_level("WARNING")},
+                "routes": {"level": override_level("WARNING")},
+                "routes.generic": {"level": override_level("WARNING")},
+                "routes.catalog": {"level": override_level("WARNING")},
             },
         }
     )

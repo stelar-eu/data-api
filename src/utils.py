@@ -4,6 +4,7 @@ import copy
 import json
 import logging
 import random
+import re
 import urllib.parse
 import uuid
 from datetime import datetime
@@ -250,20 +251,20 @@ sql_workflow_execution_templates = {
         """,
     "workflow_get_tasks": """\
         SELECT 
-            tsk.task_uuid as task_exec_id, 
+            tsk.task_uuid as id, 
             tsk.state, 
             tsk.start_date, 
             tsk.end_date, 
             (
                 SELECT tg.value 
                 FROM klms.task_tag tg 
-                WHERE tg.key = 'tool_image' AND tg.task_uuid=tsk.task_uuid
-            ) AS tool_image,
+                WHERE tg.key = '__image__' AND tg.task_uuid=tsk.task_uuid
+            ) AS image,
             (
                 SELECT tg.value 
                 FROM klms.task_tag tg 
-                WHERE tg.key = 'tool_name' AND tg.task_uuid=tsk.task_uuid
-            ) AS tool_name
+                WHERE tg.key = '__name__' AND tg.task_uuid=tsk.task_uuid
+            ) AS name
         FROM
             klms.task_execution AS tsk 
         WHERE
@@ -288,7 +289,7 @@ sql_workflow_execution_templates = {
     "task_insert_output_spec_plain_path": "INSERT INTO klms.task_output_spec(task_uuid, output_name, output_address) VALUES(%s, %s, %s)",
     "task_read_output_spec_for_tool": "SELECT output_name, output_address FROM klms.task_output_spec WHERE task_uuid = %s",
     "task_read_secret_template": "SELECT key, value FROM klms.task_secret WHERE task_uuid = %s",
-    "task_read_template": "SELECT task_uuid AS task_exec_id, creator_user_id as creator, workflow_uuid AS workflow_exec_id, state, start_date, end_date FROM klms.task_execution WHERE task_uuid = %s",
+    "task_read_template": "SELECT task_uuid AS task_id, creator_user_id as creator, workflow_uuid AS process_id, state, start_date, end_date FROM klms.task_execution WHERE task_uuid = %s",
     "task_read_tags_template": "SELECT key, value FROM klms.task_tag WHERE task_uuid = %s",
     "task_read_input_group_names_by": "SELECT DISTINCT input_group_name FROM klms.task_input WHERE task_uuid = %s",
     "task_read_uuid_inputs": "SELECT resource_id FROM klms.task_input WHERE task_uuid= %s AND input_path IS NULL",
@@ -318,6 +319,8 @@ sql_workflow_execution_templates = {
                                                LEFT JOIN public.resource as rsrc 
                                                ON tsk_out.dataset_id = rsrc.id
                                                WHERE task_uuid = %s""",
+    "task_read_dataset_by_uuid_template": """SELECT package_friendly_name, package_details, package_uuid
+                                             FROM klms.task_future_output_packages WHERE task_uuid = %s AND package_friendly_name = %s""",
     #
     "task_insert_input_dataset_template": "INSERT INTO klms.task_input(task_uuid, order_num, dataset_id) VALUES (%s, %s, %s)",
     "task_insert_output_dataset_template": "INSERT INTO klms.task_output(task_uuid, order_num, dataset_id) VALUES (%s, %s, %s)",
@@ -327,7 +330,7 @@ sql_workflow_execution_templates = {
     "task_insert_output_package": "INSERT INTO klms.task_output_package(task_uuid, package_uuid) VALUES (%s, %s)",
     #
     "task_insert_tags_template": "INSERT INTO klms.task_tag VALUES (%s, %s, %s)",
-    "task_insert_parameters_template": "INSERT INTO klms.parameters VALUES (%s, %s, %s)",
+    "task_insert_parameters_template": "INSERT INTO klms.parameters VALUES (%s, %s, %s::json)",
     "task_insert_metrics_template": "INSERT INTO klms.metrics VALUES (%s, %s, %s, now())",
     "workflow_read_statistics": """SELECT te.workflow_uuid, te.task_uuid, p.key, p.value
 FROM klms.task_execution te, klms.workflow_tag wt, klms.parameters p
@@ -411,6 +414,47 @@ def create_CKAN_headers(API_TOKEN):
     package_headers = {"Authorization": API_TOKEN, "Content-Type": "application/json"}
     resource_headers = {"X-CKAN-API-Key": API_TOKEN}
     return package_headers, resource_headers
+
+
+def is_valid_url(url):
+    """Check if a string is a valid URL. Valid URLs are of the form 'protocol://hostname[:port]/path'.
+    Args:
+        url: The string to be checked.
+    Returns:
+        A boolean value indicating whether the string is a valid
+    """
+    pattern = re.compile(r"^(s3|https|http|tcp|smb|ftp)://[a-zA-Z0-9.-]+(?:/[^\s]*)?$")
+    return bool(pattern.match(url))
+
+
+def is_valid_uuid(s):
+    """Check if a string is a valid UUID. Valid UUIDs are of the form 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.
+    Args:
+        s: The string to be checked.
+    Returns:
+        A boolean value indicating whether the string is a valid UUID.
+    """
+    try:
+        # Try converting the string to a UUID object
+        uuid_obj = uuid.UUID(s)
+        # Check if the string matches the canonical form of the UUID (with lowercase hexadecimal and hyphens)
+        return str(uuid_obj) == s
+    except Exception:
+        return False
+
+
+def validate_email(email):
+    """
+    Validates an email address. Raises a ValueError if the email is invalid.
+
+    :param email: The email address to validate (string).
+    :raises ValueError: If the email is not a valid format.
+    """
+    # Regular expression for validating an email
+    email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+
+    if not re.match(email_regex, email):
+        raise ValueError(f"Invalid email address: {email}")
 
 
 def validate_spatial(geometry):
@@ -602,24 +646,8 @@ def decode_from_base64(base64_string):
 
 
 def is_valid_package_dict(obj):
-    required_keys = {"title", "tags", "notes"}
+    required_keys = {"name", "tags", "notes"}
     return isinstance(obj, dict) and required_keys.issubset(obj.keys())
-
-
-def is_valid_uuid(s):
-    """Check if a string is a valid UUID. Valid UUIDs are of the form 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.
-    Args:
-        s: The string to be checked.
-    Returns:
-        A boolean value indicating whether the string is a valid UUID.
-    """
-    try:
-        # Try converting the string to a UUID object
-        uuid_obj = uuid.UUID(s)
-        # Check if the string matches the canonical form of the UUID (with lowercase hexadecimal and hyphens)
-        return str(uuid_obj) == s
-    except Exception:
-        return False
 
 
 def assign_scores(
@@ -1095,9 +1123,9 @@ def processRdfGraphProfile(resource_id, prof, sql):
     degree_centrality_distribution["distr_id"] = str(
         uuid.uuid1()
     )  # Generate a UUID for this distribution
-    rdfgraph_metadata[
-        "degree_centrality_distribution"
-    ] = degree_centrality_distribution["distr_id"]
+    rdfgraph_metadata["degree_centrality_distribution"] = (
+        degree_centrality_distribution["distr_id"]
+    )
     sql.append(
         prepareInsertSql(degree_centrality_distribution, "klms.numerical_distribution")
     )
@@ -1188,9 +1216,9 @@ def processTextualProfile(resource_id, prof, sql):
                     sentence_length_distribution, "klms.numerical_distribution"
                 )
             )
-            text_metadata[
-                "sentence_length_distribution"
-            ] = sentence_length_distribution["distr_id"]
+            text_metadata["sentence_length_distribution"] = (
+                sentence_length_distribution["distr_id"]
+            )
         if "word_length_distribution" in var:
             word_length_distribution = cleanupDict(
                 copy.deepcopy(var["word_length_distribution"]),

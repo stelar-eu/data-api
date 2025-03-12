@@ -10,16 +10,17 @@ from authz_module import (
 
 from conftest import fake_minio_create_policy
 
-
 # --- Test for global check_access function ---
 def test_check_access():
     authz_module.action_permissions.clear()
+
     # Create a dummy spec that always returns True.
     class AlwaysTrueSpec:
         def __call__(self, resource):
             return True
     authz_module.action_permissions["read"] = {"admin": [[AlwaysTrueSpec()]]}
     
+
     dummy_resource = {}
     assert check_access(["admin"], "read", dummy_resource) is True
     assert check_access(["user"], "read", dummy_resource) is False
@@ -63,3 +64,4 @@ def test_parse_authz_config(monkeysession,app,minio_admin):
       # Global authz_module.action_permissions should contain the tester update permission.
       assert "update" in authz_module.action_permissions
       assert "tester" in authz_module.action_permissions["update"]
+

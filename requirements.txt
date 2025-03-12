@@ -11,6 +11,7 @@ python-jose
 cryptography
 datetime
 minio
+geojson>=3.2
 python-keycloak
 email-validator
 pyotp==2.9.0

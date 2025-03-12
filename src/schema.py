@@ -5,6 +5,7 @@ from apiflask.fields import (
     Constant,
     DateTime,
     Dict,
+    Float,
     Integer,
     List,
     Nested,
@@ -12,6 +13,8 @@ from apiflask.fields import (
 )
 from apiflask.validators import Length, OneOf, Range, Regexp
 from marshmallow import INCLUDE, ValidationError, fields, pre_load
+
+from tags import TAGNAME_PATTERN, TAGSPEC_PATTERN
 
 optional_basic_metadata = [
     "version",
@@ -24,7 +27,6 @@ optional_basic_metadata = [
     "type",
     "private",
 ]
-
 
 # ---------------------------------------------
 #  Schema for generic requests and responses
@@ -82,6 +84,11 @@ class EntityListResponse(Schema):
     result = List(Dict(), required=False)
 
 
+class PaginationParameters(Schema):
+    limit = Integer(required=False, example="100", validates=Range(min=1))
+    offset = Integer(required=False, example="0", validates=Range(min=0))
+
+
 class NameID(String):
     """Datasets, groups and organizations, etc, have name field which is unique and immutable."""
 
@@ -89,9 +96,6 @@ class NameID(String):
         super().__init__(
             required=required, validate=[Regexp(r"^[a-z0-9_-]{2,100}$")], **kwargs
         )
-
-
-from tags import TAGNAME_PATTERN, TAGSPEC_PATTERN
 
 
 class TagName(String):
@@ -215,6 +219,38 @@ class TagCreationRequest(EntityCreationRequest):
     vocabulary_id = String(required=True)
 
 
+class FacetSearchSpec(Schema):
+    fields = List(String, example=["author"], required=True)
+    mincount = Integer(required=False, example=5)
+    limit = Integer(required=False, example=50)
+
+
+class EntitySearchQuery(PaginationParameters):
+    q = String(required=False, example="title_ngram:water")
+    bbox = List(
+        Float,
+        required=False,
+        example=[20, 35, 30, 42],
+        validate=[Length(4)],
+        allow_none=True,
+    )
+    fq = List(String, required=False, example=["+organization:athenarc"])
+    fl = List(
+        String,
+        required=False,
+        example=["name", "title"],
+        allow_none=True,
+        load_default=None,
+    )
+    sort = String(required=False, example="title asc")
+    facet = Nested(FacetSearchSpec, required=False)
+
+
+class ResourceSearchQuery(PaginationParameters):
+    query = List(String, example=["format:JSON"])
+    order_by = String(required=False, example="name")
+
+
 # =============================================
 #
 #  Older non-generic schema definitions
@@ -280,11 +316,6 @@ class Identifier(Schema):
     )
 
 
-class PaginationParameters(Schema):
-    limit = Integer(required=False, example="100", validates=Range(min=1))
-    offset = Integer(required=False, example="0", validates=Range(min=0))
-
-
 class RolesInput(Schema):
     roles = List(String, required=True, example='["intern","finance_manager"]')
 
@@ -307,6 +338,7 @@ class UpdatedUser(Schema):
     firstName = String(required=False, validate=Length(0, 100))
     lastName = String(required=False, validate=Length(0, 100))
     enabled = Boolean(required=False)
+    emailVerified = Boolean(required=False)
 
 
 class UserRole(Schema):

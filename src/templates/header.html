@@ -8,12 +8,12 @@
             <a href="{{ url_for('dashboard_blueprint.login') }}">
                 <!-- <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR"> -->
                 <div class="d-flex align-items-center justify-content-center">
-                    <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR" class="me-3">
+                    <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR" class="me-3" />
                     {% if PARTNER_IMAGE_SRC %}
                     <!-- Vertical line -->
-                    <div class="vr" style="height: 70px; margin: 20px;"></div>
+                    <div class="vr" style="height: 70px; margin: 20px"></div>
                     <!-- Partner image -->
-                    <img src="{{ PARTNER_IMAGE_SRC }}" width="70" alt="Partner Logo">
+                    <img src="{{ PARTNER_IMAGE_SRC }}" width="70" alt="Partner Logo" />
                     {% endif %}
                 </div>
             </a>
@@ -106,13 +106,22 @@
                 <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown"
                     aria-label="Open user menu">
                     <span class="avatar avatar-sm">
-
+                        {% set user_name = session.get('USER_NAME') %}
+                        {% if user_name and user_name.strip() %}
+                        {{ user_name.split() | map('first') | map('upper') | join('') }}
+                        {% else %}
+                        U
+                        {% endif %}
                     </span>
                     <div class="d-none d-xl-block ps-2">
                         <div>{{ session.get('USER_NAME', 'Guest') }}</div>
                         <div class="mt-1 small text-secondary">
-                            {% set excluded_roles = ['default-roles-master', 'offline_access', 'uma_authorization',
-                            'create_realm'] %}
+                            {% set excluded_roles = [
+                            'default-roles-master',
+                            'offline_access',
+                            'uma_authorization',
+                            'create-realm'
+                            ] %}
                             {% set displayed_roles = session.get('USER_ROLES', [])
                             | reject("in", excluded_roles)
                             | map("replace", '-', ' ')
@@ -138,7 +147,7 @@
             <div class="container-xl">
                 <ul class="navbar-nav">
                     <li
-                        class="nav-item {% if request.path == url_for('dashboard_blueprint.dashboard_index') %}active{% endif %}">
+                        class="nav-item {% if url_for('dashboard_blueprint.dashboard_index').endswith(request.path) %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.dashboard_index') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                                 <!-- Overview icon -->
@@ -155,10 +164,10 @@
                         </a>
                     </li>
                     <li
-                        class="nav-item {% if request.path == url_for('dashboard_blueprint.workflows') %}active{% endif %}">
-                        <a class="nav-link" href="{{ url_for('dashboard_blueprint.workflows') }}">
+                        class="nav-item {% if url_for('dashboard_blueprint.processes').endswith(request.path) %}active{% endif %}">
+                        <a class="nav-link" href="{{ url_for('dashboard_blueprint.processes') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
-                                <!-- Workflows icon -->
+                                <!-- Processes icon -->
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
                                     viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                                     stroke-linecap="round" stroke-linejoin="round">
@@ -169,14 +178,14 @@
                                     <path d="M12 12l-8 -4.5" />
                                 </svg>
                             </span>
-                            <span class="nav-link-title">Workflows</span>
+                            <span class="nav-link-title">Processes</span>
                         </a>
                     </li>
                     <li
-                        class="nav-item {% if request.path == url_for('dashboard_blueprint.datasets') %}active{% endif %}">
+                        class="nav-item {% if url_for('dashboard_blueprint.datasets').endswith(request.path) %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.datasets') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
-                                <!-- Dataset icon -->
+                                <!-- Catalog icon -->
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                     stroke-linejoin="round"
@@ -188,10 +197,11 @@
                                     <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
                                 </svg>
                             </span>
-                            <span class="nav-link-title">Datasets</span>
+                            <span class="nav-link-title">Data Catalog</span>
                         </a>
                     </li>
-                    <li class="nav-item {% if request.path == url_for('dashboard_blueprint.tools') %}active{% endif %}">
+                    <li
+                        class="nav-item {% if url_for('dashboard_blueprint.tools').endswith(request.path) %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.tools') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                                 <!-- Tool icon -->
@@ -209,8 +219,29 @@
                     </li>
                     {% if 'admin' in session.get('USER_ROLES', []) %}
                     <li
-                        class="nav-item {% if request.path == url_for('dashboard_blueprint.adminSettings') %}active{% endif %}">
+                        class="nav-item {% if url_for('dashboard_blueprint.adminSettings').endswith(request.path) %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.adminSettings') }}">
+                            <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    class="icon icon-tabler icons-tabler-outline icon-tabler-users-group">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M10 13a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+                                    <path d="M8 21v-1a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v1" />
+                                    <path d="M15 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+                                    <path d="M17 10h2a2 2 0 0 1 2 2v1" />
+                                    <path d="M5 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+                                    <path d="M3 13v-1a2 2 0 0 1 2 -2h2" />
+                                </svg>
+                            </span>
+                            <span class="nav-link-title">Organizations & Groups</span>
+                        </a>
+                    </li>
+
+                    <li
+                        class="nav-item {% if url_for('dashboard_blueprint.adminSettings').endswith(request.path) %}active{% endif %}">
+                        <a class="nav-link" href="{{url_for('dashboard_blueprint.adminSettings')}}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -229,7 +260,6 @@
                         </a>
                     </li>
                     {% endif %}
-
                 </ul>
                 <div class="my-2 my-md-0 flex-grow-1 flex-md-grow-0 order-first order-md-last">
                     <form method="get" autocomplete="off" novalidate>
@@ -245,11 +275,10 @@
                                 </svg>
                             </span>
                             <input type="text" value="" class="form-control" placeholder="Search…"
-                                aria-label="Search in website">
+                                aria-label="Search in website" />
                         </div>
                     </form>
                 </div>
-
             </div>
         </div>
     </div>
