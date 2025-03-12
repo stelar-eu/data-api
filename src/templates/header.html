@@ -8,12 +8,12 @@
             <a href="{{ url_for('dashboard_blueprint.login') }}">
                 <!-- <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR"> -->
                 <div class="d-flex align-items-center justify-content-center">
-                    <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR" class="me-3">
+                    <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR" class="me-3" />
                     {% if PARTNER_IMAGE_SRC %}
                     <!-- Vertical line -->
-                    <div class="vr" style="height: 70px; margin: 20px;"></div>
+                    <div class="vr" style="height: 70px; margin: 20px"></div>
                     <!-- Partner image -->
-                    <img src="{{ PARTNER_IMAGE_SRC }}" width="70" alt="Partner Logo">
+                    <img src="{{ PARTNER_IMAGE_SRC }}" width="70" alt="Partner Logo" />
                     {% endif %}
                 </div>
             </a>
@@ -106,13 +106,22 @@
                 <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown"
                     aria-label="Open user menu">
                     <span class="avatar avatar-sm">
-
+                        {% set user_name = session.get('USER_NAME') %}
+                        {% if user_name and user_name.strip() %}
+                        {{ user_name.split() | map('first') | map('upper') | join('') }}
+                        {% else %}
+                        U
+                        {% endif %}
                     </span>
                     <div class="d-none d-xl-block ps-2">
                         <div>{{ session.get('USER_NAME', 'Guest') }}</div>
                         <div class="mt-1 small text-secondary">
-                            {% set excluded_roles = ['default-roles-master', 'offline_access', 'uma_authorization',
-                            'create_realm'] %}
+                            {% set excluded_roles = [
+                            'default-roles-master',
+                            'offline_access',
+                            'uma_authorization',
+                            'create-realm'
+                            ] %}
                             {% set displayed_roles = session.get('USER_ROLES', [])
                             | reject("in", excluded_roles)
                             | map("replace", '-', ' ')
@@ -250,7 +259,6 @@
                         </a>
                     </li>
                     {% endif %}
-
                 </ul>
                 <div class="my-2 my-md-0 flex-grow-1 flex-md-grow-0 order-first order-md-last">
                     <form method="get" autocomplete="off" novalidate>
@@ -266,11 +274,10 @@
                                 </svg>
                             </span>
                             <input type="text" value="" class="form-control" placeholder="Search…"
-                                aria-label="Search in website">
+                                aria-label="Search in website" />
                         </div>
                     </form>
                 </div>
-
             </div>
         </div>
     </div>
