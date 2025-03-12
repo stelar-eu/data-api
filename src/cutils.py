@@ -890,7 +890,7 @@ class VocabularySchema(Schema):
 
 class VocabularyCKANSchema(Schema):
     id = fields.String()
-    name = schema.NameID()
+    name = schema.String()
     tags = fields.List(fields.Raw)
 
     # @post_dump
@@ -994,7 +994,7 @@ class TagEntity(CKANEntity):
 
         # Check if we have a tagspec
         if ":" in eid:
-            vocab, tag = eid.split(":")
+            vocab, tag = eid.rsplit(":", 1)
             obj = ckan_request(
                 self.ckan_api_show,
                 id=tag,
