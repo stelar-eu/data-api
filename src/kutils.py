@@ -24,6 +24,8 @@ from keycloak.keycloak_openid import KeycloakOpenID
 
 import sql_utils
 from backend.ckan import ckan_request
+from backend.pgsql import execSql
+
 
 from exceptions import BackendError, InternalException, InvalidError
 from utils import is_valid_uuid, validate_email
@@ -241,7 +243,7 @@ def current_user():
     """
     if "current_user" not in flask.g:
         from flask import request
-
+        logger.info("Fetching current user's info by token")
         match request.headers.get("Authorization", "").split(" "):
             case ["Bearer", access_token]:
                 pass
@@ -249,6 +251,7 @@ def current_user():
                 access_token = session.get("access_token")
 
         flask.g.current_user = get_user_by_token(access_token=access_token)
+    logger.info("User's info fetched from context")
     return flask.g.current_user
 
 
@@ -704,6 +707,9 @@ def create_user_with_password(
             logger.error("Error while calling ckan_request: %s", str(e), exc_info=True)
             keycloak_admin.delete_user(user_id)
             raise BackendError("Error while creating user") from e
+        
+        query = "UPDATE public.\"user\" SET sysadmin = %s WHERE id = %s"
+        result = execSql(query, (True, user_id))
 
         return user_id
     except KeycloakAuthenticationError as e:

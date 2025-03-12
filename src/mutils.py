@@ -4,12 +4,15 @@ import json
 import logging
 import subprocess
 import xml.etree.ElementTree as ET
+import os
 
 import requests
 from flask import current_app, make_response
 from minio import Minio
 from minio.commonconfig import CopySource
 from minio.error import S3Error
+import backend.minio
+from backend.minio import minio_add_policy, minio_remove_policy  
 
 from exceptions import InternalException, AuthorizationError
 
@@ -379,25 +382,27 @@ def create_policy(perm):
     with open(policy_file, "w") as file:
         file.write(policy_json)
 
-    try:
-        # Create the policy using mc client
-        subprocess.run(
-            [
-                "mc",
-                "admin",
-                "policy",
-                "create",
-                "myminio",
-                hashed_policy_name,
-                policy_file,
-            ],
-            check=True,
-        )
-        print(f"Policy '{hashed_policy_name}' created successfully.")
+    minio_add_policy(hashed_policy_name, policy_file)
 
-        # Apply the policy to the user
-    except subprocess.CalledProcessError as err:
-        print(f"Error occurred: {err}")
+    # try:
+    #     # Create the policy using mc client
+    #     subprocess.run(
+    #         [
+    #             "mc",
+    #             "admin",
+    #             "policy",
+    #             "create",
+    #             "myminio",
+    #             hashed_policy_name,
+    #             policy_file,
+    #         ],
+    #         check=True,
+    #     )
+    #     print(f"Policy '{hashed_policy_name}' created successfully.")
+
+    #     # Apply the policy to the user
+    # except subprocess.CalledProcessError as err:
+    #     print(f"Error occurred: {err}")
 
     policy_names_list.append(hashed_policy_name)
 
@@ -407,4 +412,5 @@ def create_policy(perm):
 def delete_policies(policies_to_delete):
     for policy in policies_to_delete:
         # delete_command = "mc admin policy rm myminio " + policy
-        subprocess.run(["mc", "admin", "policy", "rm", "myminio", policy])
+        # subprocess.run(["mc", "admin", "policy", "rm", "myminio", policy]
+        minio_remove_policy(policy)

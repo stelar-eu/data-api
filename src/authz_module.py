@@ -6,8 +6,9 @@ import kutils as ku
 import mutils as mu
 import yaml
 import logging
-from flask import g
+from flask import g,jsonify
 from backend.ckan import ckan_request
+import fnmatch
 
 logger = logging.getLogger(__name__)
 
@@ -82,9 +83,8 @@ class ResourceSpecPermissionsType(AuthorizationModule):
                 raise ValueError("Invalid resource specification")
                   
     def create_permissions(self,role_name, perm):
-        # global action_permissions
+    
         permissions = {}
-        # action_permissions.clear()
         
         logger.info("Creating resource_spec permissions")
         actions = perm["action"]
@@ -178,12 +178,6 @@ class ResourceSpec:
         Determines if a given resource matches this specification.
         """
         raise NotImplementedError
-    
-    def fetch_resource(self, resource) -> Any:
-        """
-        Fetch the actual resource from the context.
-        """
-        raise NotImplementedError
 
 
 class AttrSpec(ResourceSpec):
@@ -194,25 +188,6 @@ class AttrSpec(ResourceSpec):
         self.op = getattr(self, self.operation, None)
         if self.op is None:
             raise ValueError("Invalid operation")
-    
-    def fetch_resource(self, resource):
-        # Cache the resource in flask.g.ckan_resources if resource is given as an ID (a string)
-        if isinstance(resource, str):
-            if not hasattr(g, "ckan_resources"):
-                g.ckan_resources = {}
-            if resource in g.ckan_resources:
-                logger.info("Resource retrieved from flask.g cache")
-                return g.ckan_resources[resource]
-            if g.entity and g.entity in ["dataset", "workflow", "process", "tool"]:
-                logger.info("ckan request for package show")
-                fetched = ckan_request("package_show", id=resource, context={"entity": g.entity})
-                logger.info("Resource fetched from CKAN")
-            else:
-                fetched = ckan_request(f"{g.entity}_show", resource)
-            g.ckan_resources[resource] = fetched
-            return fetched
-        else:
-            return resource
 
     def from_value(self) -> Any:
         "Return the actual value from the value spec"
@@ -223,20 +198,32 @@ class AttrSpec(ResourceSpec):
         
     def value_from_context(self, key) -> Any:
         "Return the value from the context"
-        if key not in context:
-            match key:
-                case "current_uid":
-                    return context["current_uid"]
-                case _:
-                    raise ValueError("Invalid key")
 
-        return context[key]
+        user_info = ku.current_user()
+        match key:
+            case "current_uid":
+                return user_info["sub"]
+            case _:
+                raise ValueError("Invalid key")
 
     def equals(self, lhs, rhs) -> bool:
+        logger.info("Checking equals")
         return lhs == rhs
     
+    #TODO Implement the rest of the operations
+    def like(self, lhs, rhs) -> bool:
+        logger.info("Checking like")
+        return fnmatch.fnmatch(lhs, rhs)
+
+    def between(self, lhs, rhs) -> bool:
+        pass
+
+    def from_date(self, lhs, rhs) -> bool:
+        pass
+
+    
     def auth(self, resource):
-        fetched_resource = self.fetch_resource(resource)
+        fetched_resource = fetch_resource("fetch_resource", resource)
         lhs = fetched_resource.get(self.attr, ...)
         if lhs is ...:
             return False
@@ -253,99 +240,11 @@ class GMspec(ResourceSpec):
         self.group = group
         self.capacity = capacity
 
-    # def fetch_resource(self, resource):
-    #     if isinstance(resource, str) and self.type in ["dataset", "workflow", "process", "tool"]:
-    #         logger.info("ckan request for package show")
-    #         resource = ckan_request("package_show", id=resource, context={"entity":self.type})
-    #         logger.info("resource fetched")
-    #     else:
-    #         resource = ckan_request(f"{self.type}_show", resource)
-        
-    #     return resource
-
-    def fetch_resource(self, resource):
-        # Cache the resource in flask.g.ckan_resources if resource is given as an ID (a string)
-        if isinstance(resource, str):
-            if not hasattr(g, "ckan_resources"):
-                g.ckan_resources = {}
-            if resource in g.ckan_resources:
-                logger.info("Resource retrieved from flask.g cache")
-                return g.ckan_resources[resource]
-            if g.entity and g.entity in ["dataset", "workflow", "process", "tool"]:
-                logger.info("ckan request for package show")
-                fetched = ckan_request("package_show", id=resource, context={"entity": g.entity})
-                logger.info("Resource fetched from CKAN")
-            else:
-                fetched = ckan_request(f"{g.entity}_show", resource)
-            g.ckan_resources[resource] = fetched
-            return fetched
-        else:
-            return resource
-
-    # def check_group(self, resource):
-    #     # resource = self.fetch_resource(resource)
-    #     if isinstance(resource, str):
-    #         logger.info("Checking group")
-    #         try:
-    #             group_member = ckan_request("member_list", id=self.group)
-    #         except:
-    #             raise ValueError("Group does not exist")
-    #         for member in group_member:
-    #             logger.info("Checking member")
-    #             if resource in member:
-    #                 logger.info("Resource found in group")
-    #                 return True
-    #     else:
-    #         groups = resource.get("groups",None)
-    #         for group in groups:
-    #             if group.get("name",None) == self.group:
-    #                 return True
-    #         # if resource.get("group",None) != self.type:
-    #         #     return False
-    #     return False
-
-    # def check_type(self, resource):
-    #     logger.info("Checking type")
-    #     resource = self.fetch_resource(resource)
-
-    #     if resource.get("type",None) != self.type:
-    #         return False
-        
-    #     return True
-
-    # def check_capacity(self, resource):
-    #     # resource = self.fetch_resource(resource)
-    #     logger.info("Checking capacity")
-    #     if isinstance(resource, str):
-    #         logger.info("Checking group")
-    #         try:
-    #             group_member = ckan_request("member_list", id=self.group)
-    #         except:
-    #             raise ValueError("Group does not exist")
-    #         for member in group_member:
-    #             logger.info("Checking member")
-    #             if resource in member and self.capacity in member:
-    #                 return True
-    #     return False
-    def get_group_members(self):
-        # Cache the group member list in flask.g.ckan_group_members using the group name/id as key
-        if not hasattr(g, "ckan_group_members"):
-            g.ckan_group_members = {}
-        if self.group in g.ckan_group_members:
-            logger.info("Group members retrieved from flask.g cache")
-            return g.ckan_group_members[self.group]
-        try:
-            members = ckan_request("member_list", id=self.group)
-        except Exception:
-            raise ValueError("Group does not exist")
-        g.ckan_group_members[self.group] = members
-        return members
-
     def check_group(self, resource):
         # When resource is provided as an ID (string), check against the cached group members.
         if isinstance(resource, str):
             logger.info("Checking group with resource id")
-            group_members = self.get_group_members()
+            group_members = fetch_resource("fetch_group_members", self.group)
             for member in group_members:
                 logger.info("Checking member")
                 if resource in member:
@@ -362,7 +261,7 @@ class GMspec(ResourceSpec):
 
     def check_type(self, resource):
         logger.info("Checking type")
-        resource = self.fetch_resource(resource)
+        resource = fetch_resource("fetch_resource", resource)
         if resource.get("type", None) != self.type:
             return False
         return True
@@ -371,7 +270,7 @@ class GMspec(ResourceSpec):
         logger.info("Checking capacity")
         if isinstance(resource, str):
             logger.info("Checking group for capacity")
-            group_members = self.get_group_members()
+            group_members = fetch_resource("fetch_group_members", self.group)
             for member in group_members:
                 logger.info("Checking member for capacity")
                 if resource in member and self.capacity in member:
@@ -379,19 +278,8 @@ class GMspec(ResourceSpec):
             return False
         return False
 
-        # if resource.get("group",None) != self.type:
-        #     return False
 
     def auth(self, resource) -> bool:
-        # if resource.get("type",None) != self.type:
-        #     return False
-
-        # if resource.get("group",None) != self.group:
-        #     # self.check_group(resource)
-        #     return False
-
-        # if resource.get("capacity",None) != self.capacity:
-        #     return False
 
         if not self.check_group(resource):
             return False
@@ -414,45 +302,11 @@ class OMSpec(ResourceSpec):
         self.org = org
         self.capacity = capacity
 
-    def fetch_resource(self, resource):
-        # Cache the resource in flask.g.ckan_resources if resource is given as an ID (a string)
-        if isinstance(resource, str):
-            if not hasattr(g, "ckan_resources"):
-                g.ckan_resources = {}
-            if resource in g.ckan_resources:
-                logger.info("Resource retrieved from flask.g cache")
-                return g.ckan_resources[resource]
-            if g.entity and g.entity in ["dataset", "workflow", "process", "tool"]:
-                logger.info("ckan request for package show")
-                fetched = ckan_request("package_show", id=resource, context={"entity": g.entity})
-                logger.info("Resource fetched from CKAN")
-            else:
-                fetched = ckan_request(f"{g.entity}_show", resource)
-            g.ckan_resources[resource] = fetched
-            return fetched
-        else:
-            return resource
-
-    
-    def get_org_members(self):
-        # Cache the group member list in flask.g.ckan_group_members using the group name/id as key
-        if not hasattr(g, "ckan_org_members"):
-            g.ckan_org_members = {}
-        if self.org in g.ckan_org_members:
-            logger.info("Org members retrieved from flask.g cache")
-            return g.ckan_org_members[self.org]
-        try:
-            members = ckan_request("member_list", id=self.org)
-        except Exception:
-            raise ValueError("Group does not exist")
-        g.ckan_org_members[self.org] = members
-        return members
-
     def check_org(self, resource):
         # When resource is provided as an ID (string), check against the cached group members.
         if isinstance(resource, str):
             logger.info("Checking org with resource id")
-            org_members = self.get_org_members()
+            org_members = fetch_resource("fetch_org_members", self.org)
             for member in org_members:
                 logger.info("Checking member")
                 if resource in member:
@@ -467,7 +321,7 @@ class OMSpec(ResourceSpec):
 
     def check_type(self, resource):
         logger.info("Checking type")
-        resource = self.fetch_resource(resource)
+        resource = fetch_resource("fetch_resource", resource)
         if resource.get("type", None) != self.type:
             return False
         return True
@@ -476,7 +330,7 @@ class OMSpec(ResourceSpec):
         logger.info("Checking capacity")
         if isinstance(resource, str):
             logger.info("Checking org for capacity")
-            group_members = self.get_org_members()
+            group_members = fetch_resource("fetch_org_members", self.org)
             for member in group_members:
                 logger.info("Checking member for capacity")
                 if resource in member and self.capacity in member:
@@ -484,12 +338,6 @@ class OMSpec(ResourceSpec):
             return False
         return False
 
-    # def check_org(self, resource):
-    #     pass
-    # def check_type(self, resource):
-    #     pass
-    # def check_capacity(self, resource):
-    #     pass
 
     def auth(self, resource) -> bool:
         if not self.check_org(resource):
@@ -505,25 +353,89 @@ class OMSpec(ResourceSpec):
     
     def __call__(self, resource) -> bool:
         return self.auth(resource)
-    
+
 
 class UMspec(ResourceSpec):
     def __init__(self, *, group, capacity):
         self.group = group
         self.capacity = capacity
 
+    def check_group(self, resource):
+        members = fetch_resource("fetch_group_members", self.group)
+        user_info = ku.current_user()
+        for member in members:
+            if user_info["sub"] in member:
+                return True
+        return False
+    
+    def check_capacity(self, resource):
+        members = fetch_resource("fetch_group_members", self.group)
+        user_info = ku.current_user()
+        for member in members:
+            if user_info["sub"] in member and self.capacity in member:
+                return True
+        return False
+
     def auth(self, resource) -> bool:
-        if resource.group != self.group:
+        if not self.check_group(resource):
             # self.check_group(resource)
             return False
 
-        if resource.capacity != self.capacity:
+        if not self.check_capacity(resource):
             return False
 
         return True
     
     def __call__(self, resource) -> bool:
         return self.auth(resource)
+
+#TODO: Move this function to backed/ckan.py 
+def fetch_resource(purpose,*args):
+    # Cache the resource in flask.g.ckan_resources if resource is given as an ID (a string)
+    logger.info("Now all calls the general puprose function")
+    if purpose == "fetch_resource":
+        if isinstance(args[0], str):
+            if not hasattr(g, "ckan_resources"):
+                g.ckan_resources = {}
+            if args[0] in g.ckan_resources:
+                logger.info("Resource retrieved from flask.g cache")
+                return g.ckan_resources[args[0]]
+            if g.entity and g.entity in ["dataset", "workflow", "process", "tool"]:
+                logger.info("ckan request for package show")
+                fetched = ckan_request("package_show", id=args[0], context={"entity": g.entity})
+                logger.info("Resource fetched from CKAN")
+            else:
+                fetched = ckan_request(f"{g.entity}_show", id=args[0])
+            g.ckan_resources[args[0]] = fetched
+            return fetched
+        else:
+            return args[0]
+    elif purpose == "fetch_group_members":
+        if not hasattr(g, "ckan_group_members"):
+            g.ckan_group_members = {}
+        if args[0] in g.ckan_group_members:
+            logger.info("Group members retrieved from flask.g cache")
+            return g.ckan_group_members[args[0]]
+        try:
+            members = ckan_request("member_list", id=args[0])
+        except Exception:
+            raise ValueError("Group does not exist")
+        g.ckan_group_members[args[0]] = members
+        return members
+    elif purpose == "fetch_org_members":
+        if not hasattr(g, "ckan_org_members"):
+            g.ckan_org_members = {}
+        if args[0] in g.ckan_org_members:
+            logger.info("Org members retrieved from flask.g cache")
+            return g.ckan_org_members[args[0]]
+        try:
+            members = ckan_request("member_list", id=args[0])
+        except Exception:
+            raise ValueError("Group does not exist")
+        g.ckan_org_members[args[0]] = members
+        return members
+    else:
+        return None
 
 
 
