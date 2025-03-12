@@ -6,7 +6,8 @@ from flask import request
 import schema
 import tools
 import wflow
-import wxutils
+import processes
+import tasks
 import kutils
 from auth import token_active
 
@@ -22,7 +23,7 @@ workflows_bp = APIBlueprint("rest_workflows_blueprint", __name__, tag="Task Oper
 # --------------------------------------------------------
 
 logger.info("Generating endpoints for process")
-generate_endpoints(wxutils.PROCESS, workflows_bp, logger)
+generate_endpoints(processes.PROCESS, workflows_bp, logger)
 generate_endpoints(tools.TOOL, workflows_bp, logger)
 generate_endpoints(wflow.WORKFLOW, workflows_bp, logger)
 
@@ -34,7 +35,7 @@ generate_endpoints(wflow.WORKFLOW, workflows_bp, logger)
 
 @workflows_bp.route("/task/<task_id>", methods=["GET"])
 @workflows_bp.doc(tags=["Task Operations"])
-@workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
+@workflows_bp.output(schema.APIResponse, status_code=200)
 @token_active
 @render_api_output(logger)
 def api_get_task_metadata(task_id):
@@ -49,12 +50,12 @@ def api_get_task_metadata(task_id):
         - 404: Task is not found
         - 500: An unknown error occurred
     """
-    return wxutils.TASK.get_entity(task_id)
+    return tasks.TASK.get_entity(task_id)
 
 
 @workflows_bp.route("/task", methods=["POST"])
 @workflows_bp.doc(tags=["Task Operations"])
-@workflows_bp.input(wxutils.TaskSchema, location="json")
+@workflows_bp.input(tasks.TaskSchema, location="json")
 @workflows_bp.output(schema.APIResponse, status_code=200)
 @token_active
 @render_api_output(logger)
@@ -65,7 +66,7 @@ def api_rest_create_task(json_data):
     Returns:
         A JSON response containing success status, the newly created task, or error details.
     """
-    return wxutils.TASK.create_entity(json_data)
+    return tasks.TASK.create_entity(json_data)
 
 
 @workflows_bp.route("/task/<task_id>/input", methods=["GET"])
@@ -85,13 +86,14 @@ def api_rest_get_task_input(task_id, signature=None):
     Returns:
         A JSON with the inputs, outputs, parameters & MinIO credentials
     """
-    return wxutils.TASK.get_input(task_id, kutils.current_token(), signature=signature)
+    return tasks.TASK.get_input(task_id, kutils.current_token(), signature=signature)
 
 
 @workflows_bp.route("/task/<task_id>/<signature>/output", methods=["POST"])
 @workflows_bp.doc(tags=["Task Operations"])
 @workflows_bp.input(schema.Task_Output, location="json")
-@workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
 def api_rest_post_task_output(task_id, signature, json_data):
     """
     Handles the output of a task execution. Accepts the output files created by the tool, the metrics
@@ -110,53 +112,13 @@ def api_rest_post_task_output(task_id, signature, json_data):
         - 404: Task not found.
         - 500: An unknown error occurred.
     """
-    try:
-        resp = wxutils.get_task_output_json(
-            task_id=task_id, signature=signature, output_json=json_data
-        )
-        return {
-            "success": True,
-            "result": {"task_id": task_id, "output_published": resp},
-            "help": "",
-        }, 200
-    except ValueError as ve:
-        return {
-            "success": False,
-            "error": {"name": f"Error: {ve}", "__type": "Task Not Found"},
-            "help": request.url,
-        }, 404
-    except AttributeError as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Not valid Task ID",
-            },
-            "success": False,
-        }, 400
-    except AssertionError as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Invalid Signature",
-            },
-            "success": False,
-        }, 401
-    except RuntimeError as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Task Fetch Runtime Error",
-            },
-            "success": False,
-        }, 500
+    return tasks.TASK.save_output(task_id, signature, json_data)
 
 
 @workflows_bp.route("/task/<task_id>/logs", methods=["GET"])
 @workflows_bp.doc(tags=["Task Operations"])
-@workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
 @token_active
 def api_get_task_logs(task_id):
     """Return the logs of the specific Task Execution.
@@ -171,23 +133,13 @@ def api_get_task_logs(task_id):
         - 200: Task logs successfully returned.
         - 500: An unknown error occurred.
     """
-    try:
-        logs = wxutils.get_task_logs(task_id)
-        return {"success": True, "result": {"logs": logs}, "help": request.url}, 200
-    except Exception as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Unknown Error",
-            },
-            "success": False,
-        }, 500
+    return tasks.TASK.get_logs(task_id)
 
 
 @workflows_bp.route("/task/<task_id>/jobs", methods=["GET"])
 @workflows_bp.doc(tags=["Task Operations"])
-@workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
 @token_active
 def api_get_task_jobs(task_id):
     """Return the information of jobs for a specific task.
@@ -203,23 +155,12 @@ def api_get_task_jobs(task_id):
         - 200: Task logs successfully returned.
         - 500: An unknown error occurred.
     """
-    try:
-        logs = wxutils.get_task_info(task_id)
-        return {"success": True, "result": {"jobs": logs}, "help": request.url}, 200
-    except Exception as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Unknown Error",
-            },
-            "success": False,
-        }, 500
+    return tasks.TASK.get_job_info(task_id)
 
 
 @workflows_bp.route("/task/<entity_id>", methods=["DELETE"])
 @workflows_bp.doc(tags=["Task Operations"])
-@workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
+@workflows_bp.output(schema.APIResponse, status_code=200)
 @token_active
 @render_api_output(logger)
 def api_delete_task(entity_id):
@@ -233,14 +174,13 @@ def api_delete_task(entity_id):
         - 404: Task not found.
         - 500: An unknown error occurred.
     """
-    resp = wxutils.TASK.delete_entity(entity_id)
-    return resp
+    return tasks.TASK.delete_entity(entity_id)
 
 
 @workflows_bp.route("/task/<entity_id>", methods=["PATCH"])
 @workflows_bp.input(schema.WorkflowState, location="json")
 @workflows_bp.doc(tags=["Task Operations"])
-@workflows_bp.output(schema.ResponseAmbiguous, status_code=200)
+@workflows_bp.output(schema.APIResponse, status_code=200)
 @token_active
 @render_api_output(logger)
 def api_update_task_state(entity_id, json_data):
@@ -255,4 +195,4 @@ def api_update_task_state(entity_id, json_data):
         - 404: Task not found.
         - 500: An unknown error occurred.
     """
-    return wxutils.TASK.patch_entity(entity_id, json_data.get("state"))
+    return tasks.TASK.patch_entity(entity_id, json_data.get("state"))

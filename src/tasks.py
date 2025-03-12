@@ -286,6 +286,7 @@ class Task(Entity):
             raise ConflictError("Cannot delete a running task.")
         with transaction():
             sql_utils.task_execution_delete(id)
+            return id
 
     def parse_inputs(self, id: uuid.UUID, process_id: uuid.UUID, inputs: dict):
         """Parses the input provided in the Task Spec
