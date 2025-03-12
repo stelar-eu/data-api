@@ -1,11 +1,11 @@
 """
-Contains the Entity class and its subclasses. 
+Contains the Entity class and its subclasses.
 
 The Entity class is a base class for STELAR entities. The main responsibility
 of the Entity class is to provide a common interface for interacting via the
-STELAR API. The class defines a set of operations that can be performed 
-on an entity, such as listing, fetching, creating, updating, and deleting. 
-The specific implementation of these operations is left to the subclasses. 
+STELAR API. The class defines a set of operations that can be performed
+on an entity, such as listing, fetching, creating, updating, and deleting.
+The specific implementation of these operations is left to the subclasses.
 
 
 CKAN-based entities:
@@ -20,12 +20,12 @@ specific CKAN entities, such as datasets, groups, and organizations. The subclas
 define the specific attributes and methods for each entity sub-type.
 
 In particular, the EntityWithMembers class is used to handle CKAN entities that
-have members, that is, groups and organizations. It provides methods to add, 
-remove, and list members of the group or organization. The MemberEntity class is 
+have members, that is, groups and organizations. It provides methods to add,
+remove, and list members of the group or organization. The MemberEntity class is
 used to customize the membership API in entities with members.
 
 Also, the EntityWithExtras class is used to handle CKAN entities that have extras,
-that is, additional attributes stored in the 'extras' field in CKAN. The 
+that is, additional attributes stored in the 'extras' field in CKAN. The
 EntityWithExtrasCKANSchema class is used to define the schema for entities with
 extras in CKAN.
 
@@ -858,11 +858,14 @@ class EntityWithMembers(EntityWithExtras):
 
     def get(self, eid: str):
         #
-        # Because of a bug in CKAN code, getting CKAN groups and orgs fails (CKAN returns 'internal error')
-        # when there are cycles between groups. To ameliorate this, we need to pass the 'include_groups=False'
+        # Because of a bug in CKAN code, getting CKAN groups and orgs fails (CKAN
+        # returns 'internal error')
+        # when there are cycles between groups. To ameliorate this, we need to pass
+        # the 'include_groups=False'
         # flag.
         #
-        # FYI: the bug is in file './ckan/lib/dictization/model_dictize.py' and manifests as a "stack overflow"
+        # FYI: the bug is in file './ckan/lib/dictization/model_dictize.py' and
+        # manifests as a "stack overflow"
         # (in python the exception is "Recursion Depth exceeded").
         #
         obj = ckan_request(
@@ -895,7 +898,7 @@ class EntityWithMembers(EntityWithExtras):
         context: dict = {},
     ):
         context = {"entity": self.name}
-        obj = ckan_request(
+        ckan_request(
             "member_create",
             id=eid,
             object=member_id,
@@ -967,8 +970,8 @@ class PackageEntity(EntityWithExtras):
         list_attr = "name" if self.list_names else "id"
         sql_query = sql.SQL(
             """\
-            SELECT {list_attr} 
-            FROM package 
+            SELECT {list_attr}
+            FROM package
             WHERE state = 'active' AND type = %s
             ORDER BY name
             LIMIT %s OFFSET %s"""
