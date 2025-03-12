@@ -27,7 +27,6 @@ generate_endpoints(processes.PROCESS, workflows_bp, logger)
 generate_endpoints(tools.TOOL, workflows_bp, logger)
 generate_endpoints(wflow.WORKFLOW, workflows_bp, logger)
 
-
 # --------------------------------------------------------
 # ------------------------ TASKS -------------------------
 # --------------------------------------------------------
@@ -67,6 +66,46 @@ def api_rest_create_task(json_data):
         A JSON response containing success status, the newly created task, or error details.
     """
     return tasks.TASK.create_entity(json_data)
+
+
+@workflows_bp.route("/task/<entity_id>", methods=["DELETE"])
+@workflows_bp.doc(tags=["Task Operations"])
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@token_active
+@render_api_output(logger)
+def api_delete_task(entity_id):
+    """Delete a Task Execution from the Workflow Execution Engine.
+    Args:
+        task_id: The unique identifier of the Task Execution.
+    Returns:
+        A JSON response containing success status, or error
+    Responses:
+        - 200: Task successfully deleted.
+        - 404: Task not found.
+        - 500: An unknown error occurred.
+    """
+    return tasks.TASK.delete_entity(entity_id)
+
+
+@workflows_bp.route("/task/<entity_id>", methods=["PATCH"])
+@workflows_bp.input(schema.WorkflowState, location="json")
+@workflows_bp.doc(tags=["Task Operations"])
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@token_active
+@render_api_output(logger)
+def api_update_task_state(entity_id, json_data):
+    """Update the state of a task given its unique identifier.
+    Args:
+        task_id: The unique identifier of the Task Execution.
+        The state must be one of the following: 'failed', 'succeeded', 'running'.
+    Returns:
+        A JSON response containing success status, or error
+    Responses:
+        - 200: Task successfully deleted.
+        - 404: Task not found.
+        - 500: An unknown error occurred.
+    """
+    return tasks.TASK.patch_entity(entity_id, json_data.get("state"))
 
 
 @workflows_bp.route("/task/<task_id>/input", methods=["GET"])
@@ -156,43 +195,3 @@ def api_get_task_jobs(task_id):
         - 500: An unknown error occurred.
     """
     return tasks.TASK.get_job_info(task_id)
-
-
-@workflows_bp.route("/task/<entity_id>", methods=["DELETE"])
-@workflows_bp.doc(tags=["Task Operations"])
-@workflows_bp.output(schema.APIResponse, status_code=200)
-@token_active
-@render_api_output(logger)
-def api_delete_task(entity_id):
-    """Delete a Task Execution from the Workflow Execution Engine.
-    Args:
-        task_id: The unique identifier of the Task Execution.
-    Returns:
-        A JSON response containing success status, or error
-    Responses:
-        - 200: Task successfully deleted.
-        - 404: Task not found.
-        - 500: An unknown error occurred.
-    """
-    return tasks.TASK.delete_entity(entity_id)
-
-
-@workflows_bp.route("/task/<entity_id>", methods=["PATCH"])
-@workflows_bp.input(schema.WorkflowState, location="json")
-@workflows_bp.doc(tags=["Task Operations"])
-@workflows_bp.output(schema.APIResponse, status_code=200)
-@token_active
-@render_api_output(logger)
-def api_update_task_state(entity_id, json_data):
-    """Update the state of a task given its unique identifier.
-    Args:
-        task_id: The unique identifier of the Task Execution.
-        The state must be one of the following: 'failed', 'succeeded', 'running'.
-    Returns:
-        A JSON response containing success status, or error
-    Responses:
-        - 200: Task successfully deleted.
-        - 404: Task not found.
-        - 500: An unknown error occurred.
-    """
-    return tasks.TASK.patch_entity(entity_id, json_data.get("state"))
