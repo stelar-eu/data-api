@@ -147,7 +147,7 @@
             <div class="container-xl">
                 <ul class="navbar-nav">
                     <li
-                        class="nav-item {% if request.path == url_for('dashboard_blueprint.dashboard_index') %}active{% endif %}">
+                        class="nav-item {% if url_for('dashboard_blueprint.dashboard_index').endswith(request.path) %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.dashboard_index') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                                 <!-- Overview icon -->
@@ -164,8 +164,8 @@
                         </a>
                     </li>
                     <li
-                        class="nav-item {% if request.path == url_for('dashboard_blueprint.workflows') %}active{% endif %}">
-                        <a class="nav-link" href="{{ url_for('dashboard_blueprint.workflows') }}">
+                        class="nav-item {% if url_for('dashboard_blueprint.processes').endswith(request.path) %}active{% endif %}">
+                        <a class="nav-link" href="{{ url_for('dashboard_blueprint.processes') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                                 <!-- Processes icon -->
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
@@ -182,7 +182,7 @@
                         </a>
                     </li>
                     <li
-                        class="nav-item {% if request.path == url_for('dashboard_blueprint.datasets') %}text-primary{% endif %}">
+                        class="nav-item {% if url_for('dashboard_blueprint.datasets').endswith(request.path) %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.datasets') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                                 <!-- Catalog icon -->
@@ -200,7 +200,8 @@
                             <span class="nav-link-title">Data Catalog</span>
                         </a>
                     </li>
-                    <li class="nav-item {% if request.path == url_for('dashboard_blueprint.tools') %}active{% endif %}">
+                    <li
+                        class="nav-item {% if url_for('dashboard_blueprint.tools').endswith(request.path) %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.tools') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                                 <!-- Tool icon -->
@@ -218,7 +219,7 @@
                     </li>
                     {% if 'admin' in session.get('USER_ROLES', []) %}
                     <li
-                        class="nav-item {% if request.path == url_for('dashboard_blueprint.adminSettings') %}active{% endif %}">
+                        class="nav-item {% if url_for('dashboard_blueprint.adminSettings').endswith(request.path) %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.adminSettings') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -239,7 +240,7 @@
                     </li>
 
                     <li
-                        class="nav-item {% if request.path == url_for('dashboard_blueprint.adminSettings') %}active{% endif %}">
+                        class="nav-item {% if url_for('dashboard_blueprint.adminSettings').endswith(request.path) %}active{% endif %}">
                         <a class="nav-link" href="{{url_for('dashboard_blueprint.adminSettings')}}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
