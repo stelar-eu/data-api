@@ -1,6 +1,7 @@
 import geojson
 import jmespath
 import pytest
+from marshmallow import ValidationError
 
 from cutils import DATASET, DatasetCKANSchema
 from spatial import GeoJSONGeomValidator
@@ -60,7 +61,8 @@ def test_geojson_geom_validator_valid(geom):
 )
 def test_geojson_geom_validator_invalid(data):
     v = GeoJSONGeomValidator()
-    assert not v(data)
+    with pytest.raises(ValidationError):
+        v(data)
 
 
 def test_schema_encode_spatial_data():

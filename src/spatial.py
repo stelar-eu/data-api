@@ -28,9 +28,14 @@ class GeoJSONGeomValidator(types.Validator):
     def __call__(self, value: Any):
         try:
             # return geojson.loads(value).is_valid
-            return geojson.GeoJSON.to_instance(value).is_valid
+            geom = geojson.GeoJSON.to_instance(value)
         except Exception:
-            return False
+            raise ValidationError("Invalid format for GeoJSON")
+        if not isinstance(geom, geojson.GeoJSON):
+            raise ValidationError("Invalid object for GeoJSON")
+        if not geom.is_valid:
+            raise ValidationError("Invalid GeoJSON geometry")
+        return True
 
 
 class GeoJSONGeom(Field):
