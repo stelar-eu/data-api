@@ -76,6 +76,9 @@ class Entity:
     - update_schema: the schema for updating entities
     """
 
+    # Register all Entity instances here, indexed by name
+    REGISTRY = {}
+
     OPERATIONS = [
         "list",
         "fetch",
@@ -104,6 +107,7 @@ class Entity:
         """
         self.name = name
         self.collection_name = collection_name
+        self.REGISTRY[name] = self
 
         self.creation_schema = creation_schema
         self.update_schema = update_schema
@@ -758,6 +762,8 @@ class MemberEntity:
         ckan_type:
     """
 
+    REGISTRY = {}
+
     OPERATIONS = ["add_member", "remove_member", "list_members"]
 
     def __init__(
@@ -768,6 +774,7 @@ class MemberEntity:
     ):
         self.parent = parent
         self.child = child
+        self.REGISTRY[(child.name, parent.name)] = self
         self.member_kind = child.ckan_name
         self.capacity_schema = capacity_schema
         self.operations = MemberEntity.OPERATIONS
