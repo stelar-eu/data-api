@@ -131,11 +131,13 @@ class TaskSchema(Schema):
     # Limit the execution ability only to internally stored images in the STELAR registry.
     # TODO: The registry domain should be populated by an appropriate environment variable.
     # image = fields.String(
-    #     required=False,
-    #     allow_none=False,
-    #     validate=lambda value: re.match(
-    #         r"^img\.stelar\.gr/stelar/[a-zA-Z0-9_-]+:[a-zA-Z0-9._-]+$", value
-    #     ),
+    #    required=False,
+    #    allow_none=False,
+    #    validate=lambda value: re.match(
+    #        r"^img\.stelar\.gr/stelar/[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]+$", value
+    #    )
+    #    is not None,
+    #    example="img.stelar.gr/stelar/sample:latest",
     # )
     image = fields.String(required=False, allow_none=False)
     exec_state = fields.String(
@@ -250,7 +252,7 @@ class Task(Entity):
         task["tags"].pop("__image__", None)
         task["tags"].pop("__name__", None)
 
-        if task["state"] in ["failed", "succeeded"]:
+        if task["exec_state"] in ["failed", "succeeded"]:
             task["messages"] = task["tags"]["log"]
             task["output"] = sql_utils.task_execution_read_outputs_sql(id)
             task["metrics"] = sql_utils.task_execution_metrics_read_sql(id)
@@ -266,9 +268,12 @@ class Task(Entity):
         # changes only if it is running.
         task = self.get_entity(id)
 
-        if task["state"] == state:
+        if task["exec_state"] == state:
             return
-        if task["state"] in ["running", "created"] and state in ["failed", "succeeded"]:
+        if task["exec_state"] in ["running", "created"] and state in [
+            "failed",
+            "succeeded",
+        ]:
             end_date = datetime.now()
             sql_utils.task_execution_update(id, state, end_date)
         else:
@@ -286,7 +291,7 @@ class Task(Entity):
             NotFoundError: If a Task with the given ID is not found.
         """
         task = self.get_entity(id)
-        if task["state"] == "running":
+        if task["exec_state"] == "running":
             raise ConflictError("Cannot delete a running task.")
         with transaction():
             sql_utils.task_execution_delete(id)
@@ -576,7 +581,7 @@ class Task(Entity):
                                 output_address=url,
                                 dataset_friendly_name=dataset_friendly_name,
                                 resource_name=resource.get("name", ""),
-                                resource_label=resource.get("label", ""),
+                                resource_label=resource.get("relation", ""),
                             )
                         else:
                             raise ConflictError(
@@ -913,11 +918,11 @@ class Task(Entity):
                         output_spec.get("package_details")
                     )
 
-                    decoded_package["owner_org"] = "stelar-klms"
-                    decoded_package["title"] = decoded_package["name"]
-                    decoded_package["name"] = re.sub(
-                        r"[\W_]+", "_", decoded_package["title"]
-                    ).lower()
+                    decoded_package["title"]
+                    decoded_package.setdefault("owner_org", "stelar-klms")
+                    decoded_package.setdefault(
+                        "name", re.sub(r"[\W_]+", "_", decoded_package["title"]).lower()
+                    )
 
                     try:
                         package_id = cutils.DATASET.create_entity(decoded_package)["id"]
