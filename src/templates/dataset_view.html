@@ -579,7 +579,7 @@
             type: 'GET',
             success: function (response) {
               if (response.success) {
-                populateViewResourceModal(response.result.resource);
+                populateViewResourceModal(response.result);
               } else {
                 console.error("Failed to fetch resource details");
               }
@@ -948,16 +948,16 @@
         }
 
         const resourceMetadata = {
-          "resource_metadata": {
-            "description": description,
-            "format": format,
-            "name": name,
-            "url": url
-          }
+          "package_id": "{{ dataset.get('id') }}",
+          "description": description,
+          "format": format,
+          "name": name,
+          "url": url,
+          "relation": 'owned'
         };
 
         $.ajax({
-          url: `{{url_for('catalog_blueprint.api_create_resource', entity_id=dataset.get('id')) }}`,
+          url: `{{url_for('catalog_blueprint.api_create_resource')}}`,
           method: 'POST',
           contentType: 'application/json',
           data: JSON.stringify(resourceMetadata),
@@ -971,7 +971,7 @@
             $('#modal-new-resource input[type="radio"]').prop('checked', false);
             $('#new-custom-format').val('');
             document.querySelector('input[name="resource-type"][value="internal"]').checked = true;
-            appendNewResourceRow(response.result.resource);
+            appendNewResourceRow(response.result);
             setTimeout(function () {
               $('#new-modal-footer .alert').fadeOut(500, function () {
                 $(this).remove();

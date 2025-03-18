@@ -9,8 +9,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="{{ url_for('static', filename='images.js') }}"></script>
+    <script src="{{ url_for('static', filename='utils.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+
     <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
 </head>
 
@@ -23,7 +24,7 @@
                     <div class="row g-2 align-items-center">
                         <div class="col">
                             <div class="page-pretitle">
-                                {{ task_id }}
+                                {{ task.task_id }}
                             </div>
                             <div class="d-flex">
                                 <h2 class="page-title">
@@ -77,9 +78,9 @@
                                             <path d="M12 6l0 13" />
                                             <path d="M21 6l0 13" />
                                         </svg>
-                                        Owner Workflow: <strong><a
-                                                href="{{ url_for('dashboard_blueprint.workflow', workflow_id=task_metadata['workflow_exec_id'] )}}"
-                                                target="_blank">{{ task_metadata['workflow_exec_id'] }}</a></strong>
+                                        Owner Process: <strong><a
+                                                href="{{ url_for('dashboard_blueprint.process', process_id=task.process_id)}}"
+                                                target="_blank">{{ task.process_id }}</a></strong>
                                     </div>
                                     <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -93,7 +94,7 @@
                                             <path d="M9 12h-7" />
                                             <path d="M15 12h7" />
                                         </svg>
-                                        Task ID: <strong>{{ task_metadata['task_exec_id'] }}</strong>
+                                        Task ID: <strong>{{ task.task_id }}</strong>
                                     </div>
                                     <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -104,7 +105,7 @@
                                             <path
                                                 d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" />
                                         </svg>
-                                        Tool: <strong>{{ task_metadata.get('tool_image', 'Image Name Not
+                                        Tool: <strong>{{ task.get('name', 'Name Not
                                             Available')}}</strong>
                                     </div>
                                     <div class="mb-2">
@@ -115,8 +116,8 @@
                                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                             <path d="M7 4v16l13 -8z" />
                                         </svg>
-                                        Started at: <strong>{{ task_metadata.get('start_date', 'Not available') |
-                                            replace("T", " ") }}</strong>
+                                        Started at: <strong>{{ task.start_date.strftime('%d-%m-%Y
+                                            %H:%M') }}</strong>
                                     </div>
                                     <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -130,9 +131,13 @@
                                             <path
                                                 d="M17 7.5a1.5 1.5 0 0 1 3 0v8.5a6 6 0 0 1 -6 6h-2h.208a6 6 0 0 1 -5.012 -2.7a69.74 69.74 0 0 1 -.196 -.3c-.312 -.479 -1.407 -2.388 -3.286 -5.728a1.5 1.5 0 0 1 .536 -2.022a1.867 1.867 0 0 1 2.28 .28l1.47 1.47" />
                                         </svg>
-                                        Finished at: <span id="task-end-date"><strong>{{ task_metadata.get('end_date',
-                                                'Not finished') |
-                                                replace("T", " ") }}</strong></span>
+                                        Finished at: <span id="task-end-date"><strong>
+                                                {% if task.get('end_date') %}
+                                                {{ task.get('end_date').strftime('%d-%m-%Y %H:%M') }}
+                                                {% else %}
+                                                Not Finished
+                                                {% endif %}
+                                            </strong></span>
                                     </div>
                                     <div>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -151,14 +156,15 @@
                                             <path d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
                                             <path d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
                                         </svg>
-                                        Task state: <span id="task-state-badge-{{ task_metadata['task_exec_id'] }}"
-                                            class="badge me-1 {% if task_metadata['state'] == 'succeeded' %}bg-green{% elif task_metadata['state'] == 'failed' %}bg-danger{% else %}bg-warning{% endif %}"></span>
-                                        <span id="task-state-text-{{ task_metadata['task_exec_id'] }}">{{
-                                            task_metadata['state'] | capitalize }}</span>
+                                        Task state: <span id="task-state-badge-{{ task.task_id }}"
+                                            class="badge me-1 {% if task.state == 'succeeded' %}bg-green{% elif task.state == 'failed' %}bg-danger{% else %}bg-warning{% endif %}"></span>
+                                        <span id="task-state-text-{{ task.task_id }}">{{
+                                            task.state | capitalize }}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
                         <div class="col-lg-6">
                             <div class="card">
                                 <div class="card-body">
@@ -172,7 +178,7 @@
                                             <path d="M3 7v10l7 4v-18z" />
                                             <path d="M21 7v10l-7 4v-18z" />
                                         </svg>
-                                        MinIO API Endpoint: <strong>{{ task_input.get('minio')['endpoint_url']
+                                        MinIO API Endpoint: <strong>{{ input.get('minio')['endpoint_url']
                                             }}</strong>
                                     </div>
                                     <div class="mb-2">
@@ -192,7 +198,8 @@
                                             <path d="M4.571 18c1.5 0 2.047 -.074 2.958 -.78" />
                                             <path d="M10 16l0 .01" />
                                         </svg>
-                                        Tool Image: <strong>{{ task_metadata['tags'].get('tool_image', 'Image Name Not
+                                        Tool Image: <strong>{{ task.get('image', 'Image Name
+                                            Not
                                             Available')}}</strong>
                                     </div>
                                     <div class="mb-2">
@@ -206,7 +213,8 @@
                                                 d="M5 13v-8a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2h-5.5m-9.5 -2h7m-3 -3l3 3l-3 3" />
                                         </svg>
                                         Inputs: <strong><a href="#" data-bs-toggle="modal"
-                                                data-bs-target="#inputs-json-modal">View Input Resources</a></strong>
+                                                data-bs-target="#inputs-json-modal">View Input
+                                                Resources</a></strong>
                                     </div>
                                     <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -221,7 +229,8 @@
                                             <path d="M12.5 17.5l2.5 -2.5l-2.5 -2.5" />
                                         </svg>
                                         Output: <strong><a href="#" data-bs-toggle="modal"
-                                                data-bs-target="#outputs-json-modal">View Output Resources</a></strong>
+                                                data-bs-target="#outputs-json-modal">View Output
+                                                Resources</a></strong>
                                     </div>
                                     <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -266,49 +275,75 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="card-body">
+                                    <div class="accordion accordion-flush" id="accordion-flush">
+                                        <div class="accordion-item">
+                                            <button class="accordion-header" type="button" data-bs-toggle="collapse"
+                                                data-bs-target="#collapse-1-flush" aria-expanded="true">
+                                                <div class="accordion-header-text">
+                                                    stelar-task-a6aa8371-7495-4b06-b0f6-ca1d0e227f37-h6mc2
+                                                </div>
+                                                <div class="accordion-header-toggle">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                        class="icon icon-1">
+                                                        <path d="M6 9l6 6l6 -6"></path>
+                                                    </svg>
+                                                </div>
+                                            </button>
+                                            <div id="collapse-1-flush" class="accordion-collapse collapse"
+                                                data-bs-parent="#accordion-flush" style="">
+                                                <div class="accordion-body">
+                                                    <h4>Runtime Logs</h4>
+                                                    <div style="max-height: 40rem; overflow: auto;">
+                                                        <pre id="task-{{ 'hello' }}-logs"
+                                                            style="max-height: 100%; overflow: auto; white-space: pre-wrap; word-break: break-all;">{{ 'hello' | replace('\n', '<br>') | replace('\"', '') | safe }}</pre>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="table-responsive overflow-hidden">
                                     <table class="table table-vcenter card-table" id="job-table">
                                         <thead>
                                             <tr>
                                                 <th>Task Job ID</th>
-                                                <th>Created at</th>
                                                 <th>Status</th>
                                                 <th class="w-1"></th>
                                             </tr>
                                         </thead>
                                         <tbody class="accordion" id="task-list">
-                                            {% if not "message" in logs.keys() %}
-                                            {% for task_id, task_data in logs.items() %}
-                                            <tr id="task-{{ task_id }}" data-bs-toggle="collapse" class="cursor-pointer"
-                                                data-bs-target="#collapse-{{ task_id }}">
-                                                <td>{{ task_id }}</td>
-                                                <td id="task-{{ task_id }}-date" class="text-secondary"></td>
+                                            {% for job_id, job in logs.items() %}
+                                            <tr id="task-{{ job_id }}" data-bs-toggle="collapse" class="cursor-pointer"
+                                                data-bs-target="#collapse-{{ job_id }}">
+                                                <td>{{ job_id }}</td>
                                                 <td class="text-secondary">
-                                                    <span id="task-{{ task_id }}-badge"
-                                                        class="badge {% if task_data['status'] == 'Succeeded' %}bg-success{% elif task_data['status'] =='Running' %}bg-warning{% else %}bg-danger{% endif %} me-1"></span>
-                                                    <p id="task-{{ task_id }}-status" class="d-inline m-1">{{
-                                                        task_data['status'] }}</p>
+                                                    <span id="task-{{ job_id }}-badge"
+                                                        class="badge {% if job['status'] == 'Succeeded' %}bg-success{% elif job['status'] =='Running' %}bg-warning{% else %}bg-danger{% endif %} me-1"></span>
+                                                    <p id="task-{{ job_id }}-status" class="d-inline m-1">{{
+                                                        job['status'] }}</p>
                                                 </td>
                                                 <td>
                                                     <button class="btn btn-link p-0 accordion-button collapsed"
                                                         type="button" data-bs-toggle="collapse"
-                                                        data-bs-target="#collapse-{{ task_id }}" aria-expanded="false"
+                                                        data-bs-target="#collapse-{{ job_id }}" aria-expanded="false"
                                                         aria-controls="collapse-{{ loop.index }}"></button>
                                                 </td>
                                             </tr>
-                                            <tr id="collapse-{{ task_id }}" class="accordion-collapse collapse">
-                                                <td colspan="5">
+                                            <tr id="collapse-{{ job_id }}" class="accordion-collapse collapse">
+                                                <td colspan="2">
                                                     <div class="accordion-body">
                                                         <h4>Runtime Logs</h4>
                                                         <div style="max-height: 40rem; overflow: auto;">
-                                                            <pre id="task-{{ task_id }}-logs"
-                                                                style="max-height: 100%; overflow: auto; white-space: pre-wrap; word-break: break-all;">{{ task_data['logs'] | replace('\n', '<br>') | replace('\"', '') | safe }}</pre>
+                                                            <pre id="task-{{ job_id }}-logs"
+                                                                style="max-height: 100%; overflow: auto; white-space: pre-wrap; word-break: break-all;">{{ job['logs'] | replace('\n', '<br>') | replace('\"', '') | safe }}</pre>
                                                         </div>
                                                     </div>
                                                 </td>
                                             </tr>
                                             {% endfor %}
-                                            {% endif %}
                                         </tbody>
                                     </table>
                                 </div>
@@ -336,7 +371,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for field, files in task_input['input'].items() %}
+                                        {% for field, files in input['input'].items() %}
                                         {% for file in files %}
                                         <tr>
                                             <td> {% if file.get('id') %}
@@ -389,8 +424,8 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% if task_metadata['output'] %}
-                                        {% for item in task_metadata['output'] %}
+                                        {% if task.get('output') %}
+                                        {% for item in task.get('output') %}
                                         <tr>
                                             <td>
                                                 <div>{{ item.get("resource_id", 'Not associated') }}</div>
@@ -432,8 +467,8 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% if task_metadata['metrics'] %}
-                                        {% for key, value in task_metadata['metrics'].items() %}
+                                        {% if task.get('metrics') %}
+                                        {% for key, value in task.get('metrics').items() %}
                                         <tr>
                                             <td>
                                                 <div>{{ key }}</div>
@@ -466,7 +501,7 @@
                                     aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
-                                <p>{{ task_metadata['tags'].get('log','No Messages Available') }}</p>
+                                <p>{{ task['tags'].get('log','No Messages Available') }}</p>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
@@ -478,259 +513,249 @@
             {% include 'footer.html' %}
         </div>
     </div>
-</body>
-<script>
+    <script>
 
-    function fetchTaskData() {
-        $.ajax({
-            url: `{{ url_for('rest_workflows_blueprint.api_get_task_jobs', task_id=task_id) }}`,
-            method: 'GET',
-            success: function (response) {
-                updateTaskTable(response);
-            },
-            error: function (xhr) {
-                if (xhr.status === 401) {
-                    window.location.href = '/';
+        function fetchTaskData() {
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_get_task_jobs', task_id=task.task_id) }}`,
+                method: 'GET',
+                success: function (response) {
+                    updateTaskTable(response.result);
+                },
+                error: function (xhr) {
+                    if (xhr.status === 401) {
+                        window.location.href = '/';
+                    } else {
+                        console.error(xhr);
+                    }
+                }
+            });
+        }
+
+        function updateTaskTable(jobs) {
+
+            for (const task_id in jobs) {
+                const preElement = $(`#task-${task_id}-logs`);
+                const statusTextElement = $(`#task-${task_id}-status`);
+                const statusBadgeElement = $(`#task-${task_id}-badge`);
+
+                if (preElement.length > 0) {
+                    // Task already exists, update its status and logs
+                    // Update the status badge
+                    statusBadgeElement
+                        .removeClass('bg-success bg-warning bg-danger')
+                        .addClass(
+                            jobs[task_id].status === 'Succeeded'
+                                ? 'bg-success'
+                                : jobs[task_id].status === 'Running'
+                                    ? 'bg-warning'
+                                    : 'bg-danger'
+                        );
+
+                    // Update the status text
+                    statusTextElement.text(jobs[task_id].status);
+
+                    // Update the logs in the <pre> element
+                    preElement.html(jobs[task_id].logs.replace(/\n/g, '<br>').replace(/\"/g, ''));
                 } else {
-                    console.error("Error fetching task data.");
-                }
-            }
-        });
-    }
-
-    function updateTaskTable(data) {
-        data = data.result.jobs
-
-        if ("message" in data) {
-            return;
-        }
-
-        for (const task_id in data) {
-            const preElement = $(`#task-${task_id}-logs`);
-            const statusTextElement = $(`#task-${task_id}-status`);
-            const statusBadgeElement = $(`#task-${task_id}-badge`);
-
-            if (preElement.length > 0) {
-                // Task already exists, update its status and logs
-                // Update the status badge
-                statusBadgeElement
-                    .removeClass('bg-success bg-warning bg-danger')
-                    .addClass(
-                        data[task_id].status === 'Succeeded'
-                            ? 'bg-success'
-                            : data[task_id].status === 'Running'
-                                ? 'bg-warning'
-                                : 'bg-danger'
-                    );
-
-                // Update the status text
-                statusTextElement.text(data[task_id].status);
-
-                // Update the logs in the <pre> element
-                preElement.html(data[task_id].logs.replace(/\n/g, '<br>').replace(/\"/g, ''));
-            } else {
-                // If the task row doesn't exist, create a new one
-                const newRow = `
-                        <tr id="task-${task_id}" data-bs-toggle="collapse" class="cursor-pointer" data-bs-target="#collapse-${task_id}">
-                            <td>${task_id}</td>
-                            <td class="text-secondary">${data[task_id].created_at}</td>
-                            <td class="text-secondary">
-                                <span id="task-${task_id}-badge" class="badge ${data[task_id].status === 'Succeeded' ? 'bg-success' : data[task_id].status === 'Running' ? 'bg-warning' : 'bg-danger'
-                    } me-1"></span>
-                                <p id="task-${task_id}-status" class="d-inline m-1">${data[task_id].status}</p>
-                            </td>
-                            <td>
-                                <button class="btn btn-link p-0 accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${task_id}" aria-expanded="false" aria-controls="collapse-${task_id}"></button>
-                            </td>
-                        </tr>
-                        <tr id="collapse-${task_id}" class="accordion-collapse collapse">
-                            <td colspan="5">
-                                <div class="accordion-body">
-                                    <h4>Runtime Logs</h4>
-                                    <div style="max-height: 40rem; overflow: auto;">
-                                        <pre id="task-${task_id}-logs" style="max-height: 100%; overflow-x: auto; overflow-y: auto; white-space: pre;">${data[task_id].logs.replace(/\n/g, '<br>').replace(/\"/g, '')}</pre>
+                    // If the job row doesn't exist, create a new one
+                    const newRow = `
+                            <tr id="task-${task_id}" data-bs-toggle="collapse" class="cursor-pointer" data-bs-target="#collapse-${task_id}">
+                                <td>${task_id}</td>
+                                <td class="text-secondary">
+                                    <span id="task-${task_id}-badge" class="badge ${jobs[task_id].status === 'Succeeded' ? 'bg-success' : jobs[task_id].status === 'Running' ? 'bg-warning' : 'bg-danger'
+                        } me-1"></span>
+                                    <p id="task-${task_id}-status" class="d-inline m-1">${jobs[task_id].status}</p>
+                                </td>
+                                <td>
+                                    <button class="btn btn-link p-0 accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${task_id}" aria-expanded="false" aria-controls="collapse-${task_id}"></button>
+                                </td>
+                            </tr>
+                            <tr id="collapse-${task_id}" class="accordion-collapse collapse">
+                                <td colspan="5">
+                                    <div class="accordion-body">
+                                        <h4>Runtime Logs</h4>
+                                        <div style="max-height: 40rem; overflow: auto;">
+                                            <pre id="task-${task_id}-logs" style="max-height: 100%; overflow-x: auto; overflow-y: auto; white-space: pre;">${jobs[task_id].logs.replace(/\n/g, '<br>').replace(/\"/g, '')}</pre>
+                                        </div>
                                     </div>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                $('#task-list').append(newRow);
+                                </td>
+                            </tr>
+                        `;
+                    $('#task-list').append(newRow);
+                }
             }
         }
-    }
+
+        //setInterval(fetchTaskData, 10000);
+        //$(document).ready(function () {
+        //    fetchTaskData();
+        //});
+    </script>
 
 
-    setInterval(fetchTaskData, 8000);
+    <script>
+        function loadTaskMetadata(id) {
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_get_task_metadata', entity_id=task.task_id) }}`,
+                method: 'GET',
+                dataType: 'json',
+                success: function (response) {
+                    if (response.success) {
+                        // Update Output Resources Modal
+                        updateOutputModal(response.result.output);
 
-    // Initial fetch when the page loads
-    $(document).ready(function () {
-        fetchTaskData();
-    });
-</script>
+                        // Update Metrics Modal
+                        updateMetricsModal(response.result.metrics);
 
+                        // Update Logs Modal
+                        updateLogsModal(response.result.tags.log);
 
-<script>
-    function loadTaskMetadata(id) {
-        $.ajax({
-            url: `{{ url_for('rest_workflows_blueprint.api_get_task_metadata', task_id=task_id) }}`,
-            method: 'GET',
-            dataType: 'json',
-            success: function (response) {
-                if (response.success) {
-                    // Update Output Resources Modal
-                    updateOutputModal(response.result.task.output);
-
-                    // Update Metrics Modal
-                    updateMetricsModal(response.result.task.metrics);
-
-                    // Update Logs Modal
-                    updateLogsModal(response.result.task.tags.log);
-
-                    // Update the task state
-                    updateTaskState(response.result.task.state);
+                        // Update the task state
+                        updateTaskState(response.result.state);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    if (xhr.status === 401 || xhr.status === 403) {
+                        window.location.href = '/';
+                    }
                 }
-            },
-            error: function (xhr, status, error) {
-                if (xhr.status === 401 || xhr.status === 403) {
-                    window.location.href = '/';
-                }
-            }
-        });
-    }
+            });
+        }
 
-    function updateOutputModal(output) {
-        const outputModalBody = $('#outputs-json-modal .modal-body tbody');
-        outputModalBody.empty();
-        if (output) {
-            if (output.length > 0) {
-                output.forEach(item => {
-                    const row = `<tr>
-                                        <td><div>${item.resource_id}</div></td>
-                                        <td><div>${item.url}</div></td>
-                                        <td class="w-1 fw-bold text-end">
-                                            <a href="/stelar/console/v1/resource/${item.resource_id}" target="_blank">View</a>
-                                        </td>
-                                    </tr>`;
-                    outputModalBody.append(row);
-                });
+        function updateOutputModal(output) {
+            const outputModalBody = $('#outputs-json-modal .modal-body tbody');
+            outputModalBody.empty();
+            if (output) {
+                if (output.length > 0) {
+                    output.forEach(item => {
+                        const row = `<tr>
+                                            <td><div>${item.resource_id}</div></td>
+                                            <td><div>${item.url}</div></td>
+                                            <td class="w-1 fw-bold text-end">
+                                                <a href="/stelar/console/v1/resource/${item.resource_id}" target="_blank">View</a>
+                                            </td>
+                                        </tr>`;
+                        outputModalBody.append(row);
+                    });
+                } else {
+                    outputModalBody.append('<tr><td colspan="2">No Output Resources Available</td></tr>');
+                }
             } else {
                 outputModalBody.append('<tr><td colspan="2">No Output Resources Available</td></tr>');
             }
-        } else {
-            outputModalBody.append('<tr><td colspan="2">No Output Resources Available</td></tr>');
         }
-    }
 
-    function updateMetricsModal(metrics) {
-        const metricsModalBody = $('#metrics-json-modal .modal-body tbody');
-        metricsModalBody.empty();
+        function updateMetricsModal(metrics) {
+            const metricsModalBody = $('#metrics-json-modal .modal-body tbody');
+            metricsModalBody.empty();
 
-        if (metrics) {
-            Object.keys(metrics).forEach(key => {
-                const row = `<tr>
-                                    <td><div>${key}</div></td>
-                                    <td class="w-3 fw-bold text-end">${metrics[key]}</td>
-                                </tr>`;
-                metricsModalBody.append(row);
-            });
-        } else {
-            metricsModalBody.append('<tr><td colspan="2">No Metrics Available</td></tr>');
-        }
-    }
-
-    function updateLogsModal(log) {
-        const logsModalBody = $('#messages-modal .modal-body p');
-        if (log) {
-            logsModalBody.text(log);
-        } else {
-            logsModalBody.text('Messages Not Produced');
-        }
-    }
-
-    function updateTaskState(newState) {
-        const taskStateBadgeId = `task-state-badge-{{task_id}}`;
-        const taskStateTextId = `task-state-text-{{task_id}}`;
-
-        const taskStateBadge = document.getElementById(taskStateBadgeId);
-        if (taskStateBadge) {
-            if (newState === 'succeeded') {
-                taskStateBadge.className = 'badge me-1 bg-green';
-            } else if (newState === 'failed') {
-                taskStateBadge.className = 'badge me-1 bg-danger';
+            if (metrics) {
+                Object.keys(metrics).forEach(key => {
+                    const row = `<tr>
+                                        <td><div>${key}</div></td>
+                                        <td class="w-3 fw-bold text-end">${metrics[key]}</td>
+                                    </tr>`;
+                    metricsModalBody.append(row);
+                });
             } else {
-                taskStateBadge.className = 'badge me-1 bg-warning';
+                metricsModalBody.append('<tr><td colspan="2">No Metrics Available</td></tr>');
             }
         }
 
-        const taskStateText = document.getElementById(taskStateTextId);
-        if (taskStateText) {
-            taskStateText.textContent = newState.charAt(0).toUpperCase() + newState.slice(1);
+        function updateLogsModal(log) {
+            const logsModalBody = $('#messages-modal .modal-body p');
+            if (log) {
+                logsModalBody.text(log);
+            } else {
+                logsModalBody.text('Messages Not Produced');
+            }
         }
-    }
-    setInterval(loadTaskMetadata, 8000);
 
-    $(document).ready(function () {
-        loadTaskMetadata();
-    });
-</script>
+        function updateTaskState(newState) {
+            const taskStateBadgeId = `task-state-badge-{{task_id}}`;
+            const taskStateTextId = `task-state-text-{{task_id}}`;
 
-<script>
-    function updateInput(state) {
-        const stateInput = document.getElementById('state-input');
-        const updateStateButton = document.getElementById('update-state-button');
-        updateStateButton.disabled = false;
-        stateInput.value = state;
-    }
-
-    function updateEndDateAndState() {
-        $.ajax({
-            url: `{{ url_for('rest_workflows_blueprint.api_get_task_metadata', task_id=task_id) }}`,
-            method: 'GET',
-            dataType: 'json',
-            success: function (response) {
-                if (response.success) {
-                    const task = response.result.task;
-                    const endDateElement = document.getElementById('task-end-date');
-                    const stateBadgeElement = document.getElementById('task-state-badge-{{ task_metadata['task_exec_id'] }}');
-                    const stateTextElement = document.getElementById('task-state-text-{{ task_metadata['task_exec_id'] }}');
-
-                    endDateElement.innerHTML = `<strong>${task.end_date.replace("T", " ")}</strong>`;
-                    stateBadgeElement.className = `badge me-1 ${task.state === 'succeeded' ? 'bg-green' : task.state === 'failed' ? 'bg-danger' : 'bg-warning'}`;
-                    stateTextElement.innerHTML = task.state.charAt(0).toUpperCase() + task.state.slice(1);
+            const taskStateBadge = document.getElementById(taskStateBadgeId);
+            if (taskStateBadge) {
+                if (newState === 'succeeded') {
+                    taskStateBadge.className = 'badge me-1 bg-green';
+                } else if (newState === 'failed') {
+                    taskStateBadge.className = 'badge me-1 bg-danger';
+                } else {
+                    taskStateBadge.className = 'badge me-1 bg-warning';
                 }
-            },
-            error: function (xhr, status, error) {
-                if (xhr.status === 401 || xhr.status === 403) {
-                    window.location.href = '/';
-                }
-                stateUpdaterStatus.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-danger m-2 icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>';
             }
-        });
-    }
 
-    function patchTaskState() {
-        const stateInput = document.getElementById('state-input');
-        const selectedState = stateInput.value;
-        const stateUpdaterStatus = document.getElementById('state-updater-status');
-        stateUpdaterStatus.innerHTML = '<div class="spinner-border m-2 spinner-border-sm text-secondary" role="status"></div>';
-
-        $.ajax({
-            url: `{{ url_for('rest_workflows_blueprint.api_update_task_state', task_id=task_id) }}`,
-            method: 'PATCH',
-            contentType: 'application/json',
-            data: JSON.stringify({ state: selectedState.toLowerCase() }),
-            success: function (response) {
-                stateUpdaterStatus.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-success m-2 icon icon-tabler icons-tabler-outline icon-tabler-check"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>';
-                updateEndDateAndState();
-            },
-            error: function (xhr, status, error) {
-                if (xhr.status === 401 || xhr.status === 403) {
-                    window.location.href = '/';
-                }
-                stateUpdaterStatus.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-danger m-2 icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>';
+            const taskStateText = document.getElementById(taskStateTextId);
+            if (taskStateText) {
+                taskStateText.textContent = newState.charAt(0).toUpperCase() + newState.slice(1);
             }
+        }
+        setInterval(loadTaskMetadata, 8000);
+
+        $(document).ready(function () {
+            loadTaskMetadata();
         });
-    }
-</script>
+    </script>
+
+    <script>
+        function updateInput(state) {
+            const stateInput = document.getElementById('state-input');
+            const updateStateButton = document.getElementById('update-state-button');
+            updateStateButton.disabled = false;
+            stateInput.value = state;
+        }
+
+        function updateEndDateAndState() {
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_get_task_metadata', entity_id=task.task_id) }}`,
+                method: 'GET',
+                dataType: 'json',
+                success: function (response) {
+                    if (response.success) {
+                        const task = response.result;
+                        const endDateElement = document.getElementById('task-end-date');
+                        const stateBadgeElement = document.getElementById('task-state-badge-{{ task.task_id }}');
+                        const stateTextElement = document.getElementById('task-state-text-{{ task.task_id }}');
+                        endDateElement.innerHTML = `<strong>${task.end_date.replace("T", " ")}</strong>`;
+                        stateBadgeElement.className = `badge me-1 ${task.state === 'succeeded' ? 'bg-green' : task.state === 'failed' ? 'bg-danger' : 'bg-warning'}`;
+                        stateTextElement.innerHTML = task.state.charAt(0).toUpperCase() + task.state.slice(1);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    if (xhr.status === 401 || xhr.status === 403) {
+                        window.location.href = '/';
+                    }
+                    stateUpdaterStatus.innerHTML = createRedCross();
+                }
+            });
+        }
+
+        function patchTaskState() {
+            const stateInput = document.getElementById('state-input');
+            const selectedState = stateInput.value;
+            const stateUpdaterStatus = document.getElementById('state-updater-status');
+            stateUpdaterStatus.innerHTML = '<div class="spinner-border m-2 spinner-border-sm text-secondary" role="status"></div>';
+
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_update_task_state', entity_id=task.task_id) }}`,
+                method: 'PATCH',
+                contentType: 'application/json',
+                data: JSON.stringify({ state: selectedState.toLowerCase() }),
+                success: function (response) {
+                    stateUpdaterStatus.innerHTML = createGreenTick();
+                    updateEndDateAndState();
+                },
+                error: function (xhr, status, error) {
+                    if (xhr.status === 401 || xhr.status === 403) {
+                        window.location.href = '/';
+                    }
+                    stateUpdaterStatus.innerHTML = createRedCross();
+                }
+            });
+        }
+    </script>
+</body>
 
 </html>
