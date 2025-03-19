@@ -67,3 +67,5 @@ def test_parse_authz_config(monkeysession,app,minio_admin):
       assert "update" in authz_module.action_permissions
       assert "tester" in authz_module.action_permissions["update"]
 
+    
+

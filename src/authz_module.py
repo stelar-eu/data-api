@@ -29,9 +29,9 @@ import kutils as ku
 import mutils as mu
 import yaml
 import logging
-from flask import g, jsonify
-from backend.ckan import ckan_request
+from flask import g
 import fnmatch
+from entity import Entity,MemberEntity
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +128,15 @@ class AuthorizationModule:
             dict: Parsed configuration.
         """
         return self.config
+    
+class Resource():
+    """
+    Resource class to store the resource payload and entity type.
+    """
+    def __init__(self,payload,entity):
+        self.payload = payload
+        self.entity = entity
+
 
 
 class ResourceSpecPermissionsType(AuthorizationModule):
@@ -157,11 +166,13 @@ class ResourceSpecPermissionsType(AuthorizationModule):
         """
         match spec:
             case {"type": t, "group": g, "capacity": c}:
-                return GMspec(type=t, group=g, capacity=c)
+                return GMspec(type=t, group=g, capacity=c, is_org=False)
             case {"type": t, "org": o, "capacity": c}:
-                return OMSpec(type=t, org=o, capacity=c)
+                return GMspec(type=t, group=o, capacity=c, is_org=True)
             case {"group": g, "capacity": c}:
-                return UMspec(group=g, capacity=c)
+                return UMspec(group=g, org=None, capacity=c)
+            case {"org": o, "capacity": c}:
+                return UMspec(group=None, org=o, capacity=c)
             case {"attr": a, "operation": o, "value": v}:
                 return AttrSpec(attr=a, operation=o, value=v)
             case _:
@@ -311,7 +322,7 @@ class ResourceSpec:
         Determine if a given resource matches this specification.
         
         Args:
-            resource (Any): The resource to check against the specification.
+            resource (Resource): The resource to check against the specification.
         
         Returns:
             bool: True if the resource meets the specification, False otherwise.
@@ -429,12 +440,12 @@ class AttrSpec(ResourceSpec):
         Check if the resource's attribute satisfies the specification.
         
         Args:
-            resource (Any): The resource to be evaluated.
+            resource (Resource): Resource object containing the resource's payload and the resource's type.
         
         Returns:
             bool: True if authorized, False otherwise.
         """
-        fetched_resource = fetch_resource("fetch_resource", resource)
+        fetched_resource = fetch_resource(resource)
         lhs = fetched_resource.get(self.attr, ...)
         if lhs is ...:
             return False
@@ -446,7 +457,7 @@ class AttrSpec(ResourceSpec):
         Allow the instance to be called directly to perform authorization.
         
         Args:
-            resource (Any): The resource to check.
+            resource (Resource): Resource object containing the resource's payload and the resource's type.
         
         Returns:
             bool: True if the resource is authorized, False otherwise.
@@ -458,10 +469,10 @@ class GMspec(ResourceSpec):
     """
     Resource specification for group-based permissions.
     
-    Checks if a resource belongs to a given group, has a specific type, and meets capacity requirements.
+    Checks if a resource belongs to a given group/organization, has a specific type, and meets capacity requirements.
     """
 
-    def __init__(self, *, type, group, capacity):
+    def __init__(self, *, type, group, capacity, is_org):
         """
         Initialize a group-based resource specification.
         
@@ -469,33 +480,35 @@ class GMspec(ResourceSpec):
             type (str): Expected type of the resource.
             group (str): Group identifier the resource should belong to.
             capacity (Any): The capacity requirement for the resource.
+            is_org (bool): True if the group is an organization, otherwise False.
         """
         self.type = type
         self.group = group
         self.capacity = capacity
+        self.is_org = is_org
 
     def check_group(self, resource):
         """
-        Verify that the resource is associated with the specified group.
+        Verify that the resource is associated with the specified group/organization.
         
         Args:
-            resource (str or dict): Resource identifier or resource data.
+            resource (Resource): Resource object containing the resource's payload and the resource's type.
         
         Returns:
             bool: True if the resource is part of the group, otherwise False.
         """
         # When resource is provided as an ID (string), check against cached group members.
-        if isinstance(resource, str):
+        if isinstance(resource.payload, str):
             logger.info("Checking group with resource id")
-            group_members = fetch_resource("fetch_group_members", self.group)
+            group_members = fetch_group_members(self.group,resource,self.is_org)
             for member in group_members:
                 logger.info("Checking member")
-                if resource in member:
+                if resource.payload in member:
                     logger.info("Resource found in group")
                     return True
             return False
         else:
-            groups = resource.get("groups", None)
+            groups = resource.payload.get("groups", None)
             if groups:
                 for group in groups:
                     if group.get("name", None) == self.group:
@@ -507,13 +520,13 @@ class GMspec(ResourceSpec):
         Verify that the resource type matches the expected type.
         
         Args:
-            resource (Any): Resource identifier or resource data.
+            resource (Resource): Resource object containing the resource's payload and the resource's type.
         
         Returns:
             bool: True if the type matches, otherwise False.
         """
         logger.info("Checking type")
-        resource = fetch_resource("fetch_resource", resource)
+        resource = fetch_resource(resource)
         if resource.get("type", None) != self.type:
             return False
         return True
@@ -523,18 +536,19 @@ class GMspec(ResourceSpec):
         Verify that the resource meets the capacity requirement.
         
         Args:
-            resource (str or dict): Resource identifier or resource data.
+            resource (Resource): Resource object containing the resource's payload and the resource's type.
         
         Returns:
             bool: True if the capacity requirement is met, otherwise False.
         """
         logger.info("Checking capacity")
-        if isinstance(resource, str):
+        if isinstance(resource.payload, str):
             logger.info("Checking group for capacity")
-            group_members = fetch_resource("fetch_group_members", self.group)
+            # group_members = fetch_resource("fetch_group_members", self.group, resource, self.is_org)
+            group_members = fetch_group_members(self.group,resource,self.is_org)
             for member in group_members:
                 logger.info("Checking member for capacity")
-                if resource in member and self.capacity in member:
+                if resource.payload in member and self.capacity in member:
                     return True
             return False
         return False
@@ -544,7 +558,7 @@ class GMspec(ResourceSpec):
         Authorize the resource based on group, type, and capacity.
         
         Args:
-            resource (Any): The resource to check.
+            resource (Resource): Resource object containing the resource's payload and the resource's type.
         
         Returns:
             bool: True if all checks pass, otherwise False.
@@ -565,159 +579,56 @@ class GMspec(ResourceSpec):
         Allow the instance to be called directly for authorization.
         
         Args:
-            resource (Any): The resource to check.
+            resource (Resource): Resource object containing the resource's payload and the resource's type.
         
         Returns:
             bool: True if authorized, otherwise False.
         """
         return self.auth(resource)
     
-
-class OMSpec(ResourceSpec):
-    """
-    Resource specification for organization-based permissions.
-    
-    Checks if a resource belongs to a given organization, has a specific type, and meets capacity requirements.
-    """
-
-    def __init__(self, *, type, org, capacity):
-        """
-        Initialize an organization-based resource specification.
-        
-        Args:
-            type (str): Expected type of the resource.
-            org (str): Organization identifier the resource should belong to.
-            capacity (Any): The capacity requirement for the resource.
-        """
-        self.type = type
-        self.org = org
-        self.capacity = capacity
-
-    def check_org(self, resource):
-        """
-        Verify that the resource is associated with the specified organization.
-        
-        Args:
-            resource (str or dict): Resource identifier or resource data.
-        
-        Returns:
-            bool: True if the resource is part of the organization, otherwise False.
-        """
-        if isinstance(resource, str):
-            logger.info("Checking org with resource id")
-            org_members = fetch_resource("fetch_org_members", self.org)
-            for member in org_members:
-                logger.info("Checking member")
-                if resource in member:
-                    logger.info("Resource found in org")
-                    return True
-            return False
-        else:
-            org = resource.get("organization", None)
-            if org and org.get("name", None) == self.org:
-                return True
-            return False
-
-    def check_type(self, resource):
-        """
-        Verify that the resource type matches the expected type.
-        
-        Args:
-            resource (Any): Resource identifier or resource data.
-        
-        Returns:
-            bool: True if the type matches, otherwise False.
-        """
-        logger.info("Checking type")
-        resource = fetch_resource("fetch_resource", resource)
-        if resource.get("type", None) != self.type:
-            return False
-        return True
-
-    def check_capacity(self, resource):
-        """
-        Verify that the resource meets the capacity requirement.
-        
-        Args:
-            resource (str or dict): Resource identifier or resource data.
-        
-        Returns:
-            bool: True if the capacity requirement is met, otherwise False.
-        """
-        logger.info("Checking capacity")
-        if isinstance(resource, str):
-            logger.info("Checking org for capacity")
-            group_members = fetch_resource("fetch_org_members", self.org)
-            for member in group_members:
-                logger.info("Checking member for capacity")
-                if resource in member and self.capacity in member:
-                    return True
-            return False
-        return False
-
-    def auth(self, resource) -> bool:
-        """
-        Authorize the resource based on organization, type, and capacity.
-        
-        Args:
-            resource (Any): The resource to check.
-        
-        Returns:
-            bool: True if all checks pass, otherwise False.
-        """
-        if not self.check_org(resource):
-            return False
-        
-        if not self.check_type(resource):
-            return False
-        
-        if not self.check_capacity(resource):
-            return False
-
-        return True
-    
-    def __call__(self, resource) -> bool:
-        """
-        Allow the instance to be called directly for authorization.
-        
-        Args:
-            resource (Any): The resource to check.
-        
-        Returns:
-            bool: True if authorized, otherwise False.
-        """
-        return self.auth(resource)
-
 
 class UMspec(ResourceSpec):
     """
     Resource specification for user membership based permissions.
     
-    Verifies that the current user is a member of a given group and meets the capacity requirements.
+    Verifies that the current user is a member of a given group/organization and meets the capacity requirements.
     """
 
-    def __init__(self, *, group, capacity):
+    def __init__(self, *, group: None, org: None ,capacity):
         """
         Initialize a user membership specification.
         
         Args:
             group (str): The group identifier.
+            org (str): The organization identifier.
             capacity (Any): The capacity requirement.
+            
         """
+        self.org = org
         self.group = group
         self.capacity = capacity
+        self.is_org = False
+
+        # Determine if the group is an organization.
+        if self.group is None and self.org:
+            self.is_org = True
 
     def check_group(self, resource):
         """
-        Check if the current user is a member of the specified group.
+        Check if the current user is a member of the specified group/organization.
         
         Args:
-            resource (Any): Not used directly in this check.
+            resource (Resource): Not used directly in this check.
         
         Returns:
-            bool: True if the current user is in the group, otherwise False.
+            bool: True if the current user is in the group/organization, otherwise False.
         """
-        members = fetch_resource("fetch_group_members", self.group)
+        # if is_org is true then fetch the organization members else fetch the group members
+        if self.is_org:
+            members = fetch_user_group_members(self.org,self.is_org)
+        else:
+            members = fetch_user_group_members(self.group,self.is_org)
+
         user_info = ku.current_user()
         for member in members:
             if user_info["sub"] in member:
@@ -726,15 +637,19 @@ class UMspec(ResourceSpec):
     
     def check_capacity(self, resource):
         """
-        Check if the current user meets the capacity requirement within the group.
+        Check if the current user meets the capacity requirement within the group/organization.
         
         Args:
-            resource (Any): Not used directly in this check.
+            resource (Resource): Not used directly in this check.
         
         Returns:
             bool: True if the user meets the capacity requirement, otherwise False.
         """
-        members = fetch_resource("fetch_group_members", self.group)
+        if self.is_org:
+            members = fetch_user_group_members(self.org,self.is_org)
+        else:
+            members = fetch_user_group_members(self.group,self.is_org)
+
         user_info = ku.current_user()
         for member in members:
             if user_info["sub"] in member and self.capacity in member:
@@ -743,10 +658,10 @@ class UMspec(ResourceSpec):
 
     def auth(self, resource) -> bool:
         """
-        Authorize the resource by checking the current user's group membership and capacity.
+        Authorize the resource by checking the current user's group/organization membership and capacity.
         
         Args:
-            resource (Any): The resource to check.
+            resource (Resource): Resource object containing the resource's payload and the resource's type.
         
         Returns:
             bool: True if the user is authorized, otherwise False.
@@ -764,7 +679,7 @@ class UMspec(ResourceSpec):
         Allow the instance to be called directly for authorization.
         
         Args:
-            resource (Any): The resource to check.
+            resource (Resource): Resource object containing the resource's payload and the resource's type.
         
         Returns:
             bool: True if authorized, otherwise False.
@@ -772,69 +687,94 @@ class UMspec(ResourceSpec):
         return self.auth(resource)
 
 
-def fetch_resource(purpose, *args):
+def fetch_group_members(group,resource,is_org):
     """
-    General-purpose function to retrieve resources or member lists from CKAN.
-    
-    Supports different purposes:
-      - "fetch_resource": Retrieve a resource by its ID or return the provided resource.
-      - "fetch_group_members": Retrieve members of a group (with caching via Flask.g).
-      - "fetch_org_members": Retrieve members of an organization (with caching via Flask.g).
+    Retrieve members of a group from the catalogue.
     
     Args:
-        purpose (str): The type of resource to fetch.
-        *args: Additional arguments depending on the purpose.
+        group (str): The group identifier.
+        resource (Resource): Resource object containing the resource's payload and the resource's type.
+        is_org (bool): True if the group is an organization, otherwise False.
     
     Returns:
-        Any: The fetched resource or member list.
+        list: List of members in the group.
+
+    """
+    if not hasattr(g, "ckan_group_members"):
+            g.ckan_group_members = {}
+    if group in g.ckan_group_members:
+        logger.info("Group members retrieved from flask.g cache")
+        return g.ckan_group_members[group]
+    try:
+        if is_org:
+            members = MemberEntity.REGISTRY[(resource.entity,"organization")].list_members(eid=group)
+        else:
+            logger.info("entity is: "+resource.entity)
+            logger.info("group is: "+group)
+            members = MemberEntity.REGISTRY[(resource.entity,"group")].list_members(eid=group)
+    except Exception:
+        raise ValueError("Group does not exist")
+    g.ckan_group_members[group] = members
+    return members
+
+
+def fetch_user_group_members(group,is_org):
+    """
+    Retrieve user members of a group from the catalogue.
     
-    Raises:
-        ValueError: If the group or organization does not exist.
+    Args:
+        group (str): The group identifier.
+        is_org (bool): True if the group is an organization, otherwise False.
+        
+    Returns:
+        list: List of user members in the group.
+
+    """
+    if not hasattr(g, "ckan_user_group_members"):
+            g.ckan_user_group_members = {}
+    if group in g.ckan_user_group_members:
+        logger.info("User Group members retrieved from flask.g cache")
+        return g.ckan_user_group_members[group]
+    try:
+        if is_org:
+            user_members = MemberEntity.REGISTRY[("user","organization")].list_members(eid=group)
+        else:
+            user_members = MemberEntity.REGISTRY[("user","group")].list_members(eid=group)
+    except Exception:
+        raise ValueError("Group does not exist")
+    g.ckan_user_group_members[group] = user_members
+    return user_members
+
+def fetch_resource(resource):
+    """
+    Retrive the resource from the catalogue.
+    
+    Args:
+        resource (Resource): Resource object containing the resource's payload and the resource's type.
+        
+    Returns:
+        dict: The fetched resource.
+
     """
     logger.info("Now all calls the general purpose function")
-    if purpose == "fetch_resource":
-        if isinstance(args[0], str):
-            if not hasattr(g, "ckan_resources"):
-                g.ckan_resources = {}
-            if args[0] in g.ckan_resources:
-                logger.info("Resource retrieved from flask.g cache")
-                return g.ckan_resources[args[0]]
-            if g.entity and g.entity in ["dataset", "workflow", "process", "tool"]:
-                logger.info("ckan request for package show")
-                fetched = ckan_request("package_show", id=args[0], context={"entity": g.entity})
-                logger.info("Resource fetched from CKAN")
-            else:
-                fetched = ckan_request(f"{g.entity}_show", id=args[0])
-            g.ckan_resources[args[0]] = fetched
-            return fetched
-        else:
-            return args[0]
-    elif purpose == "fetch_group_members":
-        if not hasattr(g, "ckan_group_members"):
-            g.ckan_group_members = {}
-        if args[0] in g.ckan_group_members:
-            logger.info("Group members retrieved from flask.g cache")
-            return g.ckan_group_members[args[0]]
-        try:
-            members = ckan_request("member_list", id=args[0])
-        except Exception:
-            raise ValueError("Group does not exist")
-        g.ckan_group_members[args[0]] = members
-        return members
-    elif purpose == "fetch_org_members":
-        if not hasattr(g, "ckan_org_members"):
-            g.ckan_org_members = {}
-        if args[0] in g.ckan_org_members:
-            logger.info("Org members retrieved from flask.g cache")
-            return g.ckan_org_members[args[0]]
-        try:
-            members = ckan_request("member_list", id=args[0])
-        except Exception:
-            raise ValueError("Group does not exist")
-        g.ckan_org_members[args[0]] = members
-        return members
+    
+    if isinstance(resource.payload, str):
+        if not hasattr(g, "ckan_resources"):
+            g.ckan_resources = {}
+        if resource.payload in g.ckan_resources:
+            logger.info("Resource retrieved from flask.g cache")
+            return g.ckan_resources[resource.payload]
+        
+        logger.info("ckan request for package show")
+        fetched = Entity.REGISTRY[resource.entity].get(resource.payload)
+
+        logger.info("Resource fetched from CKAN")
+        logger.info(fetched)
+        g.ckan_resources[resource.payload] = fetched
+        return fetched
     else:
-        return None
+        return resource.payload
+    
 
 
 def check_access(user_roles, action, resource):
@@ -847,7 +787,7 @@ def check_access(user_roles, action, resource):
     Args:
         user_roles (list): List of roles associated with the user.
         action (str): The action to be performed (e.g., "read", "write").
-        resource (Any): Resource identifier or resource data.
+        resource (Resource): Resource object containing the resource's payload and the resource's type.
     
     Returns:
         bool: True if access is granted, otherwise False.
@@ -865,3 +805,30 @@ def check_access(user_roles, action, resource):
             logger.info("Access granted")
             return True  # Early exit if permission is granted.
     return False  # Deny access if no role grants permission.
+
+
+
+def authorization(resource: Resource, action: str) -> bool:
+    """
+    This function is the entry point for the authorization process.
+    
+    args:
+        resource (Resource): Resource object containing the resource's payload and the resource's type.
+        action: The action to be performed on the resource.
+    
+    returns:
+        bool: True if the user has access, otherwise False.
+    """
+
+    # fetch the cuurent user info and roles
+    user_info = ku.current_user()
+    if hasattr(g, "user_roles"):
+        user_roles = g.user_roles
+    else:
+        user_roles = ku.get_user_roles(user_info["sub"])
+        g.user_roles = user_roles
+
+
+    logger.info(f"Checking access for user {user_info['sub']} with roles {user_roles}")
+
+    return check_access(user_roles,action,resource)

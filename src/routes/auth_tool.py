@@ -16,7 +16,7 @@ import mutils as mu
 import reconciliation_module as rec
 import schema
 import sql_utils
-from authz_module import AuthorizationModule,check_access
+from authz_module import AuthorizationModule
 from auth import admin_required, auth, security_doc
 
 auth_tool_bp = APIBlueprint(
@@ -179,24 +179,6 @@ def create_roles_function():
             },
             "success": False,
         }, 500
-    
-@auth_tool_bp.route("/policy/check_access_test", methods=["POST"])
-def check_access_test():
-    """
-    Test the access control of the KLMS by checking if a user with a given role can perform a given action on a given resource.
-    """
-
-    # Read the file content and load it as a dictionary
-    data_content = request.get_json()
-
-    try:
-        access = check_access(data_content["user_roles"], data_content["action"], data_content["resource"])
-        if access:
-            return jsonify({"access granted": access}), 200
-        else:
-            return jsonify({"access granted": access}), 403
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 @auth_tool_bp.route("/policy/representation/<policy_filter>", methods=["GET"])

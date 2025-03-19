@@ -53,8 +53,8 @@ def test_resource_spec_permissions_type_create_permissions():
     assert "update" in authz_module.new_permissions
     assert "tester" in authz_module.new_permissions["update"]
     spec_instance = authz_module.new_permissions["update"]["tester"][2]
-    from authz_module import OMSpec
-    assert isinstance(spec_instance, OMSpec)
+    from authz_module import GMspec
+    assert isinstance(spec_instance, GMspec)
 
     ####################################################################################################
 
@@ -88,10 +88,10 @@ def test_resource_spec_permissions_type_create_permissions():
     um_spec_instance = authz_module.new_permissions["read"]["tester"][0]
     attr_spec_instance = authz_module.new_permissions["read"]["tester"][1]
     spec_instance = authz_module.new_permissions["update"]["tester"][3]
-    from authz_module import UMspec,OMSpec
+    from authz_module import UMspec
     assert isinstance(spec_instance, UMspec)
     assert isinstance(um_spec_instance, UMspec)
-    assert isinstance(attr_spec_instance, OMSpec)
+    assert isinstance(attr_spec_instance, GMspec)
 
     ####################################################################################################
 
