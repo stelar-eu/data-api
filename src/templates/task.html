@@ -23,38 +23,36 @@
                 <div class="container-xl">
                     <div class="row g-2 align-items-center">
                         <div class="col">
-                            <div class="page-pretitle">
-                                {{ task.task_id }}
-                            </div>
                             <div class="d-flex">
-                                <h2 class="page-title">
-                                    Task Overview
-                                </h2>
-                                <div class="ms-auto" id="state-updater-status">
+                                <h3 class="page-title">
+                                    <ol class="breadcrumb breadcrumb-arrows">
+                                        <li class="breadcrumb-item"><a class="text-secondary"
+                                                href="{{ url_for('dashboard_blueprint.processes')}}">
+                                                Workflow Processes
+                                            </a>
+                                        </li>
+                                        <li class="breadcrumb-item"><a class="text-secondary"
+                                                href="{{ url_for('dashboard_blueprint.process', process_id=task.process_id)}}">
+                                                Parent Process
+                                            </a>
+                                        </li>
+                                        <li class="breadcrumb-item active"><a href="#"><span
+                                                    class="text-strong">{{task.name}}</span></a></li>
+                                    </ol>
+                                </h3>
+                                <div class="m-0 ms-auto h2 d-flex align-items-center justify-content-end">
 
-                                </div>
-                                <div class="ms-2">
-                                    <div class="input-group">
-                                        <input type="text" class="form-control text-center" id="state-input" readonly>
-                                        <button data-bs-toggle="dropdown" type="button"
-                                            class="btn dropdown-toggle dropdown-toggle-split"></button>
-                                        <div class="dropdown-menu dropdown-menu-start">
-                                            <a class="dropdown-item" href="#" onclick="updateInput('Running')">
-                                                <span class="badge me-1 bg-warning"></span> Running
-                                            </a>
-                                            <a class="dropdown-item" href="#" onclick="updateInput('Succeeded')">
-                                                <span class="badge me-1 bg-success"></span> Succeeded
-                                            </a>
-                                            <a class="dropdown-item" href="#" onclick="updateInput('Failed')">
-                                                <span class="badge me-1 bg-danger"></span> Failed
-                                            </a>
-                                        </div>
-                                        <button type="button" class="btn btn-primary" id="update-state-button" disabled
-                                            onclick="patchTaskState()">Update
-                                            State</button>
-                                    </div>
+                                    <span id="task-state-text-{{ task.id }}" class="ms-2 me-1">{{ task.exec_state |
+                                        capitalize }}</span>
+                                    <span id="task-state-badge-{{ task.id }}"
+                                        class="status-indicator {% if task.exec_state == 'succeeded' %}status-green{% elif task.exec_state == 'failed' %}status-red{% else %}status-yellow status-indicator-animated{% endif %}">
+                                        <span class="status-indicator-circle"></span>
+                                        <span class="status-indicator-circle"></span>
+                                        <span class="status-indicator-circle"></span>
+                                    </span>
                                 </div>
                             </div>
+
                         </div>
                     </div>
                 </div>
@@ -62,7 +60,7 @@
             <div class="page-body">
                 <div class="container-xl">
                     <div class="row row-cards">
-                        <div class="col-lg-6">
+                        <div class="col-lg-7">
                             <div class="card">
                                 <div class="card-body">
                                     <div class="card-title">Basic Information</div>
@@ -94,18 +92,30 @@
                                             <path d="M9 12h-7" />
                                             <path d="M15 12h7" />
                                         </svg>
-                                        Task ID: <strong>{{ task.task_id }}</strong>
+                                        ID: <strong id="task-id">{{ task.id }}</strong>
+                                        <button type="button"
+                                            class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary"
+                                            onclick="navigator.clipboard.writeText(document.getElementById('task-id').innerText)">COPY</button>
                                     </div>
                                     <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round"
-                                            class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-tool">
+                                            class="me-2 text-secondary icon icon-tabler icons-tabler-outline icon-tabler-brand-docker">
                                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                             <path
-                                                d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" />
+                                                d="M22 12.54c-1.804 -.345 -2.701 -1.08 -3.523 -2.94c-.487 .696 -1.102 1.568 -.92 2.4c.028 .238 -.32 1 -.557 1h-14c0 5.208 3.164 7 6.196 7c4.124 .022 7.828 -1.376 9.854 -5c1.146 -.101 2.296 -1.505 2.95 -2.46z" />
+                                            <path d="M5 10h3v3h-3z" />
+                                            <path d="M8 10h3v3h-3z" />
+                                            <path d="M11 10h3v3h-3z" />
+                                            <path d="M8 7h3v3h-3z" />
+                                            <path d="M11 7h3v3h-3z" />
+                                            <path d="M11 4h3v3h-3z" />
+                                            <path d="M4.571 18c1.5 0 2.047 -.074 2.958 -.78" />
+                                            <path d="M10 16l0 .01" />
                                         </svg>
-                                        Tool: <strong>{{ task.get('name', 'Name Not
+                                        Tool Image: <strong>{{ task.get('image', 'Image Name
+                                            Not
                                             Available')}}</strong>
                                     </div>
                                     <div class="mb-2">
@@ -139,33 +149,22 @@
                                                 {% endif %}
                                             </strong></span>
                                     </div>
-                                    <div>
+                                    <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round"
-                                            class="icon me-2 text-secondary icon-tabler icons-tabler-outline icon-tabler-brand-redux">
+                                            class="me-2 text-secondary icon icon-tabler icons-tabler-outline icon-tabler-user">
                                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                            <path
-                                                d="M16.54 7c-.805 -2.365 -2.536 -4 -4.54 -4c-2.774 0 -5.023 2.632 -5.023 6.496c0 1.956 1.582 4.727 2.512 6" />
-                                            <path
-                                                d="M4.711 11.979c-1.656 1.877 -2.214 4.185 -1.211 5.911c1.387 2.39 5.138 2.831 8.501 .9c1.703 -.979 2.875 -3.362 3.516 -4.798" />
-                                            <path
-                                                d="M15.014 19.99c2.511 0 4.523 -.438 5.487 -2.1c1.387 -2.39 -.215 -5.893 -3.579 -7.824c-1.702 -.979 -4.357 -1.235 -5.927 -1.07" />
-                                            <path
-                                                d="M10.493 9.862c.48 .276 1.095 .112 1.372 -.366a1 1 0 0 0 -.367 -1.365a1.007 1.007 0 0 0 -1.373 .366a1 1 0 0 0 .368 1.365z" />
-                                            <path d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-                                            <path d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                                            <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                                            <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
                                         </svg>
-                                        Task state: <span id="task-state-badge-{{ task.task_id }}"
-                                            class="badge me-1 {% if task.state == 'succeeded' %}bg-green{% elif task.state == 'failed' %}bg-danger{% else %}bg-warning{% endif %}"></span>
-                                        <span id="task-state-text-{{ task.task_id }}">{{
-                                            task.state | capitalize }}</span>
+                                        Creator: <strong>{{ task.creator }}</strong>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="col-lg-6">
+                        <div class="col-lg-5">
                             <div class="card">
                                 <div class="card-body">
                                     <div class="card-title">Execution Parameters & Information</div>
@@ -181,27 +180,27 @@
                                         MinIO API Endpoint: <strong>{{ input.get('minio')['endpoint_url']
                                             }}</strong>
                                     </div>
+
                                     <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round"
-                                            class="me-2 text-secondary icon icon-tabler icons-tabler-outline icon-tabler-brand-docker">
+                                            class="me-2 text-secondary icon icon-tabler icons-tabler-outline icon-tabler-filter-cog">
                                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                             <path
-                                                d="M22 12.54c-1.804 -.345 -2.701 -1.08 -3.523 -2.94c-.487 .696 -1.102 1.568 -.92 2.4c.028 .238 -.32 1 -.557 1h-14c0 5.208 3.164 7 6.196 7c4.124 .022 7.828 -1.376 9.854 -5c1.146 -.101 2.296 -1.505 2.95 -2.46z" />
-                                            <path d="M5 10h3v3h-3z" />
-                                            <path d="M8 10h3v3h-3z" />
-                                            <path d="M11 10h3v3h-3z" />
-                                            <path d="M8 7h3v3h-3z" />
-                                            <path d="M11 7h3v3h-3z" />
-                                            <path d="M11 4h3v3h-3z" />
-                                            <path d="M4.571 18c1.5 0 2.047 -.074 2.958 -.78" />
-                                            <path d="M10 16l0 .01" />
+                                                d="M12 20l-3 1v-8.5l-4.48 -4.928a2 2 0 0 1 -.52 -1.345v-2.227h16v2.172a2 2 0 0 1 -.586 1.414l-4.414 4.414v1.5" />
+                                            <path d="M19.001 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                                            <path d="M19.001 15.5v1.5" />
+                                            <path d="M19.001 21v1.5" />
+                                            <path d="M22.032 17.25l-1.299 .75" />
+                                            <path d="M17.27 20l-1.3 .75" />
+                                            <path d="M15.97 17.25l1.3 .75" />
+                                            <path d="M20.733 20l1.3 .75" />
                                         </svg>
-                                        Tool Image: <strong>{{ task.get('image', 'Image Name
-                                            Not
-                                            Available')}}</strong>
+                                        Parameters: <strong><a href="#" data-bs-toggle="modal"
+                                                data-bs-target="#parameters-modal">View Tool Parameters</a></strong>
                                     </div>
+
                                     <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -245,7 +244,7 @@
                                         Metrics: <strong><a href="#" data-bs-toggle="modal"
                                                 data-bs-target="#metrics-json-modal">View Metrics</a></strong>
                                     </div>
-                                    <div>
+                                    <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round"
@@ -275,13 +274,24 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="card-body">
-                                    <div class="accordion accordion-flush" id="accordion-flush">
-                                        <div class="accordion-item">
-                                            <button class="accordion-header" type="button" data-bs-toggle="collapse"
-                                                data-bs-target="#collapse-1-flush" aria-expanded="true">
-                                                <div class="accordion-header-text">
-                                                    stelar-task-a6aa8371-7495-4b06-b0f6-ca1d0e227f37-h6mc2
+                                <div class="card-body p-0">
+                                    <div class="accordion accordion-flush" id="jobs-accordion">
+                                        {% if 'message' not in logs %}
+                                        {% for job_id, job in logs.items() %}
+                                        <div class="accordion-item" id="{{ job_id }}">
+                                            <button class="accordion-header collapsed" type="button"
+                                                data-bs-toggle="collapse" data-bs-target="#logs-collapse-{{job_id}}"
+                                                aria-expanded="true">
+                                                <div class="row w-100">
+                                                    <div class="col-6 d-flex align-items-center">
+                                                        <span>{{ job_id }}</span>
+                                                    </div>
+                                                    <div class="col-6 d-flex align-items-center justify-content-end">
+                                                        <span id="task-{{ job_id }}-badge"
+                                                            class="badge {% if job['status'] == 'Succeeded' %}bg-success{% elif job['status'] =='Running' %}bg-warning{% else %}bg-danger{% endif %} me-1"></span>
+                                                        <span id="task-{{ job_id }}-status" class="d-inline m-1">{{
+                                                            job['status'] }}</span>
+                                                    </div>
                                                 </div>
                                                 <div class="accordion-header-toggle">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -292,60 +302,20 @@
                                                     </svg>
                                                 </div>
                                             </button>
-                                            <div id="collapse-1-flush" class="accordion-collapse collapse"
-                                                data-bs-parent="#accordion-flush" style="">
-                                                <div class="accordion-body">
+                                            <div id="logs-collapse-{{job_id}}" class="accordion-collapse collapse"
+                                                data-bs-parent="#jobs-accordion" style="">
+                                                <div class="accordion-body px-6">
                                                     <h4>Runtime Logs</h4>
                                                     <div style="max-height: 40rem; overflow: auto;">
-                                                        <pre id="task-{{ 'hello' }}-logs"
-                                                            style="max-height: 100%; overflow: auto; white-space: pre-wrap; word-break: break-all;">{{ 'hello' | replace('\n', '<br>') | replace('\"', '') | safe }}</pre>
+                                                        <pre id="job-{{ job_id }}-logs"
+                                                            style="max-height: 100%; overflow: auto; white-space: pre-wrap; word-break: break-all;">{{ job['logs'] | replace('\n', '<br>') | replace('\"', '') | safe }}</pre>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
+                                        {% endfor %}
+                                        {% endif %}
                                     </div>
-                                </div>
-                                <div class="table-responsive overflow-hidden">
-                                    <table class="table table-vcenter card-table" id="job-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Task Job ID</th>
-                                                <th>Status</th>
-                                                <th class="w-1"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="accordion" id="task-list">
-                                            {% for job_id, job in logs.items() %}
-                                            <tr id="task-{{ job_id }}" data-bs-toggle="collapse" class="cursor-pointer"
-                                                data-bs-target="#collapse-{{ job_id }}">
-                                                <td>{{ job_id }}</td>
-                                                <td class="text-secondary">
-                                                    <span id="task-{{ job_id }}-badge"
-                                                        class="badge {% if job['status'] == 'Succeeded' %}bg-success{% elif job['status'] =='Running' %}bg-warning{% else %}bg-danger{% endif %} me-1"></span>
-                                                    <p id="task-{{ job_id }}-status" class="d-inline m-1">{{
-                                                        job['status'] }}</p>
-                                                </td>
-                                                <td>
-                                                    <button class="btn btn-link p-0 accordion-button collapsed"
-                                                        type="button" data-bs-toggle="collapse"
-                                                        data-bs-target="#collapse-{{ job_id }}" aria-expanded="false"
-                                                        aria-controls="collapse-{{ loop.index }}"></button>
-                                                </td>
-                                            </tr>
-                                            <tr id="collapse-{{ job_id }}" class="accordion-collapse collapse">
-                                                <td colspan="2">
-                                                    <div class="accordion-body">
-                                                        <h4>Runtime Logs</h4>
-                                                        <div style="max-height: 40rem; overflow: auto;">
-                                                            <pre id="task-{{ job_id }}-logs"
-                                                                style="max-height: 100%; overflow: auto; white-space: pre-wrap; word-break: break-all;">{{ job['logs'] | replace('\n', '<br>') | replace('\"', '') | safe }}</pre>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -492,6 +462,48 @@
                         </div>
                     </div>
                 </div>
+                <div class="modal modal-blur fade" id="parameters-modal" tabindex="-1" role="dialog" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Task Parameters</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <table class="table table-sm table-borderless">
+                                    <thead>
+                                        <tr>
+                                            <th>Parameter</th>
+                                            <th class="text-end">Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if input.get('parameters') %}
+                                        {% for key, value in input.get('parameters').items() %}
+                                        <tr>
+                                            <td>
+                                                <div>{{ key }}</div>
+                                            </td>
+                                            <td class="w-3 fw-bold text-end">
+                                                {{ value }}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="2">No Parameters Available</td>
+                                        </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="modal modal-blur fade" id="messages-modal" tabindex="-1" role="dialog" aria-hidden="true">
                     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
                         <div class="modal-content">
@@ -515,12 +527,16 @@
     </div>
     <script>
 
-        function fetchTaskData() {
+        function fetchTaskJobs() {
             $.ajax({
-                url: `{{ url_for('rest_workflows_blueprint.api_get_task_jobs', task_id=task.task_id) }}`,
+                url: `{{ url_for('rest_workflows_blueprint.api_get_task_jobs', task_id=task.id) }}`,
                 method: 'GET',
                 success: function (response) {
-                    updateTaskTable(response.result);
+                    if ($('#task-state-text-{{ task.id }}').text().trim().toLowerCase() === 'failed' ||
+                        $('#task-state-text-{{ task.id }}').text().trim().toLowerCase() === 'succeeded') {
+                        clearInterval(fetchTaskJobsInterval);
+                    }
+                    updateJobsTable(response.result);
                 },
                 error: function (xhr) {
                     if (xhr.status === 401) {
@@ -532,76 +548,74 @@
             });
         }
 
-        function updateTaskTable(jobs) {
+        function createJobAccordion(job) {
+            return `
+            <div class="accordion-item" id="${job.id}">
+                <button class="accordion-header collapsed" type="button"
+                data-bs-toggle="collapse" data-bs-target="#logs-collapse-${job.id}"
+                aria-expanded="true">
+                <div class="row w-100">
+                    <div class="col-6 d-flex align-items-center">
+                    <span>${job.id}</span>
+                    </div>
+                    <div class="col-6 d-flex align-items-center justify-content-end">
+                    <span id="task-${job.id}-badge"
+                        class="badge ${job.status === 'Succeeded' ? 'bg-success' : (job.status === 'Running' ? 'bg-warning' : 'bg-danger')} me-1"></span>
+                    <span id="task-${job.id}-status" class="d-inline m-1">${job.status}</span>
+                    </div>
+                </div>
+                <div class="accordion-header-toggle">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="icon icon-1">
+                    <path d="M6 9l6 6l6 -6"></path>
+                    </svg>
+                </div>
+                </button>
+                <div id="logs-collapse-${job.id}" class="accordion-collapse collapse"
+                data-bs-parent="#jobs-accordion">
+                <div class="accordion-body px-6">
+                    <h4>Runtime Logs</h4>
+                    <div style="max-height: 40rem; overflow: auto;">
+                    <pre id="job-${job.id}-logs"
+                        style="max-height: 100%; overflow: auto; white-space: pre-wrap; word-break: break-all;">${job.logs.replace(/\n/g, '<br>').replace(/"/g, '')}</pre>
+                    </div>
+                </div>
+                </div>
+            </div>`;
+        }
 
-            for (const task_id in jobs) {
-                const preElement = $(`#task-${task_id}-logs`);
-                const statusTextElement = $(`#task-${task_id}-status`);
-                const statusBadgeElement = $(`#task-${task_id}-badge`);
-
-                if (preElement.length > 0) {
-                    // Task already exists, update its status and logs
-                    // Update the status badge
-                    statusBadgeElement
-                        .removeClass('bg-success bg-warning bg-danger')
-                        .addClass(
-                            jobs[task_id].status === 'Succeeded'
-                                ? 'bg-success'
-                                : jobs[task_id].status === 'Running'
-                                    ? 'bg-warning'
-                                    : 'bg-danger'
-                        );
-
-                    // Update the status text
-                    statusTextElement.text(jobs[task_id].status);
-
-                    // Update the logs in the <pre> element
-                    preElement.html(jobs[task_id].logs.replace(/\n/g, '<br>').replace(/\"/g, ''));
-                } else {
-                    // If the job row doesn't exist, create a new one
-                    const newRow = `
-                            <tr id="task-${task_id}" data-bs-toggle="collapse" class="cursor-pointer" data-bs-target="#collapse-${task_id}">
-                                <td>${task_id}</td>
-                                <td class="text-secondary">
-                                    <span id="task-${task_id}-badge" class="badge ${jobs[task_id].status === 'Succeeded' ? 'bg-success' : jobs[task_id].status === 'Running' ? 'bg-warning' : 'bg-danger'
-                        } me-1"></span>
-                                    <p id="task-${task_id}-status" class="d-inline m-1">${jobs[task_id].status}</p>
-                                </td>
-                                <td>
-                                    <button class="btn btn-link p-0 accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${task_id}" aria-expanded="false" aria-controls="collapse-${task_id}"></button>
-                                </td>
-                            </tr>
-                            <tr id="collapse-${task_id}" class="accordion-collapse collapse">
-                                <td colspan="5">
-                                    <div class="accordion-body">
-                                        <h4>Runtime Logs</h4>
-                                        <div style="max-height: 40rem; overflow: auto;">
-                                            <pre id="task-${task_id}-logs" style="max-height: 100%; overflow-x: auto; overflow-y: auto; white-space: pre;">${jobs[task_id].logs.replace(/\n/g, '<br>').replace(/\"/g, '')}</pre>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    $('#task-list').append(newRow);
+        function updateJobsTable(jobs) {
+            for (job in jobs) {
+                if (!document.getElementById(job.id)) {
+                    const accordionEl = document.getElementById('jobs-accordion');
+                    accordionEl.insertAdjacentHTML('beforeend', createJobAccordion(job));
                 }
             }
         }
 
-        //setInterval(fetchTaskData, 10000);
-        //$(document).ready(function () {
-        //    fetchTaskData();
-        //});
+        var fetchTaskJobsInterval = setInterval(fetchTaskJobs, 10000);
+        $(document).ready(function () {
+            fetchTaskJobs();
+        });
+
     </script>
 
 
     <script>
-        function loadTaskMetadata(id) {
+        function loadTaskMetadata() {
             $.ajax({
-                url: `{{ url_for('rest_workflows_blueprint.api_get_task_metadata', entity_id=task.task_id) }}`,
+                url: `{{ url_for('rest_workflows_blueprint.api_get_task_metadata', entity_id=task.id) }}`,
                 method: 'GET',
                 dataType: 'json',
                 success: function (response) {
                     if (response.success) {
+
+                        if (response.result.exec_state === 'succeeded' || response.result.exec_state === 'failed') {
+                            clearInterval(loadTaskMetadataInterval);
+                        }
+
                         // Update Output Resources Modal
                         updateOutputModal(response.result.output);
 
@@ -612,7 +626,7 @@
                         updateLogsModal(response.result.tags.log);
 
                         // Update the task state
-                        updateTaskState(response.result.state);
+                        updateTaskState(response.result.exec_state);
                     }
                 },
                 error: function (xhr, status, error) {
@@ -668,7 +682,7 @@
             if (log) {
                 logsModalBody.text(log);
             } else {
-                logsModalBody.text('Messages Not Produced');
+                logsModalBody.text('No Messages Available');
             }
         }
 
@@ -679,11 +693,13 @@
             const taskStateBadge = document.getElementById(taskStateBadgeId);
             if (taskStateBadge) {
                 if (newState === 'succeeded') {
-                    taskStateBadge.className = 'badge me-1 bg-green';
+                    taskStateBadge.className = 'status-indicator status-green';
                 } else if (newState === 'failed') {
-                    taskStateBadge.className = 'badge me-1 bg-danger';
+                    taskStateBadge.className = 'status-indicator status-red';
+                } else if (newState === 'created') {
+                    taskStateBadge.className = 'status-indicator status-gray';
                 } else {
-                    taskStateBadge.className = 'badge me-1 bg-warning';
+                    taskStateBadge.className = 'status-indicator status-indicator-animated status-yellow';
                 }
             }
 
@@ -692,69 +708,11 @@
                 taskStateText.textContent = newState.charAt(0).toUpperCase() + newState.slice(1);
             }
         }
-        setInterval(loadTaskMetadata, 8000);
+        var loadTaskMetadataInterval = setInterval(loadTaskMetadata, 8000);
 
         $(document).ready(function () {
             loadTaskMetadata();
         });
-    </script>
-
-    <script>
-        function updateInput(state) {
-            const stateInput = document.getElementById('state-input');
-            const updateStateButton = document.getElementById('update-state-button');
-            updateStateButton.disabled = false;
-            stateInput.value = state;
-        }
-
-        function updateEndDateAndState() {
-            $.ajax({
-                url: `{{ url_for('rest_workflows_blueprint.api_get_task_metadata', entity_id=task.task_id) }}`,
-                method: 'GET',
-                dataType: 'json',
-                success: function (response) {
-                    if (response.success) {
-                        const task = response.result;
-                        const endDateElement = document.getElementById('task-end-date');
-                        const stateBadgeElement = document.getElementById('task-state-badge-{{ task.task_id }}');
-                        const stateTextElement = document.getElementById('task-state-text-{{ task.task_id }}');
-                        endDateElement.innerHTML = `<strong>${task.end_date.replace("T", " ")}</strong>`;
-                        stateBadgeElement.className = `badge me-1 ${task.state === 'succeeded' ? 'bg-green' : task.state === 'failed' ? 'bg-danger' : 'bg-warning'}`;
-                        stateTextElement.innerHTML = task.state.charAt(0).toUpperCase() + task.state.slice(1);
-                    }
-                },
-                error: function (xhr, status, error) {
-                    if (xhr.status === 401 || xhr.status === 403) {
-                        window.location.href = '/';
-                    }
-                    stateUpdaterStatus.innerHTML = createRedCross();
-                }
-            });
-        }
-
-        function patchTaskState() {
-            const stateInput = document.getElementById('state-input');
-            const selectedState = stateInput.value;
-            const stateUpdaterStatus = document.getElementById('state-updater-status');
-            stateUpdaterStatus.innerHTML = '<div class="spinner-border m-2 spinner-border-sm text-secondary" role="status"></div>';
-
-            $.ajax({
-                url: `{{ url_for('rest_workflows_blueprint.api_update_task_state', entity_id=task.task_id) }}`,
-                method: 'PATCH',
-                contentType: 'application/json',
-                data: JSON.stringify({ state: selectedState.toLowerCase() }),
-                success: function (response) {
-                    stateUpdaterStatus.innerHTML = createGreenTick();
-                    updateEndDateAndState();
-                },
-                error: function (xhr, status, error) {
-                    if (xhr.status === 401 || xhr.status === 403) {
-                        window.location.href = '/';
-                    }
-                    stateUpdaterStatus.innerHTML = createRedCross();
-                }
-            });
-        }
     </script>
 </body>
 

@@ -305,25 +305,25 @@ def process(process_id):
     process = PROCESS.get_entity(process_id)
 
     return render_template_with_s3(
-        "workflow.html",
+        "process.html",
         process=process,
         proc_tasks=(process.get("tasks") if process and "tasks" in process else []),
         PARTNER_IMAGE_SRC=get_partner_logo(),
     )
 
 
-@dashboard_bp.route("/task/<workflow_id>/<task_id>")
+@dashboard_bp.route("/task/<process_id>/<task_id>")
 @session_required
-def task(workflow_id, task_id):
+def task(process_id, task_id):
     # Basic input validation
-    if not workflow_id or not task_id:
+    if not process_id or not task_id:
         return redirect(url_for("dashboard_blueprint.login"))
 
     task_metadata = TASK.get_entity(task_id)
-    logger.debug(task_metadata)
+    task_metadata["process_title"] = PROCESS.get_entity(process_id)["title"]
 
     # Do not allow mismatch between given wf and actual wf
-    if task_metadata.get("process_id") != workflow_id:
+    if task_metadata.get("process_id") != process_id:
         return redirect(url_for("dashboard_blueprint.login"))
 
     input_metadata = TASK.get_input(id=task_id, include_input_ids=True)
