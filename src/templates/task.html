@@ -64,22 +64,6 @@
                                 <div class="card-body">
                                     <div class="card-title">Basic Information</div>
                                     <div class="mb-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary"
-                                            width="24" height="24" viewBox="0 0 24 24" stroke-width="2"
-                                            stroke="currentColor" fill="none" stroke-linecap="round"
-                                            stroke-linejoin="round">
-                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                            <path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
-                                            <path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
-                                            <path d="M3 6l0 13" />
-                                            <path d="M12 6l0 13" />
-                                            <path d="M21 6l0 13" />
-                                        </svg>
-                                        Owner Process: <strong><a
-                                                href="{{ url_for('dashboard_blueprint.process', process_id=task.process_id)}}"
-                                                target="_blank">{{ task.process_id }}</a></strong>
-                                    </div>
-                                    <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round"
@@ -95,6 +79,21 @@
                                         <button type="button"
                                             class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary"
                                             onclick="navigator.clipboard.writeText(document.getElementById('task-id').innerText)">COPY</button>
+                                    </div>
+                                    <div class="mb-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="me-2 text-secondary icon"
+                                            width="24" height="24" viewBox="0 0 24 24" stroke-width="2"
+                                            stroke="currentColor" fill="none" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M12 3l8 4.5v9l-8 4.5l-8 -4.5v-9l8 -4.5" />
+                                            <path d="M12 12l8 -4.5" />
+                                            <path d="M12 12l0 9" />
+                                            <path d="M12 12l-8 -4.5" />
+                                        </svg>
+                                        Parent Process: <strong><a
+                                                href="{{ url_for('dashboard_blueprint.process', process_id=task.process_id)}}"
+                                                target="_blank">{{ task.process_id }}</a></strong>
                                     </div>
                                     <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
