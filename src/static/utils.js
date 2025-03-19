@@ -1,3 +1,19 @@
+
+function formatIsoDate(isoDate, includeSeconds = true) {
+    const dateObj = new Date(isoDate);
+    const dd = String(dateObj.getDate()).padStart(2, '0');
+    const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const yyyy = dateObj.getFullYear();
+    const hh = String(dateObj.getHours()).padStart(2, '0');
+    const min = String(dateObj.getMinutes()).padStart(2, '0');
+    if (includeSeconds) {
+        const ss = String(dateObj.getSeconds()).padStart(2, '0');
+        return `${dd}-${mm}-${yyyy} ${hh}:${min}:${ss}`;
+    } else {
+        return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
+    }
+}
+
 function createLoaderElement() {
     return '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
 }

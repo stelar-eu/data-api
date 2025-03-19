@@ -41,10 +41,9 @@
                                     </ol>
                                 </h3>
                                 <div class="m-0 ms-auto h2 d-flex align-items-center justify-content-end">
-
-                                    <span id="task-state-text-{{ task.id }}" class="ms-2 me-1">{{ task.exec_state |
+                                    <span id="task-state-text" class="ms-2 me-1">{{ task.exec_state |
                                         capitalize }}</span>
-                                    <span id="task-state-badge-{{ task.id }}"
+                                    <span id="task-state-badge"
                                         class="status-indicator {% if task.exec_state == 'succeeded' %}status-green{% elif task.exec_state == 'failed' %}status-red{% else %}status-yellow status-indicator-animated{% endif %}">
                                         <span class="status-indicator-circle"></span>
                                         <span class="status-indicator-circle"></span>
@@ -127,7 +126,7 @@
                                             <path d="M7 4v16l13 -8z" />
                                         </svg>
                                         Started at: <strong>{{ task.start_date.strftime('%d-%m-%Y
-                                            %H:%M') }}</strong>
+                                            %H:%M:%S') }}</strong>
                                     </div>
                                     <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -143,7 +142,7 @@
                                         </svg>
                                         Finished at: <span id="task-end-date"><strong>
                                                 {% if task.get('end_date') %}
-                                                {{ task.get('end_date').strftime('%d-%m-%Y %H:%M') }}
+                                                {{ task.get('end_date').strftime('%d-%m-%Y %H:%M:%S') }}
                                                 {% else %}
                                                 Not Finished
                                                 {% endif %}
@@ -287,9 +286,9 @@
                                                         <span>{{ job_id }}</span>
                                                     </div>
                                                     <div class="col-6 d-flex align-items-center justify-content-end">
-                                                        <span id="task-{{ job_id }}-badge"
+                                                        <span id="job-{{ job_id }}-badge"
                                                             class="badge {% if job['status'] == 'Succeeded' %}bg-success{% elif job['status'] =='Running' %}bg-warning{% else %}bg-danger{% endif %} me-1"></span>
-                                                        <span id="task-{{ job_id }}-status" class="d-inline m-1">{{
+                                                        <span id="job-{{ job_id }}-status" class="d-inline m-1">{{
                                                             job['status'] }}</span>
                                                     </div>
                                                 </div>
@@ -532,11 +531,12 @@
                 url: `{{ url_for('rest_workflows_blueprint.api_get_task_jobs', task_id=task.id) }}`,
                 method: 'GET',
                 success: function (response) {
-                    if ($('#task-state-text-{{ task.id }}').text().trim().toLowerCase() === 'failed' ||
-                        $('#task-state-text-{{ task.id }}').text().trim().toLowerCase() === 'succeeded') {
+                    updateJobsTable(response.result);
+
+                    if ($('#task-state-text').text().trim().toLowerCase() === 'failed' ||
+                        $('#task-state-text').text().trim().toLowerCase() === 'succeeded') {
                         clearInterval(fetchTaskJobsInterval);
                     }
-                    updateJobsTable(response.result);
                 },
                 error: function (xhr) {
                     if (xhr.status === 401) {
@@ -548,20 +548,20 @@
             });
         }
 
-        function createJobAccordion(job) {
+        function createJobAccordion(job, id) {
             return `
-            <div class="accordion-item" id="${job.id}">
+            <div class="accordion-item" id="${id}">
                 <button class="accordion-header collapsed" type="button"
-                data-bs-toggle="collapse" data-bs-target="#logs-collapse-${job.id}"
+                data-bs-toggle="collapse" data-bs-target="#logs-collapse-${id}"
                 aria-expanded="true">
                 <div class="row w-100">
                     <div class="col-6 d-flex align-items-center">
-                    <span>${job.id}</span>
+                    <span>${id}</span>
                     </div>
                     <div class="col-6 d-flex align-items-center justify-content-end">
-                    <span id="task-${job.id}-badge"
+                    <span id="job-${id}-badge"
                         class="badge ${job.status === 'Succeeded' ? 'bg-success' : (job.status === 'Running' ? 'bg-warning' : 'bg-danger')} me-1"></span>
-                    <span id="task-${job.id}-status" class="d-inline m-1">${job.status}</span>
+                    <span id="job-${id}-status" class="d-inline m-1">${job.status}</span>
                     </div>
                 </div>
                 <div class="accordion-header-toggle">
@@ -573,12 +573,12 @@
                     </svg>
                 </div>
                 </button>
-                <div id="logs-collapse-${job.id}" class="accordion-collapse collapse"
+                <div id="logs-collapse-${id}" class="accordion-collapse collapse"
                 data-bs-parent="#jobs-accordion">
                 <div class="accordion-body px-6">
                     <h4>Runtime Logs</h4>
                     <div style="max-height: 40rem; overflow: auto;">
-                    <pre id="job-${job.id}-logs"
+                    <pre id="job-${id}-logs"
                         style="max-height: 100%; overflow: auto; white-space: pre-wrap; word-break: break-all;">${job.logs.replace(/\n/g, '<br>').replace(/"/g, '')}</pre>
                     </div>
                 </div>
@@ -587,10 +587,38 @@
         }
 
         function updateJobsTable(jobs) {
-            for (job in jobs) {
-                if (!document.getElementById(job.id)) {
+            if ("message" in jobs) {
+                clearInterval(fetchTaskJobsInterval);
+                return;
+            }
+
+            for (const id in jobs) {
+                job = jobs[id];
+                const existingJobEl = document.getElementById(id);
+                if (!existingJobEl) {
                     const accordionEl = document.getElementById('jobs-accordion');
-                    accordionEl.insertAdjacentHTML('beforeend', createJobAccordion(job));
+                    accordionEl.insertAdjacentHTML('beforeend', createJobAccordion(job, id));
+                } else {
+                    // Update logs for existing jobs
+                    const logsEl = document.getElementById(`job-${id}-logs`);
+                    if (logsEl) {
+                        logsEl.innerHTML = job.logs.replace(/\n/g, '<br>').replace(/\"/g, '');
+                    }
+                    // Update job status text and badge
+                    const statusEl = document.getElementById(`task-${id}-status`);
+                    if (statusEl) {
+                        statusEl.textContent = job.status;
+                    }
+                    const badgeEl = document.getElementById(`task-${id}-badge`);
+                    if (badgeEl) {
+                        if (job.status === 'Succeeded') {
+                            badgeEl.className = 'badge bg-success me-1';
+                        } else if (job.status === 'Running') {
+                            badgeEl.className = 'badge bg-warning me-1';
+                        } else {
+                            badgeEl.className = 'badge bg-danger me-1';
+                        }
+                    }
                 }
             }
         }
@@ -612,10 +640,6 @@
                 success: function (response) {
                     if (response.success) {
 
-                        if (response.result.exec_state === 'succeeded' || response.result.exec_state === 'failed') {
-                            clearInterval(loadTaskMetadataInterval);
-                        }
-
                         // Update Output Resources Modal
                         updateOutputModal(response.result.output);
 
@@ -626,7 +650,11 @@
                         updateLogsModal(response.result.tags.log);
 
                         // Update the task state
-                        updateTaskState(response.result.exec_state);
+                        updateTaskState(response.result.exec_state, response.result.end_date);
+
+                        if (response.result.exec_state === 'succeeded' || response.result.exec_state === 'failed') {
+                            clearInterval(loadTaskMetadataInterval);
+                        }
                     }
                 },
                 error: function (xhr, status, error) {
@@ -686,9 +714,9 @@
             }
         }
 
-        function updateTaskState(newState) {
-            const taskStateBadgeId = `task-state-badge-{{task_id}}`;
-            const taskStateTextId = `task-state-text-{{task_id}}`;
+        function updateTaskState(newState, newEndDate) {
+            const taskStateBadgeId = `task-state-badge`;
+            const taskStateTextId = `task-state-text`;
 
             const taskStateBadge = document.getElementById(taskStateBadgeId);
             if (taskStateBadge) {
@@ -707,7 +735,22 @@
             if (taskStateText) {
                 taskStateText.textContent = newState.charAt(0).toUpperCase() + newState.slice(1);
             }
+
+
+            if (newEndDate && (newState === 'succeeded' || newState === 'failed')) {
+                // Change the second parameter to false if you don't want seconds.
+                const formattedDate = formatIsoDate(newEndDate, true);
+                const taskEndDateEl = document.getElementById('task-end-date');
+                if (taskEndDateEl) {
+                    const strongEl = taskEndDateEl.querySelector('strong');
+                    if (strongEl) {
+                        strongEl.textContent = formattedDate;
+                    }
+                }
+            }
+
         }
+
         var loadTaskMetadataInterval = setInterval(loadTaskMetadata, 8000);
 
         $(document).ready(function () {
