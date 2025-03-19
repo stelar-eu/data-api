@@ -187,7 +187,7 @@ class Task(Entity):
         """
         task = sql_utils.task_execution_read(id)
         if task:
-            return task["task_id"]
+            return task["id"]
         else:
             raise NotFoundError(str(id))
 
@@ -253,7 +253,7 @@ class Task(Entity):
         task["tags"].pop("__name__", None)
 
         if task["exec_state"] in ["failed", "succeeded"]:
-            task["messages"] = task["tags"]["log"]
+            task["messages"] = task["tags"].get("log", None)
             task["output"] = sql_utils.task_execution_read_outputs_sql(id)
             task["metrics"] = sql_utils.task_execution_metrics_read_sql(id)
         return task
@@ -991,6 +991,11 @@ class Task(Entity):
         # but have no presence in the catalog.
         for output, path in outputs.items():
             actual_resource_output.append(self.handle_output_key(id, output, path))
+
+        # Remove nones (which are the outputs that were not registered in the catalog)
+        actual_resource_output = [
+            res for res in actual_resource_output if res is not None
+        ]
 
         # Register the actual resources registered in the catalog by the task
         if actual_resource_output:

@@ -252,6 +252,7 @@ sql_workflow_execution_templates = {
     "workflow_get_tasks": """\
         SELECT 
             tsk.task_uuid as id, 
+            tsk.creator_user_id as creator,
             tsk.state, 
             tsk.start_date, 
             tsk.end_date, 
@@ -289,7 +290,7 @@ sql_workflow_execution_templates = {
     "task_insert_output_spec_plain_path": "INSERT INTO klms.task_output_spec(task_uuid, output_name, output_address) VALUES(%s, %s, %s)",
     "task_read_output_spec_for_tool": "SELECT output_name, output_address FROM klms.task_output_spec WHERE task_uuid = %s",
     "task_read_secret_template": "SELECT key, value FROM klms.task_secret WHERE task_uuid = %s",
-    "task_read_template": "SELECT task_uuid AS task_id, creator_user_id as creator, workflow_uuid AS process_id, state AS exec_state, start_date, end_date FROM klms.task_execution WHERE task_uuid = %s",
+    "task_read_template": "SELECT task_uuid AS id, creator_user_id as creator, workflow_uuid AS process_id, state AS exec_state, start_date, end_date FROM klms.task_execution WHERE task_uuid = %s",
     "task_read_tags_template": "SELECT key, value FROM klms.task_tag WHERE task_uuid = %s",
     "task_read_input_group_names_by": "SELECT DISTINCT input_group_name FROM klms.task_input WHERE task_uuid = %s",
     "task_read_uuid_inputs": "SELECT resource_id FROM klms.task_input WHERE task_uuid= %s AND input_path IS NULL",
