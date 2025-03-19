@@ -15,6 +15,7 @@
     <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='lib/litegraph.css') }}">
     <script type="text/javascript" src="{{ url_for('static', filename='lib/litegraph.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='utils.js') }}"></script>
 </head>
 
 <body>
@@ -27,14 +28,18 @@
                 <div class="container-xl">
                     <div class="row g-2 align-items-center">
                         <div class="col">
-                            <!-- Page pre-title -->
-                            <div class="page-pretitle">
-                                {{ process.id }}
-                            </div>
                             <div class="d-flex">
-                                <h2 class="page-title">
-                                    {{ process.title }}
-                                </h2>
+                                <h3 class="page-title">
+                                    <ol class="breadcrumb breadcrumb-arrows">
+                                        <li class="breadcrumb-item"><a class="text-secondary"
+                                                href="{{ url_for('dashboard_blueprint.processes')}}">
+                                                Workflow Processes
+                                            </a>
+                                        </li>
+                                        <li class="breadcrumb-item active"><a href="#"><span class="text-strong">{{
+                                                    process.title }}</span></a></li>
+                                    </ol>
+                                </h3>
                                 <div class="ms-auto" id="state-updater-status">
 
                                 </div>
@@ -57,21 +62,6 @@
                                         <button type="button" class="btn btn-primary" id="update-state-button" disabled
                                             onclick="patchProcessState()">Update State</button>
                                     </div>
-                                </div>
-
-                                <div class="ms-2">
-                                    <button class="btn btn-success ms-auto text-white" id='add-tsk-btn'>
-                                        <svg xmlns="http://www.w3.org/2000/svg"
-                                            class="icon icon-tabler icons-tabler-outline icon-tabler-route-square"
-                                            width="24" height="24" viewBox="0 0 24 24" stroke-width="2"
-                                            stroke="currentColor" fill="none" stroke-linecap="round"
-                                            stroke-linejoin="round">
-                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                            <path d="M12 5l0 14" />
-                                            <path d="M5 12l14 0" />
-                                        </svg>
-                                        Add New Task
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -623,17 +613,111 @@
     var graph = new LGraph();
     var canvas = new LGraphCanvas("#lineage-canvas", graph);
 
-    var node_const = LiteGraph.createNode("basic/const");
-    node_const.pos = [200, 200];
-    graph.add(node_const);
-    node_const.setValue(4.5);
+    function TaskNode(task) {
+        this.addInput("Input");
+        this.addInput("Parameters");
+        this.addOutput("Output");
+        this.addOutput("Metrics");
+        this.addInput("Previous");
+        this.addOutput("Next");
+        this.size = [450, 120];
+        this.creator = this.addWidget("text", "Creator", "", "creator");
+        this.start_date = this.addWidget("text", "Start Date", "", "start_date");
+        this.end_date = this.addWidget("text", "End Date", "", "end_date");
+        this.image = this.addWidget("text", "Image", "", "image");
+        this.properties = {
+            creator: task.creator,
+            start_date: task.start_date,
+            end_date: task.end_date,
+            image: task.image
+        };
+    }
 
-    var node_watch = LiteGraph.createNode("basic/watch");
-    node_watch.pos = [700, 200];
-    graph.add(node_watch);
-    node_const.connect(0, node_watch, 0);
+    function KeyValueNode() {
+        this.title = "Task Metrics";
+    }
 
-    graph.start();
+    LiteGraph.registerNodeType("basic/task", TaskNode);
+    LiteGraph.registerNodeType("basic/kv", KeyValueNode);
+
+
+    function updateGraph() {
+        $.ajax({
+            url: `{{ url_for('rest_workflows_blueprint.api_get_process', entity_id=process.id) }}`,
+            method: 'GET',
+            dataType: 'json',
+            success: function (response) {
+                if (response.success) {
+                    const process = response.result;
+                    const tasks = process.tasks;
+                    graph.clear();
+                    var prev = null;
+                    var currx = 100;
+                    tasks.forEach(task => {
+
+                        const node = LiteGraph.createNode("basic/task");
+                        node.title = task.name;
+                        node.setProperty("creator", task.creator);
+                        node.setProperty("start_date", formatIsoDate(task.start_date));
+                        node.setProperty("end_date", formatIsoDate(task.end_date));
+                        node.setProperty("image", task.image);
+                        node.pos = [currx, 100];
+                        currx += 500;
+
+                        if (prev) {
+                            prev.connect(2, node, 2);
+                        }
+                        prev = node;
+                        graph.add(node);
+
+
+
+
+
+                        $.ajax({
+                            url: `{{ url_for('rest_workflows_blueprint.api_get_task_metadata', entity_id='')}}${task.id}`,
+                            method: 'GET',
+                            dataType: 'json',
+                            async: false, // Make the request synchronous
+                            success: function (response) {
+                                if (response.success) {
+
+                                    if (response.result.parameters) {
+                                        const params = LiteGraph.createNode("basic/kv");
+                                        params.title = "Task Parameters";
+                                        params.addOutput("Task");
+                                        params.pos = [currx - 750, 350];
+                                        for (const param in response.result.parameters) {
+                                            params.addWidget("text", param, response.result.parameters[param], param);
+                                        }
+                                        graph.add(params);
+                                        params.connect(0, node, 1);
+
+                                    }
+                                    if (response.result.metrics) {
+                                        const metrics = LiteGraph.createNode("basic/kv");
+                                        metrics.title = "Task Metrics";
+                                        metrics.addInput("Task");
+                                        metrics.pos = [currx - 150, -180];
+                                        for (const metric in response.result.metrics) {
+                                            metrics.addWidget("text", metric, response.result.metrics[metric], metric);
+                                        }
+                                        node.connect(1, metrics, 0);
+                                        graph.add(metrics);
+                                    }
+                                }
+                            }
+                        });
+                    });
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error('Error fetching tasks:', status, error);
+            }
+        });
+    }
+
+    updateGraph();
     graph.arrange();
 </script>
 
