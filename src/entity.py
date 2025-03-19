@@ -988,6 +988,22 @@ class PackageEntity(EntityWithExtras):
         result = execSql(sql_query, [self.package_type, limit, offset])
         return [row[list_attr] for row in result]
 
+    def resolve_id(self, name_or_id: str) -> str | None:
+        """Resolve a package name or ID to an ID.
+
+        This method is used to resolve a name or ID to an ID.
+        """
+        sql_query = sql.SQL(
+            """\
+            SELECT id
+            FROM package
+            WHERE state = 'active' AND type = %s AND (id = %s OR name = %s)"""
+        )
+        result = execSql(sql_query, [self.package_type, name_or_id, name_or_id])
+        if not result:
+            return None
+        return result[0]["id"]
+
     def filter_ids(self, idlist: list[str]) -> list[dict]:
         """Filter the list of packages by ID, leaving only packages of one type."""
         return filter_list_by_type(idlist, self.package_type)

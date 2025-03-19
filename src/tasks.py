@@ -130,13 +130,16 @@ class TaskSchema(Schema):
     name = fields.String(required=True)
     # Limit the execution ability only to internally stored images in the STELAR registry.
     # TODO: The registry domain should be populated by an appropriate environment variable.
-    image = fields.String(
-        required=False,
-        allow_none=False,
-        validate=lambda value: re.match(
-            r"^img\.stelar\.gr/stelar/[a-zA-Z0-9_-]+:[a-zA-Z0-9._-]+$", value
-        ),
-    )
+    # image = fields.String(
+    #    required=False,
+    #    allow_none=False,
+    #    validate=lambda value: re.match(
+    #        r"^img\.stelar\.gr/stelar/[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]+$", value
+    #    )
+    #    is not None,
+    #    example="img.stelar.gr/stelar/sample:latest",
+    # )
+    image = fields.String(required=False, allow_none=False)
     exec_state = fields.String(
         validate=validators.OneOf(["running", "failed", "succeeded"]),
         dump_only=True,
@@ -184,7 +187,7 @@ class Task(Entity):
         """
         task = sql_utils.task_execution_read(id)
         if task:
-            return task["task_id"]
+            return task["id"]
         else:
             raise NotFoundError(str(id))
 
@@ -238,7 +241,6 @@ class Task(Entity):
         self.validate_task(id)
 
         task = sql_utils.task_execution_read(id)
-        logger.debug(f"Task {id} fetched from the database: {task}")
         # Delegate some specific tags as top-level attributes in the final repr.
         if task["tags"]:
             if task["tags"].get("__image__"):
@@ -250,8 +252,8 @@ class Task(Entity):
         task["tags"].pop("__image__", None)
         task["tags"].pop("__name__", None)
 
-        if task["state"] in ["failed", "succeeded"]:
-            task["messages"] = task["tags"]["log"]
+        if task["exec_state"] in ["failed", "succeeded"]:
+            task["messages"] = task["tags"].get("log", None)
             task["output"] = sql_utils.task_execution_read_outputs_sql(id)
             task["metrics"] = sql_utils.task_execution_metrics_read_sql(id)
         return task
@@ -268,7 +270,10 @@ class Task(Entity):
 
         if task["exec_state"] == state:
             return
-        if task["exec_state"] == "running" and state in ["failed", "succeeded"]:
+        if task["exec_state"] in ["running", "created"] and state in [
+            "failed",
+            "succeeded",
+        ]:
             end_date = datetime.now()
             sql_utils.task_execution_update(id, state, end_date)
         else:
@@ -576,7 +581,7 @@ class Task(Entity):
                                 output_address=url,
                                 dataset_friendly_name=dataset_friendly_name,
                                 resource_name=resource.get("name", ""),
-                                resource_label=resource.get("label", ""),
+                                resource_label=resource.get("relation", ""),
                             )
                         else:
                             raise ConflictError(
@@ -584,7 +589,7 @@ class Task(Entity):
                             )
                 else:
                     sql_utils.task_execution_insert_output_spec_plain_path(
-                        task_exec_id=id, output=output, url=url
+                        task_exec_id=id, output_name=output, output_address=url
                     )
 
     def create_task(self, creator_user: str, token: str, **spec):
@@ -695,7 +700,11 @@ class Task(Entity):
         self.set_exec_state(task["id"], state)
 
     def delegate_input_artifacts(
-        self, id: uuid.UUID, inputs: dict, credentials: dict = None
+        self,
+        id: uuid.UUID,
+        inputs: dict,
+        credentials: dict = None,
+        include_ids: bool = False,
     ):
         """
         Delegate the input artifacts to the appropriate URLs
@@ -716,32 +725,54 @@ class Task(Entity):
         for input_group in inputs:
             delegated_inputs[input_group] = []
             for artifact in inputs[input_group]:
-                if is_valid_uuid(artifact):
-                    # Fetch the resource path from the Catalog
-                    artifact = cutils.RESOURCE.get_entity(artifact)["url"]
-                    if artifact:
-                        # If we have access to the data layer through the user's credentials
-                        # we unfold wilcard paths for S3 URLs to their actual paths.
-                        if credentials:
-                            if (
-                                isinstance(artifact, str)
-                                and artifact.startswith("s3://")
-                                and artifact.endswith("/*")
-                            ):
-                                expanded_paths = expand_wildcard_path(
-                                    artifact, credentials=credentials
-                                )
-                                if expanded_paths:
-                                    delegated_inputs[input_group].extend(expanded_paths)
-                                    continue
+                if include_ids:
+                    if is_valid_uuid(artifact):
+                        # Fetch the resource path from the Catalog
+                        file = cutils.RESOURCE.get_entity(artifact)["url"]
+                        if file:
+                            delegated_inputs[input_group].append(
+                                {"id": artifact, "path": file}
+                            )
+                    elif is_valid_url(artifact):
+                        # Delegate the URL as is
+                        delegated_inputs[input_group].append(
+                            {"id": None, "path": artifact}
+                        )
+                else:
+                    if is_valid_uuid(artifact):
+                        # Fetch the resource path from the Catalog
+                        artifact = cutils.RESOURCE.get_entity(artifact)["url"]
+                        if artifact:
+                            # If we have access to the data layer through the user's credentials
+                            # we unfold wilcard paths for S3 URLs to their actual paths.
+                            if credentials:
+                                if (
+                                    isinstance(artifact, str)
+                                    and artifact.startswith("s3://")
+                                    and artifact.endswith("/*")
+                                ):
+                                    expanded_paths = expand_wildcard_path(
+                                        artifact, credentials=credentials
+                                    )
+                                    if expanded_paths:
+                                        delegated_inputs[input_group].extend(
+                                            expanded_paths
+                                        )
+                                        continue
 
+                            delegated_inputs[input_group].append(artifact)
+                    elif is_valid_url(artifact):
+                        # Delegate the URL as is
                         delegated_inputs[input_group].append(artifact)
-                elif is_valid_url(artifact):
-                    # Delegate the URL as is
-                    delegated_inputs[input_group].append(artifact)
         return delegated_inputs
 
-    def get_input(self, id: uuid.UUID, token: str = None, signature: str = None):
+    def get_input(
+        self,
+        id: uuid.UUID,
+        token: str = None,
+        signature: str = None,
+        include_input_ids: bool = False,
+    ):
         """Fetches the input spec of a Task including inputs, outputs and params.
 
         The spec is provided in a dictionary format and includes the inputs, outputs
@@ -808,16 +839,18 @@ class Task(Entity):
         # Delegate the input artifacts to the appropriate URLs
         # based on their type. The final product is a dictionary
         # of input groups that contain the URLs of the artifacts.
-        delegated_inputs = self.delegate_input_artifacts(id, inputs, credentials)
+        delegated_inputs = self.delegate_input_artifacts(
+            id, inputs, credentials, include_ids=include_input_ids
+        )
 
         # Read the paths for the output files that the tool is directed to write to.
         outputs = sql_utils.task_read_output_spec(id)
 
         # Construct the output destined to reach the task runtime
         task_input_spec = {}
-        task_input_spec["inputs"] = delegated_inputs if delegated_inputs else {}
+        task_input_spec["input"] = delegated_inputs if delegated_inputs else {}
         task_input_spec["parameters"] = parameters if parameters else {}
-        task_input_spec["outputs"] = outputs if outputs else {}
+        task_input_spec["output"] = outputs if outputs else {}
 
         # If the request is signed, we verify the signature to include secret information.
         if signature:
@@ -885,6 +918,12 @@ class Task(Entity):
                         output_spec.get("package_details")
                     )
 
+                    decoded_package["title"]
+                    decoded_package.setdefault("owner_org", "stelar-klms")
+                    decoded_package.setdefault(
+                        "name", re.sub(r"[\W_]+", "_", decoded_package["title"]).lower()
+                    )
+
                     try:
                         package_id = cutils.DATASET.create_entity(decoded_package)["id"]
                     except Exception:
@@ -916,7 +955,7 @@ class Task(Entity):
                     )["id"]
                     return res_id
 
-    def save_output(self, id: uuid.UUID, signature: str, **spec):
+    def save_output(self, id: uuid.UUID, signature: str, spec):
         """Saves the output of a Task execution in the database upon spec.
 
         The output spec is a field in the broader JSON that describes the Task
@@ -938,7 +977,7 @@ class Task(Entity):
             raise AuthorizationError("Invalid Task Signature. Access Denied.")
 
         # Validate the task existence
-        self.validate_task()
+        self.validate_task(id)
 
         # Parse the output JSON provided in the request
         outputs = spec.get("output", {})
@@ -953,13 +992,18 @@ class Task(Entity):
         for output, path in outputs.items():
             actual_resource_output.append(self.handle_output_key(id, output, path))
 
+        # Remove nones (which are the outputs that were not registered in the catalog)
+        actual_resource_output = [
+            res for res in actual_resource_output if res is not None
+        ]
+
         # Register the actual resources registered in the catalog by the task
         if actual_resource_output:
             sql_utils.task_execution_insert_output(id, actual_resource_output)
 
         # Now handle the metrics, messages and state of the task.
-        sql_utils.task_execution_insert_metrics(id, spec.get("status"))
-        sql_utils.task_execution_insert_log(id, spec.get("messages"))
+        sql_utils.task_execution_insert_metrics(id, spec.get("metrics"))
+        sql_utils.task_execution_insert_log(id, spec.get("message"))
 
         if "error" in spec:
             self.set_exec_state(id, "failed")
@@ -998,7 +1042,7 @@ class Task(Entity):
         logs = engine.get_task_info(str(id))
         return logs
 
-    def parse_state(state):
+    def parse_state(self, state):
         """Parse the state of the task execution during output handling"
 
         Args:

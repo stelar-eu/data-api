@@ -32,12 +32,12 @@ generate_endpoints(wflow.WORKFLOW, workflows_bp, logger)
 # --------------------------------------------------------
 
 
-@workflows_bp.route("/task/<task_id>", methods=["GET"])
+@workflows_bp.route("/task/<entity_id>", methods=["GET"])
 @workflows_bp.doc(tags=["Task Operations"])
 @workflows_bp.output(schema.APIResponse, status_code=200)
 @token_active
 @render_api_output(logger)
-def api_get_task_metadata(task_id):
+def api_get_task_metadata(entity_id):
     """Return the metadata of the specific Task. This JSON contains the task's state, metrics, messages, image, and other details.
 
     Args:
@@ -49,7 +49,7 @@ def api_get_task_metadata(task_id):
         - 404: Task is not found
         - 500: An unknown error occurred
     """
-    return tasks.TASK.get_entity(task_id)
+    return tasks.TASK.get_entity(entity_id)
 
 
 @workflows_bp.route("/task", methods=["POST"])
@@ -110,6 +110,7 @@ def api_update_task_state(entity_id, json_data):
 
 @workflows_bp.route("/task/<task_id>/input", methods=["GET"])
 @workflows_bp.route("/task/<task_id>/<signature>/input", methods=["GET"])
+@workflows_bp.route("/tasks/<task_id>/<signature>/input", methods=["GET"])
 @workflows_bp.doc(tags=["Task Operations"])
 @workflows_bp.output(schema.APIResponse, status_code=200)
 @token_active
@@ -129,11 +130,12 @@ def api_rest_get_task_input(task_id, signature=None):
 
 
 @workflows_bp.route("/task/<task_id>/<signature>/output", methods=["POST"])
+@workflows_bp.route("/tasks/<task_id>/<signature>/output", methods=["POST"])
 @workflows_bp.doc(tags=["Task Operations"])
 @workflows_bp.input(schema.Task_Output, location="json")
 @workflows_bp.output(schema.APIResponse, status_code=200)
 @render_api_output(logger)
-def api_rest_post_task_output(task_id, signature, json_data):
+def api_post_task_output(task_id, signature, json_data):
     """
     Handles the output of a task execution. Accepts the output files created by the tool, the metrics
     and the logs generated during the execution. The files are validated and metadata are generated

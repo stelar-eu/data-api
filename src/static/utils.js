@@ -1,5 +1,30 @@
+
+function formatIsoDate(isoDate, includeSeconds = true) {
+    const dateObj = new Date(isoDate);
+    const dd = String(dateObj.getDate()).padStart(2, '0');
+    const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const yyyy = dateObj.getFullYear();
+    const hh = String(dateObj.getHours()).padStart(2, '0');
+    const min = String(dateObj.getMinutes()).padStart(2, '0');
+    if (includeSeconds) {
+        const ss = String(dateObj.getSeconds()).padStart(2, '0');
+        return `${dd}-${mm}-${yyyy} ${hh}:${min}:${ss}`;
+    } else {
+        return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
+    }
+}
+
 function createLoaderElement() {
     return '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
+}
+
+
+function createGreenTick() {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-success m-2 icon icon-tabler icons-tabler-outline icon-tabler-check"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>';
+}
+
+function createRedCross() {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-danger m-2 icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>';
 }
 
 function createAlertElement(type, message) {
