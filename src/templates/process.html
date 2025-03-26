@@ -28,20 +28,25 @@
                 <div class="container-xl">
                     <div class="row g-2 align-items-center">
                         <div class="col">
-                            <div class="d-flex">
-                                <h3 class="page-title">
-                                    <ol class="breadcrumb breadcrumb-arrows">
-                                        <li class="breadcrumb-item"><a class="text-secondary"
-                                                href="{{ url_for('dashboard_blueprint.processes')}}">
-                                                Workflow Processes
-                                            </a>
-                                        </li>
-                                        <li class="breadcrumb-item active"><a href="#"><span class="text-strong">{{
-                                                    process.title }}</span></a></li>
-                                    </ol>
-                                </h3>
-                                <div class="ms-auto" id="state-updater-status">
+                            <div class="page-pretitle">
+                                PROCESSES
+                            </div>
+                            <h3 class="page-title">
+                                <ol class="breadcrumb breadcrumb-arrows">
+                                    <li class="breadcrumb-item"><a class="text-secondary"
+                                            href="{{ url_for('dashboard_blueprint.processes')}}">
+                                            Workflow Processes
+                                        </a>
+                                    </li>
+                                    <li class="breadcrumb-item active"><a href="#"><span class="text-strong">{{
+                                                process.title }}</span></a></li>
+                                </ol>
+                            </h3>
+                        </div>
+                        <div class="col-auto ms-auto d-print-none">
 
+                            <div class="d-flex align-items-center">
+                                <div id="state-updater-status">
                                 </div>
                                 <div class="ms-2">
                                     <div class="input-group">
@@ -718,7 +723,6 @@
     }
 
     updateGraph();
-    graph.arrange();
 </script>
 
 </html>
