@@ -9,7 +9,6 @@ import ssl
 from datetime import datetime, timedelta
 from functools import wraps
 from math import ceil
-from entity import Entity
 
 from apiflask import APIBlueprint
 from flask import (
@@ -26,6 +25,7 @@ import cutils
 import kutils
 from processes import PROCESS
 from tasks import TASK
+from cutils import TAG, ORGANIZATION
 from auth import admin_required
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
@@ -359,6 +359,7 @@ def catalog(page_number=None):
 
     return render_template_with_s3(
         "catalog.html",
+        tags=TAG.fetch_entities(limit=200, offset=0),
         datasets=packages,
         page_number=page_number,
         total_pages=total_pages,
@@ -459,6 +460,34 @@ def viewResource(resource_id):
 @admin_required
 def adminSettings():
     return render_template_with_s3("cluster.html", PARTNER_IMAGE_SRC=get_partner_logo())
+
+
+@dashboard_bp.route("/organizations")
+@session_required
+def organizations():
+    orgs = ORGANIZATION.fetch_entities(limit=100, offset=0)
+    for org in orgs:
+        org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
+        for member in org["members"][:5]:
+            user = kutils.get_user(member[0])
+            member.append(user.get("fullname", "STELAR User"))
+
+    return render_template_with_s3(
+        "organizations.html", PARTNER_IMAGE_SRC=get_partner_logo(), organizations=orgs
+    )
+
+
+@dashboard_bp.route("/organization/<organization_id>")
+@session_required
+def organization(organization_id):
+    org = ORGANIZATION.get_entity(organization_id)
+    org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
+    for member in org["members"][:5]:
+        user = kutils.get_user(member[0])
+        member.append(user.get("fullname", "STELAR User"))
+    return render_template_with_s3(
+        "organization.html", PARTNER_IMAGE_SRC=get_partner_logo(), organization=org
+    )
 
 
 @dashboard_bp.route("/login/verify", methods=["GET", "POST"])
