@@ -11,6 +11,7 @@ from conftest import fake_minio_create_policy
 
 # --- Test for ResourceSpecPermissionsType ---
 def test_resource_spec_permissions_type_create_permissions():
+    authz_module.new_permissions.clear()
     rsp = ResourceSpecPermissionsType()
     permission = {
         "action": "update",
@@ -18,10 +19,10 @@ def test_resource_spec_permissions_type_create_permissions():
             {"attr": "id", "operation": "equals", "value": "test_value"}
         ]
     }
-    result = rsp.create_permissions("tester", permission)
-    assert "update" in result
-    assert "tester" in result["update"]
-    spec_instance = result["update"]["tester"][0][0]
+    rsp.create_permissions("tester", permission)
+    assert "update" in authz_module.new_permissions
+    assert "tester" in authz_module.new_permissions["update"]
+    spec_instance = authz_module.new_permissions["update"]["tester"][0]
     from authz_module import AttrSpec
     assert isinstance(spec_instance, AttrSpec)
 
@@ -33,10 +34,10 @@ def test_resource_spec_permissions_type_create_permissions():
             {"type": "dataset", "group": "group1", "capacity": "test_value"}
         ]
     }
-    result = rsp.create_permissions("tester", permission)
-    assert "update" in result
-    assert "tester" in result["update"]
-    spec_instance = result["update"]["tester"][0][0]
+    rsp.create_permissions("tester", permission)
+    assert "update" in authz_module.new_permissions
+    assert "tester" in authz_module.new_permissions["update"]
+    spec_instance = authz_module.new_permissions["update"]["tester"][1]
     from authz_module import GMspec
     assert isinstance(spec_instance, GMspec)
 
@@ -48,12 +49,12 @@ def test_resource_spec_permissions_type_create_permissions():
             {"type": "dataset", "org": "org1", "capacity": "test_value"}
         ]
     }
-    result = rsp.create_permissions("tester", permission)
-    assert "update" in result
-    assert "tester" in result["update"]
-    spec_instance = result["update"]["tester"][0][0]
-    from authz_module import OMSpec
-    assert isinstance(spec_instance, OMSpec)
+    rsp.create_permissions("tester", permission)
+    assert "update" in authz_module.new_permissions
+    assert "tester" in authz_module.new_permissions["update"]
+    spec_instance = authz_module.new_permissions["update"]["tester"][2]
+    from authz_module import GMspec
+    assert isinstance(spec_instance, GMspec)
 
     ####################################################################################################
 
@@ -63,12 +64,38 @@ def test_resource_spec_permissions_type_create_permissions():
             {"group": "group1", "capacity": "test_value"}
         ]
     }
-    result = rsp.create_permissions("tester", permission)
-    assert "update" in result
-    assert "tester" in result["update"]
-    spec_instance = result["update"]["tester"][0][0]
+    rsp.create_permissions("tester", permission)
+    assert "update" in authz_module.new_permissions
+    assert "tester" in authz_module.new_permissions["update"]
+    spec_instance = authz_module.new_permissions["update"]["tester"][3]
     from authz_module import UMspec
     assert isinstance(spec_instance, UMspec)
+
+    ####################################################################################################
+
+    permission = {
+        "action": "read",
+        "resource_spec": [
+            {"group": "group1", "capacity": "test_value"},
+            {"type": "dataset", "org": "org1", "capacity": "test_value"}
+        ]
+    }
+    rsp.create_permissions("tester", permission)
+    assert "update" in authz_module.new_permissions
+    assert "read" in authz_module.new_permissions
+    assert "tester" in authz_module.new_permissions["update"]
+    assert "tester" in authz_module.new_permissions["read"]
+    um_spec_instance = authz_module.new_permissions["read"]["tester"][0]
+    attr_spec_instance = authz_module.new_permissions["read"]["tester"][1]
+    spec_instance = authz_module.new_permissions["update"]["tester"][3]
+    from authz_module import UMspec
+    assert isinstance(spec_instance, UMspec)
+    assert isinstance(um_spec_instance, UMspec)
+    assert isinstance(attr_spec_instance, GMspec)
+
+    ####################################################################################################
+
+    authz_module.new_permissions.clear()
 
 # --- Test for ResourcePermissionsType ---
 def test_resource_permissions_type_create_permissions(app, monkeysession,minio_admin,keycloak_admin):

@@ -18,7 +18,7 @@ def test_check_access():
     class AlwaysTrueSpec:
         def __call__(self, resource):
             return True
-    authz_module.action_permissions["read"] = {"admin": [[AlwaysTrueSpec()]]}
+    authz_module.action_permissions["read"] = {"admin": [AlwaysTrueSpec()]}
     
 
     dummy_resource = {}
@@ -29,8 +29,10 @@ def test_check_access():
     class AlwaysFalseSpec:
         def __call__(self, resource):
             return False
-    authz_module.action_permissions["read"] = {"admin": [[AlwaysTrueSpec(), AlwaysFalseSpec()]]}
+    authz_module.action_permissions["read"] = {"admin": [AlwaysTrueSpec(), AlwaysFalseSpec()]}
     assert check_access(["admin"], "read", dummy_resource) is False
+
+    authz_module.action_permissions.clear()
 
 
 
@@ -64,4 +66,6 @@ def test_parse_authz_config(monkeysession,app,minio_admin):
       # Global authz_module.action_permissions should contain the tester update permission.
       assert "update" in authz_module.action_permissions
       assert "tester" in authz_module.action_permissions["update"]
+
+    
 
