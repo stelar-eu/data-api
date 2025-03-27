@@ -12,6 +12,7 @@ from marshmallow import EXCLUDE, INCLUDE, post_dump
 import schema
 import utils
 from backend.ckan import ckan_request, request
+from backend.pgsql import execSql
 from entity import (
     AnyCapacity,
     CKANEntity,
@@ -216,7 +217,7 @@ def list_packages(
         raise
 
 
-def count_packages() -> int:
+def count_packages(type: str = None) -> int:
     """
     Returns the number of packages published in the CKAN data catalog
     by looking at the organization parameters.
@@ -227,35 +228,22 @@ def count_packages() -> int:
     Raises:
         RuntimeError: In case of error
     """
-    try:
-        response = request(
-            "organization_show",
-            json={
-                "id": "stelar-klms",
-                "include_dataset_count": True,
-                "include_users": False,
-            },
-        )
-        if response.status_code == 200:
-            resp = response.json()
-            org = resp.get("result", None)
-            return org.get("package_count", 0)
-        return 0
-    except requests.exceptions.HTTPError as he:
-        raise RuntimeError from he
+    if type is not None:
+        query = "SELECT COUNT(*) FROM package WHERE state='active' AND type=%s"
+        result = execSql(query, (type,))
+    else:
+        query = "SELECT COUNT(*) FROM package WHERE state='active'"
+        result = execSql(query, ())
+    return result[0]["count"]
 
 
-def get_packages(
+def fetch_packages(
     limit: Optional[int] = None,
     offset: Optional[int] = None,
-    tag_filter: str = None,
-    filter_mode: str = None,
+    type_filter: str = None,
 ):
     """
-    Retrieve details for multiple datasets, with support for pagination.
-
-    This function calls `list_packages` to get the list of dataset IDs,
-    then fetches details for each dataset using `get_package`.
+    Retrieve details for multiple packages, with support for pagination.
 
     Args:
         limit (int): The number of dataset IDs to retrieve (pagination).
@@ -265,7 +253,7 @@ def get_packages(
         'discard' for discarding the matches
 
     Returns:
-        dict: A dictionary where keys are dataset IDs, and values are the dataset details.
+        dict: A dictionary where keys are package IDs, and values are package details.
 
     Example:
         {
@@ -273,25 +261,18 @@ def get_packages(
             "dataset_id_2": {...dataset details...}
         }
     """
-    # Retrieve a list of dataset IDs using the provided limit and offset
-    packages = list_packages(limit=limit, offset=offset)
 
-    # If no filtering is required, process all packages
-    if not tag_filter or not filter_mode:
-        return {package: get_package(package, compressed=True) for package in packages}
+    query = """SELECT id, title, name, author, notes, type FROM package 
+                WHERE state='active' AND type != 'tool' 
+                ORDER BY metadata_modified DESC"""
+    if limit:
+        query += f" LIMIT {limit}"
+    if offset:
+        query += f" OFFSET {offset}"
+    result = execSql(query)
 
-    # Process with filtering
-    # VSAM: Note: this is currently used to filter datasets vs workflows etc, and will
-    # be changed when/(if?) package types are supported in the catalog.
-    result = {}
-    for package in packages:
-        pkg = get_package(package, compressed=True)
-        # Check if the package matches the filtering criteria
-        match_tag = tag_filter in pkg["tags"]
-        if (filter_mode == "keep" and match_tag) or (
-            filter_mode == "discard" and not match_tag
-        ):
-            result[package] = pkg
+    for row in result:
+        logger.debug(row)
 
     return result
 

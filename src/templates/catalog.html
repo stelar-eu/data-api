@@ -300,8 +300,8 @@
                                     <path d="M7.01 17h.005" />
                                     <path d="M10.01 17h.005" />
                                   </svg>
-                                  {{ dataset.get('metadata_modified') | format_datetime or
-                                  dataset.get('metadata_created') | format_datetime }}
+                                  {{ dataset.get('metadata_modified').strftime('%d-%m-%Y %H:%M') or
+                                  dataset.get('metadata_created').strftime('%d-%m-%Y %H:%M') }}
                                 </div>
                                 <div class="list-inline-item">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"

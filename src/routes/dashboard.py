@@ -25,6 +25,7 @@ import cutils
 import kutils
 from processes import PROCESS
 from tasks import TASK
+from cutils import TAG, ORGANIZATION
 from auth import admin_required
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
@@ -348,54 +349,22 @@ def catalog(page_number=None):
     page_number = int(page_number) if page_number and page_number.isdigit() else 1
     offset = limit * (page_number - 1) if page_number > 0 else 0
 
-    if request.method == "POST":
-        keyword = request.form.get("q", "").strip()
+    # Handle default GET request
+    packages = cutils.DATASET.fetch_entities(limit=limit, offset=offset)
 
-        if not re.match(r"^\w+$", keyword):
-            return redirect(url_for("dashboard_blueprint.catalog"))
+    # Search for datasets using the keyword
+    count_pkg = cutils.count_packages("dataset")
 
-        try:
-            # Search for datasets using the keyword
-            datasets = cutils.search_packages(
-                keyword=keyword, limit=limit, offset=offset, expand_mode=False
-            )
-            count_pkg = len(datasets)
-            total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
+    total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
 
-            return render_template_with_s3(
-                "catalog.html",
-                datasets=datasets,
-                page_number=page_number,
-                total_pages=total_pages,
-                PARTNER_IMAGE_SRC=get_partner_logo(),
-                search_keyword=keyword,
-            )
-        except Exception as e:
-            flash(f"Error while searching datasets: {str(e)}", "error")
-            return redirect(url_for("dashboard_blueprint.catalog"))
-    else:
-        # Handle default GET request
-        try:
-            datasets = cutils.list_packages(
-                limit=limit, offset=offset, expand_mode=True
-            )
-        except Exception as e:
-            datasets = []
-            flash(f"Error loading datasets: {str(e)}", "error")
-
-        try:
-            count_pkg = int(cutils.count_packages())
-            total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
-        except Exception:
-            total_pages = 1
-
-        return render_template_with_s3(
-            "catalog.html",
-            datasets=datasets,
-            page_number=page_number,
-            total_pages=total_pages,
-            PARTNER_IMAGE_SRC=get_partner_logo(),
-        )
+    return render_template_with_s3(
+        "catalog.html",
+        tags=TAG.fetch_entities(limit=200, offset=0),
+        datasets=packages,
+        page_number=page_number,
+        total_pages=total_pages,
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+    )
 
 
 @dashboard_bp.route("/tools", methods=["GET"])
@@ -491,6 +460,34 @@ def viewResource(resource_id):
 @admin_required
 def adminSettings():
     return render_template_with_s3("cluster.html", PARTNER_IMAGE_SRC=get_partner_logo())
+
+
+@dashboard_bp.route("/organizations")
+@session_required
+def organizations():
+    orgs = ORGANIZATION.fetch_entities(limit=100, offset=0)
+    for org in orgs:
+        org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
+        for member in org["members"][:5]:
+            user = kutils.get_user(member[0])
+            member.append(user.get("fullname", "STELAR User"))
+
+    return render_template_with_s3(
+        "organizations.html", PARTNER_IMAGE_SRC=get_partner_logo(), organizations=orgs
+    )
+
+
+@dashboard_bp.route("/organization/<organization_id>")
+@session_required
+def organization(organization_id):
+    org = ORGANIZATION.get_entity(organization_id)
+    org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
+    for member in org["members"][:5]:
+        user = kutils.get_user(member[0])
+        member.append(user.get("fullname", "STELAR User"))
+    return render_template_with_s3(
+        "organization.html", PARTNER_IMAGE_SRC=get_partner_logo(), organization=org
+    )
 
 
 @dashboard_bp.route("/login/verify", methods=["GET", "POST"])

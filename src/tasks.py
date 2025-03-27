@@ -256,6 +256,7 @@ class Task(Entity):
             task["messages"] = task["tags"].get("log", None)
             task["output"] = sql_utils.task_execution_read_outputs_sql(id)
             task["metrics"] = sql_utils.task_execution_metrics_read_sql(id)
+            task["parameters"] = sql_utils.task_execution_parameters_read_sql(id)
         return task
 
     def update(self, id, update_attr):
