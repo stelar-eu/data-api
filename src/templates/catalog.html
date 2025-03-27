@@ -5,7 +5,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-  <title>STELAR | Datasets</title>
+  <title>STELAR | Data Catalog</title>
   <!-- CSS files -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
   <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
@@ -32,17 +32,17 @@
             <div class="col">
               <!-- Page pre-title -->
               <div class="page-pretitle">
-                Datasets
+                Data Catalog
               </div>
               <h2 class="page-title">
-                Browse & Manage Datasets
+                Browse & Manage Packages
               </h2>
             </div>
             <div class="col-auto me-2 d-print-none">
               <div class="input-group">
 
                 <button type="button" class="btn btn-secondary" id="compare-datasets-button"
-                  onclick="window.location.href='{{url_for('dashboard_blueprint.dataset_compare')}}'">Compare Datasets
+                  onclick="window.location.href='{{url_for('dashboard_blueprint.dataset_compare')}}'">Compare Selected
                   <span class="ms-1" id="dataset-compare-number">(0)</span></button>
 
                 <button data-bs-toggle="dropdown" role="button" class="btn btn-secondary dropdown-toggle"
@@ -60,7 +60,7 @@
                   <path d="M12 5l0 14" />
                   <path d="M5 12l14 0" />
                 </svg>
-                Publish New Dataset
+                Publish
               </a>
             </div>
           </div>
@@ -129,9 +129,8 @@
                       <path d="M21 21l-6 -6" />
                     </svg>
                   </span>
-                  <input type="text" value="" class="form-control"
-                    placeholder="Search Datasets (ID, Tags, Keywords, etc.)" id="workflow-search-box"
-                    aria-label="Workflow Filtered Search">
+                  <input type="text" value="" class="form-control" placeholder="Search for a keyword"
+                    id="catalog-search-box" aria-label="Catalog Search">
                 </div>
               </div>
 
@@ -139,7 +138,7 @@
                 {% if page_number > 1 %}
                 <!-- Previous Button -->
                 <li class="page-item">
-                  <a class="page-link" href="{{ url_for('dashboard_blueprint.datasets', page_number=page_number - 1) }}"
+                  <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=page_number - 1) }}"
                     aria-label="Previous">
                     <span aria-hidden="true">&laquo; prev</span>
                   </a>
@@ -149,7 +148,7 @@
                 <!-- First Page Button -->
                 {% if total_pages > 1 %}
                 <li class="page-item {% if page_number == 1 %}active{% endif %}">
-                  <a class="page-link" href="{{ url_for('dashboard_blueprint.datasets', page_number=1) }}">1</a>
+                  <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=1) }}">1</a>
                 </li>
                 {% endif %}
 
@@ -162,7 +161,7 @@
                 {% for page in range(page_number - 2, page_number + 3) %}
                 {% if page > 1 and page < total_pages %} <li
                   class="page-item {% if page == page_number %}active{% endif %}">
-                  <a class="page-link" href="{{ url_for('dashboard_blueprint.datasets', page_number=page) }}">{{ page
+                  <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=page) }}">{{ page
                     }}</a>
                   </li>
                   {% endif %}
@@ -174,7 +173,7 @@
                     {% else %}
                     {% for page in range(2, total_pages) %}
                     <li class="page-item {% if page == page_number %}active{% endif %}">
-                      <a class="page-link" href="{{ url_for('dashboard_blueprint.datasets', page_number=page) }}">{{
+                      <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=page) }}">{{
                         page }}</a>
                     </li>
                     {% endfor %}
@@ -184,7 +183,7 @@
                     {% if total_pages > 1 %}
                     <li class="page-item {% if page_number == total_pages %}active{% endif %}">
                       <a class="page-link"
-                        href="{{ url_for('dashboard_blueprint.datasets', page_number=total_pages) }}">{{
+                        href="{{ url_for('dashboard_blueprint.catalog', page_number=total_pages) }}">{{
                         total_pages
                         }}</a>
                     </li>
@@ -193,7 +192,7 @@
                     {% if page_number < total_pages %} <!-- Next Button -->
                       <li class="page-item">
                         <a class="page-link"
-                          href="{{ url_for('dashboard_blueprint.datasets', page_number=page_number + 1) }}"
+                          href="{{ url_for('dashboard_blueprint.catalog', page_number=page_number + 1) }}"
                           aria-label="Next">
                           <span aria-hidden="true">next &raquo;</span>
                         </a>
@@ -224,10 +223,12 @@
                                 <a
                                   href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id=dataset.get('id'))}}">{{
                                   dataset.get('title', 'Untitled Dataset') }}</a>
-                                {% if 'Workflow' in dataset.get('tags') %}
+                                {% if dataset.get('type') == 'workflow' %}
                                 <span class="badge bg-purple-lt ms-2">WORKFLOW</span>
-                                {% else %}
+                                {% elif dataset.get('type') == 'dataset' %}
                                 <span class="badge bg-blue-lt ms-2">DATASET</span>
+                                {% elif dataset.get('type') == 'process' %}
+                                <span class="badge bg-yellow-lt ms-2">PROCESS</span>
                                 {% endif %}
                               </h3>
                               <p class="text-secondary mt-1">{{ dataset.get('notes', 'No description specified') }}
@@ -299,8 +300,8 @@
                                     <path d="M7.01 17h.005" />
                                     <path d="M10.01 17h.005" />
                                   </svg>
-                                  {{ dataset.get('metadata_modified') | format_datetime or
-                                  dataset.get('metadata_created') | format_datetime }}
+                                  {{ dataset.get('metadata_modified').strftime('%d-%m-%Y %H:%M') or
+                                  dataset.get('metadata_created').strftime('%d-%m-%Y %H:%M') }}
                                 </div>
                                 <div class="list-inline-item">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -337,7 +338,7 @@
                 {% if page_number > 1 %}
                 <!-- Previous Button -->
                 <li class="page-item">
-                  <a class="page-link" href="{{ url_for('dashboard_blueprint.datasets', page_number=page_number - 1) }}"
+                  <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=page_number - 1) }}"
                     aria-label="Previous">
                     <span aria-hidden="true">&laquo; prev</span>
                   </a>
@@ -347,7 +348,7 @@
                 <!-- First Page Button -->
                 {% if total_pages > 1 %}
                 <li class="page-item {% if page_number == 1 %}active{% endif %}">
-                  <a class="page-link" href="{{ url_for('dashboard_blueprint.datasets', page_number=1) }}">1</a>
+                  <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=1) }}">1</a>
                 </li>
                 {% endif %}
 
@@ -360,7 +361,7 @@
                 {% for page in range(page_number - 2, page_number + 3) %}
                 {% if page > 1 and page < total_pages %} <li
                   class="page-item {% if page == page_number %}active{% endif %}">
-                  <a class="page-link" href="{{ url_for('dashboard_blueprint.datasets', page_number=page) }}">{{ page
+                  <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=page) }}">{{ page
                     }}</a>
                   </li>
                   {% endif %}
@@ -372,7 +373,7 @@
                     {% else %}
                     {% for page in range(2, total_pages) %}
                     <li class="page-item {% if page == page_number %}active{% endif %}">
-                      <a class="page-link" href="{{ url_for('dashboard_blueprint.datasets', page_number=page) }}">{{
+                      <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=page) }}">{{
                         page }}</a>
                     </li>
                     {% endfor %}
@@ -382,7 +383,7 @@
                     {% if total_pages > 1 %}
                     <li class="page-item {% if page_number == total_pages %}active{% endif %}">
                       <a class="page-link"
-                        href="{{ url_for('dashboard_blueprint.datasets', page_number=total_pages) }}">{{ total_pages
+                        href="{{ url_for('dashboard_blueprint.catalog', page_number=total_pages) }}">{{ total_pages
                         }}</a>
                     </li>
                     {% endif %}
@@ -390,7 +391,7 @@
                     {% if page_number < total_pages %} <!-- Next Button -->
                       <li class="page-item">
                         <a class="page-link"
-                          href="{{ url_for('dashboard_blueprint.datasets', page_number=page_number + 1) }}"
+                          href="{{ url_for('dashboard_blueprint.catalog', page_number=page_number + 1) }}"
                           aria-label="Next">
                           <span aria-hidden="true"> next &raquo;</span>
                         </a>
@@ -947,7 +948,7 @@
             refreshDatasetCompareOption(selectedIds);
             if (selectedIds.length == 2) {
               $('#toast-message-info').removeClass('hide').addClass('show').addClass('fade');
-              $('#toast-info-body').html("Looks like you have selected datasets for comparison. Compare them <a href='{{url_for('dashboard_blueprint.dataset_compare')}}'>here</a>");
+              $('#toast-info-body').html("Looks like you have selected packages for comparison. Compare them <a href='{{url_for('dashboard_blueprint.dataset_compare')}}'>here</a>");
             }
           } else {
             $('#toast-message-alert').removeClass('hide').addClass('show').addClass('fade');
@@ -981,9 +982,11 @@
         }
 
         const payload = {
-          name: title,
+          name: slugifyTitle(title),
+          title: title,
           notes: notes,
-          tags: tags
+          tags: tags,
+          'owner_org': 'stelar-klms',
         };
 
         $('#new-dataset-modal-footer .alert').remove()
@@ -991,7 +994,7 @@
         $("#new-dataset-modal-footer").prepend(loader)
 
         $.ajax({
-          url: `{ { url_for('catalog_blueprint.api_create_dataset') } } `,
+          url: `{{ url_for('catalog_blueprint.api_create_dataset') }} `,
           method: 'POST',
           contentType: 'application/json',
           data: JSON.stringify(payload),
@@ -1040,7 +1043,7 @@
       $("#availability-div").append(loader)
 
       $.ajax({
-        url: `{ { url_for('catalog_blueprint.api_get_dataset', entity_id = '') } }${slugifyTitle(title)}`,
+        url: `{{ url_for('catalog_blueprint.api_get_dataset', entity_id = '') }}${slugifyTitle(title)}`,
         method: 'GET',
         success: function (response) {
           // If the response is 200, a dataset already exists

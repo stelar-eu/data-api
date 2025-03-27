@@ -243,6 +243,7 @@ def current_user():
     """
     if "current_user" not in flask.g:
         from flask import request
+
         logger.info("Fetching current user's info by token")
         match request.headers.get("Authorization", "").split(" "):
             case ["Bearer", access_token]:
@@ -707,9 +708,9 @@ def create_user_with_password(
             logger.error("Error while calling ckan_request: %s", str(e), exc_info=True)
             keycloak_admin.delete_user(user_id)
             raise BackendError("Error while creating user") from e
-        
-        query = "UPDATE public.\"user\" SET sysadmin = %s WHERE id = %s"
-        result = execSql(query, (True, user_id))
+
+        query = 'UPDATE public."user" SET sysadmin = %s WHERE id = %s'
+        execSql(query, (True, user_id))
 
         return user_id
     except KeycloakAuthenticationError as e:

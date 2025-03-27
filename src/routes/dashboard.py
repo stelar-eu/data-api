@@ -23,8 +23,9 @@ from flask import (
 
 import cutils
 import kutils
-import processes
-import wxutils
+from processes import PROCESS
+from tasks import TASK
+from cutils import TAG, ORGANIZATION
 from auth import admin_required
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
@@ -244,25 +245,25 @@ def settings():
     )
 
 
-@dashboard_bp.route("/workflows")
+@dashboard_bp.route("/processes")
 @session_required
-def workflows():
+def processes():
 
     # Retrieve list of WFs from DB
-    wf_metadata = processes.PROCESS.list_entities()
-    logger.debug(wf_metadata)
+    processes = PROCESS.fetch_entities(limit=10, offset=0)
+    logger.debug(processes)
 
-    if wf_metadata is not None and wf_metadata != []:
+    if processes is not None and processes != []:
         status_counts = {}
         monthly_counts = {}
 
-        for wf in wf_metadata:
-            # Count workflow status for pie chart
-            status = wf["state"]
+        for proc in processes:
+            # Count process status for pie chart
+            status = proc["exec_state"]
             status_counts[status] = status_counts.get(status, 0) + 1
 
-            # Count workflows per month for bar chart
-            start_date = wf["start_date"]
+            # Count process per month for bar chart
+            start_date = proc["start_date"]
             month_year = start_date.strftime("%Y-%m")
             monthly_counts[month_year] = monthly_counts.get(month_year, 0) + 1
 
@@ -278,8 +279,8 @@ def workflows():
         }
 
         return render_template_with_s3(
-            "workflows.html",
-            workflows=wf_metadata,
+            "processes.html",
+            processes=processes,
             status_counts=status_counts,
             monthly_counts=monthly_counts,
             PARTNER_IMAGE_SRC=get_partner_logo(),
@@ -287,135 +288,83 @@ def workflows():
 
     else:
         return render_template_with_s3(
-            "workflows.html",
-            workflows={},
+            "processes.html",
+            processes={},
             status_counts={},
             monthly_counts={},
             PARTNER_IMAGE_SRC=get_partner_logo(),
         )
 
 
-@dashboard_bp.route("/workflows/<workflow_id>")
+@dashboard_bp.route("/process/<process_id>")
 @session_required
-def workflow(workflow_id):
-    # Basic input validation
-    if not workflow_id:
-        return redirect(url_for("dashboard_blueprint.datasets"))
+def process(process_id):
 
-    wf_metadata = wxutils.get_workflow_process(workflow_id)
-    tasks = wxutils.get_workflow_tasks(workflow_id)
+    if not process_id:
+        return redirect(url_for("dashboard_blueprint.dashboard_index"))
 
-    if wf_metadata:
-        # Sort tasks based on start date
-        if tasks and isinstance(tasks, list):
-            tasks = sorted(tasks, key=lambda x: x["start_date"])
-        try:
-            package_id = wf_metadata["tags"].get("package_id")
-        except:
-            package_id = "Not specified"
+    process = PROCESS.get_entity(process_id)
 
-        return render_template_with_s3(
-            "workflow.html",
-            workflow_id=workflow_id,
-            PARTNER_IMAGE_SRC=get_partner_logo(),
-            wf_metadata=wf_metadata,
-            wf_tasks=tasks if tasks and isinstance(tasks, list) else None,
-            package_id=package_id,
-        )
-    else:
-        return redirect(url_for("dashboard_blueprint.login"))
+    return render_template_with_s3(
+        "process.html",
+        process=process,
+        proc_tasks=(process.get("tasks") if process and "tasks" in process else []),
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+    )
 
 
-@dashboard_bp.route("/task/<workflow_id>/<task_id>")
+@dashboard_bp.route("/task/<process_id>/<task_id>")
 @session_required
-def task(workflow_id, task_id):
+def task(process_id, task_id):
     # Basic input validation
-    if not workflow_id or not task_id:
+    if not process_id or not task_id:
         return redirect(url_for("dashboard_blueprint.login"))
 
-    try:
-        task_metadata = wxutils.get_task_metadata(task_id=task_id)
+    task_metadata = TASK.get_entity(task_id)
+    task_metadata["process_title"] = PROCESS.get_entity(process_id)["title"]
 
-        # Do not allow mismatch between given wf and actual wf
-        if task_metadata.get("workflow_exec_id") != workflow_id:
-            return redirect(url_for("dashboard_blueprint.login"))
-
-        input_metadata = wxutils.get_task_input_json(
-            task_id=task_id, show_resource_ids=True
-        )
-        logs_metadata = wxutils.get_task_info(task_id=task_id)
-
-        return render_template_with_s3(
-            "task.html",
-            PARTNER_IMAGE_SRC=get_partner_logo(),
-            task_id=task_id,
-            workflow_id=workflow_id,
-            task_metadata=task_metadata,
-            task_input=input_metadata,
-            logs=logs_metadata,
-        )
-    except Exception as e:
-        logging.debug(str(e))
+    # Do not allow mismatch between given wf and actual wf
+    if task_metadata.get("process_id") != process_id:
         return redirect(url_for("dashboard_blueprint.login"))
 
+    input_metadata = TASK.get_input(id=task_id, include_input_ids=True)
 
-@dashboard_bp.route("/datasets", methods=["GET", "POST"])
-@dashboard_bp.route("/datasets/page/<page_number>", methods=["GET", "POST"])
+    logs_metadata = TASK.get_job_info(id=task_id)
+
+    return render_template_with_s3(
+        "task.html",
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+        task=task_metadata,
+        input=input_metadata,
+        logs=logs_metadata,
+    )
+
+
+@dashboard_bp.route("/catalog", methods=["GET", "POST"])
+@dashboard_bp.route("/catalog/page/<page_number>", methods=["GET", "POST"])
 @dashboard_bp.doc(False)
 @session_required
-def datasets(page_number=None):
+def catalog(page_number=None):
     limit = 10
     page_number = int(page_number) if page_number and page_number.isdigit() else 1
     offset = limit * (page_number - 1) if page_number > 0 else 0
 
-    if request.method == "POST":
-        keyword = request.form.get("q", "").strip()
+    # Handle default GET request
+    packages = cutils.DATASET.fetch_entities(limit=limit, offset=offset)
 
-        if not re.match(r"^\w+$", keyword):
-            return redirect(url_for("dashboard_blueprint.datasets"))
+    # Search for datasets using the keyword
+    count_pkg = cutils.count_packages("dataset")
 
-        try:
-            # Search for datasets using the keyword
-            datasets = cutils.search_packages(
-                keyword=keyword, limit=limit, offset=offset, expand_mode=False
-            )
-            count_pkg = len(datasets)
-            total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
+    total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
 
-            return render_template_with_s3(
-                "datasets.html",
-                datasets=datasets,
-                page_number=page_number,
-                total_pages=total_pages,
-                PARTNER_IMAGE_SRC=get_partner_logo(),
-                search_keyword=keyword,
-            )
-        except Exception as e:
-            flash(f"Error while searching datasets: {str(e)}", "error")
-            return redirect(url_for("dashboard_blueprint.datasets"))
-    else:
-        # Handle default GET request
-        try:
-            datasets = cutils.list_packages(
-                limit=limit, offset=offset, expand_mode=True
-            )
-        except Exception as e:
-            datasets = []
-            flash(f"Error loading datasets: {str(e)}", "error")
-
-        try:
-            count_pkg = int(cutils.count_packages())
-            total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
-        except Exception:
-            total_pages = 1
-
-        return render_template_with_s3(
-            "datasets.html",
-            datasets=datasets,
-            page_number=page_number,
-            total_pages=total_pages,
-            PARTNER_IMAGE_SRC=get_partner_logo(),
-        )
+    return render_template_with_s3(
+        "catalog.html",
+        tags=TAG.fetch_entities(limit=200, offset=0),
+        datasets=packages,
+        page_number=page_number,
+        total_pages=total_pages,
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+    )
 
 
 @dashboard_bp.route("/tools", methods=["GET"])
@@ -457,19 +406,19 @@ def dataset_detail(dataset_id):
                 id = request.form.get("dataset_delete")
                 if id == dataset_id:
                     cutils.delete_package(id)
-                    return redirect(url_for("dashboard_blueprint.datasets"))
+                    return redirect(url_for("dashboard_blueprint.catalog"))
             except:
-                return redirect(url_for("dashboard_blueprint.datasets"))
+                return redirect(url_for("dashboard_blueprint.catalog"))
         else:
-            return redirect(url_for("dashboard_blueprint.datasets"))
+            return redirect(url_for("dashboard_blueprint.catalog"))
     else:
         metadata_data = None
         try:
             metadata_data = cutils.get_package(id=dataset_id)
         except ValueError as e:
-            return redirect(url_for("dashboard_blueprint.datasets"))
+            return redirect(url_for("dashboard_blueprint.catalog"))
         except Exception as e:
-            return redirect(url_for("dashboard_blueprint.datasets"))
+            return redirect(url_for("dashboard_blueprint.catalog"))
 
         if metadata_data:
             return render_template_with_s3(
@@ -478,7 +427,7 @@ def dataset_detail(dataset_id):
                 PARTNER_IMAGE_SRC=get_partner_logo(),
             )
         else:
-            return redirect(url_for("dashboard_blueprint.datasets"))
+            return redirect(url_for("dashboard_blueprint.catalog"))
 
 
 @dashboard_bp.route("/resource/<resource_id>")
@@ -501,9 +450,9 @@ def viewResource(resource_id):
                 resource=resource_mtd,
             )
         except:
-            return redirect(url_for("dashboard_blueprint.datasets"))
+            return redirect(url_for("dashboard_blueprint.catalog"))
     else:
-        return redirect(url_for("dashboard_blueprint.datasets"))
+        return redirect(url_for("dashboard_blueprint.catalog"))
 
 
 @dashboard_bp.route("/admin-settings")
@@ -511,6 +460,34 @@ def viewResource(resource_id):
 @admin_required
 def adminSettings():
     return render_template_with_s3("cluster.html", PARTNER_IMAGE_SRC=get_partner_logo())
+
+
+@dashboard_bp.route("/organizations")
+@session_required
+def organizations():
+    orgs = ORGANIZATION.fetch_entities(limit=100, offset=0)
+    for org in orgs:
+        org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
+        for member in org["members"][:5]:
+            user = kutils.get_user(member[0])
+            member.append(user.get("fullname", "STELAR User"))
+
+    return render_template_with_s3(
+        "organizations.html", PARTNER_IMAGE_SRC=get_partner_logo(), organizations=orgs
+    )
+
+
+@dashboard_bp.route("/organization/<organization_id>")
+@session_required
+def organization(organization_id):
+    org = ORGANIZATION.get_entity(organization_id)
+    org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
+    for member in org["members"][:5]:
+        user = kutils.get_user(member[0])
+        member.append(user.get("fullname", "STELAR User"))
+    return render_template_with_s3(
+        "organization.html", PARTNER_IMAGE_SRC=get_partner_logo(), organization=org
+    )
 
 
 @dashboard_bp.route("/login/verify", methods=["GET", "POST"])

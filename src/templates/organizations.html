@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>STELAR | Organizations</title>
+    <!-- CSS files -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet PM CSS (for polygon editing) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.css" />
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="{{ url_for('static', filename='images.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+</head>
+
+<body>
+    <div class="page">
+        <!-- Navbar -->
+        {% include 'header.html' %}
+        <div class="page-wrapper">
+            <!-- Page header -->
+            <div class="page-header d-print-none">
+                <div class="container-xl">
+                    <div class="row g-2 align-items-center">
+                        <div class="col">
+                            <!-- Page pre-title -->
+                            <div class="page-pretitle">
+                                Organizations
+                            </div>
+                            <h2 class="page-title">
+                                Browse & Manage Organizations
+                            </h2>
+                        </div>
+                        <div class="col-auto ms-auto d-print-none">
+                            <a href="#" class="btn btn-primary" data-bs-toggle="modal"
+                                data-bs-target="#modal-new-dataset">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
+                                    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M12 5l0 14" />
+                                    <path d="M5 12l14 0" />
+                                </svg>
+                                Create Organization
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="page-body">
+                <div class="container-xl">
+                    <div class="col-md-12">
+                        <div class="row row-cards">
+                            {% for organization in organizations %}
+                            {% if organization.state == 'active' %}
+                            <div class="col-3">
+                                <a class="card card-link cursor-pointer"
+                                    href="{{ url_for('dashboard_blueprint.organization', organization_id=organization.id) }}">
+                                    <div class="card-body p-4 py-5 text-center">
+                                        <span class="avatar avatar-xl mb-4 rounded bg-white">
+                                            {% if organization.image_url and organization.image_url != '' %}
+                                            <img src="{{organization.image_url}}" />
+                                            {% else %}
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="text-secondary icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path d="M3 21l18 0" />
+                                                <path d="M3 10l18 0" />
+                                                <path d="M5 6l7 -3l7 3" />
+                                                <path d="M4 10l0 11" />
+                                                <path d="M20 10l0 11" />
+                                                <path d="M8 14l0 3" />
+                                                <path d="M12 14l0 3" />
+                                                <path d="M16 14l0 3" />
+                                            </svg>
+                                            {% endif %}
+                                        </span>
+                                        <h3 class="mb-0">{{organization.title}}</h3>
+                                        <p class="text-secondary">{{organization.name}}
+                                        </p>
+                                        <div>
+                                            <div class="avatar-list avatar-list-stacked me-3 mb-3">
+                                                {% if organization.members %}
+                                                {% for user in organization.members[:5] %}
+                                                <span class="avatar avatar-sm">
+                                                    {% set user_name = user[3] %}
+                                                    {% if user_name and user_name.strip() %}
+                                                    {{ user_name.split() | map('first') | map('upper') | join('') }}
+                                                    {% else %}
+                                                    U
+                                                    {% endif %}
+                                                </span>
+                                                {% endfor %}
+                                                {% else %}
+                                                <span class="avatar avatar-sm rounded">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                        viewBox="0 0 24 24" fill="currentColor"
+                                                        class="p-1 icon icon-tabler icons-tabler-filled icon-tabler-user">
+                                                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                        <path
+                                                            d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783z" />
+                                                        <path
+                                                            d="M14 14a5 5 0 0 1 5 5v1a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-1a5 5 0 0 1 5 -5h4z" />
+                                                    </svg>
+                                                </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <p class="text-primary mb-2">Created: <strong>{{
+                                                organization.created.strftime('%d-%m-%Y %H:%M')}}</strong></span>
+                                        </p>
+                                    </div>
+                                </a>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% include 'footer.html'%}
+        </div>
+    </div>
+</body>
