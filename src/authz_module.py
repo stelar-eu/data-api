@@ -80,7 +80,47 @@ class AuthorizationModule:
             NotImplementedError: Must be implemented in subclasses.
         """
         raise NotImplementedError
+    
+    def alias_to_value(self, perm, alias, data):
+        """
+        Updates the 'perm' dictionary with an "action" key based on the alias lookup in data.
+        
+        Parameters:
+            perm (dict): The permissions dictionary to update.
+            alias (str): The alias key to look up in data.
+            data (dict): A dictionary containing an "actions" sub-dictionary mapping aliases to values.
+        
+        Returns:
+            dict: The updated perm dictionary.
+        """
+        actions = data.get("actions", {})
+        alias_value = actions.get(alias)
+        
+        # If no alias is found, return the original dictionary.
+        if alias_value is None:
+            return perm
 
+        # If the alias value is a string, assign it directly.
+        if isinstance(alias_value, str):
+            perm["action"] = alias_value
+            return perm
+
+        # Otherwise, assume alias_value is iterable (like a list) and build the actions list.
+        actions_list = []
+        for item in alias_value:
+            if item in actions:
+                # Retrieve the value for the current item. If it's a string, wrap it in a list.
+                item_value = actions[item]
+                if isinstance(item_value, str):
+                    item_value = [item_value]
+                actions_list.extend(item_value)
+            else:
+                actions_list.append(item)
+        
+        perm["action"] = actions_list
+        return perm
+    
+    
     def parse_authz_config(self, config):
         """
         Parse the YAML configuration and initialize permission structures.
@@ -106,9 +146,15 @@ class AuthorizationModule:
                 match perm:
                     case {"action": a, "resource": p}:
                         logger.info("Processing resourceType permissions")
+                        try:
+                            print(yaml_content["actions"])
+                            perm = self.alias_to_value(perm, a, yaml_content)
+                        except Exception as e:
+                            logger.error(f"Error processing resourceType permissions: {e}")
                         resource_obj.create_permissions(role["name"], perm)
                     case {"action": a, "resource_spec": spec}:
                         logger.info("Processing resourceSpecType permissions")
+                        perm = self.alias_to_value(perm, a, yaml_content)
                         resource_spec_obj.create_permissions(role["name"], perm)
 
         # Reconcile roles and policies.

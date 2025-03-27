@@ -17,6 +17,7 @@ import reconciliation_module as rec
 import schema
 import sql_utils
 from authz_module import AuthorizationModule
+from data_module import DataModule
 from auth import admin_required, auth, security_doc
 
 auth_tool_bp = APIBlueprint(
@@ -142,6 +143,7 @@ def create_roles_function():
         logger.info(f"callling authz module")
         yaml_str = request.data
         yaml_content = AuthorizationModule(config=request.data)()
+        DataModule(config=request.data)
         ####################################################################################
         ########################## store policy file to db #################################
         logger.info(f"store policy file to db")
