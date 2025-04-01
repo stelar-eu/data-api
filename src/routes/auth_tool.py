@@ -42,7 +42,6 @@ def create_roles_function():
     Returns:
         - policy (JSON): The policy JSON object containing the ID of the newly created policy.
     """
-    breakpoint()
 
     if request.content_type != "application/x-yaml":
         return {
