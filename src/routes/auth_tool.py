@@ -42,6 +42,7 @@ def create_roles_function():
     Returns:
         - policy (JSON): The policy JSON object containing the ID of the newly created policy.
     """
+    breakpoint()
 
     if request.content_type != "application/x-yaml":
         return {
@@ -56,10 +57,10 @@ def create_roles_function():
     try:
         try:
             access_token = request.headers.get("Authorization").split(" ")[1]
-        except:
+        except Exception:
             try:
                 access_token = session.get("access_token")
-            except:
+            except Exception:
                 return {
                     "help": request.url,
                     "error": {
