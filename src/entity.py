@@ -41,13 +41,16 @@ import logging
 import re
 from typing import Optional
 
+import flask
 from apiflask import Schema, fields, validators
 from marshmallow import EXCLUDE, SchemaOpts, missing, post_dump, pre_load
 from psycopg2 import sql
 
 import schema
+from authz import authorize, generic_action
 from backend.ckan import ckan_request, filter_list_by_type
 from backend.pgsql import execSql, transaction
+from context import entity_cache
 from exceptions import BackendLogicError, DataError, InternalException, NotFoundError
 from search import entity_search
 from tags import tag_object_to_string, tag_string_to_object
@@ -170,7 +173,28 @@ class Entity:
         Returns:
             The entity object.
         """
-        return self.get(eid)
+
+        # TODO: This will change to harmonize with search and list/fetch
+        obj = self.get_cached(eid)
+        authorize(obj["id"], self.name, "read")
+        return obj
+
+    def get_cached(self, eid):
+        """Get an entity by ID from the entity cache.
+
+        If the entity is not cached in the entity cache,
+        this function will call `self.get(eid)` to retrieve
+        it and put it in the cache.
+        """
+
+        if not flask.has_request_context():
+            return self.get(eid)
+
+        obj = entity_cache.get(eid)
+        if obj is None:
+            obj = self.get(eid)
+            entity_cache.put(obj)
+        return obj
 
     def create_entity(self, init_data):
         """Create a new entity.
@@ -182,6 +206,7 @@ class Entity:
         Returns:
             The created entity object.
         """
+        authorize(init_data, self.name, "create")
         return self.create(init_data)
 
     def delete_entity(self, eid: str, purge=False):

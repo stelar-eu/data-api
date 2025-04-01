@@ -180,11 +180,7 @@ Credentials = namedtuple("Credentials", ["token", "refresh_token"])
 
 
 @pytest.fixture(scope="module")
-def credentials(app: APIFlask) -> Generator[Credentials]:
-    """Return a set of credentials for the testcluster.
-
-    This set is obtained from the keycloak server using
-    """
+def keycloak_client(app: APIFlask) -> KeycloakOpenID:
     config = app.config["settings"]
     cli = KeycloakOpenID(
         server_url=config["KEYCLOAK_URL"],
@@ -193,6 +189,15 @@ def credentials(app: APIFlask) -> Generator[Credentials]:
         client_secret_key=config["KEYCLOAK_CLIENT_SECRET"],
         verify=True,
     )
+    return cli
+
+
+@pytest.fixture(scope="module")
+def credentials(keycloak_client) -> Generator[Credentials]:
+    """Return a set of credentials for the testcluster.
+
+    This set is obtained from the keycloak server using
+    """
 
     match cc.testcluster_config():
         case {"cluster": {"access": {"username": username, "password": password}}}:
@@ -208,10 +213,10 @@ def credentials(app: APIFlask) -> Generator[Credentials]:
         case _:
             assert False
 
-    cred = cli.token(username=username, password=password)
+    cred = keycloak_client.token(username=username, password=password)
     yield Credentials(cred["access_token"], cred["refresh_token"])
 
-    cli.logout(refresh_token=cred["refresh_token"])
+    keycloak_client.logout(refresh_token=cred["refresh_token"])
 
 
 @pytest.fixture

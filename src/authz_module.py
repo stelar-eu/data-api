@@ -807,7 +807,7 @@ def fetch_user_group_members(group, is_org):
     return user_members
 
 
-def fetch_resource(resource):
+def fetch_resource(resource) -> dict:
     """
     Retrive the resource from the catalogue.
 
@@ -818,21 +818,9 @@ def fetch_resource(resource):
         dict: The fetched resource.
 
     """
-    logger.info("Now all calls the general purpose function")
-
-    if isinstance(resource.payload, str):
-        if not hasattr(g, "ckan_resources"):
-            g.ckan_resources = {}
-        if resource.payload in g.ckan_resources:
-            logger.info("Resource retrieved from flask.g cache")
-            return g.ckan_resources[resource.payload]
-
-        logger.info("ckan request for package show")
-        fetched = Entity.REGISTRY[resource.entity].get(resource.payload)
-
-        logger.info("Resource fetched from CKAN")
-        logger.info(fetched)
-        g.ckan_resources[resource.payload] = fetched
+    if not isinstance(resource.payload, dict):
+        fetched = Entity.REGISTRY[resource.entity].get_cached(resource.payload)
+        logger.info("Resource %s fetched: %s", resource.payload, fetched)
         return fetched
     else:
         return resource.payload
