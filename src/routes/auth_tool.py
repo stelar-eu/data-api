@@ -1,14 +1,10 @@
+import logging
 import uuid
 
 import yaml
 from apiflask import APIBlueprint
-from flask import (
-    Response,
-    jsonify,
-    request,
-    session,
-)
-import logging
+from flask import Response, jsonify, request, session
+
 import kutils
 import kutils as ku
 import monitor_module as mon
@@ -16,9 +12,9 @@ import mutils as mu
 import reconciliation_module as rec
 import schema
 import sql_utils
+from auth import admin_required, auth, security_doc
 from authz_module import AuthorizationModule
 from data_module import DataModule
-from auth import admin_required, auth, security_doc
 
 auth_tool_bp = APIBlueprint(
     "auth_tool_blueprint", __name__, tag="Authorization Management"
@@ -26,73 +22,6 @@ auth_tool_bp = APIBlueprint(
 
 
 logger = logging.getLogger(__name__)
-
-
-@auth_tool_bp.route("/layout", methods=["POST"])
-@auth_tool_bp.doc(tags=["Authorization Management"], security=security_doc)
-@auth_tool_bp.output(schema.ResponseAmbiguous, status_code=200)
-@auth.verify_token
-@admin_required
-def create_data_layout():
-    """
-    Accepts a YAML in the body desribing the desired layout to be applied to the MinIO instance
-    the KLMS cluster is connected to. The layout describes the bucket and the paths that the organization
-    requires. For documentation see more on: ....
-
-    Args:
-        - layout (YAML):  In request body with header `application/x-yaml`
-
-    Returns:
-        - layout (JSON): The layout parsed and applied to the object store.
-    """
-
-    if request.content_type != "application/x-yaml":
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: The 'Content-Type' header should be 'application/x-yaml'",
-                "__type": "Incorrect Headers Error",
-            },
-            "success": False,
-        }, 400
-
-    try:
-        keycloak_openid = ku.initialize_keycloak_openid()
-
-        token = keycloak_openid.token(grant_type="client_credentials")
-        print(token["access_token"])
-
-        credentials = mu.get_temp_minio_credentials(token["access_token"])
-
-        minio_admin = mu.initialize_minio_admin(
-            ac_key=credentials["AccessKeyId"],
-            sec_key=credentials["SecretAccessKey"],
-            token=credentials["SessionToken"],
-        )
-
-        # Read the file content and load it as a dictionary
-        yaml_content = yaml.safe_load(request.data)
-
-        resources_list = []
-
-        for res in yaml_content["resources"]:
-            for buck in res["subfolders"]:
-                res_dict = {
-                    "bucketname": res["name"],
-                    "subfolders": res["subfolders"],
-                }
-            resources_list.append(res_dict)
-
-        for item in resources_list:
-            mu.create_bucket_and_subfolders(minio_admin, item)
-
-        return {
-            "help": request.url,
-            "result": {"layout": yaml_content},
-            "success": True,
-        }, 200
-    except yaml.YAMLError as e:
-        return jsonify({"error": "Failed to parse YAML", "details": str(e)}), 400
 
 
 @auth_tool_bp.route("/policy", methods=["POST"])
@@ -139,7 +68,7 @@ def create_roles_function():
                     },
                     "success": False,
                 }, 401
-            
+
         logger.info(f"callling authz module")
         yaml_str = request.data
         yaml_content = AuthorizationModule(config=request.data)()
@@ -170,7 +99,7 @@ def create_roles_function():
                     "__type": "Policy Not Stored Error",
                 },
                 "success": False,
-            }, 500               
+            }, 500
 
     except Exception as e:
         return {
