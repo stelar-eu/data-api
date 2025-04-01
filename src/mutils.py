@@ -337,7 +337,7 @@ def create_policy(perm):
             },
             {
                 "Effect": "Allow",
-                "Action": action,
+                "Action": perm["action"],
                 "Resource": ["arn:aws:s3:::" + perm["resource"]],
             },
         ]
@@ -356,7 +356,7 @@ def create_policy(perm):
             },
             {
                 "Effect": "Allow",
-                "Action": action,
+                "Action": perm["action"],
                 "Resource": ["arn:aws:s3:::" + perm["resource"]],
             },
         ]
