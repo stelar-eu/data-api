@@ -5,6 +5,7 @@ import yaml
 from apiflask import APIBlueprint
 from flask import Response, jsonify, request, session
 
+import authz_module
 import kutils
 import kutils as ku
 import monitor_module as mon
@@ -15,6 +16,7 @@ import sql_utils
 from auth import admin_required, auth, security_doc
 from authz_module import AuthorizationModule
 from data_module import DataModule
+from routes.generic import render_api_output
 
 auth_tool_bp = APIBlueprint(
     "auth_tool_blueprint", __name__, tag="Authorization Management"
@@ -26,8 +28,9 @@ logger = logging.getLogger(__name__)
 
 @auth_tool_bp.route("/policy", methods=["POST"])
 @auth_tool_bp.doc(tags=["Authorization Management"], security=security_doc)
-@auth_tool_bp.output(schema.ResponseAmbiguous, status_code=200)
+@auth_tool_bp.output(schema.APIResponse, status_code=200)
 @auth.verify_token
+@render_api_output(logger)
 @admin_required
 def create_roles_function():
     """
@@ -42,74 +45,75 @@ def create_roles_function():
     Returns:
         - policy (JSON): The policy JSON object containing the ID of the newly created policy.
     """
+    return authz_module.create_authorization_schema(request.data)
+    # if request.content_type != "application/x-yaml":
+    #     return {
+    #         "help": request.url,
+    #         "error": {
+    #             "name": f"Error: The 'Content-Type' header should be 'application/x-yaml'",
+    #             "__type": "Incorrect Headers Error",
+    #         },
+    #         "success": False,
+    #     }, 400
 
-    if request.content_type != "application/x-yaml":
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: The 'Content-Type' header should be 'application/x-yaml'",
-                "__type": "Incorrect Headers Error",
-            },
-            "success": False,
-        }, 400
+    # try:
+    #     try:
+    #         access_token = request.headers.get("Authorization").split(" ")[1]
+    #     except Exception:
+    #         try:
+    #             access_token = session.get("access_token")
+    #         except Exception:
+    #             return {
+    #                 "help": request.url,
+    #                 "error": {
+    #                     "name": f"Error: The new policy will not be applied",
+    #                     "__type": "Policy Not Stored Error",
+    #                 },
+    #                 "success": False,
+    #             }, 401
 
-    try:
-        try:
-            access_token = request.headers.get("Authorization").split(" ")[1]
-        except Exception:
-            try:
-                access_token = session.get("access_token")
-            except Exception:
-                return {
-                    "help": request.url,
-                    "error": {
-                        "name": f"Error: The new policy will not be applied",
-                        "__type": "Policy Not Stored Error",
-                    },
-                    "success": False,
-                }, 401
+    #     logger.info(f"callling authz module")
+    #     yaml_str = request.data
+    #     yaml_content = AuthorizationModule(config=request.data)()
+    #     DataModule(config=request.data)
+    #     ####################################################################################
+    #     ########################## store policy file to db #################################
+    #     logger.info(f"store policy file to db")
+    #     policy_id = str(uuid.uuid4())
+    #     user_id = ""
 
-        logger.info(f"callling authz module")
-        yaml_str = request.data
-        yaml_content = AuthorizationModule(config=request.data)()
-        DataModule(config=request.data)
-        ####################################################################################
-        ########################## store policy file to db #################################
-        logger.info(f"store policy file to db")
-        policy_id = str(uuid.uuid4())
-        user_id = ""
+    #     user = kutils.get_user_by_token(access_token)
+    #     if user:
+    #         user_id = user.get("username")
 
-        user = kutils.get_user_by_token(access_token)
-        if user:
-            user_id = user.get("username")
+    #     if sql_utils.policy_version_create(
+    #         policy_id, "Not specified", True, str(yaml_str), user_id
+    #     ):
+    #         return {
+    #             "help": request.url,
+    #             "result": {"policy": yaml_content},
+    #             "success": True,
+    #         }, 200
+    #     else:
+    #         return {
+    #             "help": request.url,
+    #             "error": {
+    #                 "name": f"Error: The new policy was not stored in the database",
+    #                 "__type": "Policy Not Stored Error",
+    #             },
+    #             "success": False,
+    #         }, 500
 
-        if sql_utils.policy_version_create(
-            policy_id, "Not specified", True, str(yaml_str), user_id
-        ):
-            return {
-                "help": request.url,
-                "result": {"policy": yaml_content},
-                "success": True,
-            }, 200
-        else:
-            return {
-                "help": request.url,
-                "error": {
-                    "name": f"Error: The new policy was not stored in the database",
-                    "__type": "Policy Not Stored Error",
-                },
-                "success": False,
-            }, 500
-
-    except Exception as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {str(e)}",
-                "__type": "Unknown Error",
-            },
-            "success": False,
-        }, 500
+    # except Exception as e:
+    #     return {
+    #         "help": request.url,
+    #         "error": {
+    #             "name": f"Error: {str(e)}",
+    #             "__type": "Unknown Error",
+    #         },
+    #         "success": False,
+    #     }, 500
+    
 
 
 @auth_tool_bp.route("/policy/representation/<policy_filter>", methods=["GET"])
@@ -130,44 +134,44 @@ def get_policy_function(policy_filter):
         - 200: Policy YAML fetched.
         - 500: Error occured while fetching data.
     """
+    return authz_module.retrieve_policy_from_db(policy_filter)
+    # try:
+    #     policy_repr = sql_utils.policy_representation_read(policy_filter)
+    #     if policy_repr.startswith("b'"):
+    #         policy_repr = policy_repr[2:-1]
 
-    try:
-        policy_repr = sql_utils.policy_representation_read(policy_filter)
-        if policy_repr.startswith("b'"):
-            policy_repr = policy_repr[2:-1]
+    #     formatted_yaml_string = policy_repr.encode("utf-8").decode("unicode_escape")
 
-        formatted_yaml_string = policy_repr.encode("utf-8").decode("unicode_escape")
+    #     # parsed_data, data_format = utils.detect_and_parse(formatted_yaml_string)
 
-        # parsed_data, data_format = utils.detect_and_parse(formatted_yaml_string)
+    #     # if data_format == 'JSON':
+    #     #     # formatted_yaml_string = json.loads(parsed_data)
+    #     #     formatted_yaml_string = yaml.dump(parsed_data, default_flow_style=False)
 
-        # if data_format == 'JSON':
-        #     # formatted_yaml_string = json.loads(parsed_data)
-        #     formatted_yaml_string = yaml.dump(parsed_data, default_flow_style=False)
+    #     if formatted_yaml_string != None:
+    #         return Response(
+    #             formatted_yaml_string, status=200, content_type="application/x-yaml"
+    #         )
 
-        if formatted_yaml_string != None:
-            return Response(
-                formatted_yaml_string, status=200, content_type="application/x-yaml"
-            )
+    #     else:
+    #         return {
+    #             "help": request.url,
+    #             "error": {
+    #                 "name": f"Error: The policy not found in the database",
+    #                 "__type": "Policy Not Found Error",
+    #             },
+    #             "success": False,
+    #         }, 500
 
-        else:
-            return {
-                "help": request.url,
-                "error": {
-                    "name": f"Error: The policy not found in the database",
-                    "__type": "Policy Not Found Error",
-                },
-                "success": False,
-            }, 500
-
-    except Exception as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {str(e)}",
-                "__type": "Unknown Error",
-            },
-            "success": False,
-        }, 500
+    # except Exception as e:
+    #     return {
+    #         "help": request.url,
+    #         "error": {
+    #             "name": f"Error: {str(e)}",
+    #             "__type": "Unknown Error",
+    #         },
+    #         "success": False,
+    #     }, 500
 
 
 @auth_tool_bp.route("/policy/<policy_filter>", methods=["GET"])
