@@ -313,14 +313,6 @@ def generate_random_hash(policy_json) -> str:
 def create_policy(perm):
     policy_names_list = []
 
-    # for perm in perm_info:
-    if perm["action"] == "read,write":  # na to do
-        action = ["s3:GetObject", "s3:PutObject"]
-    elif perm["action"] == "read":
-        action = ["s3:GetObject"]
-    elif perm["action"] == "write":
-        action = ["s3:PutObject"]
-
     resource_part = perm["resource"].split("/", 1)
     if len(resource_part[1].replace("*", "")) > 1:
         resource_sub_part = resource_part[1]
@@ -345,7 +337,7 @@ def create_policy(perm):
             },
             {
                 "Effect": "Allow",
-                "Action": action,
+                "Action": perm["action"],
                 "Resource": ["arn:aws:s3:::" + perm["resource"]],
             },
         ]
@@ -364,7 +356,7 @@ def create_policy(perm):
             },
             {
                 "Effect": "Allow",
-                "Action": action,
+                "Action": perm["action"],
                 "Resource": ["arn:aws:s3:::" + perm["resource"]],
             },
         ]
