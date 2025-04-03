@@ -18,6 +18,8 @@ pyotp==2.9.0
 qrcode==8.0
 Pillow==11.0.0
 pyjwt==2.10.1
+redis==5.2.1
+flask-session==0.8.0
 
 # For the tests
 jmespath>=1.0.1
