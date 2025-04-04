@@ -27,7 +27,7 @@ from backend.ckan import ckan_request
 from backend.pgsql import execSql
 
 
-from exceptions import BackendError, InternalException, InvalidError
+from exceptions import APIException, AuthenticationError, AuthorizationError, BackendError, InternalException, InvalidError
 from utils import is_valid_uuid, validate_email
 
 
@@ -169,29 +169,73 @@ def initialize_keycloak_openid():
     )
 
 
+# def introspect_admin_token(access_token):
+#     """
+#     Introspects the given access token to check if it's valid and active.
+#     It also checks if the user has admin role.
+#     Returns True if the token is valid and admin, False if the token is invalid or expired or not admin.
+#     """
+#     try:
+#         keycloak_openid = initialize_keycloak_openid()
+#         introspect_response = keycloak_openid.introspect(access_token)
+
+#         # Check if the token is active and user has admin role
+#         if introspect_response.get("active", False):
+#             if introspect_response.get("realm_access", False):
+#                 is_admin_flag = introspect_response.get("is_admin", None)
+#                 if is_admin_flag is not None and is_admin_flag:
+#                     return True
+#                 else:
+#                     return False
+#                 # if "admin" in introspect_response["realm_access"]["roles"]:
+#                 #     return True
+#                 # else:
+#                 #     return False
+#             else:
+#                 return False
+#         else:
+#             logger.debug("Token is not active")
+#             return False
+#     except Exception as e:
+#         logger.debug(e)
+#         raise e
+
 def introspect_admin_token(access_token):
     """
-    Introspects the given access token to check if it's valid and active.
-    It also checks if the user has admin role.
-    Returns True if the token is valid and admin, False if the token is invalid or expired or not admin.
+    Introspects the given access token to check if it's valid, active,
+    and if the user has the admin role.
+    Returns True if the token is valid and admin.
+    Raises TokenExpiredError if the token is inactive/expired.
+    Raises AuthorizationError if the token is active but not for an admin user.
     """
-    try:
-        keycloak_openid = initialize_keycloak_openid()
-        introspect_response = keycloak_openid.introspect(access_token)
+    
+    # keycloak_openid = initialize_keycloak_openid()
+    # introspect_response = keycloak_openid.introspect(access_token)
+    introspect_response = introspect_token(access_token)
 
-        # Check if the token is active and user has admin role
-        if introspect_response.get("active", False):
-            if introspect_response.get("realm_access", False):
-                if "admin" in introspect_response["realm_access"]["roles"]:
-                    return True
-                else:
-                    return False
-            else:
-                return False
-        else:
-            return False
-    except Exception as e:
-        return False
+    # # Check if the token is active
+    # if not introspect_response.get("active", False):
+    #     raise AuthenticationError(message="Token expired")
+    
+    # Optionally check for realm_access if needed
+    if not introspect_response.get("realm_access", False):
+        # You can decide how to handle this; here we treat it as a token issue.
+        raise APIException(
+            401,
+            message="Token is missing realm access information",
+        )
+
+    # Check if the token has admin privileges.
+    is_admin_flag = introspect_response.get("is_admin", None)
+    if is_admin_flag is None or not is_admin_flag:
+        raise AuthorizationError(
+            message="Bearer Token is not related to an admin user",
+        )
+    
+    return True
+
+    
+
 
 
 def get_user_by_token(access_token):
@@ -199,32 +243,40 @@ def get_user_by_token(access_token):
     Introspects the given access token to return the user information if the token is active
     Returns the user json if the token is valid, False if the token is invalid or expired.
     """
-    try:
-        keycloak_openid = initialize_keycloak_openid()
-        introspect_response = keycloak_openid.introspect(access_token)
-        if introspect_response.get("active", False):
-            return introspect_response
-        else:
-            return {}
-    except Exception as e:
-        return False
-
+    # try:
+    #     keycloak_openid = initialize_keycloak_openid()
+    #     introspect_response = keycloak_openid.introspect(access_token)
+    #     if introspect_response.get("active", False):
+    #         return introspect_response
+    #     else:
+    #         return {}
+    # except Exception as e:
+    #     return False
+    return introspect_token(access_token)
 
 def introspect_token(access_token):
     """
     Introspects the given access token to check if it's valid and active.
     Returns True if the token is valid, False if the token is invalid or expired.
     """
-    try:
-        keycloak_openid = initialize_keycloak_openid()
-        introspect_response = keycloak_openid.introspect(access_token)
-        # Check if the token is active
-        if introspect_response.get("active", False):
-            return True
-        else:
-            return False
-    except Exception as e:
-        return False
+    # try:
+    #     keycloak_openid = initialize_keycloak_openid()
+    #     introspect_response = keycloak_openid.introspect(access_token)
+    #     # Check if the token is active
+    #     if introspect_response.get("active", False):
+    #         return True
+    #     else:
+    #         return False
+    # except Exception as e:
+    #     return False
+    keycloak_openid = initialize_keycloak_openid()
+    introspect_response = keycloak_openid.introspect(access_token)
+    # Check if the token is active
+    if introspect_response.get("active", False):
+        return introspect_response
+    else:
+        raise AuthenticationError(message="Token is invalid or expired")
+
 
 
 def current_user():

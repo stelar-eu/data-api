@@ -71,6 +71,12 @@ class AuthorizationError(APIException):
     def __init__(self, *args, **kwargs):
         super().__init__(403, *args, **kwargs)
 
+class AuthenticationError(APIException):
+    """The user is not authorized to do this"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(401, *args, **kwargs)
+
 
 class NotFoundError(APIException):
     """Entity not found"""

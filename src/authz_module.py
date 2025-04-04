@@ -31,6 +31,7 @@ import yaml
 from flask import g
 
 from data_module import DataModule
+from exceptions import APIException
 import kutils as ku
 import monitor_module as mon
 import mutils as mu
@@ -886,6 +887,11 @@ def authorization(resource: Resource, action: str) -> bool:
 
     return check_access(user_roles, action, resource)
 
+#################################################################################################################
+# The following functions are used to create, retrieve, and manage authorization policies in the database.      #
+# These functions interact with the SQL database to store and retrieve policy representations.                  #
+#################################################################################################################
+
 
 def create_authorization_schema(config_data):
     """
@@ -897,6 +903,8 @@ def create_authorization_schema(config_data):
         config_data (str): YAML configuration string defining roles and permissions.
     Returns:
         dict: The parsed YAML configuration.
+    Raises:
+        APIException: If the policy cannot be stored in the database.
     """
 
     yaml_str = config_data
@@ -916,6 +924,11 @@ def create_authorization_schema(config_data):
         policy_id, "Not specified", True, str(yaml_str), user_id
     ):
         return yaml_content
+    else:
+        raise APIException(
+            status_code=500,
+            message="Error: The new policy was not stored in the database",
+        )
     
 def retrieve_policy_from_db(policy_uuid):
     """
@@ -926,15 +939,71 @@ def retrieve_policy_from_db(policy_uuid):
         policy_uuid (str): The UUID of the policy to retrieve.
     Returns:
         str: The formatted YAML string representation of the policy.
+    Raises:
+        APIException: If the policy is not found in the database.
     """
 
     policy_repr = sql_utils.policy_representation_read(policy_uuid)
+
+    if policy_repr is None:
+        raise APIException(
+            status_code=404,
+            message="Error: The policy was not found in the database",
+        )
+    
+    # Decode the policy representation from bytes to string
     if policy_repr.startswith("b'"):
         policy_repr = policy_repr[2:-1]
 
+    # Convert the policy representation to a YAML string
     formatted_yaml_string = policy_repr.encode("utf-8").decode("unicode_escape")
 
     return formatted_yaml_string
+
+def retrieve_policy_info_from_db(policy_uuid):
+    """
+    Retrieve the policy information from the database.
+    This function fetches the policy information from the database
+    and returns it as a dictionary.
+    Args:
+        policy_uuid (str): The UUID of the policy to retrieve.
+    Returns:
+        dict: The policy information as a dictionary.
+    Raises:
+        APIException: If the policy info not found in the database.
+    """
+
+    policy_repr = sql_utils.policy_info_read(policy_uuid)
+
+    if policy_repr is None:
+        raise APIException(
+            status_code=404,
+            message="Error: The policy info was not found in the database",
+        )
+
+    return policy_repr
+
+def retrieve_policies_list_from_db():
+    """
+    Retrieve the list of policies from the database.
+    This function fetches the list of all policies from the database
+    and returns it as a list of dictionaries.
+    Returns:
+        list: The list of policies.
+    Raises:
+        APIException: If the policies could not be fetched.
+    """
+
+    policies_list = sql_utils.list_policies()
+
+    if policies_list is None:
+        raise APIException(
+            status_code=500,
+            message="Error: Could not fetch policies from db",
+        )
+    policies_dict = {"policies": policies_list}
+
+    return policies_dict
 
 def load_authorization_schema():
     """
