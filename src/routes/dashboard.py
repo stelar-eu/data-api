@@ -673,11 +673,9 @@ def logout():
     if "ACTIVE" not in session or not session["ACTIVE"]:
         return redirect(url_for("dashboard_blueprint.login"))
 
-    keycloak_openid = kutils.initialize_keycloak_openid()
-
     # Revoke refresh token to log out
     try:
-        keycloak_openid.logout(session["refresh_token"])
+        kutils.KEYCLOAK_OPENID_CLIENT().logout(session["refresh_token"])
     except Exception as e:
         print(f"Error during logout: {e}")
 

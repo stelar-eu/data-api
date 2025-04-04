@@ -1,54 +1,67 @@
+import threading
 from keycloak.openid_connection import KeycloakOpenIDConnection, KeycloakOpenID
 from keycloak.keycloak_admin import KeycloakAdmin
 from flask import current_app
 
 
-# Init global client to the Keycloak Server, to avoid bottlenecks imposed by previously
-# instantly established clients on request arrival.
 class KeycloakClientSingleton:
-    """Singleton class to hold a global Keycloak Connection and Client."""
+    """Singleton class that holds a pool of Keycloak connections and clients."""
 
-    _admin = None
-    _connection = None
-    _openid = None
+    _pool = []
+    _counter = 0
+    _lock = threading.Lock()
 
     @classmethod
     def get_admin(cls):
-        """Ensure the instance is initialized inside an app context."""
-        if cls._admin or cls._connection or cls._openid is None:
+        """Ensure pool is initialized and return one admin client (round robin)."""
+        if not cls._pool:
             cls._initialize_keycloak()
-        return cls._admin
+        pool_item = cls._select_pool_item()
+        return pool_item["admin"]
 
     @classmethod
     def get_openid(cls):
-        """Ensure the instance is initialized inside an app context."""
-        if cls._admin or cls._connection or cls._openid is None:
+        """Ensure pool is initialized and return one openid client (round robin)."""
+        if not cls._pool:
             cls._initialize_keycloak()
-        return cls._openid
+        pool_item = cls._select_pool_item()
+        return pool_item["openid"]
+
+    @classmethod
+    def _select_pool_item(cls):
+        with cls._lock:
+            index = cls._counter % len(cls._pool)
+            cls._counter += 1
+            return cls._pool[index]
 
     @classmethod
     def _initialize_keycloak(cls):
-        """Create Keycloak connection within the correct Flask context."""
+        """Initialize a pool of Keycloak connections within the Flask app context."""
         app = current_app._get_current_object()
-        with app.app_context():  # Ensures app context is active
+        with app.app_context():
             config = app.config["settings"]
-            cls._connection = KeycloakOpenIDConnection(
-                server_url=config["KEYCLOAK_URL"],
-                realm_name=config["REALM_NAME"],
-                client_id=config["KEYCLOAK_CLIENT_ID"],
-                client_secret_key=config["KEYCLOAK_CLIENT_SECRET"],
-                verify=True,
-            )
-            cls._admin = KeycloakAdmin(connection=cls._connection)
-            cls._openid = KeycloakOpenID(
-                server_url=config["KEYCLOAK_URL"],
-                realm_name=config["REALM_NAME"],
-                client_id=config["KEYCLOAK_CLIENT_ID"],
-                client_secret_key=config["KEYCLOAK_CLIENT_SECRET"],
-                verify=True,
-            )
+            pool_size = config.get("KEYCLOAK_POOL_SIZE", 5)
+            for _ in range(pool_size):
+                connection = KeycloakOpenIDConnection(
+                    server_url=config["KEYCLOAK_URL"],
+                    realm_name=config["REALM_NAME"],
+                    client_id=config["KEYCLOAK_CLIENT_ID"],
+                    client_secret_key=config["KEYCLOAK_CLIENT_SECRET"],
+                    verify=True,
+                )
+                admin = KeycloakAdmin(connection=connection)
+                openid = KeycloakOpenID(
+                    server_url=config["KEYCLOAK_URL"],
+                    realm_name=config["REALM_NAME"],
+                    client_id=config["KEYCLOAK_CLIENT_ID"],
+                    client_secret_key=config["KEYCLOAK_CLIENT_SECRET"],
+                    verify=True,
+                )
+                cls._pool.append(
+                    {"connection": connection, "admin": admin, "openid": openid}
+                )
 
 
-# The keycloak clients singletons
+# The keycloak clients round-robin selectors
 KEYCLOAK_OPENID_CLIENT = KeycloakClientSingleton.get_openid
 KEYCLOAK_ADMIN_CLIENT = KeycloakClientSingleton.get_admin
