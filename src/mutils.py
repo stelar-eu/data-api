@@ -12,7 +12,7 @@ from minio import Minio
 from minio.commonconfig import CopySource
 from minio.error import S3Error
 import backend.minio
-from backend.minio import minio_add_policy, minio_remove_policy  
+from backend.minio import minio_add_policy, minio_remove_policy
 
 from exceptions import InternalException, AuthorizationError
 
@@ -373,6 +373,9 @@ def create_policy(perm):
     policy_file = f"{hashed_policy_name}.json"
     with open(policy_file, "w") as file:
         file.write(policy_json)
+
+    logging.info(f"Policy file created: {policy_file}")
+    logging.info(f"Policy JSON: {policy_json}")
 
     minio_add_policy(hashed_policy_name, policy_file)
 

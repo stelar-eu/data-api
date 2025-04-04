@@ -105,7 +105,8 @@ def authorize(resource, entity, action):
     # Check for admin
     cu = current_user()
     # TODO: Check if user is admin via user attributes!!
-    if cu["username"] == "admin":
+    is_admin = cu.get("is_admin",None)
+    if is_admin is not None and is_admin:
         return
 
     # Call authz_module.authorization(...)

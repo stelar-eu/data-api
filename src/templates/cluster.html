@@ -593,8 +593,8 @@
                     method: 'GET',
                     dataType: 'json',
                     success: function (response) {
-                        if (response.result.count > 0) {
-                            allUsers = response.result.users;
+                        if (response.result.length > 0) {
+                            allUsers = response.result;
                             filteredUsers = [...allUsers];
                             totalUsers = allUsers.length;
                             updatePagination();

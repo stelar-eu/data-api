@@ -763,7 +763,20 @@ class Task(Entity):
 
                             delegated_inputs[input_group].append(artifact)
                     elif is_valid_url(artifact):
-                        # Delegate the URL as is
+                        # Delegate the URL as is or expand widlcards.
+                        if credentials:
+                            if (
+                                isinstance(artifact, str)
+                                and artifact.startswith("s3://")
+                                and artifact.endswith("/*")
+                            ):
+                                expanded_paths = expand_wildcard_path(
+                                    artifact, credentials=credentials
+                                )
+                                if expanded_paths:
+                                    delegated_inputs[input_group].extend(expanded_paths)
+                                    continue
+
                         delegated_inputs[input_group].append(artifact)
         return delegated_inputs
 

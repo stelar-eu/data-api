@@ -4,6 +4,7 @@
 #
 import logging
 
+import authz_module
 import logsys
 
 logsys.configure()
@@ -28,7 +29,11 @@ from flask.json.provider import DefaultJSONProvider
 from psycopg2.extras import RealDictCursor
 
 import execution
-import kutils
+
+
+# Import Redis Session support
+from flask_session import Session
+import redis
 
 # Input schemata for validating several API requests
 import schema
@@ -2352,11 +2357,28 @@ def main(app):
     app.wsgi_app = ProxyFix(
         app.wsgi_app, x_proto=1, x_for=1, x_host=1, x_port=1, x_prefix=1
     )
+
+    # Configure Flask to use Redis for session management
+    app.config["SESSION_TYPE"] = "redis"
+    app.config["SESSION_PERMANENT"] = False
+    app.config["SESSION_USE_SIGNER"] = True
+    app.config["SESSION_KEY_PREFIX"] = "stelar_session:"
+    app.config["SESSION_REDIS"] = redis.StrictRedis(
+        host=os.getenv("REDIS_SERVICE_HOST", "redis"),
+        port=os.getenv("REDIS_SERVICE_PORT", "6379"),
+        db=0,
+        decode_responses=False,
+    )
+
+    Session(app)
+
     # Execution of the application will happen from gunicorn after create_app returns the app instance
 
 
 # This entry point is used with gunicorn -b -w ....
 def create_app():
     main(app)
+    with app.app_context():
+        authz_module.load_authorization_schema()
     # Return the application instance so that gunicorn can run it.
     return app

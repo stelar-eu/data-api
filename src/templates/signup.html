@@ -1,189 +1,206 @@
 <!doctype html>
 <html lang="en">
-        <head>
-          <meta charset="utf-8"/>
-          <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-          <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
-          <title>STELAR | Sign Up</title>
-          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">    
-          <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
-          <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
-          <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
-        </head>
-  <body  class=" d-flex flex-column">
-    <div class="page page-center">
-      <div class="container container-tight py-4">
-        <div class="text-center mb-4">
-            <a href="{{ url_for('dashboard_blueprint.dashboard_index') }}" class="navbar-brand navbar-brand-autodark">
-              <div class="d-flex align-items-center justify-content-center">
-                <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR" class="me-3">
-                {% if PARTNER_IMAGE_SRC %}
-                <div class="vr" style="height: 75; margin: 15px;"></div>
-                <img src="{{ PARTNER_IMAGE_SRC }}" width="75" alt="Partner Logo">
-                {% endif %}
-              </div>          
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <title>STELAR | Sign Up</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+</head>
+
+<body class=" d-flex flex-column">
+  <div class="page page-center">
+    <div class="container container-tight py-4">
+      <div class="text-center mb-4">
+        <a href="{{ url_for('dashboard_blueprint.dashboard_index') }}" class="navbar-brand navbar-brand-autodark">
+          <div class="d-flex align-items-center justify-content-center">
+            <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR" class="me-3">
+            {% if PARTNER_IMAGE_SRC %}
+            <div class="vr" style="height: 75; margin: 15px;"></div>
+            <img src="{{ PARTNER_IMAGE_SRC }}" width="75" alt="Partner Logo">
+            {% endif %}
+          </div>
+        </a>
+      </div>
+
+      {% if STATUS and STATUS=='SUCCESS' %}
+      <div class="card card-md">
+        <div class="card-body">
+          <h2 class="mb-3">
+            <span class="col-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon me-1 text-success" width="24" height="24"
+                viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path d="M5 12l5 5l10 -10" />
+              </svg>
+            </span>
+            Your account has been created!
+          </h2>
+          <p class="text-secondary mb-4">
+            Check your inbox to verify your email. As soon as your account gets activated . Make sure to check your spam
+            folder.
+          </p>
+          <div class="my-4">
+            <a href="{{ url_for('dashboard_blueprint.login') }}" class="btn btn-primary w-100">
+              Go back to the login page
             </a>
           </div>
-
-        {% if STATUS and STATUS=='SUCCESS' %}
-        <div class="card card-md">
-          <div class="card-body">
-            <h2 class="mb-3">
-                <span class="col-auto">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon me-1 text-success" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>
-                  </span>
-                Your account has been created!</h2>
-            <p class="text-secondary mb-4">
-              Check your inbox to verify your email. As soon as your account gets activated . Make sure to check your spam folder. 
-            </p>
-            <div class="my-4">
-              <a href="{{ url_for('dashboard_blueprint.login') }}" class="btn btn-primary w-100">
-                Go back to the login page
+          <p class="text-secondary">
+            If you encountered an error during your signup process feel free to <a href="https://support.stelar.gr"
+              target="_blank">open a ticket.</a>
+          </p>
+        </div>
+      </div>
+      {% else %}
+      <form class="card card-md" method="POST" autocomplete="off">
+        <div class="card-body">
+          <h2 class="h2 text-center mb-4">Create new account</h2>
+          <div class="mb-2">
+            <label class="form-label">Name</label>
+            <input type="text" class="form-control" placeholder="John Smith" name="name" id="name" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Email address</label>
+            <input type="email" class="form-control" placeholder="email@example.com" name="email" required
+              autocomplete="off" id="email">
+          </div>
+          <script>
+            // Change the type of input to password or text
+            function Toggle1() {
+              let temp = document.getElementById("passwordIn");
+              temp.type = temp.type === "password" ? "text" : "password";
+            }
+            function Toggle2() {
+              let temp = document.getElementById("passwordRepeatIn");
+              temp.type = temp.type === "password" ? "text" : "password";
+            }
+          </script>
+          <div>
+            <label class="form-label">Password</label>
+            <div class="input-group input-group-flat">
+              <input type="password" class="form-control" placeholder="Password" required name="passwordIn"
+                autocomplete="off" id="passwordIn" required>
+            </div>
+            <div class="text-secondary text-end justify-content-right mt-1">
+              <a href="#" onclick="Toggle1()" class="link-secondary" title="Show password" data-bs-toggle="tooltip"
+                tabindex="-1">
+                Show password
               </a>
             </div>
-            <p class="text-secondary">
-              If you encountered an error during your signup process feel free to <a href="https://support.stelar.gr" target="_blank">open a ticket.</a>
-            </p>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Repeat Password</label>
+            <div class="input-group input-group-flat">
+              <input type="password" class="form-control" placeholder="Repeat Password" autocomplete="off"
+                name="passwordRepeatIn" id="passwordRepeatIn" required>
+            </div>
+            <div class="text-secondary text-end justify-content-right mt-1">
+              <a href="#" onclick="Toggle2()" class="link-secondary" title="Show password" data-bs-toggle="tooltip"
+                tabindex="-1">
+                Show password
+              </a>
+            </div>
+          </div>
+          <div class="text-center text-secondary mt-2">
+            Your password must be at least 8 characters, contain one upper case letter, a number and a symbol.
+          </div>
+          <div class="hr mb-2 mt-2"></div>
+
+          {% if ERROR_MSG %}
+          <div class="alert alert-danger" role="alert">
+            {{ ERROR_MSG }}
+          </div>
+          {% endif %}
+          <div class="form-footer">
+            <button type="submit" class="btn btn-primary w-100" disabled>Create new account</button>
+          </div>
+          <div class="text-center text-secondary mt-2">
+            Your account will be created but <strong>an administrator needs to activate it</strong>. You will receive an
+            email when your account is active. If that takes some time, consider contacting your KLMS administrator.
+          </div>
+          <div class="text-center text-secondary mt-3">
+            Already have account? <a href="{{ url_for('dashboard_blueprint.login') }}" tabindex="-1">Sign in</a>
           </div>
         </div>
-        {% else %}
-        <form class="card card-md" method="POST" autocomplete="off">
-          <div class="card-body">
-            <h2 class="h2 text-center mb-4">Create new account</h2>
-            <div class="mb-2">
-              <label class="form-label">Name</label>
-              <input type="text" class="form-control" placeholder="John Smith" name="name" id="name" required>
-            </div>
-            <div class="mb-2">
-              <label class="form-label">Email address</label>
-              <input type="email" class="form-control" placeholder="email@example.com" name="email" required autocomplete="off" id="email">
-            </div>
-            <script>
-              // Change the type of input to password or text
-              function Toggle1() {
-                let temp = document.getElementById("passwordIn");
-                temp.type = temp.type === "password" ? "text" : "password";
-              }
-              function Toggle2() {
-                let temp = document.getElementById("passwordRepeatIn");
-                temp.type = temp.type === "password" ? "text" : "password";
-              }
-            </script>
-            <div>
-              <label class="form-label">Password</label>
-              <div class="input-group input-group-flat">
-                <input type="password" class="form-control" placeholder="Password" required name="passwordIn" autocomplete="off" id="passwordIn" required>
-              </div>
-              <div class="text-secondary text-end justify-content-right mt-1">
-                <a href="#" onclick="Toggle1()" class="link-secondary" title="Show password" data-bs-toggle="tooltip" tabindex="-1">
-                    Show password
-                </a>
-              </div>
-            </div>
-            <div class="mb-2">
-              <label class="form-label">Repeat Password</label>
-              <div class="input-group input-group-flat">
-                <input type="password" class="form-control"  placeholder="Repeat Password"  autocomplete="off" name="passwordRepeatIn" id="passwordRepeatIn" required>
-              </div>
-              <div class="text-secondary text-end justify-content-right mt-1">
-                <a href="#" onclick="Toggle2()" class="link-secondary" title="Show password" data-bs-toggle="tooltip" tabindex="-1">
-                    Show password
-                </a>
-              </div>
-            </div>
-            <div class="text-center text-secondary mt-2">
-                Your password must be at least 8 characters, contain one upper case letter, a number and a symbol.
-              </div>
-            <div class="hr mb-2 mt-2"></div>
-
-            {% if ERROR_MSG %}
-            <div class="alert alert-danger" role="alert">
-              {{ ERROR_MSG }}
-            </div>
-            {% endif %}
-            <div class="form-footer">
-              <button type="submit" class="btn btn-primary w-100" disabled>Create new account</button>
-            </div>
-            <div class="text-center text-secondary mt-2">
-                Your account will be created but <strong>an administrator needs to activate it</strong>. You will receive an email when your account is active. If that takes some time, consider contacting your KLMS administrator.
-              </div>
-            <div class="text-center text-secondary mt-3">
-              Already have account? <a href="{{ url_for('dashboard_blueprint.login') }}" tabindex="-1">Sign in</a>
-            </div>
-          </div>
-        </form>
-        {% endif %}
-      </div>
+      </form>
+      {% endif %}
     </div>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-          const emailField = document.getElementById("email");
-          const passwordField = document.getElementById("passwordIn");
-          const repeatPasswordField = document.getElementById("passwordRepeatIn");
-          const submitButton = document.querySelector("button[type='submit']");
-      
-          // Initialize submit button state
-          submitButton.disabled = true;
-      
-          // Function to validate email
-          function validateEmail() {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (emailField.value === "") {
-              emailField.classList.remove("is-valid", "is-invalid");
-            } else if (emailRegex.test(emailField.value)) {
-              emailField.classList.add("is-valid");
-              emailField.classList.remove("is-invalid");
-            } else {
-              emailField.classList.add("is-invalid");
-              emailField.classList.remove("is-valid");
-            }
-            updateSubmitButtonState();
-          }
-      
-          // Function to validate password
-          function validatePassword() {
-            const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-            if (passwordField.value === "") {
-              passwordField.classList.remove("is-valid", "is-invalid");
-            } else if (passwordRegex.test(passwordField.value)) {
-              passwordField.classList.add("is-valid");
-              passwordField.classList.remove("is-invalid");
-            } else {
-              passwordField.classList.add("is-invalid");
-              passwordField.classList.remove("is-valid");
-            }
-            updateSubmitButtonState();
-          }
-      
-          // Function to validate repeat password
-          function validateRepeatPassword() {
-            if (repeatPasswordField.value === "") {
-              repeatPasswordField.classList.remove("is-valid", "is-invalid");
-            } else if (repeatPasswordField.value === passwordField.value && passwordField.value !== "") {
-              repeatPasswordField.classList.add("is-valid");
-              repeatPasswordField.classList.remove("is-invalid");
-            } else {
-              repeatPasswordField.classList.add("is-invalid");
-              repeatPasswordField.classList.remove("is-valid");
-            }
-            updateSubmitButtonState();
-          }
-      
-          // Function to enable or disable submit button based on field states
-          function updateSubmitButtonState() {
-            const emailValid = emailField.classList.contains("is-valid");
-            const passwordValid = passwordField.classList.contains("is-valid");
-            const repeatPasswordValid = repeatPasswordField.classList.contains("is-valid");
-      
-            submitButton.disabled = !(emailValid && passwordValid && repeatPasswordValid);
-          }
-      
-          // Add event listeners to validate fields on input
-          emailField.addEventListener("input", validateEmail);
-          passwordField.addEventListener("input", validatePassword);
-          repeatPasswordField.addEventListener("input", validateRepeatPassword);
-        });
-    </script>      
-      
-  </body>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const emailField = document.getElementById("email");
+      const passwordField = document.getElementById("passwordIn");
+      const repeatPasswordField = document.getElementById("passwordRepeatIn");
+      const submitButton = document.querySelector("button[type='submit']");
+
+      // Initialize submit button state
+      submitButton.disabled = true;
+
+      // Function to validate email
+      function validateEmail() {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (emailField.value === "") {
+          emailField.classList.remove("is-valid", "is-invalid");
+        } else if (emailRegex.test(emailField.value)) {
+          emailField.classList.add("is-valid");
+          emailField.classList.remove("is-invalid");
+        } else {
+          emailField.classList.add("is-invalid");
+          emailField.classList.remove("is-valid");
+        }
+        updateSubmitButtonState();
+      }
+
+      // Function to validate password
+      function validatePassword() {
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^\w]).{8,}$/;
+        if (passwordField.value === "") {
+          passwordField.classList.remove("is-valid", "is-invalid");
+        } else if (passwordRegex.test(passwordField.value)) {
+          passwordField.classList.add("is-valid");
+          passwordField.classList.remove("is-invalid");
+        } else {
+          passwordField.classList.add("is-invalid");
+          passwordField.classList.remove("is-valid");
+        }
+        updateSubmitButtonState();
+      }
+
+      // Function to validate repeat password
+      function validateRepeatPassword() {
+        if (repeatPasswordField.value === "") {
+          repeatPasswordField.classList.remove("is-valid", "is-invalid");
+        } else if (repeatPasswordField.value === passwordField.value && passwordField.value !== "") {
+          repeatPasswordField.classList.add("is-valid");
+          repeatPasswordField.classList.remove("is-invalid");
+        } else {
+          repeatPasswordField.classList.add("is-invalid");
+          repeatPasswordField.classList.remove("is-valid");
+        }
+        updateSubmitButtonState();
+      }
+
+      // Function to enable or disable submit button based on field states
+      function updateSubmitButtonState() {
+        const emailValid = emailField.classList.contains("is-valid");
+        const passwordValid = passwordField.classList.contains("is-valid");
+        const repeatPasswordValid = repeatPasswordField.classList.contains("is-valid");
+
+        submitButton.disabled = !(emailValid && passwordValid && repeatPasswordValid);
+      }
+
+      // Add event listeners to validate fields on input
+      emailField.addEventListener("input", validateEmail);
+      passwordField.addEventListener("input", validatePassword);
+      repeatPasswordField.addEventListener("input", validateRepeatPassword);
+    });
+  </script>
+
+</body>
+
 </html>
