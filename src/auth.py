@@ -6,6 +6,7 @@ from apiflask import HTTPTokenAuth
 from flask import current_app, jsonify, request, session
 from jose import JWTError, jwt
 
+from exceptions import APIException, AuthenticationError, AuthorizationError
 import kutils
 
 auth = HTTPTokenAuth(
@@ -84,63 +85,43 @@ def api_verify_token(token):
                     # If JWTError occurs, try the next audience
                     continue
 
-    except Exception as e:
-        return False
+    except JWTError as e:
+        # return False
+        raise AuthenticationError(
+            message="Error decoding token headers",
+        )
 
     # If no valid key is found, return False
-    return False
+    # return False
+    raise AuthenticationError(
+        message="Bearer Token could not be verified",
+    )
 
 
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        try:
-            if request.headers.get("Authorization"):
-                # Extract the token from the 'Authorization' header
-                access_token = request.headers.get("Authorization").split(" ")[1]
-            else:
-                # Try to extract token from session if not provided.
-                access_token = session.get("access_token")
-                if access_token is None:
-                    response = {
-                        "success": False,
-                        "help": request.url,
-                        "error": {
-                            "__type": "Authentication Error",
-                            "name": "Bearer Token is not Valid",
-                        },
-                    }
-                    return response, 401
+        #TODO: use current_token function or create a new function
+        
+        auth_header = request.headers.get("Authorization")
+        if auth_header:
+            parts = auth_header.split(" ")
+            if len(parts) != 2:
+                raise APIException(
+                    401,
+                    message="Authorization Bearer Token is missing or malformed",
+                )
+            access_token = parts[1]
+        else:
+            access_token = session.get("access_token")
+            if access_token is None:
+                raise APIException(
+                    401,
+                    message="Bearer Token is missing",
+                )
+        # Checks if the token related to admin user
+        kutils.introspect_admin_token(access_token)
 
-            # Check if the token is valid and corresponds to an admin user
-            if not kutils.introspect_admin_token(access_token):
-                response = {
-                    "success": False,
-                    "help": request.url,
-                    "error": {
-                        "__type": "Authorization Error",
-                        "name": "Bearer Token is not related to an admin user",
-                    },
-                }
-                return response, 403
-
-        except (IndexError, ValueError):
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {
-                    "__type": "Authorization Error",
-                    "name": "Authorization Bearer Token is missing or malformed",
-                },
-            }
-            return response, 401
-        except Exception as e:
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {"__type": "Unexpected Error", "name": str(e)},
-            }
-            return response, 500
 
         return f(*args, **kwargs)
 
@@ -150,65 +131,29 @@ def admin_required(f):
 def token_active(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        try:
-            if request.headers.get("Authorization"):
-                # Extract the token from the 'Authorization' header
-                access_token = request.headers.get("Authorization").split(" ")[1]
-            else:
-                # Try to extract token from session if not provided.
-                access_token = session.get("access_token")
-                if access_token is None:
-                    response = {
-                        "success": False,
-                        "help": request.url,
-                        "error": {
-                            "__type": "Authentication Error",
-                            "name": "Bearer Token is not Valid",
-                        },
-                    }
-                    return response, 401
-
-            # Verify the token keys.
-            if not api_verify_token(access_token):
-                response = {
-                    "success": False,
-                    "help": request.url,
-                    "error": {
-                        "__type": "Authentication Error",
-                        "name": "Bearer Token could not be verified",
-                    },
-                }
-                return response, 401
-
-            # Check if the token is valid
-            if not kutils.introspect_token(access_token):
-                response = {
-                    "success": False,
-                    "help": request.url,
-                    "error": {
-                        "__type": "Authorization Error",
-                        "name": "Bearer Token is expired",
-                    },
-                }
-                return response, 403
-
-        except (IndexError, ValueError):
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {
-                    "__type": "Authorization Error",
-                    "name": "Authorization Bearer Token is missing or malformed",
-                },
-            }
-            return response, 400
-        except Exception as e:
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {"__type": "Unexpected Error", "name": str(e)},
-            }
-            return response, 500
+        
+        # Check if the request has an Authorization header
+        # and extract the access token from it
+        auth_header = request.headers.get("Authorization")
+        if auth_header:
+            parts = auth_header.split(" ")
+            if len(parts) != 2:
+                raise APIException(
+                    401,
+                    message="Authorization headers are missing or malformed",
+                )
+            access_token = parts[1]
+        else:
+            access_token = session.get("access_token")
+            if access_token is None:
+                raise APIException(
+                    401,
+                    message="Bearer Token is missing",
+                )
+        # Verify the token using the api_verify_token function
+        api_verify_token(access_token)
+        # Check if the token is active
+        kutils.introspect_token(access_token)
 
         return f(*args, **kwargs)
 

@@ -1,10 +1,8 @@
 import base64
 import datetime
 import logging
-import re
 import smtplib
 import ssl
-import uuid
 from io import BytesIO
 
 import flask
@@ -16,54 +14,15 @@ from keycloak import (
     KeycloakAuthenticationError,
     KeycloakGetError,
 )
-
-from keycloak.openid_connection import KeycloakOpenIDConnection
-from keycloak.keycloak_admin import KeycloakAdmin
-from keycloak.keycloak_openid import KeycloakOpenID
-
-
 import sql_utils
 from backend.ckan import ckan_request
 from backend.pgsql import execSql
+from backend.kc import KEYCLOAK_ADMIN_CLIENT, KEYCLOAK_OPENID_CLIENT
 
-
-from exceptions import BackendError, InternalException, InvalidError
+from exceptions import APIException, AuthenticationError, AuthorizationError, BackendError, InternalException, InvalidError
 from utils import is_valid_uuid, validate_email
 
-
 logger = logging.getLogger(__name__)
-
-
-# Init global connections to the Keycloak Server, to avoid bottlenecks imposed by previously
-# instantly established connections on request arrival.
-class KeycloakSingleton:
-    """Singleton class to hold a global Keycloak connection."""
-
-    _instance = None
-
-    @classmethod
-    def get_instance(cls):
-        """Ensure the instance is initialized inside an app context."""
-        if cls._instance is None:
-            cls._initialize_keycloak()
-        return cls._instance
-
-    @classmethod
-    def _initialize_keycloak(cls):
-        """Create Keycloak connection within the correct Flask context."""
-        app = current_app._get_current_object()
-        with app.app_context():  # Ensures app context is active
-            config = app.config["settings"]
-            cls._instance = KeycloakOpenIDConnection(
-                server_url=config["KEYCLOAK_URL"],
-                realm_name=config["REALM_NAME"],
-                client_id=config["KEYCLOAK_CLIENT_ID"],
-                client_secret_key=config["KEYCLOAK_CLIENT_SECRET"],
-                verify=True,
-            )
-
-
-KEYCLOAK_GENERIC_CONNECTION = KeycloakSingleton.get_instance
 
 
 def email_username_unique(username, email):
@@ -81,12 +40,33 @@ def convert_iat_to_date(timestamp):
 
 
 def username_unique(username):
-    keycloak_admin = init_admin_client_with_credentials()
     # Check for existing users with the same username
-    existing_users = keycloak_admin.get_users({"username": username})
+    existing_users = KEYCLOAK_ADMIN_CLIENT().get_users({"username": username})
 
     if existing_users:
         raise InvalidError(f"A user with the username '{username}' already exists.")
+
+
+def email_unique(email):
+    # Check for existing users with the same email
+    existing_emails = KEYCLOAK_ADMIN_CLIENT().get_users({"email": email})
+    if existing_emails:
+        raise InvalidError(f"A user with the email '{email}' already exists.")
+
+
+def generate_reset_token(user_id, expiration_minutes=30):
+    """
+    Generates a JWT token with an expiration.
+    :param user_id: The unique identifier for the user.
+    :param expiration_minutes: Token validity period in minutes.
+    :return: Encoded JWT token as a string.
+    """
+    payload = {
+        "user_id": user_id,
+        "exp": datetime.datetime.now() + datetime.timedelta(minutes=expiration_minutes),
+    }
+    token = jwt.encode(payload, user_id, algorithm="HS256")
+    return token
 
 
 def reset_password_init_flow(email):
@@ -101,9 +81,7 @@ def reset_password_init_flow(email):
     Raises:
         -
     """
-    keycloak_admin = init_admin_client_with_credentials()
-
-    user_rep = keycloak_admin.get_users(query={"email": email})
+    user_rep = KEYCLOAK_ADMIN_CLIENT().get_users(query={"email": email})
     if user_rep:
         kuuid = user_rep[0].get("id")
         if is_valid_uuid(kuuid):
@@ -134,64 +112,42 @@ def verify_reset_token(token, user_id):
         return None
 
 
-def generate_reset_token(user_id, expiration_minutes=30):
-    """
-    Generates a JWT token with an expiration.
-    :param user_id: The unique identifier for the user.
-    :param expiration_minutes: Token validity period in minutes.
-    :return: Encoded JWT token as a string.
-    """
-    payload = {
-        "user_id": user_id,
-        "exp": datetime.datetime.now() + datetime.timedelta(minutes=expiration_minutes),
-    }
-    token = jwt.encode(payload, user_id, algorithm="HS256")
-    return token
-
-
-def email_unique(email):
-    keycloak_admin = init_admin_client_with_credentials()
-
-    # Check for existing users with the same email
-    existing_emails = keycloak_admin.get_users({"email": email})
-    if existing_emails:
-        raise InvalidError(f"A user with the email '{email}' already exists.")
-
-
-def initialize_keycloak_openid():
-    config = current_app.config["settings"]
-    return KeycloakOpenID(
-        server_url=config["KEYCLOAK_URL"],
-        realm_name=config["REALM_NAME"],
-        client_id=config["KEYCLOAK_CLIENT_ID"],
-        client_secret_key=config["KEYCLOAK_CLIENT_SECRET"],
-        verify=True,
-    )
-
 
 def introspect_admin_token(access_token):
     """
-    Introspects the given access token to check if it's valid and active.
-    It also checks if the user has admin role.
-    Returns True if the token is valid and admin, False if the token is invalid or expired or not admin.
+    Introspects the given access token to check if it's valid, active,
+    and if the user has the admin role.
+    Returns True if the token is valid and admin.
+    Raises TokenExpiredError if the token is inactive/expired.
+    Raises AuthorizationError if the token is active but not for an admin user.
     """
-    try:
-        keycloak_openid = initialize_keycloak_openid()
-        introspect_response = keycloak_openid.introspect(access_token)
+    
+    # keycloak_openid = initialize_keycloak_openid()
+    # introspect_response = keycloak_openid.introspect(access_token)
+    introspect_response = introspect_token(access_token)
 
-        # Check if the token is active and user has admin role
-        if introspect_response.get("active", False):
-            if introspect_response.get("realm_access", False):
-                if "admin" in introspect_response["realm_access"]["roles"]:
-                    return True
-                else:
-                    return False
-            else:
-                return False
-        else:
-            return False
-    except Exception as e:
-        return False
+    # # Check if the token is active
+    # if not introspect_response.get("active", False):
+    #     raise AuthenticationError(message="Token expired")
+    
+    # Optionally check for realm_access if needed
+    if not introspect_response.get("realm_access", False):
+        # You can decide how to handle this; here we treat it as a token issue.
+        raise APIException(
+            401,
+            message="Token is missing realm access information",
+        )
+
+    # Check if the token has admin privileges.
+    is_admin_flag = introspect_response.get("is_admin", None)
+    if is_admin_flag is None or not is_admin_flag:
+        raise AuthorizationError(
+            message="Bearer Token is not related to an admin user",
+        )
+    
+    return True
+
+
 
 
 def get_user_by_token(access_token):
@@ -199,15 +155,7 @@ def get_user_by_token(access_token):
     Introspects the given access token to return the user information if the token is active
     Returns the user json if the token is valid, False if the token is invalid or expired.
     """
-    try:
-        keycloak_openid = initialize_keycloak_openid()
-        introspect_response = keycloak_openid.introspect(access_token)
-        if introspect_response.get("active", False):
-            return introspect_response
-        else:
-            return {}
-    except Exception as e:
-        return False
+    return introspect_token(access_token)
 
 
 def introspect_token(access_token):
@@ -215,15 +163,25 @@ def introspect_token(access_token):
     Introspects the given access token to check if it's valid and active.
     Returns True if the token is valid, False if the token is invalid or expired.
     """
-    try:
-        keycloak_openid = initialize_keycloak_openid()
-        introspect_response = keycloak_openid.introspect(access_token)
-        # Check if the token is active
-        if introspect_response.get("active", False):
-            return True
-        else:
-            return False
-    except Exception as e:
+
+    introspect_response = KEYCLOAK_OPENID_CLIENT().introspect(access_token)
+    # Check if the token is active
+    if introspect_response.get("active", False):
+        return introspect_response
+    else:
+        raise AuthenticationError(message="Token is invalid or expired")
+
+def is_token_active(access_token):
+    """
+    Introspects the given access token to check if it's valid and active.
+    Returns True if the token is valid, False if the token is invalid or expired.
+    """
+
+    introspect_response = KEYCLOAK_OPENID_CLIENT().introspect(access_token)
+    # Check if the token is active
+    if introspect_response.get("active", False):
+        return introspect_response
+    else:
         return False
 
 
@@ -427,13 +385,13 @@ def refresh_access_token(refresh_token):
         Exception: If an error occurs during the token refresh process.
     """
 
-    keycloak_openid = initialize_keycloak_openid()
-
     if not refresh_token:
         return None
 
     try:
-        token = keycloak_openid.refresh_token(refresh_token, grant_type="refresh_token")
+        token = KEYCLOAK_OPENID_CLIENT().refresh_token(
+            refresh_token, grant_type="refresh_token"
+        )
         return token
     except Exception as e:
         return None, str(e)
@@ -452,109 +410,15 @@ def get_token(username, password):
         null: Error return
 
     """
-    kopenid = initialize_keycloak_openid()
     try:
-        token = kopenid.token(username, password)
+        token = KEYCLOAK_OPENID_CLIENT().token(username, password)
         if token:
             return token
         else:
             return None
-    except Exception:
+    except Exception as e:
+        logger.debug("Error while getting token: %s", str(e), exc_info=True)
         return None
-
-
-def init_admin_client_with_credentials():
-    """
-    Initializes and returns a KeycloakAdmin client using the client service account. (If Enabled)
-
-    Returns:
-        KeycloakAdmin: An initialized KeycloakAdmin client
-
-    """
-    try:
-        # Initialize KeycloakAdmin client with the client service account
-        return KeycloakAdmin(connection=KEYCLOAK_GENERIC_CONNECTION())
-
-    except Exception as e:
-        raise RuntimeError(
-            f"Failed to generate token and initialize KeycloakAdmin: {str(e)}"
-        )
-
-
-def init_admin_client_with_admin_token(admin_token):
-    """
-    Initializes and returns a KeycloakAdmin client using a pre-obtained admin token.
-
-    Args:
-        admin_token: An OAuth2.0 admin token
-
-    Returns:
-        KeycloakAdmin: An initialized KeycloakAdmin client with admin token.
-
-    Raises:
-        RuntimeError: If initialization fails due to an error.
-    """
-    config = current_app.config["settings"]
-
-    try:
-        # Initialize KeycloakAdmin using the token
-        admin_client = KeycloakAdmin(
-            server_url=config["KEYCLOAK_URL"],
-            realm_name=config["REALM_NAME"],
-            client_id=config["KEYCLOAK_CLIENT_ID"],
-            verify=True,
-            token=admin_token,
-        )
-
-        return admin_client
-    except Exception as e:
-        raise RuntimeError(
-            f"Failed to initialize KeycloakAdmin with admin token: {str(e)}"
-        )
-
-
-def init_admin_client(username, password):
-    """
-    Initializes and returns a KeycloakAdmin client using the admin username and password.
-
-    This function authenticates an admin user using their username and password to obtain a new
-    access token. It then uses this access token to initialize a KeycloakAdmin client. The access
-    token is not stored in the session in this case, since it is generated dynamically for each
-    login request.
-
-    Args:
-        username (str): The username of the admin user.
-        password (str): The password of the admin user.
-
-    Returns:
-        KeycloakAdmin: An initialized KeycloakAdmin client with a valid access token.
-
-    Raises:
-        ValueError: If the username or password is invalid or the authentication fails.
-        RuntimeError: If the token generation or client initialization fails.
-    """
-    config = current_app.config["settings"]
-
-    keycloak_openid = initialize_keycloak_openid()
-
-    try:
-        # Generate token by authenticating using username and password
-        token = keycloak_openid.token(username, password)
-
-        # Initialize KeycloakAdmin client with the new access token
-        keycloak_admin = KeycloakAdmin(
-            server_url=config["KEYCLOAK_URL"],
-            realm_name=config["REALM_NAME"],
-            token=token,
-            verify=True,
-        )
-
-        return keycloak_admin
-
-    except Exception as e:
-        raise RuntimeError(
-            f"Failed to generate token and initialize KeycloakAdmin: {str(e)}"
-        )
 
 
 def get_user_roles(user_id):
@@ -565,8 +429,7 @@ def get_user_roles(user_id):
     :return: A list of roles assigned to the user.
     """
     try:
-        keycloak_admin = init_admin_client_with_credentials()
-        realm_roles = keycloak_admin.get_realm_roles_of_user(user_id)
+        realm_roles = KEYCLOAK_ADMIN_CLIENT().get_realm_roles_of_user(user_id)
 
         if not realm_roles:
             return []
@@ -592,12 +455,10 @@ def get_role(role_id):
     :return: The role representation
     """
     try:
-        keycloak_admin = init_admin_client_with_credentials()
-
         if is_valid_uuid(role_id):
-            role_rep = keycloak_admin.get_realm_role_by_id(role_id)
+            role_rep = KEYCLOAK_ADMIN_CLIENT().get_realm_role_by_id(role_id)
         else:
-            role_rep = keycloak_admin.get_realm_role(role_id)
+            role_rep = KEYCLOAK_ADMIN_CLIENT().get_realm_role(role_id)
 
         if not role_rep:
             return None
@@ -614,9 +475,7 @@ def get_realm_roles():
     """
 
     try:
-        keycloak_admin = init_admin_client_with_credentials()
-
-        roles = keycloak_admin.get_realm_roles(brief_representation=True)
+        roles = KEYCLOAK_ADMIN_CLIENT().get_realm_roles(brief_representation=True)
 
         # Define a set of roles to exclude
         roles_to_exclude = {
@@ -668,7 +527,7 @@ def create_user_with_password(
     """
     try:
         # Initialize the Keycloak admin client
-        keycloak_admin = init_admin_client_with_credentials()
+        keycloak_admin = KEYCLOAK_ADMIN_CLIENT()
 
         # Validate that an email matches the RegEx
         validate_email(email=email)
@@ -741,8 +600,6 @@ def update_user(
     - ValueError: if the username or the email are not unique
     """
     try:
-        keycloak_admin = init_admin_client_with_credentials()
-
         # Prepare the update data dictionary with only the fields that are not None
         user_data = {}
         user_repr = get_user(user_id=user_id)
@@ -770,9 +627,9 @@ def update_user(
 
         # Support both selecting user by UUID and by Username
         if not is_valid_uuid(user_id):
-            user_id = keycloak_admin.get_user_id(user_id)
+            user_id = KEYCLOAK_ADMIN_CLIENT().get_user_id(user_id)
 
-        keycloak_admin.update_user(user_id, user_data)
+        KEYCLOAK_ADMIN_CLIENT().update_user(user_id, user_data)
 
         updated_user_json = get_user(user_id=user_id)
 
@@ -794,14 +651,12 @@ def get_user(user_id=None):
         return None
 
     try:
-        keycloak_admin = init_admin_client_with_credentials()
-
         # Support both searching by UUID and by Username
         if is_valid_uuid(user_id):
-            user_representation = keycloak_admin.get_user(user_id)
+            user_representation = KEYCLOAK_ADMIN_CLIENT().get_user(user_id)
         else:
-            id = keycloak_admin.get_user_id(user_id)
-            user_representation = keycloak_admin.get_user(id)
+            id = KEYCLOAK_ADMIN_CLIENT().get_user_id(user_id)
+            user_representation = KEYCLOAK_ADMIN_CLIENT().get_user(id)
 
         if user_representation:
             creation_date = convert_iat_to_date(user_representation["createdTimestamp"])
@@ -828,6 +683,7 @@ def get_user(user_id=None):
         return None
 
     except Exception as e:
+        logger.debug("Error while getting user: %s", str(e), exc_info=True)
         return None
 
 
@@ -844,14 +700,12 @@ def delete_user(user_id=None):
         return None
 
     try:
-        keycloak_admin = init_admin_client_with_credentials()
-
-        # Support both searching by UUID and by Username
+        # Support both UUID andsername
         if not is_valid_uuid(user_id):
-            id = keycloak_admin.get_user_id(user_id)
-            user_id = keycloak_admin.get_user(id)["id"]
+            id = KEYCLOAK_ADMIN_CLIENT().get_user_id(user_id)
+            user_id = KEYCLOAK_ADMIN_CLIENT().get_user(id)["id"]
 
-        keycloak_admin.delete_user(user_id)
+        KEYCLOAK_ADMIN_CLIENT().delete_user(user_id)
         return user_id
 
     except KeycloakGetError as e:
@@ -880,9 +734,6 @@ def get_users_from_keycloak(offset, limit):
         RuntimeError: If there is an issue with the Keycloak connection or API interaction.
     """
     try:
-        # Initialize KeycloakAdmin client with credentials
-        keycloak_admin = init_admin_client_with_credentials()
-
         # Validate and adjust pagination values
         if limit < 0 or offset < 0:
             raise ValueError("Limit and offset must be greater than 0.")
@@ -892,7 +743,7 @@ def get_users_from_keycloak(offset, limit):
         else:
             query = {"first": offset, "max": limit}
 
-        users = keycloak_admin.get_users(query=query)
+        users = KEYCLOAK_ADMIN_CLIENT().get_users(query=query)
 
         result = []
         for user in users:
@@ -926,14 +777,15 @@ def fetch_user_creation_date(user_id):
     Fetches user creation date from Keycloak Admin API using client credentials access token.
 
     """
-    keycloak_admin = init_admin_client_with_credentials()
-
     try:
         user = get_user(user_id)
         data = user.get("joined_date")
         if data:
             return data
     except Exception as e:
+        logger.debug(
+            "Error while fetching user creation date: %s", str(e), exc_info=True
+        )
         return None
 
 
@@ -950,8 +802,6 @@ def assign_role_to_user(user_id, role_id):
     """
 
     try:
-        keycloak_admin = init_admin_client_with_credentials()
-
         # Fetch the user representation
         user_rep = get_user(user_id)
 
@@ -966,7 +816,7 @@ def assign_role_to_user(user_id, role_id):
 
         # Assign the role to the user if it is not already assigned
         if role_rep["name"] not in user_roles:
-            keycloak_admin.assign_realm_roles(user_rep["id"], [role_rep])
+            KEYCLOAK_ADMIN_CLIENT().assign_realm_roles(user_rep["id"], [role_rep])
             return get_user(user_id)
         else:
             raise AttributeError(
@@ -1000,8 +850,6 @@ def assign_roles_to_user(user_id, role_ids):
         raise ValueError("role_ids must be a list of role UUIDs or names.")
 
     try:
-        # Initialize Keycloak admin client
-        keycloak_admin = init_admin_client_with_credentials()
 
         # Fetch the user representation
         user_rep = get_user(user_id)
@@ -1026,7 +874,7 @@ def assign_roles_to_user(user_id, role_ids):
 
         # Assign roles to the user if there are new roles to assign
         if roles_to_assign:
-            keycloak_admin.assign_realm_roles(user_rep["id"], roles_to_assign)
+            KEYCLOAK_ADMIN_CLIENT().assign_realm_roles(user_rep["id"], roles_to_assign)
 
         return get_user(user_id)
 
@@ -1058,7 +906,7 @@ def patch_user_roles(user_id, role_ids):
 
     try:
         # Initialize Keycloak admin client
-        keycloak_admin = init_admin_client_with_credentials()
+        keycloak_admin = KEYCLOAK_ADMIN_CLIENT()
 
         # Fetch the user representation
         user_rep = get_user(user_id)
@@ -1141,8 +989,6 @@ def unassign_role_from_user(user_id, role_id):
     - dict(): The updated user representation without the removed role.
     """
     try:
-        keycloak_admin = init_admin_client_with_credentials()
-
         # Fetch the user representation
         user_rep = get_user(user_id)
         if not user_rep:
@@ -1156,7 +1002,9 @@ def unassign_role_from_user(user_id, role_id):
 
         # Unassign the role if it is currently assigned to the user
         if role_rep["name"] in user_roles:
-            keycloak_admin.delete_realm_roles_of_user(user_rep["id"], [role_rep])
+            KEYCLOAK_ADMIN_CLIENT().delete_realm_roles_of_user(
+                user_rep["id"], [role_rep]
+            )
             return get_user(user_id)
         else:
             raise AttributeError(

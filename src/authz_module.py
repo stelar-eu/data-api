@@ -25,15 +25,20 @@ import fnmatch
 import logging
 from abc import ABC, abstractmethod
 from typing import Any
+import uuid
 
 import yaml
 from flask import g
 
+from data_module import DataModule
+from exceptions import APIException
 import kutils as ku
+from backend.kc import KEYCLOAK_ADMIN_CLIENT
 import monitor_module as mon
 import mutils as mu
 import reconciliation_module as rec
 from entity import Entity, MemberEntity
+import sql_utils
 
 logger = logging.getLogger(__name__)
 
@@ -96,30 +101,33 @@ class AuthorizationModule:
             dict: The updated perm dictionary.
         """
         actions = data.get("actions", {})
-        alias_value = actions.get(alias)
+        if isinstance(alias, str):
+            alias = [alias]
 
-        # If no alias is found, return the original dictionary.
-        if alias_value is None:
-            return perm
-
-        # If the alias value is a string, assign it directly.
-        if isinstance(alias_value, str):
-            perm["action"] = alias_value
-            return perm
-
-        # Otherwise, assume alias_value is iterable (like a list) and build the actions list.
         actions_list = []
-        for item in alias_value:
-            if item in actions:
-                # Retrieve the value for the current item. If it's a string, wrap it in a list.
-                item_value = actions[item]
-                if isinstance(item_value, str):
-                    item_value = [item_value]
-                actions_list.extend(item_value)
-            else:
-                actions_list.append(item)
+        for al in alias:
+            alias_value = actions.get(al)
 
-        perm["action"] = actions_list
+            # If no alias is found, return the original dictionary.
+            if alias_value is None:
+                return perm
+
+            # If the alias value is a string, normalize to list.
+            if isinstance(alias_value, str):
+                alias_value = [alias_value]
+
+            # Otherwise, assume alias_value is iterable (like a list) and build the actions list.
+            for item in alias_value:
+                if item in actions:
+                    # Retrieve the value for the current item. If it's a string, wrap it in a list.
+                    item_value = actions[item]
+                    if isinstance(item_value, str):
+                        item_value = [item_value]
+                    actions_list.extend(item_value)
+                else:
+                    actions_list.append(item)
+
+            perm["action"] = actions_list
         return perm
 
     def parse_authz_config(self, config):
@@ -290,7 +298,7 @@ class ResourcePermissionsType(AuthorizationModule):
         logger.info("Initializing ResourcePermissionsType")
         self.roles_list = []
         self.new_policy_list = []
-        self.keycloak_admin = ku.init_admin_client_with_credentials()
+        self.keycloak_admin = KEYCLOAK_ADMIN_CLIENT()
         self.client_id = self.keycloak_admin.get_client_id("minio")
 
     def create_permissions(self, role, perm):
@@ -878,3 +886,139 @@ def authorization(resource: Resource, action: str) -> bool:
     logger.info(f"Checking access for user {user_info['sub']} with roles {user_roles}")
 
     return check_access(user_roles, action, resource)
+
+
+#################################################################################################################
+# The following functions are used to create, retrieve, and manage authorization policies in the database.      #
+# These functions interact with the SQL database to store and retrieve policy representations.                  #
+#################################################################################################################
+
+
+def create_authorization_schema(config_data):
+    """
+    Create the authorization schema for the application.
+
+    This function initializes the authorization module and sets up the necessary
+    configurations for role-based access control.
+    Args:
+        config_data (str): YAML configuration string defining roles and permissions.
+    Returns:
+        dict: The parsed YAML configuration.
+    Raises:
+        APIException: If the policy cannot be stored in the database.
+    """
+
+    yaml_str = config_data
+    yaml_content = AuthorizationModule(config=config_data)()
+    DataModule(config=config_data)
+    ####################################################################################
+    ########################## store policy file to db #################################
+    logger.info(f"store policy file to db")
+    policy_id = str(uuid.uuid4())
+    # user_id = ""
+
+    user = ku.current_user()
+    if user:
+        user_id = user.get("username")
+
+    if sql_utils.policy_version_create(
+        policy_id, "Not specified", True, str(yaml_str), user_id
+    ):
+        return yaml_content
+    else:
+        raise APIException(
+            status_code=500,
+            message="Error: The new policy was not stored in the database",
+        )
+
+
+def retrieve_policy_from_db(policy_uuid):
+    """
+    Retrieve the policy representation from the database.
+    This function fetches the policy representation from the database
+    and formats it into a YAML string.
+    Args:
+        policy_uuid (str): The UUID of the policy to retrieve.
+    Returns:
+        str: The formatted YAML string representation of the policy.
+    Raises:
+        APIException: If the policy is not found in the database.
+    """
+
+    policy_repr = sql_utils.policy_representation_read(policy_uuid)
+
+    if policy_repr is None:
+        raise APIException(
+            status_code=404,
+            message="Error: The policy was not found in the database",
+        )
+
+    # Decode the policy representation from bytes to string
+    if policy_repr.startswith("b'"):
+        policy_repr = policy_repr[2:-1]
+
+    # Convert the policy representation to a YAML string
+    formatted_yaml_string = policy_repr.encode("utf-8").decode("unicode_escape")
+
+    return formatted_yaml_string
+
+
+def retrieve_policy_info_from_db(policy_uuid):
+    """
+    Retrieve the policy information from the database.
+    This function fetches the policy information from the database
+    and returns it as a dictionary.
+    Args:
+        policy_uuid (str): The UUID of the policy to retrieve.
+    Returns:
+        dict: The policy information as a dictionary.
+    Raises:
+        APIException: If the policy info not found in the database.
+    """
+
+    policy_repr = sql_utils.policy_info_read(policy_uuid)
+
+    if policy_repr is None:
+        raise APIException(
+            status_code=404,
+            message="Error: The policy info was not found in the database",
+        )
+
+    return policy_repr
+
+
+def retrieve_policies_list_from_db():
+    """
+    Retrieve the list of policies from the database.
+    This function fetches the list of all policies from the database
+    and returns it as a list of dictionaries.
+    Returns:
+        list: The list of policies.
+    Raises:
+        APIException: If the policies could not be fetched.
+    """
+
+    policies_list = sql_utils.list_policies()
+
+    if policies_list is None:
+        raise APIException(
+            status_code=500,
+            message="Error: Could not fetch policies from db",
+        )
+    policies_dict = {"policies": policies_list}
+
+    return policies_dict
+
+
+def load_authorization_schema():
+    """
+    Load the authorization schema from the database.
+    This function retrieves the last active policy from the database
+    and initializes the authorization module with it.
+    """
+    config_file = retrieve_policy_from_db("active")
+
+    if config_file:
+        yaml_content = AuthorizationModule(config=config_file)()
+
+    logger.info("Loading authorization schema %s", yaml_content)
