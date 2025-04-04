@@ -6,7 +6,7 @@ import kutils
 
 def test_get_token(app):
     with app.app_context():
-        tok = kutils.get_token("johndoe", "johndoe2")
+        tok = kutils.get_token("johndoe", "johndoe")
         assert tok is not None
 
 
@@ -33,7 +33,7 @@ def test_get_testuser_token(app, testuser):
 
 def test_api_users_token_johndoe(client):
     response = client.post(
-        "/api/v1/users/token", json={"username": "johndoe", "password": "johndoe2"}
+        "/api/v1/users/token", json={"username": "johndoe", "password": "johndoe"}
     )
     assert response.status_code == 200
     assert response.json["success"] == True
@@ -51,3 +51,9 @@ def test_api_users_token_testuser(client, testuser):
     assert response.status_code == 200
     assert response.json["success"] == True
     assert "token" in response.json["result"]
+
+
+def test_current_user(app_context, credentials):
+    cu = kutils.get_user_by_token(access_token=credentials.token)
+    assert "username" in cu
+    assert cu["username"] == "admin"

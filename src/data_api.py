@@ -4,6 +4,7 @@
 #
 import logging
 
+import authz_module
 import logsys
 
 logsys.configure()
@@ -2377,5 +2378,7 @@ def main(app):
 # This entry point is used with gunicorn -b -w ....
 def create_app():
     main(app)
+    with app.app_context():
+        authz_module.load_authorization_schema()
     # Return the application instance so that gunicorn can run it.
     return app
