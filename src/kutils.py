@@ -171,6 +171,20 @@ def introspect_token(access_token):
     else:
         raise AuthenticationError(message="Token is invalid or expired")
 
+def is_token_active(access_token):
+    """
+    Introspects the given access token to check if it's valid and active.
+    Returns True if the token is valid, False if the token is invalid or expired.
+    """
+
+    introspect_response = KEYCLOAK_OPENID_CLIENT().introspect(access_token)
+    # Check if the token is active
+    if introspect_response.get("active", False):
+        return introspect_response
+    else:
+        return False
+
+
 def current_user():
     """Return the current user from the session or the request headers.
 

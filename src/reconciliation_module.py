@@ -14,8 +14,8 @@ default_keycloak_roles = {
     "offline_access",
     "create-realm",
     "uma_authorization",
-    "puller",
-    "pusher",
+    "pullers",
+    "pushers",
 }
 default_client_roles = {"consoleAdmin"}
 
