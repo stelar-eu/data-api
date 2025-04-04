@@ -25,7 +25,7 @@ import cutils
 import kutils
 from processes import PROCESS
 from tasks import TASK
-from cutils import TAG, ORGANIZATION
+from cutils import TAG, ORGANIZATION, DATASET
 from auth import admin_required
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
@@ -72,11 +72,11 @@ def session_required(f):
 
         # If token doesn't exist or is invalid, clear session and redirect to login with a message
         if not access_token or not kutils.introspect_token(access_token):
-            keycloak_openid = kutils.initialize_keycloak_openid()
             # Revoke refresh token to log out
             try:
-                keycloak_openid.logout(session["refresh_token"])
+                kutils.KEYCLOAK_OPENID_CLIENT().logout(session["refresh_token"])
             except Exception as e:
+                logger.error(f"Error during logout: {e}")
                 pass
 
             session.clear()
@@ -119,9 +119,7 @@ def signup():
             return render_template(
                 "signup.html", STATUS="ERROR", ERROR_MSG="Passwords do not match."
             )
-        if not re.match(
-            r"^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", password
-        ):
+        if not re.match(r"^(?=.*[A-Z])(?=.*\d)(?=.*[^\w]).{8,}$", password):
             return render_template(
                 "signup.html",
                 STATUS="ERROR",
@@ -352,7 +350,6 @@ def catalog(page_number=None):
     # Handle default GET request
     packages = cutils.DATASET.fetch_entities(limit=limit, offset=offset)
 
-    # Search for datasets using the keyword
     count_pkg = cutils.count_packages("dataset")
 
     total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
@@ -482,9 +479,15 @@ def organizations():
 def organization(organization_id):
     org = ORGANIZATION.get_entity(organization_id)
     org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
+    datasets = DATASET.search_entities()
+
+    for dataset in datasets[:4]:
+        org["datasets"].append(DATASET.get_entity(dataset[0]))
+
     for member in org["members"][:5]:
         user = kutils.get_user(member[0])
         member.append(user.get("fullname", "STELAR User"))
+
     return render_template_with_s3(
         "organization.html", PARTNER_IMAGE_SRC=get_partner_logo(), organization=org
     )
@@ -579,8 +582,6 @@ def login():
     Talks with the specified Keycloak instance to authenticate the user and fetch
     his info (roles, name, username, etc). Inits an active session.
     """
-    keycloak_openid = kutils.initialize_keycloak_openid()
-
     EMPTY_EMAIL_ERROR = False
     EMPTY_PASSWORD_ERROR = False
     LOGIN_ERROR = False
@@ -606,12 +607,12 @@ def login():
         if not EMPTY_EMAIL_ERROR and not EMPTY_PASSWORD_ERROR:
             try:
                 # Request a token from Keycloak
-                token = keycloak_openid.token(email, password)
+                token = kutils.get_token(email, password)
                 session["access_token"] = token["access_token"]
                 session["refresh_token"] = token["refresh_token"]
 
                 # Introspect the token to get user details
-                userinfo = keycloak_openid.introspect(token["access_token"])
+                userinfo = kutils.get_user_by_token(token["access_token"])
 
                 if userinfo:
                     session["USER_NAME"] = userinfo.get("name")
@@ -646,6 +647,7 @@ def login():
                 else:
                     LOGIN_ERROR = True
             except Exception as e:
+                logger.debug(f"Error during login: {e}")
                 # Handle exceptions during the token request
                 if "disabled" in str(e):
                     INACTIVE_ERROR = True
@@ -671,11 +673,9 @@ def logout():
     if "ACTIVE" not in session or not session["ACTIVE"]:
         return redirect(url_for("dashboard_blueprint.login"))
 
-    keycloak_openid = kutils.initialize_keycloak_openid()
-
     # Revoke refresh token to log out
     try:
-        keycloak_openid.logout(session["refresh_token"])
+        kutils.KEYCLOAK_OPENID_CLIENT().logout(session["refresh_token"])
     except Exception as e:
         print(f"Error during logout: {e}")
 
