@@ -50,16 +50,8 @@ class KeycloakClientSingleton:
                     verify=True,
                 )
                 admin = KeycloakAdmin(connection=connection)
-                openid = KeycloakOpenID(
-                    server_url=config["KEYCLOAK_URL"],
-                    realm_name=config["REALM_NAME"],
-                    client_id=config["KEYCLOAK_CLIENT_ID"],
-                    client_secret_key=config["KEYCLOAK_CLIENT_SECRET"],
-                    verify=True,
-                )
-                cls._pool.append(
-                    {"connection": connection, "admin": admin, "openid": openid}
-                )
+                openid = connection.keycloak_openid
+                cls._pool.append({"admin": admin, "openid": openid})
 
 
 # The keycloak clients round-robin selectors
