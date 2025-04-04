@@ -33,6 +33,7 @@ from flask import g
 from data_module import DataModule
 from exceptions import APIException
 import kutils as ku
+from backend.kc import KEYCLOAK_ADMIN_CLIENT
 import monitor_module as mon
 import mutils as mu
 import reconciliation_module as rec
@@ -102,12 +103,11 @@ class AuthorizationModule:
         actions = data.get("actions", {})
         if isinstance(alias, str):
             alias = [alias]
-        
-        
+
         actions_list = []
         for al in alias:
             alias_value = actions.get(al)
-            
+
             # If no alias is found, return the original dictionary.
             if alias_value is None:
                 return perm
@@ -126,7 +126,7 @@ class AuthorizationModule:
                     actions_list.extend(item_value)
                 else:
                     actions_list.append(item)
-            
+
             perm["action"] = actions_list
         return perm
 
@@ -298,7 +298,7 @@ class ResourcePermissionsType(AuthorizationModule):
         logger.info("Initializing ResourcePermissionsType")
         self.roles_list = []
         self.new_policy_list = []
-        self.keycloak_admin = ku.init_admin_client_with_credentials()
+        self.keycloak_admin = KEYCLOAK_ADMIN_CLIENT()
         self.client_id = self.keycloak_admin.get_client_id("minio")
 
     def create_permissions(self, role, perm):
@@ -887,6 +887,7 @@ def authorization(resource: Resource, action: str) -> bool:
 
     return check_access(user_roles, action, resource)
 
+
 #################################################################################################################
 # The following functions are used to create, retrieve, and manage authorization policies in the database.      #
 # These functions interact with the SQL database to store and retrieve policy representations.                  #
@@ -929,7 +930,8 @@ def create_authorization_schema(config_data):
             status_code=500,
             message="Error: The new policy was not stored in the database",
         )
-    
+
+
 def retrieve_policy_from_db(policy_uuid):
     """
     Retrieve the policy representation from the database.
@@ -950,7 +952,7 @@ def retrieve_policy_from_db(policy_uuid):
             status_code=404,
             message="Error: The policy was not found in the database",
         )
-    
+
     # Decode the policy representation from bytes to string
     if policy_repr.startswith("b'"):
         policy_repr = policy_repr[2:-1]
@@ -959,6 +961,7 @@ def retrieve_policy_from_db(policy_uuid):
     formatted_yaml_string = policy_repr.encode("utf-8").decode("unicode_escape")
 
     return formatted_yaml_string
+
 
 def retrieve_policy_info_from_db(policy_uuid):
     """
@@ -983,6 +986,7 @@ def retrieve_policy_info_from_db(policy_uuid):
 
     return policy_repr
 
+
 def retrieve_policies_list_from_db():
     """
     Retrieve the list of policies from the database.
@@ -1005,6 +1009,7 @@ def retrieve_policies_list_from_db():
 
     return policies_dict
 
+
 def load_authorization_schema():
     """
     Load the authorization schema from the database.
@@ -1015,5 +1020,5 @@ def load_authorization_schema():
 
     if config_file:
         yaml_content = AuthorizationModule(config=config_file)()
-    
+
     logger.info("Loading authorization schema %s", yaml_content)

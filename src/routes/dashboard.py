@@ -71,7 +71,7 @@ def session_required(f):
         access_token = session.get("access_token")
 
         # If token doesn't exist or is invalid, clear session and redirect to login with a message
-        if not access_token or not kutils.introspect_token(access_token):
+        if not access_token or not kutils.is_token_active(access_token):
             # Revoke refresh token to log out
             try:
                 kutils.KEYCLOAK_OPENID_CLIENT().logout(session["refresh_token"])
