@@ -4,6 +4,7 @@ from marshmallow import EXCLUDE
 from entity import PackageCKANSchema, PackageEntity, PackageSchema
 from backend.registry import quay_request
 from qutils import REGISTRY
+from schema import NameID
 
 
 class ToolCKANSchema(PackageCKANSchema):
@@ -13,7 +14,7 @@ class ToolCKANSchema(PackageCKANSchema):
     inputs = fields.Raw(load_default={})
     outputs = fields.Raw(load_default={})
     parameters = fields.Raw(load_default={})
-    repository_name = fields.String(allow_none=True, load_default=None)
+    repository = fields.String(allow_none=True, load_default=None)
 
     # Use resources to represent images
     images = fields.Raw(data_key="resources", load_only=True)
@@ -26,7 +27,7 @@ class ToolCKANSchema(PackageCKANSchema):
             "inputs",
             "outputs",
             "parameters",
-            "repository_name",
+            "repository",
         ]
 
 
@@ -38,8 +39,6 @@ class ToolSchema(PackageSchema):
     inputs = fields.Dict(keys=fields.String, values=fields.String, dump_default={})
     outputs = fields.Dict(keys=fields.String, values=fields.String, dump_default={})
     parameters = fields.Dict(keys=fields.String, values=fields.String, dump_default={})
-
-    repository_name = fields.String(allow_none=True)
 
     # Use resources to represent images
     images = fields.Raw(dump_only=True)
@@ -64,14 +63,23 @@ class ToolEntity(PackageEntity):
         tool = self._enhance_from_registry(obj)
         return tool
 
+    def create(self, init_data):
+        # If the repository name is provided, create the repository in the registry
+        init_data["repository"] = init_data["name"]
+        REGISTRY.create_repository(
+            repository=init_data["repository"],
+            notes=init_data.get("notes", ""),
+        )
+        return super().create(init_data)
+
     def _enhance_from_registry(self, package: dict):
         """
         Enhance the tool entity with additional information from the registry.
         This method is called after the entity is created.
         """
-        if "repository_name" not in package:
+        if "repository" not in package:
             return package
-        images = REGISTRY.get_repository_tags(package["repository_name"])
+        images = REGISTRY.get_repository_tags(package["repository"])
         package.update({"images": images})
         return package
 

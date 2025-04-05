@@ -41,6 +41,27 @@ class QuayClient:
         response = quay_request(endpoint, method="GET")
         return response
 
+    def create_repository(self, repository: str, notes: str = ""):
+        """
+        Create a new repository in Quay.
+
+        Args:
+            repository (str): The name of the repository.
+
+        Returns:
+            dict: The response from the Quay API.
+        """
+        payload = {
+            "namespace": "stelar",
+            "repository": repository,
+            "visibility": "private",
+            "description": notes,
+            "repo_kind": "image",
+        }
+        endpoint = "/repository"
+        response = quay_request(endpoint, json=payload, method="POST")
+        return response
+
     def get_repository_tags(self, repository: str):
         """
         Get the tags of a repository from Quay.

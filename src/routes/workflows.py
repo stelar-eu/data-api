@@ -81,7 +81,7 @@ def api_revoke_registry_credentials(token_id):
 
 
 # --------------------------------------------------------
-# ------------------------ TOOLS -------------------------
+# ----------------------- IMAGES -------------------------
 # --------------------------------------------------------
 @workflows_bp.route("/tool/<entity_id>/manifests", methods=["GET"])
 @workflows_bp.doc(tags=["Tool Image Operations"])
