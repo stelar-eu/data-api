@@ -1,136 +1,169 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-    <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
-    <title>STELAR | Dashboard</title>
-    <!-- CSS files -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">    
-    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <title>STELAR | Dashboard</title>
+  <!-- CSS files -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
 </head>
-<body >
-    <div class="page">
-      <!-- Navbar -->
-      {%  include 'header.html' %}
-      <div class="page-wrapper">
-        <!-- Page header -->
-        <div class="page-header d-print-none">
-          <div class="container-xl">
-            <div class="row g-2 align-items-center">
-              <div class="col">
-                <!-- Page pre-title -->
-                <div class="page-pretitle">
-                  Overview
+
+<body>
+  <div class="page">
+    <!-- Navbar -->
+    {% include 'header.html' %}
+    <div class="page-wrapper">
+      <!-- Page header -->
+      <div class="page-header d-print-none">
+        <div class="container-xl">
+          <div class="row g-2 align-items-center">
+            <div class="col">
+              <!-- Page pre-title -->
+              <div class="page-pretitle">
+                Overview
+              </div>
+              <h2 class="page-title">
+                Dashboard
+              </h2>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Page body -->
+      <div class="page-body">
+        <div class="container-xl">
+          <div class="row row-cards">
+            <div class="col-lg-12">
+              <div class="card">
+                <div class="row row-0">
+                  <div class="col-3 order-md-last">
+                    <img src="{{ url_for('static', filename='graphic.png') }}"
+                      class="w-150 h-100 object-cover card-img-end" alt="STELAR Roadmap" />
+                  </div>
+                  <div class="col">
+                    <div class="card-body">
+                      <h1>Welcome to STELAR KLMS</h1>
+                      <p class="text-secondary align-justified">The STELAR project designs and develops a
+                        <strong>Knowledge Lake Management System (KLMS)</strong> for turning raw data lakes into
+                        knowledge lakes. This combination of a platform and its tools will also hold the purpose of
+                        simple and intelligent data discovery, AI-ready data, and semantic interoperability in smart
+                        agriculture and food safety applications. Through all of this, STELAR will embrace the FAIR
+                        (Findable, Accessible, Interoperable, Reusable) approach to data.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <h2 class="page-title">
-                  Dashboard
-                </h2>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="row row-cards">
+                <div class="col-sm-6 col-lg-4">
+                  <a class="card card-sm card-link" href="{{ url_for('dashboard_blueprint.processes') }}">
+                    <div class="card-body">
+                      <div class="row align-items-center">
+                        <div class="col-auto">
+                          <span
+                            class="bg-primary text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/currency-dollar -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                              stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-box">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5" />
+                              <path d="M12 12l8 -4.5" />
+                              <path d="M12 12l0 9" />
+                              <path d="M12 12l-8 -4.5" />
+                            </svg>
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M5 12l-2 0l9 -9l9 9l-2 0" />
+                            <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+                            <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" /></svg>
+                          </span>
+                        </div>
+                        <div class="col">
+                          <div class="font-weight-medium">
+                            Workflows
+                          </div>
+                          <div class="text-secondary">
+                            Manage Workflows Processes Executed in the KLMS
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                  <a class="card card-sm card-link" href="{{ url_for('dashboard_blueprint.catalog') }}">
+                    <div class="card-body">
+                      <div class="row align-items-center">
+                        <div class="col-auto">
+                          <span
+                            class="bg-primary text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/currency-dollar -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                              stroke-linejoin="round"
+                              class="icon icon-tabler icons-tabler-outline icon-tabler-file-database">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M12 12.75m-4 0a4 1.75 0 1 0 8 0a4 1.75 0 1 0 -8 0" />
+                              <path d="M8 12.5v3.75c0 .966 1.79 1.75 4 1.75s4 -.784 4 -1.75v-3.75" />
+                              <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+                              <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
+                            </svg>
+                          </span>
+                        </div>
+                        <div class="col">
+                          <div class="font-weight-medium">
+                            Data Catalog
+                          </div>
+                          <div class="text-secondary">
+                            Browse Metadata Registered in the KLMS
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                  <a class="card card-sm card-link" href="{{ url_for('dashboard_blueprint.catalog') }}">
+                    <div class="card-body">
+                      <div class="row align-items-center">
+                        <div class="col-auto">
+                          <span
+                            class="bg-primary text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/currency-dollar -->
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
+                              viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                              stroke-linecap="round" stroke-linejoin="round">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+                              <path d="M21 21l-6 -6" />
+                            </svg>
+                          </span>
+                        </div>
+                        <div class="col">
+                          <div class="font-weight-medium">
+                            Search
+                          </div>
+                          <div class="text-secondary">
+                            Perform Search Queries on the KLMS
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                </div>
               </div>
             </div>
           </div>
         </div>
-        <!-- Page body -->
-        <div class="page-body">
-          <div class="container-xl">
-            <div class="row row-cards">
-              <div class="col-lg-12">
-                <div class="card">
-                  <div class="row row-0">
-                    <div class="col-3 order-md-last">
-                      <img src="{{ url_for('static', filename='graphic.png') }}" class="w-150 h-100 object-cover card-img-end" alt="STELAR Roadmap" />
-                    </div>
-                    <div class="col">
-                      <div class="card-body">
-                        <h1>Welcome to STELAR KLMS</h1>
-                        <p class="text-secondary align-justified">The STELAR project designs and develops a <strong>Knowledge Lake Management System (KLMS)</strong> for turning raw data lakes into knowledge lakes. This combination of a platform and its tools will also hold the purpose of simple and intelligent data discovery, AI-ready data, and semantic interoperability in smart agriculture and food safety applications. Through all of this, STELAR will embrace the FAIR (Findable, Accessible, Interoperable, Reusable) approach to data.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-12">
-                <div class="row row-cards">
-                  <div class="col-sm-6 col-lg-4">
-                    <a class="card card-sm card-link" href="workflows">
-                      <div class="card-body">
-                        <div class="row align-items-center">
-                          <div class="col-auto">
-                            <span class="bg-primary text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/currency-dollar -->
-                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-box"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5" /><path d="M12 12l8 -4.5" /><path d="M12 12l0 9" /><path d="M12 12l-8 -4.5" /></svg><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l-2 0l9 -9l9 9l-2 0" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" /><path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" /></svg>
-                            </span>
-                          </div>
-                          <div class="col">
-                            <div class="font-weight-medium">
-                             Workflows
-                            </div>
-                            <div class="text-secondary">
-                              Manage Workflows Executed in the KLMS
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </a>
-                  </div>
-                  <div class="col-sm-6 col-lg-4">
-                    <a class="card card-sm card-link" href="datasets">
-                      <div class="card-body">
-                        <div class="row align-items-center">
-                          <div class="col-auto">
-                            <span class="bg-primary text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/currency-dollar -->
-                              <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-database">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12.75m-4 0a4 1.75 0 1 0 8 0a4 1.75 0 1 0 -8 0" />
-                                <path d="M8 12.5v3.75c0 .966 1.79 1.75 4 1.75s4 -.784 4 -1.75v-3.75" /><path d="M14 3v4a1 1 0 0 0 1 1h4" />
-                                <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /></svg>
-                            </span>
-                          </div>
-                          <div class="col">
-                            <div class="font-weight-medium">
-                             Datasets
-                            </div>
-                            <div class="text-secondary">
-                              Manage Datasets Registered in the KLMS
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </a>
-                  </div>
-                  <div class="col-sm-6 col-lg-4">
-                    <a class="card card-sm card-link" href="datasets">
-                      <div class="card-body">
-                        <div class="row align-items-center">
-                          <div class="col-auto">
-                            <span class="bg-primary text-white avatar"><!-- Download SVG icon from http://tabler-icons.io/i/currency-dollar -->
-                              <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                                <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/>
-                                <path d="M21 21l-6 -6"/>
-                            </svg>
-                            </span>
-                          </div>
-                          <div class="col">
-                            <div class="font-weight-medium">
-                             Search
-                            </div>
-                            <div class="text-secondary">
-                              Perform Search Queries on the KLMS
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>        
-          </div>
-        </div>
-       {% include 'footer.html' %}
       </div>
+      {% include 'footer.html' %}
     </div>
+  </div>
 </body>
+
 </html>

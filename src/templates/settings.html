@@ -654,26 +654,26 @@
                                                 <div class="col">
                                                     <div class="row g-2">
                                                         <div class="col">
-                                                            <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
+                                                            <input type="text" class="form-control form-control-lg text-center px-3 py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
                                                         </div>
                                                         <div class="col">
-                                                            <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
+                                                            <input type="text" class="form-control form-control-lg text-center px-3 py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
                                                         </div>
                                                         <div class="col">
-                                                            <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
+                                                            <input type="text" class="form-control form-control-lg text-center px-3 py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div class="col">
                                                     <div class="row g-2">
                                                         <div class="col">
-                                                            <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
+                                                            <input type="text" class="form-control form-control-lg text-center px-3 py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
                                                         </div>
                                                         <div class="col">
-                                                            <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
+                                                            <input type="text" class="form-control form-control-lg text-center px-3 py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
                                                         </div>
                                                         <div class="col">
-                                                            <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
+                                                            <input type="text" class="form-control form-control-lg text-center px-3 py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
                                                         </div>
                                                     </div>
                                                 </div>
@@ -684,7 +684,7 @@
                                 `);
 
                                 $('#verify-2fa-activation').on('click', function () {
-                                    $('#footer-2fa').prepend(loader);
+                                    $('#footer-2fa').prepend(createLoaderElement());
                                     document.querySelectorAll('[data-code-input]').forEach(input => input.setAttribute('disabled', 'disabled'));
                                     const otp = Array.from(document.querySelectorAll('[data-code-input]')).map(input => input.value).join('');
                                     const payload = { token: otp };

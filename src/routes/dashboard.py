@@ -84,6 +84,10 @@ def session_required(f):
             flash("Session Expired, Please Login Again", "warning")
             return redirect(url_for("dashboard_blueprint.login", next=request.url))
 
+        if "2FA_FLOW_IN_PROGRESS" in session and session["2FA_FLOW_IN_PROGRESS"]:
+            # Redirect to 2FA verification page
+            return redirect(url_for("dashboard_blueprint.verify_2fa", next=request.url))
+
         # If token is valid, continue with the requested function
         return f(*args, **kwargs)
 
@@ -503,10 +507,16 @@ def verify_2fa(next_url=None):
             return render_template("2fa.html", PARTNER_IMAGE_SRC=get_partner_logo())
     elif request.method == "POST":
         token = request.form.get("token")
+        if request.form.get("cancel"):
+            session.pop("PASSWORD_RESET_FLOW", None)
+            session.clear()
+            return redirect(url_for("dashboard_blueprint.login"))
+
         if token:
             try:
                 kutils.validate_2fa_otp(session.get("KEYCLOAK_ID_USER"), token)
                 session["ACTIVE"] = True
+                session.pop("2FA_FLOW_IN_PROGRESS", None)
                 if next_url:
                     return redirect(next_url)
                 else:
@@ -591,6 +601,8 @@ def login():
     # Check if the user is already logged in and redirect him to console home page if so
     if request.method == "GET":
         session["PASSWORD_RESET_FLOW"] = False
+        if "2FA_FLOW_IN_PROGRESS" in session and session["2FA_FLOW_IN_PROGRESS"]:
+            return redirect(url_for("dashboard_blueprint.verify_2fa"))
         if "ACTIVE" in session and session["ACTIVE"]:
             return redirect(url_for("dashboard_blueprint.dashboard_index"))
 
@@ -638,6 +650,7 @@ def login():
                     next_url = request.args.get("next")
 
                     if kutils.user_has_2fa(session["KEYCLOAK_ID_USER"]):
+                        session["2FA_FLOW_IN_PROGRESS"] = True
                         return redirect(url_for("dashboard_blueprint.verify_2fa"))
 
                     session["ACTIVE"] = True
