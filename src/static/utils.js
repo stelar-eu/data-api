@@ -13,6 +13,18 @@ function formatIsoDate(isoDate, includeSeconds = true) {
         return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
     }
 }
+function copyToClipboard(elementId) {
+    const inputElement = document.getElementById(elementId);
+    if (!inputElement) return;
+
+    inputElement.select();
+    inputElement.setSelectionRange(0, 99999); // For mobile devices
+
+    navigator.clipboard.writeText(inputElement.value).catch(err => {
+        console.error('Failed to copy text: ', err);
+    });
+}
+
 
 function createLoaderElement() {
     return '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'

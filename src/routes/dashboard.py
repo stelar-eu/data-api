@@ -239,6 +239,7 @@ def settings():
     return render_template_with_s3(
         "settings.html",
         PARTNER_IMAGE_SRC=get_partner_logo(),
+        REGISTRY_EXT_URL=current_app.config["settings"].get("REGISTRY_EXT_URL"),
         TWO_FACTOR_AUTH=TWO_FACTOR_AUTH,
     )
 

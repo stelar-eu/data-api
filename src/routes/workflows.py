@@ -66,6 +66,22 @@ def api_get_registry_credential(token_id):
     return REGISTRY.get_app_token(token_id)
 
 
+@workflows_bp.route("/registry/credentials", methods=["POST"])
+@workflows_bp.doc(tags=["Registry Operations"])
+@workflows_bp.input(schema.RegistryCredentials, location="json")
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
+@token_active
+def api_create_registry_credentials(json_data):
+    """Creates a new application token for the current user.
+    Args:
+        json_data: The validated JSON input containing the application token spec.
+    Returns:
+        A JSON with the application token details.
+    """
+    return REGISTRY.generate_app_token(json_data["title"])
+
+
 @workflows_bp.route("/registry/credentials/<token_id>", methods=["DELETE"])
 @workflows_bp.doc(tags=["Registry Operations"])
 @workflows_bp.output(schema.APIResponse, status_code=200)
