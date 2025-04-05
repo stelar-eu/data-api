@@ -49,20 +49,21 @@ def api_get_registry_credentials():
     return REGISTRY.get_app_tokens()
 
 
-@workflows_bp.route("/registry/credentials", methods=["POST"])
+@workflows_bp.route("/registry/credentials/<token_id>", methods=["GET"])
 @workflows_bp.doc(tags=["Registry Operations"])
-@workflows_bp.input(schema.RegistryCredentials, location="json")
 @workflows_bp.output(schema.APIResponse, status_code=200)
 @render_api_output(logger)
 @token_active
-def api_create_registry_credentials(json_data):
-    """Creates a new application token for the current user.
-    Args:
-        json_data: The validated JSON input containing the title of the application token.
-    Returns
-        A JSON with the application token.
+def api_get_registry_credential(token_id):
+    """Returns the detail for a set of application credentials of the current user.
+
+    Returns:
+        A JSON with the application credentials for the current user.
+    Responses:
+        - 200: Registry credentials successfully returned.
+        - 500: An unknown error occurred.
     """
-    return REGISTRY.generate_app_token(json_data["title"])
+    return REGISTRY.get_app_token(token_id)
 
 
 @workflows_bp.route("/registry/credentials/<token_id>", methods=["DELETE"])

@@ -176,6 +176,19 @@ class QuayClient:
             return tokens
         return response
 
+    def get_app_token(self, token_id: str) -> dict:
+        """
+        Get an application token for the current user in Quay.
+        Args:
+            token_id (str): The ID of the application token.
+
+        Returns:
+            dict: The application token.
+        """
+        endpoint = f"/user/apptoken/{token_id}"
+        response = quay_request(endpoint, method="GET")
+        return response["token"] if "token" in response else response
+
     def revoke_app_token(self, token_id: str):
         """
         Revoke an application token for the current user in Quay.
