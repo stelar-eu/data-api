@@ -100,10 +100,10 @@ def api_get_tool_image_manifests(entity_id):
         - 404: Tool is not found
         - 500: An unknown error occurred
     """
-    return REGISTRY.get_hashes(tools.TOOL.get_entity(entity_id)["repository_name"])
+    return REGISTRY.get_hashes(tools.TOOL.get_entity(entity_id)["repository"])
 
 
-@workflows_bp.route("/tool/<entity_id>/manifest/<image_tag>", methods=["GET"])
+@workflows_bp.route("/tool/<entity_id>/image/<image_tag>", methods=["GET"])
 @workflows_bp.doc(tags=["Tool Image Operations"])
 @workflows_bp.output(schema.APIResponse, status_code=200)
 @render_api_output(logger)
@@ -121,7 +121,7 @@ def api_get_tag_manifest(entity_id, image_tag):
         - 500: An unknown error occurred
     """
     return REGISTRY.get_manifest(
-        tools.TOOL.get_entity(entity_id)["repository_name"], image_tag
+        tools.TOOL.get_entity(entity_id)["repository"], image_tag
     )
 
 
@@ -141,7 +141,7 @@ def api_get_tool_repository(entity_id):
         - 404: Tool is not found
         - 500: An unknown error occurred
     """
-    return REGISTRY.get_repository(tools.TOOL.get_entity(entity_id)["repository_name"])
+    return REGISTRY.get_repository(tools.TOOL.get_entity(entity_id)["repository"])
 
 
 # --------------------------------------------------------
