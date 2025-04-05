@@ -43,6 +43,7 @@ import sql_utils
 import utils
 from auth import security_doc, token_active
 from backend.ckan import initialize_ckan_client
+from backend.registry import initialize_registry_client
 from backend.pgsql import get_mdb_pool, initialize_mdb_pool
 
 # Import demo token creator
@@ -2323,11 +2324,14 @@ def main(app):
         "KLMS_DOMAIN_NAME": os.getenv("KLMS_DOMAIN_NAME", "stelar.gr"),
         "MAIN_INGRESS_SUBDOMAIN": os.getenv("MAIN_INGRESS_SUBDOMAIN", "klms"),
         "KEYCLOAK_SUBDOMAIN": os.getenv("KEYCLOAK_SUBDOMAIN", "kc"),
+        "REGISTRY_SUBDOMAIN": os.getenv("REGISTRY_SUBDOMAIN", "img"),
         "MINIO_API_SUBDOMAIN": os.getenv("MINIO_API_SUBDOMAIN", "minio"),
         "MINIO_API_EXT_URL": os.getenv("MINIO_API_EXT_URL", "***MISSING***"),
         "KEYCLOAK_EXT_URL": os.getenv("KEYCLOAK_EXT_URL", "***MISSING***"),
         "KEYCLOAK_ISSUER_URL": os.getenv("KEYCLOAK_ISSUER_URL", "***MISSING***"),
         "MAIN_EXT_URL": os.getenv("MAIN_EXT_URL", "***MISSING***"),
+        "REGISTRY_API": os.getenv("REGISTRY_API", "http://quay:8080"),
+        "REGISTRY_EXT_URL": os.getenv("REGISTRY_EXT_URL", "***MISSING***"),
         "S3_CONSOLE_URL": os.getenv("MINIO_CONSOLE_URL", ""),
         "SMTP_SERVER": os.getenv("SMTP_SERVER", "stelar.gr"),
         "SMTP_PORT": os.getenv("SMTP_PORT", "465"),
@@ -2349,6 +2353,9 @@ def main(app):
 
     # Configure the CKAN client
     initialize_ckan_client(app.config["settings"])
+
+    # Configure the Registry client
+    initialize_registry_client(app.config["settings"])
 
     # Configure execution
     execution.configure(app.config["settings"])

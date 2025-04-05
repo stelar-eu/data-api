@@ -5,6 +5,7 @@ from flask import request
 
 import schema
 import tools
+from qutils import REGISTRY
 import wflow
 import processes
 import tasks
@@ -26,6 +27,122 @@ logger.info("Generating endpoints for process")
 generate_endpoints(processes.PROCESS, workflows_bp, logger)
 generate_endpoints(tools.TOOL, workflows_bp, logger)
 generate_endpoints(wflow.WORKFLOW, workflows_bp, logger)
+
+
+# --------------------------------------------------------
+# ----------------------- REGISTRY -----------------------
+# --------------------------------------------------------
+@workflows_bp.route("/registry/credentials", methods=["GET"])
+@workflows_bp.doc(tags=["Registry Operations"])
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
+@token_active
+def api_get_registry_credentials():
+    """Returns the application credentials of the current user.
+
+    Returns:
+        A JSON with the application credentials for the current user.
+    Responses:
+        - 200: Registry credentials successfully returned.
+        - 500: An unknown error occurred.
+    """
+    return REGISTRY.get_app_tokens()
+
+
+@workflows_bp.route("/registry/credentials", methods=["POST"])
+@workflows_bp.doc(tags=["Registry Operations"])
+@workflows_bp.input(schema.RegistryCredentials, location="json")
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
+@token_active
+def api_create_registry_credentials(json_data):
+    """Creates a new application token for the current user.
+    Args:
+        json_data: The validated JSON input containing the title of the application token.
+    Returns
+        A JSON with the application token.
+    """
+    return REGISTRY.generate_app_token(json_data["title"])
+
+
+@workflows_bp.route("/registry/credentials/<token_id>", methods=["DELETE"])
+@workflows_bp.doc(tags=["Registry Operations"])
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
+@token_active
+def api_revoke_registry_credentials(token_id):
+    """Revokes an application token for the current user.
+    Args:
+        token_id: The unique identifier of the application token.
+    Returns:
+        A JSON with the details of the revoked application token.
+    """
+    return REGISTRY.revoke_app_token(token_id)
+
+
+# --------------------------------------------------------
+# ------------------------ TOOLS -------------------------
+# --------------------------------------------------------
+@workflows_bp.route("/tool/<entity_id>/manifests", methods=["GET"])
+@workflows_bp.doc(tags=["Tool Image Operations"])
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
+@token_active
+def api_get_tool_image_manifests(entity_id):
+    """Returns the image manifests of the specific Tool. This JSON contains the manifest digests.
+
+    Args:
+        entity_id: The unique identifier of the Tool.
+    Returns:
+        A JSON with the image tag manifests
+    Responses:
+        - 200: Tool image manifests successfully returned.
+        - 404: Tool is not found
+        - 500: An unknown error occurred
+    """
+    return REGISTRY.get_hashes(tools.TOOL.get_entity(entity_id)["repository_name"])
+
+
+@workflows_bp.route("/tool/<entity_id>/manifest/<image_tag>", methods=["GET"])
+@workflows_bp.doc(tags=["Tool Image Operations"])
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
+@token_active
+def api_get_tag_manifest(entity_id, image_tag):
+    """Returns the tag manifest of the specific Tool.
+    Args:
+        entity_id: The unique identifier of the Tool.
+        image_tag: The tag of the image.
+    Returns:
+        A JSON with the image tag manifest
+    Responses:
+        - 200: Tool image manifest successfully returned.
+        - 404: Tool is not found
+        - 500: An unknown error occurred
+    """
+    return REGISTRY.get_manifest(
+        tools.TOOL.get_entity(entity_id)["repository_name"], image_tag
+    )
+
+
+@workflows_bp.route("/tool/<entity_id>/image", methods=["GET"])
+@workflows_bp.doc(tags=["Tool Image Operations"])
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
+@token_active
+def api_get_tool_repository(entity_id):
+    """Returns the image repository of the specific Tool. This JSON contains the image repository.
+    Args:
+        entity_id: The unique identifier of the Tool.
+    Returns:
+        A JSON with the image repository metadata
+    Responses:
+        - 200: Tool image repository successfully returned.
+        - 404: Tool is not found
+        - 500: An unknown error occurred
+    """
+    return REGISTRY.get_repository(tools.TOOL.get_entity(entity_id)["repository_name"])
+
 
 # --------------------------------------------------------
 # ------------------------ TASKS -------------------------

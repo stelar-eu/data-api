@@ -2,6 +2,8 @@ from apiflask import fields, validators
 from marshmallow import EXCLUDE
 
 from entity import PackageCKANSchema, PackageEntity, PackageSchema
+from backend.registry import quay_request
+from qutils import REGISTRY
 
 
 class ToolCKANSchema(PackageCKANSchema):
@@ -11,6 +13,7 @@ class ToolCKANSchema(PackageCKANSchema):
     inputs = fields.Raw(load_default={})
     outputs = fields.Raw(load_default={})
     parameters = fields.Raw(load_default={})
+    repository_name = fields.String(allow_none=True, load_default=None)
 
     # Use resources to represent images
     images = fields.Raw(data_key="resources", load_only=True)
@@ -18,7 +21,13 @@ class ToolCKANSchema(PackageCKANSchema):
     class Meta(PackageCKANSchema.Meta):
         exclude = ["title", "url"]
         unknown = EXCLUDE
-        extra_attributes = ["programming_language", "inputs", "outputs", "parameters"]
+        extra_attributes = [
+            "programming_language",
+            "inputs",
+            "outputs",
+            "parameters",
+            "repository_name",
+        ]
 
 
 class ToolSchema(PackageSchema):
@@ -29,6 +38,8 @@ class ToolSchema(PackageSchema):
     inputs = fields.Dict(keys=fields.String, values=fields.String, dump_default={})
     outputs = fields.Dict(keys=fields.String, values=fields.String, dump_default={})
     parameters = fields.Dict(keys=fields.String, values=fields.String, dump_default={})
+
+    repository_name = fields.String(allow_none=True)
 
     # Use resources to represent images
     images = fields.Raw(dump_only=True)
@@ -47,6 +58,22 @@ class ToolEntity(PackageEntity):
             package_type="tool",
             ckan_schema=ToolCKANSchema(),
         )
+
+    def load_from_ckan(self, raw_obj):
+        obj = super().load_from_ckan(raw_obj)
+        tool = self._enhance_from_registry(obj)
+        return tool
+
+    def _enhance_from_registry(self, package: dict):
+        """
+        Enhance the tool entity with additional information from the registry.
+        This method is called after the entity is created.
+        """
+        if "repository_name" not in package:
+            return package
+        images = REGISTRY.get_repository_tags(package["repository_name"])
+        package.update({"images": images})
+        return package
 
 
 TOOL = ToolEntity()
