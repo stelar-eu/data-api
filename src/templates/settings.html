@@ -8,6 +8,8 @@
     <title>STELAR | Account Settings</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+    <script src="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone-min.js"></script>
+    <link href="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone.css" rel="stylesheet" type="text/css" />
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
     <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
@@ -62,6 +64,10 @@
 
                                     <div class="row align-items-center">
                                         <div class="col-auto">
+                                            {% if AVATAR %}
+                                            <img src="{{ AVATAR }}" alt="User Avatar"
+                                                class="avatar avatar-xl d-block mx-auto" style="object-fit: cover;">
+                                            {% else %}
                                             <span class="avatar avatar-xl">
                                                 {% set user_name = session.get('USER_NAME') %}
                                                 {% if user_name and user_name.strip() %}
@@ -70,10 +76,13 @@
                                                 U
                                                 {% endif %}
                                             </span>
+                                            {% endif %}
                                         </div>
                                         <div class="col-auto d-flex flex-column">
-                                            <a href="#" class="btn mb-2">Change avatar</a>
-                                            <a href="#" class="btn btn-ghost-danger">Delete avatar</a>
+                                            <a class="btn mb-2" data-bs-toggle="modal"
+                                                data-bs-target="#avatar-modal">Change avatar</a>
+                                            <button class="btn btn-ghost-danger" onclick="deleteAvatar()">Delete
+                                                avatar</button>
                                         </div>
                                         <div class="col-auto ms-auto">
                                             <div class="row text-center">
@@ -562,44 +571,40 @@
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div class="modal modal-blur fade" id="modal-danger" tabindex="-1" role="dialog"
-                                        aria-hidden="true" style="display: none;">
-                                        <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+                                    <div class="modal modal-blur fade" id="avatar-modal" tabindex="-1"
+                                        style="display: none;" aria-hidden="true">
+                                        <div class="modal-dialog modal-1 modal-dialog-centered" role="document">
                                             <div class="modal-content">
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                    aria-label="Close"></button>
-                                                <div class="modal-status bg-danger"></div>
-                                                <div class="modal-body text-center py-4">
-                                                    <!-- Error icon -->
-                                                    <svg xmlns="http://www.w3.org/2000/svg"
-                                                        class="icon mb-2 text-danger icon-lg" width="24" height="24"
-                                                        viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
-                                                        fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                        <path
-                                                            d="M10.24 3.957l-8.422 14.06a1.989 1.989 0 0 0 1.7 2.983h16.845a1.989 1.989 0 0 0 1.7 -2.983l-8.423 -14.06a1.989 1.989 0 0 0 -3.4 0z" />
-                                                        <path d="M12 9v4" />
-                                                        <path d="M12 17h.01" />
-                                                    </svg>
-                                                    <h3>Error</h3>
-                                                    <div id="errorModalBody" class="text-secondary">An error
-                                                        occurred.
-                                                    </div>
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Upload new Avatar</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                        aria-label="Close"></button>
                                                 </div>
-                                                <div class="modal-footer">
-                                                    <div class="w-100">
-                                                        <div class="row">
-                                                            <div class="col">
-                                                                <a href="#" class="btn w-100"
-                                                                    data-bs-dismiss="modal">Close</a>
-                                                            </div>
+                                                <div class="modal-body" id="avatar-modal-body">
+                                                    <form class="dropzone dropzone-clickable text-secondary"
+                                                        id="avatar-dropzone"
+                                                        action="{{ url_for('settings_blueprint.upload_avatar') }}"
+                                                        style="border: var(--tblr-border-width) dashed var(--tblr-border-color)">
+                                                        <div class="dz-message dz-default">
+                                                            <h3 class="dropzone-msg-title">Drop or select your image
+                                                            </h3>
+                                                            <span class="dropzone-msg-desc">Maximum size is 2MB. Files
+                                                                types: png, jpeg only</span>
                                                         </div>
-                                                    </div>
+                                                        <div class="fallback">
+                                                            <input name="avatar" type="file"
+                                                                accept="image/png, image/jpeg">
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                                <div class=" modal-footer">
+                                                    <button type="button" class="btn btn-primary"
+                                                        id="upload-avatar-btn">Upload Avatar</button>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
+
                                     <h3 class="card-title mt-4">Delete Account</h3>
                                     <p class="card-subtitle">This action is irreversible! Your datasets and
                                         workflows
@@ -629,6 +634,65 @@
         </div>
     </div>
     <script>
+        function deleteAvatar() {
+            if (confirm("Are you sure you want to delete your avatar?")) {
+                $.ajax({
+                    url: `{{ url_for('settings_blueprint.delete_avatar') }}`,
+                    type: 'DELETE',
+                    success: function (data) {
+                        if (data.success) {
+                            location.reload();
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        if (xhr.status === 401 || xhr.status === 403) {
+                            window.location.href = '/';
+                        }
+                        $('#footer-docker-creds .spinner-border').remove()
+                    }
+                });
+            }
+        }
+    </script>
+    <script>
+
+
+        document.addEventListener("DOMContentLoaded", function () {
+            Dropzone.autoDiscover = false;
+            var avatarDropzone = new Dropzone("#avatar-dropzone", {
+                maxFiles: 1,
+                maxFilesize: 2, // Maximum file size in MB
+                acceptedFiles: 'image/png,image/jpeg',
+                dictRemoveFile: "Delete",
+                dictMaxFilesExceeded: "Only one file allowed.",
+                autoProcessQueue: false,
+                addRemoveLinks: true,
+            });
+
+            // On click of upload button, process the queue (i.e. upload the file)
+            document.getElementById("upload-avatar-btn").addEventListener("click", function () {
+                if (avatarDropzone.getAcceptedFiles().length === 0) {
+                    alert("Please select an image to upload.");
+                } else {
+                    avatarDropzone.processQueue();
+                }
+            });
+
+            // On successful upload, reload the page
+            avatarDropzone.on("success", function (file, response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert(response.message);
+                }
+            });
+
+            // Handle error events
+            avatarDropzone.on("error", function (file, errorMessage) {
+                alert(errorMessage);
+            });
+        });
+
 
         function disable2FA() {
             $('#disable-2fa').addClass('disabled');
@@ -654,6 +718,9 @@
                 }
             });
         }
+
+
+
 
 
         $(document).ready(function () {

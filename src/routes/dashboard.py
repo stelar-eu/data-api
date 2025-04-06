@@ -40,6 +40,7 @@ def render_template_with_s3(template_name, **kwargs):
     config = current_app.config["settings"]
     # Add the S3_CONSOLE_URL to the kwargs
     kwargs["S3_CONSOLE_URL"] = config.get("S3_CONSOLE_URL", "#")
+    kwargs["AVATAR"] = session.get("AVATAR", None)
     return render_template(template_name, **kwargs)
 
 
@@ -57,6 +58,22 @@ def get_partner_logo():
         else:
             PARTNER_IMAGE = url_for("static", filename="logos/arc.png")
     return PARTNER_IMAGE
+
+
+def get_avatar():
+    """
+    Returns the URL of the user's avatar in static/avatars/ if it exists,
+    otherwise returns None.
+    """
+    username = session.get("USER_USERNAME")
+    if username:
+        avatar_filename = f"{username}.png"  # Modify extension if needed.
+        avatar_path = os.path.join(
+            current_app.root_path, "static", "avatars", avatar_filename
+        )
+        if os.path.exists(avatar_path):
+            return url_for("static", filename=f"avatars/{avatar_filename}")
+    return None
 
 
 def session_required(f):
@@ -77,10 +94,7 @@ def session_required(f):
                 kutils.KEYCLOAK_OPENID_CLIENT().logout(session["refresh_token"])
             except Exception as e:
                 logger.error(f"Error during logout: {e}")
-                pass
-
             session.clear()
-            # Clear local session and redirect to the login page
             flash("Session Expired, Please Login Again", "warning")
             return redirect(url_for("dashboard_blueprint.login", next=request.url))
 
@@ -484,10 +498,10 @@ def organizations():
 def organization(organization_id):
     org = ORGANIZATION.get_entity(organization_id)
     org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
-    datasets = DATASET.search_entities()
+    # datasets = DATASET.search_entities()
 
-    for dataset in datasets[:4]:
-        org["datasets"].append(DATASET.get_entity(dataset[0]))
+    # for dataset in datasets[:4]:
+    #     org["datasets"].append(DATASET.get_entity(dataset[0]))
 
     for member in org["members"][:5]:
         user = kutils.get_user(member[0])
@@ -634,6 +648,7 @@ def login():
                         "email_verified", False
                     )
                     session["USER_USERNAME"] = userinfo.get("preferred_username")
+                    session["AVATAR"] = get_avatar()
                     session["USER_ROLES"] = userinfo.get("realm_access", {}).get(
                         "roles", []
                     )
