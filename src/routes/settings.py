@@ -418,8 +418,8 @@ def validate_2fa_activation():
                 )
         else:
             return (
-                jsonify({"success": False, "message": "Failed to activate 2FA."}),
-                403,
+                jsonify({"success": False, "message": "Invalid OTP."}),
+                401,
             )
     else:
         return (

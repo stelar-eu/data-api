@@ -62,7 +62,7 @@ function createAlertElement(type, message) {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     if (type === 'success') {
         path.setAttribute('d', 'M5 12l5 5l10 -10');
-    } else if (type === 'error') {
+    } else if (type === 'danger') {
         path.setAttribute('d', 'M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0');
         const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path2.setAttribute('d', 'M12 8v4');
