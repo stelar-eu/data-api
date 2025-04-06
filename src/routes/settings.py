@@ -5,9 +5,11 @@ import ssl
 
 from apiflask import APIBlueprint
 from email_validator import EmailNotValidError, validate_email
-from flask import current_app, jsonify, request, session
+from flask import current_app, jsonify, request, session, make_response
 from keycloak.exceptions import KeycloakAuthenticationError
-
+from exceptions import InternalException
+from routes.generic import render_api_output
+import schema
 import kutils
 from routes.dashboard import session_required
 
@@ -410,11 +412,20 @@ def validate_2fa_activation():
                     {"success": True, "message": "2FA activated successfully."}
                 )
             else:
-                return jsonify({"success": False, "message": "Failed to activate 2FA."})
+                return (
+                    jsonify({"success": False, "message": "Failed to activate 2FA."}),
+                    403,
+                )
         else:
-            return jsonify({"success": False, "message": "Failed to activate 2FA."})
+            return (
+                jsonify({"success": False, "message": "Failed to activate 2FA."}),
+                403,
+            )
     else:
-        return jsonify({"success": False, "message": "No 2FA activation in progress."})
+        return (
+            jsonify({"success": False, "message": "No 2FA activation in progress."}),
+            400,
+        )
 
 
 @settings_bp.route("/check-2fa-state", methods=["GET"])
@@ -457,9 +468,13 @@ def validate_2fa_otp():
     token = request.json.get("token", "").strip()
 
     if kutils.validate_2fa_otp(session.get("KEYCLOAK_ID_USER"), token):
-        return jsonify({"success": True, "message": "2FA OTP is valid."})
+        return make_response(
+            jsonify({"success": True, "message": "2FA OTP is valid."}), 200
+        )
     else:
-        return jsonify({"success": False, "message": "Invalid 2FA OTP."})
+        return make_response(
+            jsonify({"success": False, "message": "Invalid 2FA OTP."}), 403
+        )
 
 
 @settings_bp.route("/disable-2fa", methods=["POST"])
@@ -467,7 +482,6 @@ def validate_2fa_otp():
 def disable_2fa():
     """
     Disable 2FA for the current user.
-
     This endpoint disables two-factor authentication (2FA) for the user associated with the current session.
     It does not require any additional data in the request, as it only disables 2FA for the current user.
 
@@ -475,6 +489,6 @@ def disable_2fa():
         JSON response indicating the success or failure of the 2FA deactivation process.
     """
     if kutils.disable_2fa(session.get("KEYCLOAK_ID_USER")):
-        return jsonify({"success": True, "message": "2FA disabled successfully."})
+        return {"message": "2FA disabled successfully.", "success": True}, 200
     else:
-        return jsonify({"success": False, "message": "Failed to disable 2FA."})
+        return {"message": "2FA failed to disable.", "success": False}, 400

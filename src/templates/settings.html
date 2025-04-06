@@ -506,14 +506,16 @@
                                                             </p>
                                                         </div>
                                                         <div class="col-lg-12 text-center">
-                                                            <button class="btn btn-danger mt-2" id='disable-2fa'>Disable
+                                                            <button class="btn btn-danger mt-2" id="disable-2fa"
+                                                                onclick="disable2FA()">Disable
                                                                 2FA</button>
                                                         </div>
+
                                                         <div class="col-8 ms-auto me-auto text-center mt-4">
                                                             <p class="text text-secondary"><strong>It is strongly
                                                                     suggested that you keep 2FA enabled at all times
                                                                     for
-                                                                    security reasons.<strong></p>
+                                                                    security reasons.</strong></p>
                                                         </div>
                                                         {% else %}
                                                         <div class="col-lg-12 text-center mb-4">
@@ -622,11 +624,38 @@
                         </div>
                     </div>
                 </div>
+                {% include 'footer.html' %}
             </div>
-            {% include 'footer.html' %}
         </div>
     </div>
     <script>
+
+        function disable2FA() {
+            $('#disable-2fa').addClass('disabled');
+            $('#footer-2fa .spinner-border').remove()
+            $('#footer-2fa').prepend(createLoaderElement())
+            $.ajax({
+                url: `{{ url_for('settings_blueprint.disable_2fa') }}`,
+                type: 'POST',
+                success: function (data) {
+                    if (data.success) {
+                        $('#modal-2fa').modal('hide');
+                        location.reload();
+                    }
+                },
+                error: function () {
+                    $('#footer-2fa .spinner-border').remove()
+                    $('#footer-2fa').prepend('<div class="alert alert-danger p-2 me-auto">Error disabling 2FA!</div>');
+                    setTimeout(function () {
+                        $('#footer-2fa .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                }
+            });
+        }
+
+
         $(document).ready(function () {
 
             $('#enable-2fa').on('click', function () {
@@ -686,6 +715,7 @@
                                 $('#verify-2fa-activation').on('click', function () {
                                     $('#footer-2fa').prepend(createLoaderElement());
                                     document.querySelectorAll('[data-code-input]').forEach(input => input.setAttribute('disabled', 'disabled'));
+                                    $('#verify-2fa-activation').addClass("disabled")
                                     const otp = Array.from(document.querySelectorAll('[data-code-input]')).map(input => input.value).join('');
                                     const payload = { token: otp };
                                     $.ajax({
@@ -700,9 +730,10 @@
                                             }
                                         },
                                         error: function () {
-                                            document.querySelectorAll('[data-code-input]').forEach(input => input.setAttribute('disabled', 'enabled'));
+                                            $('#verify-2fa-activation').removeClass("disabled")
+                                            document.querySelectorAll('[data-code-input]').forEach(input => input.removeAttribute('disabled'));
                                             $('#footer-2fa .spinner-border').remove()
-                                            $('#footer-2fa').prepend('<div class="alert alert-danger p-2 me-auto">Dataset Failed to Publish</div>');
+                                            $('#footer-2fa').prepend(createAlertElement('danger', 'OTP verification failed'));
                                             setTimeout(function () {
                                                 $('#footer-2fa .alert').fadeOut(500, function () {
                                                     $(this).remove();

@@ -19,7 +19,14 @@ from backend.ckan import ckan_request
 from backend.pgsql import execSql
 from backend.kc import KEYCLOAK_ADMIN_CLIENT, KEYCLOAK_OPENID_CLIENT
 
-from exceptions import APIException, AuthenticationError, AuthorizationError, BackendError, InternalException, InvalidError
+from exceptions import (
+    APIException,
+    AuthenticationError,
+    AuthorizationError,
+    BackendError,
+    InternalException,
+    InvalidError,
+)
 from utils import is_valid_uuid, validate_email
 
 logger = logging.getLogger(__name__)
@@ -112,7 +119,6 @@ def verify_reset_token(token, user_id):
         return None
 
 
-
 def introspect_admin_token(access_token):
     """
     Introspects the given access token to check if it's valid, active,
@@ -121,7 +127,7 @@ def introspect_admin_token(access_token):
     Raises TokenExpiredError if the token is inactive/expired.
     Raises AuthorizationError if the token is active but not for an admin user.
     """
-    
+
     # keycloak_openid = initialize_keycloak_openid()
     # introspect_response = keycloak_openid.introspect(access_token)
     introspect_response = introspect_token(access_token)
@@ -129,7 +135,7 @@ def introspect_admin_token(access_token):
     # # Check if the token is active
     # if not introspect_response.get("active", False):
     #     raise AuthenticationError(message="Token expired")
-    
+
     # Optionally check for realm_access if needed
     if not introspect_response.get("realm_access", False):
         # You can decide how to handle this; here we treat it as a token issue.
@@ -144,10 +150,8 @@ def introspect_admin_token(access_token):
         raise AuthorizationError(
             message="Bearer Token is not related to an admin user",
         )
-    
+
     return True
-
-
 
 
 def get_user_by_token(access_token):
@@ -170,6 +174,7 @@ def introspect_token(access_token):
         return introspect_response
     else:
         raise AuthenticationError(message="Token is invalid or expired")
+
 
 def is_token_active(access_token):
     """
@@ -359,8 +364,7 @@ def is_2fa_otp_valid(secret, token):
 
 def disable_2fa(user_id):
     if is_valid_uuid(user_id):
-        if sql_utils.two_factor_revoke(user_id=user_id):
-            return True
+        return sql_utils.two_factor_revoke(user_id=user_id)
     else:
         raise ValueError("Not valid UUID")
 

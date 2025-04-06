@@ -195,8 +195,10 @@ def two_factor_revoke(user_id) -> str:
         if "status" in resp:
             if not resp.get("status"):
                 return False
-        else:
-            return False
+            else:
+                return True
+
+    return False
 
 
 def two_factor_auth_retrieve(user_id) -> str:
