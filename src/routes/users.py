@@ -42,38 +42,7 @@ users_bp = APIBlueprint(
 @users_bp.route("/", methods=["GET"])
 @users_bp.doc(tags=["User Management"], security=security_doc)
 @users_bp.input(schema.PaginationParameters, location="query")
-@users_bp.output(
-    schema.ResponseAmbiguous,
-    status_code=200,
-    example={
-        "help": "http://klms.stelar.gr/stelar/docs",
-        "success": True,
-        "result": {
-            "count": 2,
-            "users": [
-                {
-                    "active": True,
-                    "email": "user1@example.com",
-                    "fullname": "User One",
-                    "joined_date": "01-01-2024",
-                    "roles": ["admin"],
-                    "user_id": "uuid-1234",
-                    "username": "userone",
-                },
-                {
-                    "active": True,
-                    "email": "user2@example.com",
-                    "fullname": "User Two",
-                    "joined_date": "01-01-2024",
-                    "roles": ["user"],
-                    "user_id": "uuid-5678",
-                    "username": "usertwo",
-                },
-            ],
-        },
-    },
-)
-@token_active
+@render_api_output(logger)
 @admin_required
 def get_users(query_data):
     """
@@ -86,21 +55,10 @@ def get_users(query_data):
         - limit: Maximum number of users returned per request, if limit is 0 all users are returned.
         - offset: Offset of the result by #offset user.
     """
-    try:
-        offset = query_data.get("offset", 0)
-        limit = query_data.get("limit", 0)
+    offset = query_data.get("offset", 0)
+    limit = query_data.get("limit", 0)
 
-        users = kutils.get_users_from_keycloak(offset=offset, limit=limit)
-
-        return {
-            "help": request.url,
-            "result": {"users": users, "count": len(users)},
-            "success": True,
-        }, 200
-    except ValueError as ve:
-        return {"help": request.url, "result": {str(e)}, "success": False}, 400
-    except Exception as e:
-        return {"help": request.url, "result": {str(e)}, "success": False}, 500
+    return kutils.get_users_from_keycloak(offset=offset, limit=limit)
 
 
 @users_bp.route("/token", methods=["POST"])
