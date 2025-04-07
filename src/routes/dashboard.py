@@ -25,6 +25,7 @@ import cutils
 import kutils
 from processes import PROCESS
 from tasks import TASK
+from tools import TOOL
 from cutils import TAG, ORGANIZATION, DATASET
 from auth import admin_required
 
@@ -388,6 +389,17 @@ def catalog(page_number=None):
 @session_required
 def tools():
     return render_template_with_s3("tools.html", PARTNER_IMAGE_SRC=get_partner_logo())
+
+
+@dashboard_bp.route("/tool/<tool_id>", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+def tool(tool_id):
+
+    tool = TOOL.get_entity(tool_id)
+    return render_template_with_s3(tool=tool, 
+                                   "tool.html", 
+                                   PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 @dashboard_bp.route("/datasets/compare", methods=["GET"])

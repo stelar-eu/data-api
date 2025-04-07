@@ -43,6 +43,8 @@ class ToolSchema(PackageSchema):
     # Use resources to represent images
     images = fields.Raw(dump_only=True)
 
+    repository = fields.String(allow_none=True, dump_only=True)
+
     class Meta:
         exclude = ["title", "url"]
 
@@ -77,7 +79,7 @@ class ToolEntity(PackageEntity):
         Enhance the tool entity with additional information from the registry.
         This method is called after the entity is created.
         """
-        if "repository" not in package:
+        if "repository" not in package or package["repository"] is None:
             return package
         images = REGISTRY.get_repository_tags(package["repository"])
         package.update({"images": images})
