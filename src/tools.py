@@ -81,7 +81,10 @@ class ToolEntity(PackageEntity):
         """
         if "repository" not in package or package["repository"] is None:
             return package
-        images = REGISTRY.get_repository_tags(package["repository"])
+        try:
+            images = REGISTRY.get_repository_tags(package["repository"])
+        except:
+            return package
         package.update({"images": images})
         return package
 

@@ -258,7 +258,7 @@
                     }
                 },
                 error: function (xhr, status, error) {
-                    if (xhr.status === 401 || xhr.status === 403) {
+                    if (xhr.status === 401) {
                         window.location.href = '/';
                     }
                 }

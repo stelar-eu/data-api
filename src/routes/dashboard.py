@@ -11,6 +11,8 @@ from functools import wraps
 from math import ceil
 
 from apiflask import APIBlueprint
+
+from exceptions import InvalidError
 from flask import (
     current_app,
     flash,
@@ -164,7 +166,7 @@ def signup():
                 # Check if the username is unique.
                 kutils.username_unique(username)
                 break
-            except ValueError:
+            except InvalidError:
                 # If not unique, append a counter to the base username.
                 counter += 1
                 username = f"{username_base}{counter}"
@@ -397,9 +399,9 @@ def tools():
 def tool(tool_id):
 
     tool = TOOL.get_entity(tool_id)
-    return render_template_with_s3(tool=tool, 
-                                   "tool.html", 
-                                   PARTNER_IMAGE_SRC=get_partner_logo())
+    return render_template_with_s3(
+        "tool.html", tool=tool, PARTNER_IMAGE_SRC=get_partner_logo()
+    )
 
 
 @dashboard_bp.route("/datasets/compare", methods=["GET"])

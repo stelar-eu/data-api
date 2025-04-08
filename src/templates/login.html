@@ -1,90 +1,96 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-    <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
-    <title>STELAR | Log In</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">    
-    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
-  </head>
-  <body class="d-flex flex-column">
-    <div class="page page-center">
-      <div class="container container-tight py-4">
-        <div class="text-center mb-4">
-          <a href="{{ url_for('dashboard_blueprint.dashboard_index') }}" class="navbar-brand navbar-brand-autodark">
-            <div class="d-flex align-items-center justify-content-center">
-              <img src="{{ url_for('static', filename='logo.png') }}" width="200" alt="STELAR" class="me-3">
-              {% if PARTNER_IMAGE_SRC %}
-              <div class="vr" style="height: 150px; margin: 20px;"></div>
-              <img src="{{ PARTNER_IMAGE_SRC }}" width="110" alt="Partner Logo">
-              {% endif %}
-            </div>          
-          </a>
-        </div>
-        <div class="card card-md">
-          <div class="card-body">
-            <h2 class="h2 text-center mb-4">Login to your account</h2>
-            <form method="POST" autocomplete="off" novalidate>
-              <div class="mb-3">
-                <label class="form-label">Email Address</label>
-                <input type="email" name="email" class="form-control {% if EMPTY_EMAIL_ERROR %}is-invalid{% endif %}"
-                       placeholder="your@email.com" autocomplete="off">
-              </div>
-              <div class="mb-2">
-                <label class="form-label">
-                  Password
-                  <span class="form-label-description" tabindex="-1">
-                    <a href="{{ url_for('dashboard_blueprint.forgot_password') }}" tabindex="-1">I forgot my password</a>
-                  </span>
-                </label>
-                <div class="input-group input-group-flat">
-                  <input type="password" name="password" class="form-control {% if EMPTY_PASSWORD_ERROR %}is-invalid{% endif %}"
-                         placeholder="Your password" autocomplete="on">
-                </div>
-              </div>
 
-              {% if LOGIN_ERROR %}
-              <div class="alert alert-danger" role="alert">
-                Invalid Login Credentials
-              </div>
-              {% endif %}
-              {% if INACTIVE_ERROR %}
-              <div class="alert alert-warning" role="alert">
-                Your Account Is Not Active
-              </div>
-              {% endif %}
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <title>STELAR | Log In</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+</head>
 
-              {% with messages = get_flashed_messages(with_categories=true) %}
-                  {% if messages %}
-                      {% for category, message in messages %}
-                          <div class="alert alert-{{ category }}">
-                              {{ message }}
-                          </div>
-                      {% endfor %}
-                  {% endif %}
-              {% endwith %}
-
-              <div class="form-footer">
-                <button type="submit" class="btn btn-primary w-100">Sign in</button>
-              </div>
-            </form>
+<body class="d-flex flex-column">
+  <div class="page page-center">
+    <div class="py-3"></div>
+    <div class="container container-tight py-6 mt-6">
+      <div class="text-center mb-4">
+        <a href="{{ url_for('dashboard_blueprint.dashboard_index') }}" class="navbar-brand navbar-brand-autodark">
+          <div class="d-flex align-items-center justify-content-center">
+            <img src="{{ url_for('static', filename='logo.png') }}" width="200" alt="STELAR" class="me-3">
+            {% if PARTNER_IMAGE_SRC %}
+            <div class="vr" style="height: 150px; margin: 20px;"></div>
+            <img src="{{ PARTNER_IMAGE_SRC }}" width="110" alt="Partner Logo">
+            {% endif %}
           </div>
+        </a>
+      </div>
+      <div class="card card-md">
+        <div class="card-body">
+          <h2 class="h2 text-center mb-4">Login to your account</h2>
+          <form method="POST" autocomplete="off" novalidate>
+            <div class="mb-3">
+              <label class="form-label">Email Address | Username</label>
+              <input type="email" name="email" class="form-control {% if EMPTY_EMAIL_ERROR %}is-invalid{% endif %}"
+                placeholder="your@email.com | username " autocomplete="off">
+            </div>
+            <div class="mb-2">
+              <label class="form-label">
+                Password
+                <span class="form-label-description" tabindex="-1">
+                  <a href="{{ url_for('dashboard_blueprint.forgot_password') }}" tabindex="-1">I forgot my password</a>
+                </span>
+              </label>
+              <div class="input-group input-group-flat">
+                <input type="password" name="password"
+                  class="form-control {% if EMPTY_PASSWORD_ERROR %}is-invalid{% endif %}" placeholder="Your password"
+                  autocomplete="on">
+              </div>
+            </div>
+
+            {% if LOGIN_ERROR %}
+            <div class="alert alert-danger" role="alert">
+              Invalid Login Credentials
+            </div>
+            {% endif %}
+            {% if INACTIVE_ERROR %}
+            <div class="alert alert-warning" role="alert">
+              Your Account Is Not Active
+            </div>
+            {% endif %}
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+              {{ message }}
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <div class="form-footer">
+              <button type="submit" class="btn btn-primary w-100">Sign in</button>
+            </div>
+          </form>
         </div>
-        <div class="text-center text-secondary mt-3">
-          Don't have an account yet? <a href="{{ url_for('dashboard_blueprint.signup') }}" tabindex="-1">Sign Up</a>
-       </div>
+      </div>
+      <div class="text-center text-secondary mt-3">
+        Don't have an account yet? <a href="{{ url_for('dashboard_blueprint.signup') }}" tabindex="-1">Sign Up</a>
       </div>
     </div>
-    <script>
-      document.addEventListener('keydown', function(event) {
-        if (event.key === 'Enter') {
-          event.preventDefault(); 
-          document.querySelector('button[type="submit"]').click();
-        }
-      });
-    </script>
-  </body>
+    {% include 'footer.html' %}
+  </div>
+  <script>
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        document.querySelector('button[type="submit"]').click();
+      }
+    });
+  </script>
+</body>
+
 </html>

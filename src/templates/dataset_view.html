@@ -333,7 +333,7 @@
 
 
           <div class="modal modal-blur fade" id="modal-new-resource" tabindex="-1" role="dialog" aria-hidden="true">
-            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-dialog m-6 mt-0 px-6 py-6 modal-full-width modal-dialog-centered" role="document">
               <div class="modal-content">
                 <div class="modal-header">
                   <h5 class="modal-title">New Resource</h5>
@@ -384,7 +384,7 @@
                   </div>
                   <label class="form-label">Resource Type</label>
                   <div class="form-selectgroup-boxes row mb-3">
-                    <div class="col-lg-6">
+                    <div class="col-lg-6 mb-2">
                       <label class="form-selectgroup-item">
                         <input type="radio" name="resource-type" value="external" class="form-selectgroup-input">
                         <span class="form-selectgroup-label d-flex align-items-center p-3">
@@ -399,7 +399,7 @@
                         </span>
                       </label>
                     </div>
-                    <div class="col-lg-6">
+                    <div class="col-lg-6 mb-2">
                       <label class="form-selectgroup-item">
                         <input type="radio" name="resource-type" value="internal" class="form-selectgroup-input"
                           checked>
@@ -411,6 +411,39 @@
                             <span class="form-selectgroup-title strong mb-1">Upload Resource</span>
                             <span class="d-block text-secondary">Upload a file to MinIO and create a resource with the
                               S3 path.</span>
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+                    <div class="col-lg-6 mb-2">
+                      <label class="form-selectgroup-item">
+                        <input type="radio" name="resource-type" value="internal" class="form-selectgroup-input"
+                          checked>
+                        <span class="form-selectgroup-label d-flex align-items-center p-3">
+                          <span class="me-3">
+                            <span class="form-selectgroup-check"></span>
+                          </span>
+                          <span class="form-selectgroup-label-content">
+                            <span class="form-selectgroup-title strong mb-1">Multiple Upload</span>
+                            <span class="d-block text-secondary">Upload multiple files to MinIO and create resources
+                              with
+                              the S3 paths.</span>
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+                    <div class="col-lg-6 mb-2">
+                      <label class="form-selectgroup-item">
+                        <input type="radio" name="resource-type" value="internal" class="form-selectgroup-input"
+                          checked>
+                        <span class="form-selectgroup-label d-flex align-items-center p-3">
+                          <span class="me-3">
+                            <span class="form-selectgroup-check"></span>
+                          </span>
+                          <span class="form-selectgroup-label-content">
+                            <span class="form-selectgroup-title strong mb-1">Annotate resources</span>
+                            <span class="d-block text-secondary">Select files from MinIO and record them as resources
+                              in the catalog.</span>
                           </span>
                         </span>
                       </label>
