@@ -1,19 +1,11 @@
 :root,
-[data-bs-theme=light] {
-  --tblr-blue: #3E1E4B;
-  --tblr-primary: #3E1E4B; 
-  --tblr-tabler: #3E1E4B; 
+[data-bs-theme="light"] {
+  --tblr-blue: #3e1e4b;
+  --tblr-primary: #3e1e4b;
+  --tblr-tabler: #3e1e4b;
   --tblr-primary-rgb: 62, 30, 75;
   --tblr-primary-border-subtle: #988a9e;
   --tblr-info-border-subtle: #988a9e;
   --tblr-bg-surface-dark: #6e6e6e;
   --tblr-info: #573963;
-}
-
-.steps-vertical {
-  --tblr-steps-dot-offset: 2rem !important;
-}
-
-.steps{
-  --tblr-steps-dot-size: 1rem !important;
 }

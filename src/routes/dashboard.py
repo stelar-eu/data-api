@@ -44,6 +44,8 @@ def render_template_with_s3(template_name, **kwargs):
     # Add the S3_CONSOLE_URL to the kwargs
     kwargs["S3_CONSOLE_URL"] = config.get("S3_CONSOLE_URL", "#")
     kwargs["AVATAR"] = session.get("AVATAR", None)
+    kwargs["GITHUB_API"] = "https://api.github.com"
+    kwargs["GITHUB_RAW"] = "https://raw.githubusercontent.com"
     return render_template(template_name, **kwargs)
 
 
@@ -79,6 +81,15 @@ def get_avatar():
     return None
 
 
+def extract_github_repo_info(url):
+    pattern = r"^https?://(?:www\.)?github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$"
+    match = re.match(pattern, url)
+    if match:
+        user, repo = match.groups()
+        return user, repo
+    return None
+
+
 def session_required(f):
     """
     Custom decorator to check if the session is active and the token is valid.
@@ -109,6 +120,26 @@ def session_required(f):
         return f(*args, **kwargs)
 
     return decorated_function
+
+
+def handle_error(redirect="dashboard_index"):
+    """
+    Custom decorator to handle errors in the dashboard routes.
+    Redirects to the specified parent page on error.
+    """
+
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except Exception as e:
+                logger.error(f"Error in route: {e}")
+                return redirect(url_for(f"dashboard_blueprint.{redirect}"))
+
+        return decorated_function
+
+    return decorator
 
 
 # Home page (redirect target after login)
@@ -396,9 +427,17 @@ def tools():
 @dashboard_bp.route("/tool/<tool_id>", methods=["GET"])
 @dashboard_bp.doc(False)
 @session_required
+@handle_error(redirect="tools")
 def tool(tool_id):
 
     tool = TOOL.get_entity(tool_id)
+
+    if "git_repository" in tool:
+        # Extract the GitHub repository information
+        repo_info = extract_github_repo_info(tool["git_repository"])
+        if repo_info:
+            tool["git_user"], tool["git_repo"] = repo_info
+
     return render_template_with_s3(
         "tool.html", tool=tool, PARTNER_IMAGE_SRC=get_partner_logo()
     )
