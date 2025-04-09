@@ -27,7 +27,7 @@ function copyToClipboard(elementId) {
 
 
 function createLoaderElement(zeroMargin = false, zeroPadding = false) {
-    return '<div class="spinner-border ' + (zeroMargin ? 'm-0' : 'm-2') + ' me-auto ' + (zeroPadding ? 'p-0' : 'p-2') + ' spinner-border-sm text-secondary stelar-loader" role="status"></div>'
+    return '<div class="spinner-border ' + (zeroMargin ? 'm-0 me-auto ' : 'm-2') + '  ' + (zeroPadding ? 'p-0' : 'p-2') + ' spinner-border-sm text-secondary stelar-loader" role="status"></div>'
 }
 
 function clearGithubLink(githubLink) {
@@ -72,7 +72,7 @@ function createGreenTick(zeroMargin = false) {
     return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-success stelar-symbol ' + (zeroMargin ? 'm-0' : 'm-2') + ' icon icon-tabler icons-tabler-outline icon-tabler-check"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>';
 }
 
-function createRedCross() {
+function createRedCross(zeroMargin = false) {
     return '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-danger stelar-symbol ' + (zeroMargin ? 'm-0' : 'm-2') + ' icon icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>';
 }
 

@@ -6,6 +6,8 @@ from backend.registry import quay_request
 from qutils import REGISTRY
 from schema import NameID
 
+import markdown
+
 
 class ToolCKANSchema(PackageCKANSchema):
     git_repository = fields.String(allow_none=True, data_key="url")
@@ -62,6 +64,9 @@ class ToolEntity(PackageEntity):
 
     def load_from_ckan(self, raw_obj):
         obj = super().load_from_ckan(raw_obj)
+        if obj.get("notes"):
+            raw = obj.get("notes").encode("utf-8").decode("unicode_escape")
+            obj["readme"] = markdown.markdown(raw, extensions=["fenced_code"])
         tool = self._enhance_from_registry(obj)
         return tool
 
