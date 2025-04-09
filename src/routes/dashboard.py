@@ -427,7 +427,7 @@ def dataset_compare():
     )
 
 
-@dashboard_bp.route("/datasets/<dataset_id>", methods=["GET", "POST"])
+@dashboard_bp.route("/catalog/<dataset_id>", methods=["GET", "POST"])
 @session_required
 def dataset_detail(dataset_id):
     if request.method == "POST":
@@ -452,7 +452,7 @@ def dataset_detail(dataset_id):
 
         if metadata_data:
             return render_template_with_s3(
-                "dataset_view.html",
+                "catalog_view.html",
                 dataset=metadata_data,
                 PARTNER_IMAGE_SRC=get_partner_logo(),
             )
