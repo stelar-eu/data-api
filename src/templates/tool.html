@@ -48,6 +48,11 @@
                                 </ol>
                             </h3>
                         </div>
+                        <div class="col-auto ms-auto d-print-none">
+                            <div id="programming-language" class="h2">
+
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -57,7 +62,7 @@
                         <div class="col-lg-8">
 
                             <div class="card card-lg ">
-                                <div class="d-flex p-4 card-body pb-2">
+                                <div class="d-flex p-4 card-body pb-3">
                                     <div class=" me-3 h2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -358,6 +363,13 @@
 
     </script>
     <script>
+
+        function renderProgrammingLanguage() {
+            const programmingLanguage = "{{ tool.get('programming_language') }}";
+            const programmingLanguageIcon = $("#programming-language");
+            programmingLanguageIcon.html(getProgrammingLanguageBadge(programmingLanguage));
+        }
+        renderProgrammingLanguage();
 
         function parseMessage(message) {
             // Create a temporary element to safely escape HTML
