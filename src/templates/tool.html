@@ -9,10 +9,9 @@
     <!-- CSS files -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Leaflet PM CSS (for polygon editing) -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.css" />
+    <!-- Easy MDE files -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="{{ url_for('static', filename='images.js') }}"></script>
@@ -79,12 +78,13 @@
                                     </div>
 
                                     <div class="ms-auto d-flex align-items-center" id="documentation-actions">
-                                        <button class="btn" onclick="syncDocumentationFromGithub()">
+                                        <button class="btn" onclick="syncDocumentationFromGithub()"
+                                            id="sync-markdown-btn">
                                             <span class="icon social social-app-github"></span>
                                             Sync from GitHub
                                         </button>
-                                        <button class="ms-2 btn">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                        <button class="ms-2 btn" onclick="openMarkdownEditor()" id="edit-markdown-btn">
+                                            <svg xmlns=" http://www.w3.org/2000/svg" width="24" height="24"
                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                                 stroke-linecap="round" stroke-linejoin="round"
                                                 class="icon me-1 icon-tabler icons-tabler-outline icon-tabler-pencil">
@@ -94,6 +94,20 @@
                                             </svg>
                                             Edit
                                         </button>
+                                        <button class="btn ms-2" onclick="saveEditedDocumentation()"
+                                            id="save-markdown-btn" style="display: none;"><svg
+                                                xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-device-floppy">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path
+                                                    d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" />
+                                                <path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                                                <path d="M14 4l0 4l-6 0l0 -4" />
+                                            </svg>Save</button>
+                                        <button class="btn ms-2" onclick="closeMarkdownEditor()" id="close-editor-btn"
+                                            style="display: none;">Close</button>
                                     </div>
                                 </div>
                                 <div class="card-body markdown p-5" id="documentation-content">
@@ -222,6 +236,86 @@
         </div>
         {% include 'footer.html' %}
     </div>
+
+    <script>
+        var easyMde = null; // Initialize EasyMDE variable outside the function
+
+        function openMarkdownEditor() {
+            $('#edit-markdown-btn').hide();
+            $('#save-markdown-btn').show();
+            $('#close-editor-btn').show();
+            $('#sync-markdown-btn').hide();
+            $('#documentation-content').html('<textarea id="markdown-editor"></textarea>');
+            easyMde = new EasyMDE({
+                element: document.getElementById("markdown-editor"), spellChecker: false,
+            });
+            $.ajax({
+                url: "{{ url_for('rest_workflows_blueprint.api_get_tool', entity_id=tool.id) }}",
+                type: "GET",
+                dataType: "json",
+                success: function (data) {
+                    easyMde.value(data.result.notes);
+                },
+                error: function (error) {
+                    if (error.status == 401) {
+                        window.reload();
+                    }
+                }
+            });
+        }
+
+        function closeMarkdownEditor() {
+            $.ajax({
+                url: "{{ url_for('rest_workflows_blueprint.api_get_tool', entity_id=tool.id) }}",
+                type: "GET",
+                dataType: "json",
+                success: function (data) {
+                    $('#documentation-content').html(data.result.readme);
+                    $("markdown-editor").val('');
+                    $('#edit-markdown-btn').show();
+                    $('#sync-markdown-btn').show();
+                    $('#save-markdown-btn').hide();
+                    $('#close-editor-btn').hide();
+                },
+                error: function (error) {
+                    console.error("Error loading documentation:", error);
+                }
+            });
+        }
+
+        function saveEditedDocumentation() {
+            const readme = easyMde.value();
+            const payload = {
+                notes: readme
+            };
+            $('#save-markdown-btn .stelar-symbol').remove();
+            $('#documentation-actions').prepend(createLoaderElement(true, true));
+            $.ajax({
+                url: "{{ url_for('rest_workflows_blueprint.api_patch_tool', entity_id=tool.id) }}",
+                type: "PATCH",
+                contentType: "application/json; charset=UTF-8",
+                data: JSON.stringify(payload),
+                success: function (response) {
+                    $('#edit-markdown-btn').show();
+                    $('#sync-markdown-btn').show();
+                    $('#save-markdown-btn').hide();
+                    $('#close-editor-btn').hide();
+                    $('#documentation-actions .stelar-loader').remove();
+                    $('#documentation-actions').prepend(createGreenTick(false));
+                    setTimeout(function () {
+                        $('#documentation-actions .stelar-symbol').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                    $('#documentation-content').html(response.result.readme);
+                },
+                error: function (error) {
+                    $('#save-markdown-btn .stelar-loader').remove();
+                    $('#save-markdown-btn').prepend(createRedCross(true));
+                }
+            });
+        }
+    </script>
 
     <script>
         const tagInput = document.getElementById('tagInput');
