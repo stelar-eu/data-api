@@ -27,7 +27,7 @@ function copyToClipboard(elementId) {
 
 
 function createLoaderElement(zeroMargin = false, zeroPadding = false) {
-    return '<div class="spinner-border ' + (zeroMargin ? 'm-0 me-auto ' : 'm-2') + '  ' + (zeroPadding ? 'p-0' : 'p-2') + ' spinner-border-sm text-secondary stelar-loader" role="status"></div>'
+    return '<div class="spinner-border ' + (zeroMargin ? 'm-0 me-2' : 'm-2 me-auto') + '  ' + (zeroPadding ? 'p-0' : 'p-2') + ' spinner-border-sm text-secondary stelar-loader" role="status"></div>'
 }
 
 function clearGithubLink(githubLink) {
@@ -82,7 +82,7 @@ function createEmptyStateIcon() {
 
 function createAlertElement(type, message) {
     const div = document.createElement('div');
-    div.className = `alert alert - important alert - ${type} m - 0 me - auto p - 2`;
+    div.className = `alert alert-important alert-${type} m-0 me-auto p-2`;
     div.setAttribute('role', 'alert');
 
     const alertIconDiv = document.createElement('div');

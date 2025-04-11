@@ -482,8 +482,9 @@
         }
 
         function syncDocumentationFromGithub() {
-            $('#documentation-actions .stelar-loader .stelar-symbol').remove();
-            $('#documentation-actions').prepend(createLoaderElement(false, true));
+            $('#documentation-actions .stelar-loader').remove();
+            $('#documentation-actions .stelar-symbol').remove();
+            $('#documentation-actions').prepend(createLoaderElement(true, true));
             fetchReadMeFromGithub(function (readme) {
                 const payload = {
                     notes: readme
@@ -510,6 +511,11 @@
                     error: function (error) {
                         $('#documentation-actions .stelar-loader').remove();
                         $('#documentation-actions').prepend(createRedCross(false));
+                        setTimeout(function () {
+                            $('#documentation-actions .stelar-symbol').fadeOut(500, function () {
+                                $(this).remove();
+                            });
+                        }, 3000);
                         console.error("Error syncing documentation:", error);
                     }
                 });

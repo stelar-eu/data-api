@@ -86,7 +86,7 @@
                     <div class="row row-cards">
 
                         <canvas id='lineage-canvas' style='border-radius: 8px' width='1500' height='400'
-                            class='col-lg-12'></canvas>
+                            class='col-lg-12 card px-0'></canvas>
 
                         <div class="col-lg-5">
                             <div class="card">
@@ -493,7 +493,33 @@
     function generateTaskHTML(task, index) {
         return `
             <li class="step-item">
-                <a class="card disabled card-link m" href="/stelar/console/v1/task/{{ process.id }}/${task.id}">
+                <a class="card disabled card-link m" href="{{ url_for('dashboard_blueprint.task', process_id=process.id, task_id='') }} ${task.id}">
+                    <div class="card-body p-3">
+                        <div class="row">
+                            <div class="col">
+                                <div class="list-inline list-inline-dots">
+                                    <span class="list-inline-item"><strong>${index}. ${task.name}</strong></span>
+                                    <span class="text-secondary list-inline-item">${task.id}</span>
+                                </div>
+                                <div style="display: none;" id="task-index-${task.id}">${index}</div>
+                                <div class="text-secondary mt-1">
+                                    <div class="m-0 list-inline">
+                                        <div class="list-inline-item">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-user">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                                                <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                                            </svg>
+                                            ${task.creator || 'Not specified'}
+                                        </div>
+                                        <div class="list-inline-item">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-brand-docker">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path d="M22 12.54c-1.804 -.345 -2.701 -1.08 -3.523 -2.94)}}
+                /stelar/console/v1/task/{{ process.id }}/${task.id}">
                     <div class="card-body p-3">
                         <div class="row">
                             <div class="col">
@@ -604,6 +630,9 @@
                 }
             },
             error: function (xhr, status, error) {
+                if (xhr.status === 401) {
+                    window.location.href = "{{ url_for('dashboard_blueprint.dashboard_index') }}";
+                }
                 console.error('Error fetching tasks:', status, error);
             }
         });
@@ -619,6 +648,7 @@
 <script>
     var graph = new LGraph();
     var canvas = new LGraphCanvas("#lineage-canvas", graph);
+    canvas.read_only = true;
 
     function TaskNode(task) {
         this.addInput("Input");
@@ -627,7 +657,8 @@
         this.addOutput("Metrics");
         this.addInput("Previous");
         this.addOutput("Next");
-        this.size = [450, 120];
+        this.setSize(300, 200);
+        this.res
         this.creator = this.addWidget("text", "Creator", "", "creator");
         this.start_date = this.addWidget("text", "Start Date", "", "start_date");
         this.end_date = this.addWidget("text", "End Date", "", "end_date");
@@ -666,8 +697,12 @@
                         node.title = task.name;
                         node.setProperty("creator", task.creator);
                         node.setProperty("start_date", formatIsoDate(task.start_date));
-                        node.setProperty("end_date", formatIsoDate(task.end_date));
-                        node.setProperty("image", task.image);
+                        if (task.end_date) {
+                            node.setProperty("end_date", formatIsoDate(task.end_date));
+                        } else {
+                            node.setProperty("end_date", "Not Finished");
+                        }
+                        node.setProperty("image", task.image ? task.image : "Remote Task");
                         node.pos = [currx, 100];
                         currx += 500;
 
@@ -676,11 +711,7 @@
                         }
                         prev = node;
                         graph.add(node);
-
-
-
-
-
+                        node.setSize(node.computeSize());
                         $.ajax({
                             url: `{{ url_for('rest_workflows_blueprint.api_get_task_metadata', entity_id='')}}${task.id}`,
                             method: 'GET',
