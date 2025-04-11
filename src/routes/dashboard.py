@@ -25,12 +25,12 @@ from flask import (
 
 import cutils
 import kutils
-import markdown
 from processes import PROCESS
 from tasks import TASK
 from tools import TOOL
 from cutils import TAG, ORGANIZATION, DATASET
 from auth import admin_required
+import re
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
 
@@ -422,7 +422,13 @@ def catalog(page_number=None):
 @dashboard_bp.doc(False)
 @session_required
 def tools():
-    return render_template_with_s3("tools.html", PARTNER_IMAGE_SRC=get_partner_logo())
+    registry = current_app.config["settings"].get("REGISTRY_EXT_URL")
+    if registry:
+        registry = re.sub(r"^https?://", "", registry)
+
+    return render_template_with_s3(
+        "tools.html", REGISTRY_URL=registry, PARTNER_IMAGE_SRC=get_partner_logo()
+    )
 
 
 @dashboard_bp.route("/tool/<tool_id>", methods=["GET"])
@@ -433,11 +439,23 @@ def tool(tool_id):
 
     tool = TOOL.get_entity(tool_id)
 
-    if "git_repository" in tool:
+    if (
+        "git_repository" in tool
+        and tool["git_repository"] is not None
+        and tool["git_repository"] != ""
+    ):
         # Extract the GitHub repository information
         repo_info = extract_github_repo_info(tool["git_repository"])
         if repo_info:
             tool["git_user"], tool["git_repo"] = repo_info
+
+    if "repository" in tool:
+        registry = current_app.config["settings"].get("REGISTRY_EXT_URL")
+        if registry:
+            registry = re.sub(r"^https?://", "", registry)
+            image_repo = registry + "/stelar/" + tool["repository"]
+            logger.debug("Image repo: %s", image_repo)
+            tool["repository"] = image_repo
 
     return render_template_with_s3(
         "tool.html", tool=tool, PARTNER_IMAGE_SRC=get_partner_logo()

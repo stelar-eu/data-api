@@ -59,7 +59,6 @@
                 <div class="container-xl">
                     <div class="row row-cards">
                         <div class="col-lg-8">
-
                             <div class="card card-lg ">
                                 <div class="d-flex p-4 card-body pb-3">
                                     <div class=" me-3 h2">
@@ -78,11 +77,13 @@
                                     </div>
 
                                     <div class="ms-auto d-flex align-items-center" id="documentation-actions">
+                                        {% if tool.git_repo and tool.git_user %}
                                         <button class="btn" onclick="syncDocumentationFromGithub()"
                                             id="sync-markdown-btn">
                                             <span class="icon social social-app-github"></span>
                                             Sync from GitHub
                                         </button>
+                                        {% endif %}
                                         <button class="ms-2 btn" onclick="openMarkdownEditor()" id="edit-markdown-btn">
                                             <svg xmlns=" http://www.w3.org/2000/svg" width="24" height="24"
                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -116,41 +117,116 @@
                             </div>
                         </div>
                         <div class="col-lg-4">
-                            {% if tool.git_repo and tool.git_user %}
-                            <div class="card mb-2">
-                                <div class="card-body">
-                                    <div class="d-flex align-items-center mb-3">
-                                        <div class="me-3">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round" stroke-linejoin="round"
-                                                class="icon icon-tabler icons-tabler-outline icon-tabler-brand-github">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path
-                                                    d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <h3 class="m-0">
-                                                <a href="{{ tool.git_repository }}" target="_blank">
-                                                    {{ tool.git_user }}/{{ tool.git_repo }}
-                                                </a>
-                                            </h3>
-                                            <small class="text-secondary">
-                                                Latest commits under the <kbd>main</kbd> branch
-                                            </small>
-                                        </div>
-                                        <a onclick="refreshCommitList()" class="ms-auto cursor-pointer"><svg
-                                                xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round" stroke-linejoin="round"
-                                                class="text-primary icon icon-tabler icons-tabler-outline icon-tabler-refresh">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
-                                                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
-                                            </svg>
-                                        </a>
+                            <div class="card mb-2" style="max-height: 22rem;">
+                                <div class="card-header d-flex align-items-center">
+                                    <div class="me-3">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-brand-docker">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path
+                                                d="M22 12.54c-1.804 -.345 -2.701 -1.08 -3.523 -2.94c-.487 .696 -1.102 1.568 -.92 2.4c.028 .238 -.32 1 -.557 1h-14c0 5.208 3.164 7 6.196 7c4.124 .022 7.828 -1.376 9.854 -5c1.146 -.101 2.296 -1.505 2.95 -2.46z" />
+                                            <path d="M5 10h3v3h-3z" />
+                                            <path d="M8 10h3v3h-3z" />
+                                            <path d="M11 10h3v3h-3z" />
+                                            <path d="M8 7h3v3h-3z" />
+                                            <path d="M11 7h3v3h-3z" />
+                                            <path d="M11 4h3v3h-3z" />
+                                            <path d="M4.571 18c1.5 0 2.047 -.074 2.958 -.78" />
+                                            <path d="M10 16l0 .01" />
+                                        </svg>
                                     </div>
+                                    <div>
+                                        <h3 class="m-0">
+                                            {{ tool.repository }}
+                                        </h3>
+                                        <small class="text-secondary">
+                                            Docker images pushed in the local registry
+                                        </small>
+                                    </div>
+                                    <a class="ms-auto cursor-pointer" data-bs-toggle="modal"
+                                        data-bs-target="#docker-push-modal"><svg xmlns="http://www.w3.org/2000/svg"
+                                            width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="text-primary icon icon-tabler icons-tabler-outline icon-tabler-info-circle">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
+                                            <path d="M12 9h.01" />
+                                            <path d="M11 12h1v4h1" />
+                                        </svg>
+                                    </a>
+                                    <a onclick="fetchToolImages(true)" class="ms-auto cursor-pointer"><svg
+                                            xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="text-primary icon icon-tabler icons-tabler-outline icon-tabler-refresh">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+                                            <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+                                        </svg>
+                                    </a>
+                                </div>
+                                <div class="card-body card-body-scrollable card-body-scrollable-shadow">
+                                    <div class="ms-1">
+                                        <div class="divide-y" id="tool-images">
+                                            <div class="row">
+                                                <div class="text-secondary placeholder-glow">
+                                                    <div class="placeholder placeholder-xs col-9"></div>
+                                                    <div class="placeholder placeholder-xs col-7"></div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="text-secondary placeholder-glow">
+                                                    <div class="placeholder placeholder-xs col-9"></div>
+                                                    <div class="placeholder placeholder-xs col-7"></div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="text-secondary placeholder-glow">
+                                                    <div class="placeholder placeholder-xs col-9"></div>
+                                                    <div class="placeholder placeholder-xs col-7"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% if tool.git_repo and tool.git_user %}
+                            <div class="card mb-2" style="max-height: 25rem">
+                                <div class="card-header d-flex align-items-center">
+                                    <div class="me-3">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-brand-github">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path
+                                                d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="m-0">
+                                            <a href="{{ tool.git_repository }}" target="_blank">
+                                                {{ tool.git_user }}/{{ tool.git_repo }}
+                                            </a>
+                                        </h3>
+                                        <small class="text-secondary">
+                                            Latest commits under the <kbd>main</kbd> branch
+                                        </small>
+                                    </div>
+                                    <a onclick="refreshCommitList()" class="ms-auto cursor-pointer"><svg
+                                            xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="text-primary icon icon-tabler icons-tabler-outline icon-tabler-refresh">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+                                            <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+                                        </svg>
+                                    </a>
+                                </div>
+                                <div class="card-body card-body-scrollable card-body-scrollable-shadow">
                                     <div class="mt-3 ms-1">
                                         <ul class="steps steps-vertical" id="git-commits">
                                             <li class="step-item">
@@ -173,13 +249,6 @@
                                                 </div>
                                             </li>
                                             <li class="step-item">
-                                                <div class="text-secondary placeholder-glow">
-                                                    <div class="placeholder placeholder-xs col-9"></div>
-                                                    <div class="placeholder placeholder-xs col-7"></div>
-                                                </div>
-                                            </li>
-                                            <li class="step-item">
-
                                                 <div class="text-secondary placeholder-glow">
                                                     <div class="placeholder placeholder-xs col-9"></div>
                                                     <div class="placeholder placeholder-xs col-7"></div>
@@ -228,6 +297,44 @@
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Modals -->
+                <!-- Docker Push Instructions -->
+                <div class="modal modal-blur fade" id="docker-push-modal" tabindex="-1" style="display: none;"
+                    aria-hidden="true">
+                    <div class="modal-dialog modal-1 modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Push an Image</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-secondary mb-1">
+                                    You may push a Docker image to the local registry using the command:</p>
+
+                                <div class="text-center">
+                                    <kbd id="docker-command">docker push {{ tool.repository
+                                        }}:&lt;tag-name&gt;</kbd>
+                                </div>
+                                <p class="text-secondary mt-4">Adjust the <kbd>&lt;tag-name&gt;</kbd> to define the
+                                    desired version.</p>
+                                </p>
+                                <p class="text-secondary my-1">
+                                    Issue docker-cli credentials through
+                                    <a href="{{url_for('dashboard_blueprint.settings')}}" target='_blank'>Account
+                                        Settings</a>. Tool images should adhere to the <a
+                                        href="https://github.com/stelar-eu/klms-tool-template" target="_blank">KLMS
+                                        Tool Template</a>
+                                </p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
                             </div>
                         </div>
                     </div>
@@ -456,6 +563,12 @@
         renderTags();
 
     </script>
+
+    <script>
+        function renderImageInformation() {
+
+        }
+    </script>
     <script>
 
         function renderProgrammingLanguage() {
@@ -531,11 +644,93 @@
             });
         }
 
-        //Get the latest commits from the GitHub repository
+        function fetchToolImages() {
+            $.ajax({
+                url: "{{ url_for('rest_workflows_blueprint.api_get_tool', entity_id=tool.id) }}",
+                type: "GET",
+                dataType: "json",
+                success: function (data) {
+                    renderToolImages(data.result.images);
+                },
+                error: function (error) {
+                    console.error("Error loading tool images:", error);
+                }
+            });
+        }
+
+        function formatBytes(bytes) {
+            const GiB = 1024 * 1024 * 1024;
+            const MiB = 1024 * 1024;
+            if (bytes < GiB) {
+                return Math.round(bytes / MiB) + " MiB";
+            } else {
+                return Math.round(bytes / GiB) + " GiB";
+            }
+        }
+
+        function timeAgo(rfc2822Timestamp) {
+            const past = new Date(rfc2822Timestamp);
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - past) / 1000);
+
+            if (diffInSeconds < 60) {
+                return diffInSeconds + (diffInSeconds === 1 ? " second ago" : " seconds ago");
+            }
+
+            const diffInMinutes = Math.floor(diffInSeconds / 60);
+            if (diffInMinutes < 60) {
+                return diffInMinutes + (diffInMinutes === 1 ? " minute ago" : " minutes ago");
+            }
+
+            const diffInHours = Math.floor(diffInMinutes / 60);
+            if (diffInHours < 24) {
+                return diffInHours + (diffInHours === 1 ? " hour ago" : " hours ago");
+            }
+
+            const diffInDays = Math.floor(diffInHours / 24);
+            return diffInDays + (diffInDays === 1 ? " day ago" : " days ago");
+        }
+
+        function renderToolImages(images, refresh = false) {
+            const toolImagesContainer = $("#tool-images");
+            toolImagesContainer.empty(); // Clear existing content
+
+            placeholder = "<div class='text-secondary placeholder-glow'><div class='placeholder placeholder-xs col-9'></div><div class='placeholder placeholder-xs col-7'></div></div>";
+            if (refresh) {
+                toolImagesContainer.append(placeholder + placeholder + placeholder);
+            }
+            if (images.length === 0) {
+                toolImagesContainer.append("<div class='text-secondary text-center'>No images have been pushed yet.</div>");
+                return;
+            }
+
+            images.forEach((image, index) => {
+                const imageElement = `
+                <div class="row">
+                    <div class="col">
+                        <strong> ${image.name} </strong>
+                        <div class="text-secondary">
+                            <div class="list-inline list-inline-dots mb-0 text-secondary">
+                                <div class="list-inline-item">${timeAgo(image.last_modified)}</div>
+                                <div class="list-inline-item">${formatBytes(image.size)}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-auto align-self-center">
+                        <span class="badge badge-outline text-purple">sha256</span>
+                        <a class="text-link cursor-pointer" data-bs-toggle="modal" data-bs-target="#image-layers-modal">
+                            ${image.manifest_digest.replace(/^sha256:/, '').substring(0, 12)}
+                        </a>
+                    </div>
+                </div >`;
+                toolImagesContainer.append(imageElement);
+            });
+        }
+
+        //Get the images from the registry and the latest commits from the GitHub repository
         $(document).ready(function () {
             getLatestCommits();
+            fetchToolImages();
         });
-
-
     </script>
 </body>

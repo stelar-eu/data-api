@@ -40,8 +40,7 @@
                             </h2>
                         </div>
                         <div class="col-auto ms-auto d-print-none">
-                            <a href="#" class="btn btn-primary" data-bs-toggle="modal"
-                                data-bs-target="#modal-new-dataset">
+                            <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#new-tool-modal">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
                                     viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                                     stroke-linecap="round" stroke-linejoin="round">
@@ -192,6 +191,124 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- New Tool Modal -->
+                <div class="modal modal-blur fade" id="new-tool-modal" tabindex="-1" role="dialog" aria-modal="true"
+                    style="display: none;">
+                    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">New STELAR Tool</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Name</label>
+                                    <input type="text" class="form-control" name="name" placeholder="the-new-tool"
+                                        id="tool-name-input">
+                                    <small class="form-hint">
+                                        <p>
+                                            Please use a name in the format <code>the-new-tool</code> (use hyphens
+                                            instead of spaces). This name will be used to generate both the tool's URL
+                                            and its image repository name.
+                                        </p>
+                                    </small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Image Repository</label>
+                                    <input type="text" class="form-control" id="image-repository-name-input"
+                                        placeholder="{{REGISTRY_URL}}/stelar/the-new-tool" id="image-repo-name-input"
+                                        readonly>
+                                    <small class="form-hint">
+                                        <p>
+                                            This is the name of the image repository where the tool's docker images
+                                            may be pushed. It will be generated based on the name you provided.
+                                        </p>
+                                    </small>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label"><svg xmlns="http://www.w3.org/2000/svg" width="24"
+                                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M3 21l18 0" />
+                                            <path d="M3 10l18 0" />
+                                            <path d="M5 6l7 -3l7 3" />
+                                            <path d="M4 10l0 11" />
+                                            <path d="M20 10l0 11" />
+                                            <path d="M8 14l0 3" />
+                                            <path d="M12 14l0 3" />
+                                            <path d="M16 14l0 3" />
+                                        </svg>Owner Organization</label>
+                                    <select class="form-select" id="owner-org" name="owner_org">
+
+                                    </select>
+                                    <small class="form-hint">
+                                        <p>
+                                            Creating a new tool in an organization requires you to have
+                                            the permission to do so assigned by an administrator.
+                                        </p>
+                                    </small>
+                                </div>
+                                <div class="row">
+                                    <div class="col-lg-8">
+                                        <div class="mb-3">
+                                            <label class="form-label">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                    class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-brand-github">
+                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                    <path
+                                                        d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
+                                                </svg>
+                                                GitHub Repository URL</label>
+                                            <div class="input-group input-group-flat">
+                                                <span class="input-group-text"> https://github.com/</span>
+                                                <input type="text" class="form-control ps-0" value="stelar-eu/klms-tool"
+                                                    autocomplete="off" id="git-repo" name="git-repo">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Programming Language</label>
+                                            <select class="form-select" id="programming-language"
+                                                name="programming-language">
+                                                <option value="Python">Python</option>
+                                                <option value="Java">Java</option>
+                                                <option value="Javascript">Javascript</option>
+                                                <option value="Go">Go</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <small class="form-hint">
+                                        <p>
+                                            After creating the tool, the documentation and other metadata may be updated
+                                            in the tool's page.
+                                        </p>
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="modal-footer" id="new-tool-modal-footer">
+                                <a class="btn btn-primary btn-5 ms-auto cursor-pointer disabled" id="create-tool-btn"
+                                    onclick="createTool()">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" class="icon icon-2">
+                                        <path d="M12 5l0 14"></path>
+                                        <path d="M5 12l14 0"></path>
+                                    </svg>
+                                    Create new Tool
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         {% include 'footer.html' %}
@@ -229,7 +346,7 @@
         }
 
 
-        $(document).ready(function () {
+        function fetchTools() {
             $.ajax({
                 url: '{{ url_for("rest_workflows_blueprint.api_fetch_tools") }}',
                 method: 'GET',
@@ -263,6 +380,111 @@
                     }
                 }
             });
+        }
+
+
+
+        function fetchOrganizations() {
+            $.ajax({
+                url: '{{ url_for("catalog_blueprint.api_fetch_organizations") }}',
+                method: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    if (data.result.length > 0) {
+                        // Clear the placeholder cards
+                        $('#owner-org').empty();
+
+                        for (var i = 0; i < data.result.length; i++) {
+                            var org = data.result[i];
+                            $('#owner-org').append(`<option value="${org.name}">${org.title}  |  ${org.name}</option>`);
+                        }
+                    }
+                },
+                error: function (xhr, status, error) {
+                    if (xhr.status === 401) {
+                        window.location.href = '/';
+                    }
+                }
+            })
+        }
+
+
+        // Function to validate the tool name and generate the image repository name
+        function validateToolName() {
+            var toolName = $('#tool-name-input').val();
+            var imageRepositoryName = '{{REGISTRY_URL}}/stelar/' + toolName.replace(/ /g, '-').toLowerCase();
+            var regex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+            if (!toolName) {
+                $('#tool-name-input').removeClass('is-valid is-invalid');
+                $('#create-tool-btn').addClass('disabled');
+                $('#image-repository-name-input').val('');
+            } else if (regex.test(toolName)) {
+                $('#tool-name-input').removeClass('is-invalid').addClass('is-valid');
+                $('#create-tool-btn').removeClass('disabled');
+                $('#image-repository-name-input').val(imageRepositoryName);
+            } else {
+                $('#tool-name-input').removeClass('is-valid').addClass('is-invalid');
+                $('#create-tool-btn').addClass('disabled');
+                $('#image-repository-name-input').val(imageRepositoryName);
+            }
+        }
+
+        $('#tool-name-input').on('input', validateToolName);
+
+
+        function createTool() {
+            var toolName = $('#tool-name-input').val();
+            var imageRepositoryName = $('#image-repository-name-input').val();
+            var ownerOrg = $('#owner-org').val();
+            var gitRepository = 'https://github.com/' + $('#git-repo').val();
+            var programmingLanguage = $('#programming-language').val();
+
+            $('#create-tool-btn').addClass('disabled');
+            $('#new-tool-modal-footer').prepend(createLoaderElement(true, true))
+            $.ajax({
+                url: '{{ url_for("rest_workflows_blueprint.api_create_tool") }}',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    name: toolName,
+                    owner_org: ownerOrg,
+                    git_repository: gitRepository,
+                    programming_language: programmingLanguage
+                }),
+                success: function (data) {
+                    fetchTools();
+                    $('#create-tool-btn').removeClass('disabled');
+                    $('#new-tool-modal-footer .stelar-loader').remove();
+                    $('#new-tool-modal-footer').prepend(createAlertElement('success', 'Tool registered successfully'));
+                    setTimeout(function () {
+                        $('#new-tool-modal-footer .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+
+                },
+                error: function (xhr, status, error) {
+
+                    $('#create-tool-btn').removeClass('disabled');
+                    $('#new-tool-modal-footer .stelar-loader').remove();
+                    $('#new-tool-modal-footer').prepend(createAlertElement('danger', 'Error registering tool: ' + error));
+                    setTimeout(function () {
+                        $('#new-tool-modal-footer .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                    if (xhr.status === 401) {
+                        window.location.href = '/';
+                    }
+                }
+            });
+        }
+
+
+        $(document).ready(function () {
+            fetchTools();
+            fetchOrganizations();
         });
 
     </script>
