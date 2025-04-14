@@ -339,6 +339,32 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="modal modal-blur fade" id="image-layer-modal" tabindex="-1" style="display: none;"
+                    aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Image Layers</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class=" card-body card-body-scrollable card-body-scrollable-shadow">
+                                    <div class="mt-3 ms-1">
+                                        <ul class="steps steps-vertical" id="image-layers">
+
+
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         {% include 'footer.html' %}
@@ -571,7 +597,31 @@
     </script>
 
     <script>
-        function renderImageInformation() {
+        function loadLayers(imageTagName) {
+
+            $.ajax({
+                url: "{{ url_for('rest_workflows_blueprint.api_get_tag_manifest', entity_id=tool.id, image_tag='')}}/" + imageTagName,
+                type: "GET",
+                dataType: "json",
+                contentType: "application/json",
+                success: function (response) {
+                    $("#image-layers").html("");
+                    var layers = response.result.layers;
+                    for (var i = layers.length - 1; i >= 0; i--) {
+                        var layer = layers[i];
+                        $("#image-layers").append(
+                            "<li class='step-item'>" +
+                            "<strong>Layer " + layer.index + "</strong><br>" +
+                            "<code>" + layer.command.join(" ") + "</code><br>" +
+                            "</li>"
+                        );
+                    }
+                    $("#image-layer-modal").modal("show");
+
+                },
+                error: function (error) {
+                }
+            })
 
         }
     </script>
@@ -724,7 +774,7 @@
                     </div>
                     <div class="col-auto align-self-center">
                         <span class="badge badge-outline text-purple">sha256</span>
-                        <a class="text-link cursor-pointer" data-bs-toggle="modal" data-bs-target="#image-layers-modal">
+                        <a class="text-link cursor-pointer" onclick="loadLayers('${image.name}')">
                             ${image.manifest_digest.replace(/^sha256:/, '').substring(0, 12)}
                         </a>
                     </div>
