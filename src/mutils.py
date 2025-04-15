@@ -220,7 +220,8 @@ def list_buckets_with_folders(credentials):
         # List all buckets
         buckets = client.list_buckets()
         result = {}
-
+        # Remove the "registry" bucket from the list
+        buckets.remove("registry")
         # Loop through each bucket to list "folders" (prefixes)
         for bucket in buckets:
             bucket_name = bucket.name
