@@ -56,7 +56,13 @@ def get_user_ckan_token(config, admin=False):
 
     This should be called once at the start of the application.
     """
-    user = kutils.current_user()
+    user = None
+    try:
+        user = kutils.current_user()
+    except Exception as e:
+        logger.exception("Failed to get user from kutils: %s", e)
+        return config["CKAN_ADMIN_TOKEN"]
+
     if user["preferred_username"] == "admin" or admin:
         # If the user is admin, use the admin token
         return config["CKAN_ADMIN_TOKEN"]

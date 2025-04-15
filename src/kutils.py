@@ -586,6 +586,13 @@ def create_ckan_user(username, user_id, email, first_name, last_name, password):
 
 
 def delete_ckan_user(username):
+    # Delete user's API tokens
+    query = 'DELETE FROM public.api_token WHERE user_id IN (SELECT id FROM public."user" WHERE name = %s)'
+    execSql(query, (username,))
+    # Remove references to user's ID where he was a creator
+    query = "UPDATE public.package SET creator_user_id='__deleted__' WHERE creator_user_id IN (SELECT id FROM public.\"user\" WHERE name = %s)"
+    execSql(query, (username,))
+    # Finally, delete the user
     query = 'DELETE FROM public."user" WHERE name= %s'
     execSql(query, (username,))
 
