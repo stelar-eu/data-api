@@ -65,7 +65,7 @@ def get_user_ckan_token(config, admin=False):
     token = REDIS.get("ckantoken:" + user["sub"])
     if token is None:
         # If not cached, create and cache the token
-        token = create_and_cache_user_token(config)
+        token = create_and_cache_user_token()
 
     if not token:
         raise BackendError(500, "ckan", "Failed to get CKAN token from Redis")

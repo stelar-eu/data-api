@@ -26,6 +26,7 @@ from exceptions import (
     BackendError,
     InternalException,
     InvalidError,
+    NotFoundError,
 )
 from utils import is_valid_uuid, validate_email
 
@@ -556,28 +557,37 @@ def create_user_with_password(
                 user_id=user_id, password=password, temporary=temporary_password
             )
 
-        ckan_payload = {
-            "name": username,
-            "id": user_id,
-            "fullname": f"{first_name} {last_name}",
-            "email": email,
-            "password": password,
-        }
-
-        try:
-            obj = ckan_request("user_create", json=ckan_payload)
-            logger.debug("CKAN Response: %s", obj)
-        except Exception as e:
-            logger.error("Error while calling ckan_request: %s", str(e), exc_info=True)
-            keycloak_admin.delete_user(user_id)
-            raise BackendError("Error while creating user") from e
-
-        query = 'UPDATE public."user" SET sysadmin = %s WHERE id = %s'
-        execSql(query, (True, user_id))
+        create_ckan_user(username, user_id, email, first_name, last_name, password)
 
         return user_id
     except KeycloakAuthenticationError as e:
         raise InternalException("Keycloak authentication error") from e
+
+
+def create_ckan_user(username, user_id, email, first_name, last_name, password):
+    ckan_payload = {
+        "name": username,
+        "id": user_id,
+        "fullname": f"{first_name} {last_name}",
+        "email": email,
+        "password": password,
+    }
+
+    try:
+        obj = ckan_request("user_create", json=ckan_payload)
+        logger.debug("CKAN Response: %s", obj)
+    except Exception as e:
+        logger.error("Error while calling ckan_request: %s", str(e), exc_info=True)
+        KEYCLOAK_ADMIN_CLIENT().delete_user(user_id)
+        raise BackendError("Error while creating user") from e
+
+    query = 'UPDATE public."user" SET sysadmin = %s WHERE id = %s'
+    execSql(query, (True, user_id))
+
+
+def delete_ckan_user(username):
+    query = 'DELETE FROM public."user" WHERE name= %s'
+    execSql(query, (username,))
 
 
 def update_user(
@@ -641,6 +651,95 @@ def update_user(
 
     except KeycloakAuthenticationError as e:
         raise InternalException("Keycloak authentication error") from e
+
+
+def sync_users():
+    """
+    Syncs users from Keycloak to CKAN and updates their roles.
+    This function retrieves all users from Keycloak and checks if they exist in CKAN.
+    If a user does not exist in CKAN, it creates the user and assigns the appropriate roles.
+    """
+    try:
+        # Fetch all users from Keycloak
+        kc_users = get_users_from_keycloak(offset=0, limit=0)
+        ckan_users = ckan_request("user_list", params={"limit": 0})
+
+        # Build mappings of users by username excluding "admin" and "ckan_admin"
+        kc_users_map = {
+            user["username"]: user
+            for user in kc_users
+            if user["username"] not in ["admin", "ckan_admin"]
+        }
+        ckan_users_map = {
+            user["name"]: user
+            for user in ckan_users
+            if user["name"] not in ["admin", "ckan_admin"]
+        }  # Assuming CKAN uses "name" as username
+
+        # 1. Users present in Keycloak but not in CKAN
+        keycloak_only = [
+            user
+            for username, user in kc_users_map.items()
+            if username not in ckan_users_map
+        ]
+
+        # 2. Users that have the same username in both but their IDs do not match
+        mismatched_ids = [
+            {
+                "username": username,
+                "keycloak_id": kc_users_map[username]["id"],
+                "ckan_id": ckan_users_map[username]["id"],
+            }
+            for username in kc_users_map.keys() & ckan_users_map.keys()
+            if kc_users_map[username]["id"] != ckan_users_map[username]["id"]
+        ]
+
+        # 3. Users present in CKAN but not in Keycloak
+        ckan_only = [
+            user
+            for username, user in ckan_users_map.items()
+            if username not in kc_users_map
+        ]
+
+        logger.info("Users in Keycloak but not in CKAN: %s", keycloak_only)
+        logger.info("Users with mismatched IDs: %s", mismatched_ids)
+        logger.info("Users in CKAN but not in Keycloak: %s", ckan_only)
+
+        # Create users in CKAN for those present in Keycloak but not in CKAN
+        for user in keycloak_only:
+            try:
+                create_ckan_user(
+                    username=user["username"],
+                    user_id=user["id"],
+                    email=user["email"],
+                    first_name=user["first_name"],
+                    last_name=user["last_name"],
+                    password="empty_pass",
+                )
+            except Exception as e:
+                logger.error(
+                    "Error while creating CKAN user for Keycloak user %s: %s",
+                    user["username"],
+                    str(e),
+                )
+
+        # Delete users in CKAN that are not in Keycloak
+        for user in ckan_only:
+            try:
+                delete_ckan_user(user["name"])
+            except Exception as e:
+                logger.error(
+                    "Error while deleting CKAN user %s: %s", user["name"], str(e)
+                )
+
+        return {
+            "keycloak_only": keycloak_only,
+            "mismatched_ids": mismatched_ids,
+            "ckan_only": ckan_only,
+        }
+
+    except Exception as e:
+        logger.error("Error while syncing users: %s", str(e), exc_info=True)
 
 
 def get_user(user_id=None):

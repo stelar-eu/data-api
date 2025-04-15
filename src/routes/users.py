@@ -61,6 +61,19 @@ def get_users(query_data):
     return kutils.get_users_from_keycloak(offset=offset, limit=limit)
 
 
+@users_bp.route("/sync", methods=["POST"])
+@users_bp.doc(tags=["User Management"], security=security_doc)
+@users_bp.output(schema.APIResponse(), status_code=200)
+@render_api_output(logger)
+@admin_required
+def sync_users():
+    """
+    Syncs the users of the STELAR KLMS with the CKAN instance. Requires admin role.
+
+    """
+    return kutils.sync_users()
+
+
 @users_bp.route("/token", methods=["POST"])
 @users_bp.input(
     schema.NewToken,
