@@ -116,6 +116,35 @@ BEGIN
     END IF;
 END;
 $$;
+
+
+---------------------------------------------
+--            CKAN AUTHOR TRIGGER 
+---------------------------------------------
+CREATE OR REPLACE FUNCTION set_author_info()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Set the author and author_email based on the creator_user_id
+    SELECT name, email INTO NEW.author, NEW.author_email
+    FROM "user"
+    WHERE id = NEW.creator_user_id;
+
+    RETURN NEW;
+END;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'public_set_author_info'
+    ) THEN
+        CREATE TRIGGER trigger_set_author_info
+        BEFORE INSERT ON public.package
+        FOR EACH ROW
+        EXECUTE FUNCTION set_author_info();
+    END IF;
+END;
+$$;
+
 ---------------------------------------------
 --           WORKFLOW EXECUTIONS
 ---------------------------------------------

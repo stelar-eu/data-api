@@ -175,9 +175,10 @@ class Entity:
         """
 
         # TODO: This will change to harmonize with search and list/fetch
-        obj = self.get_cached(eid)
-        authorize(obj["id"], self.name, "read")
-        return obj
+        # obj = self.get_cached(eid)
+        # authorize(obj["id"], self.name, "read")
+        # return obj
+        return self.get(eid)
 
     def get_cached(self, eid):
         """Get an entity by ID from the entity cache.
@@ -206,7 +207,7 @@ class Entity:
         Returns:
             The created entity object.
         """
-        authorize(init_data, self.name, "create")
+        # authorize(init_data, self.name, "create")
         return self.create(init_data)
 
     def delete_entity(self, eid: str, purge=False):
@@ -1154,8 +1155,8 @@ class PackageSchema(Schema):
     private = fields.Boolean(load_default=False)
 
     title = fields.String(allow_none=True)
-    author = fields.String(allow_none=True)
-    author_email = fields.String(allow_none=True)
+    author = fields.String(allow_none=True, dump_only=True)
+    author_email = fields.String(allow_none=True, dump_only=True)
     maintainer = fields.String(allow_none=True)
     maintainer_email = fields.String(allow_none=True)
     notes = fields.String(validate=validators.Length(0, 10000), allow_none=True)
@@ -1198,6 +1199,7 @@ class PackageCKANSchema(EntityWithExtrasCKANSchema):
     notes = fields.String(allow_none=True)
     url = fields.String(allow_none=True)
     version = fields.String(allow_none=True)
+    organization = fields.Dict(allow_none=True)
 
     # ---- Licence stuff...
     # isopen = None
@@ -1208,7 +1210,6 @@ class PackageCKANSchema(EntityWithExtrasCKANSchema):
     # ---- TMI...
     # num_resources = None
     # num_tags = None
-    # organization = None
 
     # ---- These seem defunct... user package_relationships_list
     # relationships_as_object = fields.Raw()

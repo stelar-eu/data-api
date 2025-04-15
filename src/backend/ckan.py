@@ -7,10 +7,14 @@ import logging
 import traceback
 from typing import TYPE_CHECKING, Optional
 from urllib.parse import urljoin
-
+from flask import current_app
 import requests
+import kutils
 from psycopg2 import sql
-
+import jwt
+from datetime import datetime
+import random
+import string
 from exceptions import (
     BackendError,
     BackendLogicError,
@@ -18,8 +22,8 @@ from exceptions import (
     InvalidError,
     NotFoundError,
 )
-
-from .pgsql import transaction
+from .redis import REDIS
+from .pgsql import transaction, execSql
 
 if TYPE_CHECKING:
     from requests import Response
@@ -31,7 +35,46 @@ ckan_client = None
 api_url = None
 
 
-def initialize_ckan_client(config):
+def create_and_cache_user_token():
+    user = kutils.current_user()
+    response = raw_request(
+        endpoint="api_token_create",
+        json={"user": user["sub"], "name": "stelar-token"},
+        admin=True,
+    )
+    raise_ckan_error(response, {"user_token": user["sub"]})
+
+    token = response.json()["result"]["token"]
+    # Cache token into Redis using the token_id as the key
+    REDIS.set("ckantoken:" + user["sub"], token)
+
+    return token
+
+
+def get_user_ckan_token(config, admin=False):
+    """Get the CKAN token for the current user.
+
+    This should be called once at the start of the application.
+    """
+    user = kutils.current_user()
+    if user["preferred_username"] == "admin" or admin:
+        # If the user is admin, use the admin token
+        return config["CKAN_ADMIN_TOKEN"]
+
+    # Check if the token is already cached in Redis
+    token = REDIS.get("ckantoken:" + user["sub"])
+    if token is None:
+        # If not cached, create and cache the token
+        token = create_and_cache_user_token(config)
+
+    if not token:
+        raise BackendError(500, "ckan", "Failed to get CKAN token from Redis")
+
+    logger.debug("CKAN token: %s", token)
+    return token
+
+
+def initialize_ckan_client(config, token=None):
     """Initialize the CKAN client.
 
     This should be called once at the start of the application.
@@ -41,7 +84,6 @@ def initialize_ckan_client(config):
 
     ckan_client.headers.update(
         {
-            "Authorization": config["CKAN_ADMIN_TOKEN"],
             "Content-Type": "application/json",
         }
     )
@@ -50,7 +92,13 @@ def initialize_ckan_client(config):
 
 
 def raw_request(
-    endpoint, *, json: Optional[dict] = None, headers: dict = {}, params=None, **kwargs
+    endpoint,
+    *,
+    json: Optional[dict] = None,
+    headers: dict = {},
+    params=None,
+    admin=False,
+    **kwargs,
 ):
     """
     Sends a request to the CKAN API
@@ -75,6 +123,9 @@ def raw_request(
 
     # Prepare headers, defaulting to Authorization if token is present and Content-Type
     # headers = {"Authorization": config["CKAN_ADMIN_TOKEN"]} | headers
+    headers = {
+        "Authorization": get_user_ckan_token(current_app.config["settings"], admin),
+    } | headers
 
     # Make the request using the provided method, url, params, data, json, and headers
     if kwargs:
@@ -167,7 +218,9 @@ def raise_ckan_error(response: Response, context: dict):
                 raise DataError(etype, emsg, detail=context_detail)
             case "Search Error":
                 raise InvalidError(etype, emsg, detail=context_detail)
-            case "Search Index Error" | "Solr Connection Error" | "Internal Server Error":
+            case (
+                "Search Index Error" | "Solr Connection Error" | "Internal Server Error"
+            ):
                 raise BackendError("ckan", etype, emsg, detail=context_detail)
             case _:
                 raise BackendLogicError(
