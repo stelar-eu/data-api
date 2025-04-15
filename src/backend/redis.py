@@ -44,6 +44,16 @@ class RedisClient:
         except Exception as e:
             raise BackendError(f"Redis error: {str(e)}")
 
+    def delete(self, key):
+        """Delete a value from Redis using a connection from the pool."""
+        try:
+            if self._pool is None:
+                self._initialize_redis()
+            conn = redis.Redis(connection_pool=self._pool)
+            conn.delete(key)
+        except Exception as e:
+            raise BackendError(f"Redis error: {str(e)}")
+
 
 # Create a singleton instance of RedisClient
 REDIS = RedisClient()

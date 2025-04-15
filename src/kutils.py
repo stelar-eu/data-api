@@ -18,6 +18,7 @@ import sql_utils
 from backend.ckan import ckan_request
 from backend.pgsql import execSql
 from backend.kc import KEYCLOAK_ADMIN_CLIENT, KEYCLOAK_OPENID_CLIENT
+from backend.redis import REDIS
 
 from exceptions import (
     APIException,
@@ -597,6 +598,32 @@ def delete_ckan_user(username):
     execSql(query, (username,))
 
 
+def update_ckan_id(username, old_id, new_id):
+    """
+    Updates the CKAN user ID in the database.
+    This function updates the user ID in the CKAN database for a given username and matches
+    it with the ID the user has in Keycloak.
+
+    Because CKAN uses the username as the primary key, we need to delete the API tokens
+    associated with the old user ID before updating it to the new one. In this context
+    we also need to invalidate the cached API tokens in Redis.
+
+    Args:
+        username (str): The username of the user to update.
+        old_id (str): The old ID of the user.
+        new_id (str): The new ID of the user.
+    """
+    # Invalidate the cached CKAN API tokens in Redis
+    REDIS.delete("ckantoken:" + new_id)
+    REDIS.delete("ckantoken:" + old_id)
+    # Delete user's CKAN API tokens
+    query = 'DELETE FROM public.api_token WHERE user_id IN (SELECT id FROM public."user" WHERE name = %s)'
+    execSql(query, (username,))
+    # Update the user ID in CKAN's database
+    query = 'UPDATE public."user" SET id=%s WHERE name= %s'
+    execSql(query, (new_id, username))
+
+
 def update_user(
     user_id,
     first_name=None,
@@ -738,6 +765,10 @@ def sync_users():
                 logger.error(
                     "Error while deleting CKAN user %s: %s", user["name"], str(e)
                 )
+
+        # Update the mismatched IDs in CKAN
+        for user in mismatched_ids:
+            update_ckan_id(user["username"], user["ckan_id"], user["keycloak_id"])
 
         return {
             "keycloak_only": keycloak_only,
