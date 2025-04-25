@@ -604,7 +604,7 @@ def update_ckan_id(username, old_id, new_id):
     This function updates the user ID in the CKAN database for a given username and matches
     it with the ID the user has in Keycloak.
 
-    Because CKAN uses the username as the primary key, we need to delete the API tokens
+    Because CKAN uses the user id as a foreign key, we need to delete the API tokens
     associated with the old user ID before updating it to the new one. In this context
     we also need to invalidate the cached API tokens in Redis.
 
@@ -947,23 +947,19 @@ def assign_role_to_user(user_id, role_id):
         user_rep = get_user(user_id)
 
         if not user_rep:
-            raise ValueError(f"User with ID: {user_id} was not found.")
+            raise NotFoundError(f"User with ID: {user_id} was not found.")
 
         user_roles = get_user_roles(user_rep.get("id"))
 
         role_rep = get_role(role_id)
         if not role_rep:
-            raise ValueError(f"Role with ID: {role_id} was not found")
+            raise NotFoundError(f"Role with ID: {role_id} was not found")
 
         # Assign the role to the user if it is not already assigned
         if role_rep["name"] not in user_roles:
             KEYCLOAK_ADMIN_CLIENT().assign_realm_roles(user_rep["id"], [role_rep])
-            return get_user(user_id)
-        else:
-            raise AttributeError(
-                f"Role with ID: {role_id} already assigned to user with ID: {user_id}"
-            )
 
+        return get_user(user_id)
     except ValueError as ve:
         raise ValueError(str(ve))
     except AttributeError as ae:
@@ -1216,24 +1212,16 @@ def send_reset_password_email(to_email, rstoken, user_id, fullname):
     subject = "Reset your STELAR account password"
     sender_name = "STELAR KLMS"
 
-    # Plain text message without headers (headers will be handled separately)
-    plain_message = f"""\
-Dear {fullname},
-
-Follow this link to reset your password: 
-
-{config['MAIN_EXT_URL']}{url_for('dashboard_blueprint.reset_password', rs_token=rstoken, user_id=user_id)}
-
-The link will be valid for the next 30 minutes.
-
-If you didn't request a password reset, consider changing your password and enabling 2FA for your account.
-
-Kind Regards,
-STELAR KLMS
-"""
-    # Create the full email message with subject, sender, and receiver
-    full_message = f"Subject: {subject}\nFrom: {sender_name} <{sender_email}>\nTo: {to_email}\n\n{plain_message}"
-
+    # HTML message with headers for HTML content
+    html_message = flask.render_template(
+        "reset_password_email.html",
+        fullname=fullname,
+        rstoken=rstoken,
+        user_id=user_id,
+        main_ext_url=config["MAIN_EXT_URL"],
+    )
+    # Create the full email message with subject, MIME headers, and HTML content
+    full_message = f"Subject: {subject}\nMIME-Version: 1.0\nContent-type: text/html\nFrom: {sender_name} <{sender_email}>\nTo: {to_email}\n\n{html_message}"
     context = ssl.create_default_context()
 
     try:

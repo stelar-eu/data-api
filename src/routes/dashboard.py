@@ -9,6 +9,7 @@ import ssl
 from datetime import datetime, timedelta
 from functools import wraps
 from math import ceil
+import execution
 
 from apiflask import APIBlueprint
 
@@ -150,7 +151,476 @@ def dashboard_index():
     return render_template_with_s3("index.html", PARTNER_IMAGE_SRC=get_partner_logo())
 
 
-# Signup Route
+# -------------------------------------
+# Workflow Processes Routes
+# -------------------------------------
+
+
+@dashboard_bp.route("/processes")
+@session_required
+def processes():
+
+    # Retrieve list of WFs from DB
+    processes = PROCESS.fetch_entities(limit=10, offset=0)
+    logger.debug(processes)
+
+    if processes is not None and processes != []:
+        status_counts = {}
+        monthly_counts = {}
+
+        for proc in processes:
+            # Count process status for pie chart
+            status = proc["exec_state"]
+            status_counts[status] = status_counts.get(status, 0) + 1
+
+            # Count process per month for bar chart
+            start_date = proc["start_date"]
+            month_year = start_date.strftime("%Y-%m")
+            monthly_counts[month_year] = monthly_counts.get(month_year, 0) + 1
+
+        # Get the last two months + current month for bar chart display
+        today = datetime.today()
+        months_to_display = [
+            (today - timedelta(days=30 * i)).strftime("%Y-%m") for i in range(2, -1, -1)
+        ]
+
+        # Ensure monthly_counts includes all three months (set to 0 if missing)
+        monthly_counts = {
+            month: monthly_counts.get(month, 0) for month in months_to_display
+        }
+
+        return render_template_with_s3(
+            "processes.html",
+            processes=processes,
+            status_counts=status_counts,
+            monthly_counts=monthly_counts,
+            PARTNER_IMAGE_SRC=get_partner_logo(),
+        )
+
+    else:
+        return render_template_with_s3(
+            "processes.html",
+            processes={},
+            status_counts={},
+            monthly_counts={},
+            PARTNER_IMAGE_SRC=get_partner_logo(),
+        )
+
+
+@dashboard_bp.route("/process/<process_id>")
+@session_required
+def process(process_id):
+
+    if not process_id:
+        return redirect(url_for("dashboard_blueprint.dashboard_index"))
+
+    process = PROCESS.get_entity(process_id)
+
+    return render_template_with_s3(
+        "process.html",
+        process=process,
+        proc_tasks=(process.get("tasks") if process and "tasks" in process else []),
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+    )
+
+
+@dashboard_bp.route("/task/<process_id>/<task_id>")
+@session_required
+def task(process_id, task_id):
+    # Basic input validation
+    if not process_id or not task_id:
+        return redirect(url_for("dashboard_blueprint.login"))
+
+    task_metadata = TASK.get_entity(task_id)
+    task_metadata["process_title"] = PROCESS.get_entity(process_id)["title"]
+
+    # Do not allow mismatch between given wf and actual wf
+    if task_metadata.get("process_id") != process_id:
+        return redirect(url_for("dashboard_blueprint.login"))
+
+    input_metadata = TASK.get_input(id=task_id, include_input_ids=True)
+
+    logs_metadata = TASK.get_job_info(id=task_id)
+
+    return render_template_with_s3(
+        "task.html",
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+        task=task_metadata,
+        input=input_metadata,
+        logs=logs_metadata,
+    )
+
+
+# -------------------------------------
+# Catalog Routes
+# -------------------------------------
+
+
+@dashboard_bp.route("/catalog", methods=["GET", "POST"])
+@dashboard_bp.route("/catalog/page/<page_number>", methods=["GET", "POST"])
+@dashboard_bp.doc(False)
+@session_required
+def catalog(page_number=None):
+    limit = 10
+    page_number = int(page_number) if page_number and page_number.isdigit() else 1
+    offset = limit * (page_number - 1) if page_number > 0 else 0
+
+    # Handle default GET request
+    packages = cutils.DATASET.fetch_entities(limit=limit, offset=offset)
+
+    count_pkg = cutils.count_packages("dataset")
+
+    total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
+
+    return render_template_with_s3(
+        "catalog.html",
+        tags=TAG.fetch_entities(limit=200, offset=0),
+        datasets=packages,
+        page_number=page_number,
+        total_pages=total_pages,
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+    )
+
+
+@dashboard_bp.route("/catalog/<dataset_id>", methods=["GET", "POST"])
+@session_required
+def dataset_detail(dataset_id):
+    if request.method == "POST":
+        if request.form.get("dataset_delete"):
+            try:
+                id = request.form.get("dataset_delete")
+                if id == dataset_id:
+                    cutils.delete_package(id)
+                    return redirect(url_for("dashboard_blueprint.catalog"))
+            except:
+                return redirect(url_for("dashboard_blueprint.catalog"))
+        else:
+            return redirect(url_for("dashboard_blueprint.catalog"))
+    else:
+        metadata_data = None
+        try:
+            metadata_data = cutils.get_package(id=dataset_id)
+        except ValueError as e:
+            return redirect(url_for("dashboard_blueprint.catalog"))
+        except Exception as e:
+            return redirect(url_for("dashboard_blueprint.catalog"))
+
+        if metadata_data:
+            return render_template_with_s3(
+                "catalog_view.html",
+                dataset=metadata_data,
+                PARTNER_IMAGE_SRC=get_partner_logo(),
+            )
+        else:
+            return redirect(url_for("dashboard_blueprint.catalog"))
+
+
+@dashboard_bp.route("/catalog/resource/<resource_id>")
+@session_required
+def viewResource(resource_id):
+    config = current_app.config["settings"]
+    if resource_id:
+        try:
+            minio_console_url = config.get("S3_CONSOLE_URL").replace(
+                "login", "browser/"
+            )
+            resource_mtd = cutils.get_resource(id=resource_id)
+            url = resource_mtd.get("url")
+            if url and url.startswith("s3://"):
+                url = url.replace("s3://", minio_console_url)
+                resource_mtd["url"] = url
+            return render_template_with_s3(
+                "resource.html",
+                PARTNER_IMAGE_SRC=get_partner_logo(),
+                resource=resource_mtd,
+            )
+        except:
+            return redirect(url_for("dashboard_blueprint.catalog"))
+    else:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+
+@dashboard_bp.route("/catalog/visualizer/start")
+def start_visualizer():
+    config = current_app.config["settings"]
+    host = config.get("MAIN_EXT_URL")
+
+    execution.exec_engine().create_visualizer_job(
+        user_id=session.get("KEYCLOAK_ID_USER"),
+        s3_credentials={
+            "access_key": "1234",
+            "secret_key": "5678",
+            "token": "91011",
+            "endpoint": "https://example.com",
+        },
+        s3_path="s3://klms-bucket/test-file.txt",
+        resource_id="234245asdfsdaa",
+        signature="1234567890abcdef",
+        domain=host,
+        context_path="/stelar/visualizer/" + session.get("KEYCLOAK_ID_USER"),
+    )
+
+    if host:
+        host = re.sub(r"^https?://", "", host)
+
+    execution.exec_engine().create_visualizer_rule(
+        user_id=session.get("KEYCLOAK_ID_USER"), domain=host
+    )
+
+
+@dashboard_bp.route("/catalog/visualize/<profile_id>")
+@session_required
+def visualize(profile_id):
+    config = current_app.config["settings"]
+
+    host = config.get("MAIN_EXT_URL")
+
+    return render_template_with_s3(
+        "visualizer.html",
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+        VIS_URL=host
+        + "/stelar/visualizer/"
+        + session.get("KEYCLOAK_ID_USER")
+        + "?embed=true",
+        profile_id=profile_id,
+    )
+
+
+@dashboard_bp.route("/datasets/compare", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+def dataset_compare():
+    dataset_ids = request.cookies.get("compare_datasets", "").split(",")[:5]
+    datasets = []
+
+    logger.debug("Dataset IDs from the cookie: %d", dataset_ids)
+    for dataset_id in dataset_ids:
+        try:
+            dataset = cutils.get_package(id=dataset_id)
+            if dataset:
+                datasets.append(dataset)
+        except Exception as e:
+            logging.error(f"Error fetching dataset {dataset_id}: {str(e)}")
+
+    return render_template_with_s3(
+        "dataset_compare.html",
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+        datasets=datasets,
+    )
+
+
+# --------------------------------------
+# Tools Routes
+# --------------------------------------
+
+
+@dashboard_bp.route("/tools", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+def tools():
+    registry = current_app.config["settings"].get("REGISTRY_EXT_URL")
+    if registry:
+        registry = re.sub(r"^https?://", "", registry)
+
+    return render_template_with_s3(
+        "tools.html", REGISTRY_URL=registry, PARTNER_IMAGE_SRC=get_partner_logo()
+    )
+
+
+@dashboard_bp.route("/tool/<tool_id>", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+@handle_error(redirect="tools")
+def tool(tool_id):
+
+    tool = TOOL.get_entity(tool_id)
+
+    if (
+        "git_repository" in tool
+        and tool["git_repository"] is not None
+        and tool["git_repository"] != ""
+    ):
+        # Extract the GitHub repository information
+        repo_info = extract_github_repo_info(tool["git_repository"])
+        if repo_info:
+            tool["git_user"], tool["git_repo"] = repo_info
+
+    if "repository" in tool:
+        registry = current_app.config["settings"].get("REGISTRY_EXT_URL")
+        if registry:
+            registry = re.sub(r"^https?://", "", registry)
+            image_repo = registry + "/stelar/" + tool["repository"]
+            logger.debug("Image repo: %s", image_repo)
+            tool["repository"] = image_repo
+
+    return render_template_with_s3(
+        "tool.html", tool=tool, PARTNER_IMAGE_SRC=get_partner_logo()
+    )
+
+
+# --------------------------------------
+# Organizations & Groups Routes
+# --------------------------------------
+
+
+@dashboard_bp.route("/organizations")
+@session_required
+def organizations():
+    orgs = ORGANIZATION.fetch_entities(limit=100, offset=0)
+    for org in orgs:
+        org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
+        for member in org["members"][:5]:
+            user = kutils.get_user(member[0])
+            member.append(user.get("fullname", "STELAR User"))
+
+    return render_template_with_s3(
+        "organizations.html", PARTNER_IMAGE_SRC=get_partner_logo(), organizations=orgs
+    )
+
+
+@dashboard_bp.route("/organization/<organization_id>")
+@session_required
+def organization(organization_id):
+    org = ORGANIZATION.get_entity(organization_id)
+    org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
+    # datasets = DATASET.search_entities()
+
+    # for dataset in datasets[:4]:
+    #     org["datasets"].append(DATASET.get_entity(dataset[0]))
+
+    for member in org["members"][:5]:
+        user = kutils.get_user(member[0])
+        member.append(user.get("fullname", "STELAR User"))
+
+    return render_template_with_s3(
+        "organization.html", PARTNER_IMAGE_SRC=get_partner_logo(), organization=org
+    )
+
+
+# -------------------------------------------
+# Admin Settings & Account Settings Routes
+# -------------------------------------------
+
+
+@dashboard_bp.route("/admin-settings")
+@session_required
+@admin_required
+def adminSettings():
+    return render_template_with_s3("cluster.html", PARTNER_IMAGE_SRC=get_partner_logo())
+
+
+# Settings Route
+@dashboard_bp.route("/settings")
+@session_required
+def settings():
+    TWO_FACTOR_AUTH = dict()
+    try:
+        # Fetch user's 2FA status
+        TWO_FACTOR_AUTH = kutils.stat_user_2fa(session.get("KEYCLOAK_ID_USER"))
+        created_at = TWO_FACTOR_AUTH.get("created_at")
+        if created_at:
+            TWO_FACTOR_AUTH["created_at"] = created_at.strftime("%d-%m-%Y %H:%M:%S")
+    except Exception:
+        pass
+    return render_template_with_s3(
+        "settings.html",
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+        REGISTRY_EXT_URL=current_app.config["settings"].get("REGISTRY_EXT_URL"),
+        TWO_FACTOR_AUTH=TWO_FACTOR_AUTH,
+    )
+
+
+# --------------------------------------
+# 2FA & Reset Routes
+# --------------------------------------
+@dashboard_bp.route("/login/verify", methods=["GET", "POST"])
+def verify_2fa(next_url=None):
+    if request.method == "GET":
+        if "ACTIVE" in session and session["ACTIVE"]:
+            return redirect(url_for("dashboard_blueprint.dashboard_index"))
+        else:
+            return render_template("2fa.html", PARTNER_IMAGE_SRC=get_partner_logo())
+    elif request.method == "POST":
+        token = request.form.get("token")
+        if request.form.get("cancel"):
+            session.pop("PASSWORD_RESET_FLOW", None)
+            session.clear()
+            return redirect(url_for("dashboard_blueprint.login"))
+
+        if token:
+            try:
+                kutils.validate_2fa_otp(session.get("KEYCLOAK_ID_USER"), token)
+                session["ACTIVE"] = True
+                session.pop("2FA_FLOW_IN_PROGRESS", None)
+                if next_url:
+                    return redirect(next_url)
+                else:
+                    return redirect(url_for("dashboard_blueprint.dashboard_index"))
+            except ValueError:
+                flash("OTP is not valid", "danger")
+                return render_template("2fa.html", PARTNER_IMAGE_SRC=get_partner_logo())
+            except Exception as e:
+                flash("An error occurred", "danger")
+                return render_template("2fa.html", PARTNER_IMAGE_SRC=get_partner_logo())
+        else:
+            flash("Please provide a valid OTP", "warning")
+            return render_template("2fa.html", PARTNER_IMAGE_SRC=get_partner_logo())
+
+
+@dashboard_bp.route("/login/forgot", methods=["GET", "POST"])
+def forgot_password(next_url=None):
+    if request.method == "GET":
+        if "ACTIVE" in session and session["ACTIVE"]:
+            return redirect(url_for("dashboard_blueprint.dashboard_index"))
+        else:
+            return render_template("forgot.html")
+    elif request.method == "POST":
+        account = request.form.get("account")
+        if account:
+            try:
+                kutils.reset_password_init_flow(email=account)
+                session["PASSWORD_RESET_FLOW"] = True
+                return redirect(
+                    url_for("dashboard_blueprint.forgot_password_sent_email")
+                )
+            except Exception as e:
+                pass
+        return render_template("forgot.html")
+
+
+@dashboard_bp.route("/login/forgot/next")
+def forgot_password_sent_email():
+    if request.method == "GET":
+        if "ACTIVE" in session and session["ACTIVE"]:
+            return redirect(url_for("dashboard_blueprint.dashboard_index"))
+        if "PASSWORD_RESET_FLOW" in session and session["PASSWORD_RESET_FLOW"]:
+            return render_template("reset_email_sent.html")
+        else:
+            return redirect(url_for("dashboard_blueprint.login"))
+
+
+@dashboard_bp.route("/login/reset/<rs_token>/<user_id>", methods=["GET", "POST"])
+def reset_password(rs_token, user_id):
+    if "ACTIVE" in session and session["ACTIVE"]:
+        return redirect(url_for("dashboard_blueprint.dashboard_index"))
+
+    if request.method == "GET" and rs_token and user_id:
+        payload = kutils.verify_reset_token(rs_token, user_id)
+
+        if payload:
+            if payload.get("exp"):
+                expiration_time = datetime.fromtimestamp(payload.get("exp"))
+                if expiration_time < datetime.now():
+                    return redirect(url_for("dashboard_blueprint.login"))
+                else:
+                    return render_template("new_password.html")
+            else:
+                return redirect(url_for("dashboard_blueprint.login"))
+
+
+# ----------------------------------------
+# Signup Routes
+# ----------------------------------------
 @dashboard_bp.route("/signup", methods=["GET", "POST"])
 def signup():
     # Handle signup POST request (form submitted).
@@ -276,402 +746,11 @@ def verify_email():
     return redirect(url_for("dashboard_blueprint.login"))
 
 
-# Settings Route
-@dashboard_bp.route("/settings")
-@session_required
-def settings():
-    TWO_FACTOR_AUTH = dict()
-    try:
-        # Fetch user's 2FA status
-        TWO_FACTOR_AUTH = kutils.stat_user_2fa(session.get("KEYCLOAK_ID_USER"))
-        created_at = TWO_FACTOR_AUTH.get("created_at")
-        if created_at:
-            TWO_FACTOR_AUTH["created_at"] = created_at.strftime("%d-%m-%Y %H:%M:%S")
-    except Exception:
-        pass
-    return render_template_with_s3(
-        "settings.html",
-        PARTNER_IMAGE_SRC=get_partner_logo(),
-        REGISTRY_EXT_URL=current_app.config["settings"].get("REGISTRY_EXT_URL"),
-        TWO_FACTOR_AUTH=TWO_FACTOR_AUTH,
-    )
-
-
-@dashboard_bp.route("/processes")
-@session_required
-def processes():
-
-    # Retrieve list of WFs from DB
-    processes = PROCESS.fetch_entities(limit=10, offset=0)
-    logger.debug(processes)
-
-    if processes is not None and processes != []:
-        status_counts = {}
-        monthly_counts = {}
-
-        for proc in processes:
-            # Count process status for pie chart
-            status = proc["exec_state"]
-            status_counts[status] = status_counts.get(status, 0) + 1
-
-            # Count process per month for bar chart
-            start_date = proc["start_date"]
-            month_year = start_date.strftime("%Y-%m")
-            monthly_counts[month_year] = monthly_counts.get(month_year, 0) + 1
-
-        # Get the last two months + current month for bar chart display
-        today = datetime.today()
-        months_to_display = [
-            (today - timedelta(days=30 * i)).strftime("%Y-%m") for i in range(2, -1, -1)
-        ]
-
-        # Ensure monthly_counts includes all three months (set to 0 if missing)
-        monthly_counts = {
-            month: monthly_counts.get(month, 0) for month in months_to_display
-        }
-
-        return render_template_with_s3(
-            "processes.html",
-            processes=processes,
-            status_counts=status_counts,
-            monthly_counts=monthly_counts,
-            PARTNER_IMAGE_SRC=get_partner_logo(),
-        )
-
-    else:
-        return render_template_with_s3(
-            "processes.html",
-            processes={},
-            status_counts={},
-            monthly_counts={},
-            PARTNER_IMAGE_SRC=get_partner_logo(),
-        )
-
-
-@dashboard_bp.route("/process/<process_id>")
-@session_required
-def process(process_id):
-
-    if not process_id:
-        return redirect(url_for("dashboard_blueprint.dashboard_index"))
-
-    process = PROCESS.get_entity(process_id)
-
-    return render_template_with_s3(
-        "process.html",
-        process=process,
-        proc_tasks=(process.get("tasks") if process and "tasks" in process else []),
-        PARTNER_IMAGE_SRC=get_partner_logo(),
-    )
-
-
-@dashboard_bp.route("/task/<process_id>/<task_id>")
-@session_required
-def task(process_id, task_id):
-    # Basic input validation
-    if not process_id or not task_id:
-        return redirect(url_for("dashboard_blueprint.login"))
-
-    task_metadata = TASK.get_entity(task_id)
-    task_metadata["process_title"] = PROCESS.get_entity(process_id)["title"]
-
-    # Do not allow mismatch between given wf and actual wf
-    if task_metadata.get("process_id") != process_id:
-        return redirect(url_for("dashboard_blueprint.login"))
-
-    input_metadata = TASK.get_input(id=task_id, include_input_ids=True)
-
-    logs_metadata = TASK.get_job_info(id=task_id)
-
-    return render_template_with_s3(
-        "task.html",
-        PARTNER_IMAGE_SRC=get_partner_logo(),
-        task=task_metadata,
-        input=input_metadata,
-        logs=logs_metadata,
-    )
-
-
-@dashboard_bp.route("/catalog", methods=["GET", "POST"])
-@dashboard_bp.route("/catalog/page/<page_number>", methods=["GET", "POST"])
-@dashboard_bp.doc(False)
-@session_required
-def catalog(page_number=None):
-    limit = 10
-    page_number = int(page_number) if page_number and page_number.isdigit() else 1
-    offset = limit * (page_number - 1) if page_number > 0 else 0
-
-    # Handle default GET request
-    packages = cutils.DATASET.fetch_entities(limit=limit, offset=offset)
-
-    count_pkg = cutils.count_packages("dataset")
-
-    total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
-
-    return render_template_with_s3(
-        "catalog.html",
-        tags=TAG.fetch_entities(limit=200, offset=0),
-        datasets=packages,
-        page_number=page_number,
-        total_pages=total_pages,
-        PARTNER_IMAGE_SRC=get_partner_logo(),
-    )
-
-
-@dashboard_bp.route("/tools", methods=["GET"])
-@dashboard_bp.doc(False)
-@session_required
-def tools():
-    registry = current_app.config["settings"].get("REGISTRY_EXT_URL")
-    if registry:
-        registry = re.sub(r"^https?://", "", registry)
-
-    return render_template_with_s3(
-        "tools.html", REGISTRY_URL=registry, PARTNER_IMAGE_SRC=get_partner_logo()
-    )
-
-
-@dashboard_bp.route("/tool/<tool_id>", methods=["GET"])
-@dashboard_bp.doc(False)
-@session_required
-@handle_error(redirect="tools")
-def tool(tool_id):
-
-    tool = TOOL.get_entity(tool_id)
-
-    if (
-        "git_repository" in tool
-        and tool["git_repository"] is not None
-        and tool["git_repository"] != ""
-    ):
-        # Extract the GitHub repository information
-        repo_info = extract_github_repo_info(tool["git_repository"])
-        if repo_info:
-            tool["git_user"], tool["git_repo"] = repo_info
-
-    if "repository" in tool:
-        registry = current_app.config["settings"].get("REGISTRY_EXT_URL")
-        if registry:
-            registry = re.sub(r"^https?://", "", registry)
-            image_repo = registry + "/stelar/" + tool["repository"]
-            logger.debug("Image repo: %s", image_repo)
-            tool["repository"] = image_repo
-
-    return render_template_with_s3(
-        "tool.html", tool=tool, PARTNER_IMAGE_SRC=get_partner_logo()
-    )
-
-
-@dashboard_bp.route("/datasets/compare", methods=["GET"])
-@dashboard_bp.doc(False)
-@session_required
-def dataset_compare():
-    dataset_ids = request.cookies.get("compare_datasets", "").split(",")[:5]
-    datasets = []
-
-    logger.debug("Dataset IDs from the cookie: %d", dataset_ids)
-    for dataset_id in dataset_ids:
-        try:
-            dataset = cutils.get_package(id=dataset_id)
-            if dataset:
-                datasets.append(dataset)
-        except Exception as e:
-            logging.error(f"Error fetching dataset {dataset_id}: {str(e)}")
-
-    return render_template_with_s3(
-        "dataset_compare.html",
-        PARTNER_IMAGE_SRC=get_partner_logo(),
-        datasets=datasets,
-    )
-
-
-@dashboard_bp.route("/catalog/<dataset_id>", methods=["GET", "POST"])
-@session_required
-def dataset_detail(dataset_id):
-    if request.method == "POST":
-        if request.form.get("dataset_delete"):
-            try:
-                id = request.form.get("dataset_delete")
-                if id == dataset_id:
-                    cutils.delete_package(id)
-                    return redirect(url_for("dashboard_blueprint.catalog"))
-            except:
-                return redirect(url_for("dashboard_blueprint.catalog"))
-        else:
-            return redirect(url_for("dashboard_blueprint.catalog"))
-    else:
-        metadata_data = None
-        try:
-            metadata_data = cutils.get_package(id=dataset_id)
-        except ValueError as e:
-            return redirect(url_for("dashboard_blueprint.catalog"))
-        except Exception as e:
-            return redirect(url_for("dashboard_blueprint.catalog"))
-
-        if metadata_data:
-            return render_template_with_s3(
-                "catalog_view.html",
-                dataset=metadata_data,
-                PARTNER_IMAGE_SRC=get_partner_logo(),
-            )
-        else:
-            return redirect(url_for("dashboard_blueprint.catalog"))
-
-
-@dashboard_bp.route("/resource/<resource_id>")
-@session_required
-def viewResource(resource_id):
-    config = current_app.config["settings"]
-    if resource_id:
-        try:
-            minio_console_url = config.get("S3_CONSOLE_URL").replace(
-                "login", "browser/"
-            )
-            resource_mtd = cutils.get_resource(id=resource_id)
-            url = resource_mtd.get("url")
-            if url and url.startswith("s3://"):
-                url = url.replace("s3://", minio_console_url)
-                resource_mtd["url"] = url
-            return render_template_with_s3(
-                "resource.html",
-                PARTNER_IMAGE_SRC=get_partner_logo(),
-                resource=resource_mtd,
-            )
-        except:
-            return redirect(url_for("dashboard_blueprint.catalog"))
-    else:
-        return redirect(url_for("dashboard_blueprint.catalog"))
-
-
-@dashboard_bp.route("/admin-settings")
-@session_required
-@admin_required
-def adminSettings():
-    return render_template_with_s3("cluster.html", PARTNER_IMAGE_SRC=get_partner_logo())
-
-
-@dashboard_bp.route("/organizations")
-@session_required
-def organizations():
-    orgs = ORGANIZATION.fetch_entities(limit=100, offset=0)
-    for org in orgs:
-        org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
-        for member in org["members"][:5]:
-            user = kutils.get_user(member[0])
-            member.append(user.get("fullname", "STELAR User"))
-
-    return render_template_with_s3(
-        "organizations.html", PARTNER_IMAGE_SRC=get_partner_logo(), organizations=orgs
-    )
-
-
-@dashboard_bp.route("/organization/<organization_id>")
-@session_required
-def organization(organization_id):
-    org = ORGANIZATION.get_entity(organization_id)
-    org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
-    # datasets = DATASET.search_entities()
-
-    # for dataset in datasets[:4]:
-    #     org["datasets"].append(DATASET.get_entity(dataset[0]))
-
-    for member in org["members"][:5]:
-        user = kutils.get_user(member[0])
-        member.append(user.get("fullname", "STELAR User"))
-
-    return render_template_with_s3(
-        "organization.html", PARTNER_IMAGE_SRC=get_partner_logo(), organization=org
-    )
-
-
-@dashboard_bp.route("/login/verify", methods=["GET", "POST"])
-def verify_2fa(next_url=None):
-    if request.method == "GET":
-        if "ACTIVE" in session and session["ACTIVE"]:
-            return redirect(url_for("dashboard_blueprint.dashboard_index"))
-        else:
-            return render_template("2fa.html", PARTNER_IMAGE_SRC=get_partner_logo())
-    elif request.method == "POST":
-        token = request.form.get("token")
-        if request.form.get("cancel"):
-            session.pop("PASSWORD_RESET_FLOW", None)
-            session.clear()
-            return redirect(url_for("dashboard_blueprint.login"))
-
-        if token:
-            try:
-                kutils.validate_2fa_otp(session.get("KEYCLOAK_ID_USER"), token)
-                session["ACTIVE"] = True
-                session.pop("2FA_FLOW_IN_PROGRESS", None)
-                if next_url:
-                    return redirect(next_url)
-                else:
-                    return redirect(url_for("dashboard_blueprint.dashboard_index"))
-            except ValueError:
-                flash("OTP is not valid", "danger")
-                return render_template("2fa.html", PARTNER_IMAGE_SRC=get_partner_logo())
-            except Exception as e:
-                flash("An error occurred", "danger")
-                return render_template("2fa.html", PARTNER_IMAGE_SRC=get_partner_logo())
-        else:
-            flash("Please provide a valid OTP", "warning")
-            return render_template("2fa.html", PARTNER_IMAGE_SRC=get_partner_logo())
-
-
-@dashboard_bp.route("/login/forgot", methods=["GET", "POST"])
-def forgot_password(next_url=None):
-    if request.method == "GET":
-        if "ACTIVE" in session and session["ACTIVE"]:
-            return redirect(url_for("dashboard_blueprint.dashboard_index"))
-        else:
-            return render_template("forgot.html")
-    elif request.method == "POST":
-        account = request.form.get("account")
-        if account:
-            try:
-                kutils.reset_password_init_flow(email=account)
-                session["PASSWORD_RESET_FLOW"] = True
-                return redirect(
-                    url_for("dashboard_blueprint.forgot_password_sent_email")
-                )
-            except Exception as e:
-                pass
-        return render_template("forgot.html")
-
-
-@dashboard_bp.route("/login/forgot/next")
-def forgot_password_sent_email():
-    if request.method == "GET":
-        if "ACTIVE" in session and session["ACTIVE"]:
-            return redirect(url_for("dashboard_blueprint.dashboard_index"))
-        if "PASSWORD_RESET_FLOW" in session and session["PASSWORD_RESET_FLOW"]:
-            return render_template("reset_email_sent.html")
-        else:
-            return redirect(url_for("dashboard_blueprint.login"))
-
-
-@dashboard_bp.route("/login/reset/<rs_token>/<user_id>", methods=["GET", "POST"])
-def reset_password(rs_token, user_id):
-    if "ACTIVE" in session and session["ACTIVE"]:
-        return redirect(url_for("dashboard_blueprint.dashboard_index"))
-
-    if request.method == "GET" and rs_token and user_id:
-        payload = kutils.verify_reset_token(rs_token, user_id)
-
-        if payload:
-            if payload.get("exp"):
-                expiration_time = datetime.fromtimestamp(payload.get("exp"))
-                if expiration_time < datetime.now():
-                    return redirect(url_for("dashboard_blueprint.login"))
-                else:
-                    return render_template("new_password.html")
-            else:
-                return redirect(url_for("dashboard_blueprint.login"))
-
-
-####################################
+# ---------------------------------------
 # Login Route
-####################################
+# ---------------------------------------
+
+
 @dashboard_bp.route("/login", methods=["GET", "POST"])
 def login():
     """
@@ -766,9 +845,9 @@ def login():
     )
 
 
-####################################
+# ---------------------------------------
 # Logout Route
-####################################
+# ---------------------------------------
 @dashboard_bp.route("/logout")
 def logout():
     if "ACTIVE" not in session or not session["ACTIVE"]:

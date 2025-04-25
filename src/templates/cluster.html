@@ -6,14 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>STELAR | Cluster Settings</title>
-
     <link rel="preload" href="https://code.jquery.com/jquery-3.6.0.min.js" as="script">
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css" as="style">
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js" as="script">
-
+    {% include 'tabler.html' %}
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.5/ace.js" type="text/javascript"
         charset="utf-8"></script>
     <script src="{{ url_for('static', filename='utils.js') }}"></script>

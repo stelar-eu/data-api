@@ -6,8 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>STELAR | Task Overview</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+    {% include 'tabler.html' %}
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="{{ url_for('static', filename='utils.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
@@ -43,7 +42,7 @@
                                     <span id="task-state-text" class="ms-2 me-1">{{ task.exec_state |
                                         capitalize }}</span>
                                     <span id="task-state-badge"
-                                        class="status-indicator {% if task.exec_state == 'succeeded' %}status-green{% elif task.exec_state == 'failed' %}status-red{% else %}status-yellow status-indicator-animated{% endif %}">
+                                        class="status-indicator {% if task.exec_state == 'succeeded' %}status-green{% elif task.exec_state == 'failed' %}status-red{% elif task.exec_state == 'created' %}status-secondary{% else %}status-yellow status-indicator-animated{% endif %}">
                                         <span class="status-indicator-circle"></span>
                                         <span class="status-indicator-circle"></span>
                                         <span class="status-indicator-circle"></span>
@@ -723,7 +722,7 @@
                 } else if (newState === 'failed') {
                     taskStateBadge.className = 'status-indicator status-red';
                 } else if (newState === 'created') {
-                    taskStateBadge.className = 'status-indicator status-gray';
+                    taskStateBadge.className = 'status-indicator status-secondary';
                 } else {
                     taskStateBadge.className = 'status-indicator status-indicator-animated status-yellow';
                 }
