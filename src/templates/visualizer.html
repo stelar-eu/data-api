@@ -33,19 +33,17 @@
                                             Data Catalog
                                         </a>
                                     </li>
-                                    <li class="breadcrumb-item active"><a href="#"><span
-                                                class="text-strong">Visualizer</span></a></li>
+                                    <li class="breadcrumb-item"><a class="text-secondary"
+                                            href="{{ url_for('dashboard_blueprint.dataset_detail', dataset_id=profile.package_id) }}">
+                                            {{package_name}}
+                                        </a>
+                                    </li>
+                                    <li class="breadcrumb-item active"><a
+                                            href="{{ url_for('dashboard_blueprint.viewResource', resource_id=profile.id)}}"><span
+                                                class="text-strong">Visualizing
+                                                profile "{{profile.name}}"</span></a></li>
                                 </ol>
                             </h3>
-                        </div>
-                        <div class="col-auto ms-auto d-print-none">
-                            <div class="d-flex align-items-center">
-                                <form action="" method="" class="ms-auto">
-                                    <button type="submit" class="btn btn-danger ms-auto text-white">
-                                        Stop Visualizer
-                                    </button>
-                                </form>
-                            </div>
                         </div>
                     </div>
                 </div>

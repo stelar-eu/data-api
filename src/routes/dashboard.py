@@ -10,6 +10,9 @@ from datetime import datetime, timedelta
 from functools import wraps
 from math import ceil
 import execution
+from urllib.parse import quote
+
+import mutils
 
 from apiflask import APIBlueprint
 
@@ -29,7 +32,7 @@ import kutils
 from processes import PROCESS
 from tasks import TASK
 from tools import TOOL
-from cutils import TAG, ORGANIZATION, DATASET
+from cutils import TAG, ORGANIZATION, DATASET, RESOURCE
 from auth import admin_required
 import re
 
@@ -344,17 +347,35 @@ def viewResource(resource_id):
 @session_required
 def visualize(profile_id):
     config = current_app.config["settings"]
-
     host = config.get("MAIN_EXT_URL")
+
+    # Get the profile path from the Catalog
+    resource = RESOURCE.get_entity(profile_id)
+    if resource.get("relation") != "profile":
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+    package_name = DATASET.get_entity(resource.get("package_id"))["title"]
+
+    profile_file = resource.get("url")
+
+    s3_endpoint = "minio.stelar.gr"
+    creds = mutils.get_temp_minio_credentials(kutils.current_token())
+
+    embed_uri = (
+        f"/visualizer/?embed=true"
+        f"&access_key={quote(creds['AccessKeyId'])}"
+        f"&secret_key={quote(creds['SecretAccessKey'])}"
+        f"&session_token={quote(creds['SessionToken'])}"
+        f"&s3_endpoint={quote(s3_endpoint)}"
+        f"&s3_path={quote(profile_file)}"
+    )
 
     return render_template_with_s3(
         "visualizer.html",
         PARTNER_IMAGE_SRC=get_partner_logo(),
-        VIS_URL=host
-        + "/stelar/visualizer/"
-        + session.get("KEYCLOAK_ID_USER")
-        + "?embed=true",
-        profile_id=profile_id,
+        VIS_URL=host + embed_uri,
+        profile=resource,
+        package_name=package_name,
     )
 
 
