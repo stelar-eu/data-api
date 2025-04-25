@@ -11,6 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="{{ url_for('static', filename='images.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+    <script src="{{ url_for('static', filename='utils.js') }}"></script>
     <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
 </head>
 
@@ -31,7 +32,7 @@
                         </div>
                         <div class="col-auto ms-auto d-print-none">
                             <a href="#" class="btn btn-primary" data-bs-toggle="modal"
-                                data-bs-target="#modal-new-dataset">
+                                data-bs-target="#new-process-modal">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
                                     viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                                     stroke-linecap="round" stroke-linejoin="round">
@@ -168,11 +169,166 @@
                         </div>
                     </div>
                 </div>
-                {% include 'footer.html'%}
+                <div class="modal modal-blur fade" id="new-process-modal" tabindex="-1" role="dialog" aria-modal="true"
+                    style="display: none;">
+                    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">New Workflow Process</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Name</label>
+                                    <input type="text" class="form-control" name="name" placeholder="the-new-process"
+                                        id="process-name-input">
+                                    <small class="form-hint">
+                                        <p>
+                                            Please use a name in the format <code>the-new-process</code> (use hyphens
+                                            instead of spaces). If left blank a name will be generated in the form
+                                            <code>Workflow-Process-&lt;UUID&gt;</code>.
+                                        </p>
+                                    </small>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label"><svg xmlns="http://www.w3.org/2000/svg" width="24"
+                                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M3 21l18 0" />
+                                            <path d="M3 10l18 0" />
+                                            <path d="M5 6l7 -3l7 3" />
+                                            <path d="M4 10l0 11" />
+                                            <path d="M20 10l0 11" />
+                                            <path d="M8 14l0 3" />
+                                            <path d="M12 14l0 3" />
+                                            <path d="M16 14l0 3" />
+                                        </svg>Owner Organization</label>
+                                    <select class="form-select" id="owner-org" name="owner_org">
+
+                                    </select>
+                                    <small class="form-hint">
+                                        <p>
+                                            Creating a new process in an organization requires you to have
+                                            the permission to do so assigned by an administrator.
+                                        </p>
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="modal-footer" id="new-process-modal-footer">
+                                <a class="btn btn-primary btn-5 ms-auto cursor-pointer" id="create-process-btn"
+                                    onclick="createProcess()">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" class="icon icon-2">
+                                        <path d="M12 5l0 14"></path>
+                                        <path d="M5 12l14 0"></path>
+                                    </svg>
+                                    Create new Process
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+            {% include 'footer.html'%}
         </div>
     </div>
 </body>
+<script>
+    function fetchOrganizations() {
+        $.ajax({
+            url: '{{ url_for("catalog_blueprint.api_fetch_organizations") }}',
+            method: 'GET',
+            dataType: 'json',
+            success: function (data) {
+                if (data.result.length > 0) {
+                    // Clear the placeholder cards
+                    $('#owner-org').empty();
+
+                    for (var i = 0; i < data.result.length; i++) {
+                        var org = data.result[i];
+                        $('#owner-org').append(`<option value="${org.name}">${org.title}  |  ${org.name}</option>`);
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                if (xhr.status === 401) {
+                    window.location.href = '/';
+                }
+            }
+        })
+    }
+
+    // Function to validate the process name 
+    function validateProcessName() {
+        var processName = $('#process-name-input').val();
+        var regex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+        if (!processName) {
+            $('#process-name-input').removeClass('is-valid is-invalid');
+            $('#create-process-btn').removeClass('disabled');
+        } else if (regex.test(processName)) {
+            $('#process-name-input').removeClass('is-invalid').addClass('is-valid');
+            $('#create-process-btn').removeClass('disabled');
+        } else {
+            $('#process-name-input').removeClass('is-valid').addClass('is-invalid');
+            $('#create-process-btn').addClass('disabled');
+        }
+    }
+
+    $('#process-name-input').on('input', validateProcessName);
+
+
+    function createProcess() {
+        var processName = $('#process-name-input').val();
+        var ownerOrg = $('#owner-org').val();
+
+        $('#create-process-btn').addClass('disabled');
+        $('#new-process-modal-footer').prepend(createLoaderElement(true, true))
+        $.ajax({
+            url: '{{ url_for("rest_workflows_blueprint.api_create_process") }}',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                ...(processName ? { name: processName } : {}),
+                owner_org: ownerOrg,
+            }),
+            success: function (data) {
+                $('#create-process-btn').removeClass('disabled');
+                $('#new-process-modal-footer .stelar-loader').remove();
+                $('#new-process-modal-footer').prepend(createAlertElement('success', 'Process created successfully'));
+                setTimeout(function () {
+                    $('#new-process-modal-footer .alert').fadeOut(500, function () {
+                        $(this).remove();
+                    });
+                }, 3000);
+
+            },
+            error: function (xhr, status, error) {
+                $('#create-process-btn').removeClass('disabled');
+                $('#new-process-modal-footer .stelar-loader').remove();
+                $('#new-process-modal-footer').prepend(createAlertElement('danger', 'Error creating Process'));
+                setTimeout(function () {
+                    $('#new-process-modal-footer .alert').fadeOut(500, function () {
+                        $(this).remove();
+                    });
+                }, 3000);
+                if (xhr.status === 401) {
+                    window.location.href = '/';
+                }
+            }
+        });
+    }
+
+    $(document).ready(function () {
+        fetchOrganizations();
+    });
+
+</script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         // @formatter:off

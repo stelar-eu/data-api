@@ -161,7 +161,7 @@ def dashboard_index():
 def processes():
 
     # Retrieve list of WFs from DB
-    processes = PROCESS.fetch_entities(limit=10, offset=0)
+    processes = PROCESS.fetch_entities(limit=50, offset=0)
     logger.debug(processes)
 
     if processes is not None and processes != []:

@@ -695,6 +695,7 @@
                                         }
                                         graph.add(params);
                                         params.connect(0, node, 1);
+                                        node.setSize(node.computeSize());
 
                                     }
                                     if (response.result.metrics) {
@@ -707,6 +708,7 @@
                                         }
                                         node.connect(1, metrics, 0);
                                         graph.add(metrics);
+                                        node.setSize(node.computeSize());
                                     }
                                 }
                             }
