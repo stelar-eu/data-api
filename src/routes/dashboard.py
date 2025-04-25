@@ -340,34 +340,6 @@ def viewResource(resource_id):
         return redirect(url_for("dashboard_blueprint.catalog"))
 
 
-@dashboard_bp.route("/catalog/visualizer/start")
-def start_visualizer():
-    config = current_app.config["settings"]
-    host = config.get("MAIN_EXT_URL")
-
-    execution.exec_engine().create_visualizer_job(
-        user_id=session.get("KEYCLOAK_ID_USER"),
-        s3_credentials={
-            "access_key": "1234",
-            "secret_key": "5678",
-            "token": "91011",
-            "endpoint": "https://example.com",
-        },
-        s3_path="s3://klms-bucket/test-file.txt",
-        resource_id="234245asdfsdaa",
-        signature="1234567890abcdef",
-        domain=host,
-        context_path="/stelar/visualizer/" + session.get("KEYCLOAK_ID_USER"),
-    )
-
-    if host:
-        host = re.sub(r"^https?://", "", host)
-
-    execution.exec_engine().create_visualizer_rule(
-        user_id=session.get("KEYCLOAK_ID_USER"), domain=host
-    )
-
-
 @dashboard_bp.route("/catalog/visualize/<profile_id>")
 @session_required
 def visualize(profile_id):
