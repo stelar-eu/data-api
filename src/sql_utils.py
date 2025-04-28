@@ -1112,7 +1112,7 @@ def task_execution_output_read(task_exec_id):
 
 
 def task_execution_input_read_sql(task_exec_id):
-    """Submit a request to the DB to retrieve the parameters specified for the task execution.
+    """Submit a request to the DB to retrieve the inputs specified for the task execution.
 
     Args:
         id: The identifier (UUID) assigned to the task execution in MLFlow.

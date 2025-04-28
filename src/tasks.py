@@ -401,10 +401,11 @@ class Task(Entity):
         # Pop system reserved tags from the final dict.
         task["tags"].pop("__image__", None)
         task["tags"].pop("__name__", None)
+        task["inputs"] = sql_utils.task_execution_input_read_sql(id)
         task["parameters"] = sql_utils.task_execution_parameters_read_sql(id)
 
         if task["exec_state"] in ["failed", "succeeded"]:
-            task["messages"] = task["tags"].get("log", None)
+            task["messages"] = task["tags"].pop("log", None)
             task["output"] = sql_utils.task_execution_read_outputs_sql(id)
             task["metrics"] = sql_utils.task_execution_metrics_read_sql(id)
         return task
