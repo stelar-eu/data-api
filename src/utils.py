@@ -647,7 +647,7 @@ def decode_from_base64(base64_string):
 
 
 def is_valid_package_dict(obj):
-    required_keys = {"title", "tags", "notes"}
+    required_keys = {"name", "tags", "notes", "owner_org"}
     return isinstance(obj, dict) and required_keys.issubset(obj.keys())
 
 

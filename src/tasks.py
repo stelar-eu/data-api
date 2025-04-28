@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional
 
 from apiflask import Schema, fields, validators
-from flask import current_app
+from flask import current_app, g
 from mutils import get_temp_minio_credentials, expand_wildcard_path
 from processes import PROCESS
 import cutils
@@ -1082,19 +1082,22 @@ class Task(Entity):
                         output_spec.get("package_details")
                     )
 
-                    decoded_package["title"]
-                    decoded_package.setdefault("owner_org", "stelar-klms")
-                    decoded_package.setdefault(
-                        "name", re.sub(r"[\W_]+", "_", decoded_package["title"]).lower()
-                    )
-
                     try:
-                        package_id = cutils.DATASET.create_entity(decoded_package)["id"]
+                        package_id = cutils.DATASET.get_entity(
+                            decoded_package.get("name")
+                        )["id"]
                     except Exception:
-                        # Package already exists
-                        # TODO: DPETROU: change this to get_entity of the dataset class
-                        package_id = cutils.get_package(
-                            id="0", title=decoded_package.get("title")
+
+                        # Package does not exist, should be created
+                        package_id = cutils.DATASET.create_entity(
+                            {
+                                "name": decoded_package.get("name"),
+                                "title": decoded_package.get("name")
+                                .replace("-", " ")
+                                .capitalize(),
+                                "owner_org": decoded_package.get("owner_org"),
+                                "tags": decoded_package.get("tags"),
+                            }
                         )["id"]
 
                     res_id = cutils.RESOURCE.create_entity(
@@ -1142,6 +1145,17 @@ class Task(Entity):
 
         # Validate the task existence
         self.validate_task(id)
+
+        # Since the signature is verified, we fictionally mimic the presence of the user in
+        # the flask's g. This will allow the ckan_request to find the current_user
+        # even though a token is not provided for this request. The current_user
+        # becomes the user that created the task.
+        task = sql_utils.task_execution_read(id)
+        user_rep = kutils.get_user(task["creator"])
+        user_rep["sub"] = user_rep.pop("id")
+        user_rep["preferred_username"] = user_rep.pop("username")
+        if "current_user" not in g:
+            g.current_user = user_rep
 
         # Parse the output JSON provided in the request
         outputs = spec.get("output", {})

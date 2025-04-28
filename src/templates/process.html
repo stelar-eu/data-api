@@ -410,8 +410,8 @@
                     const stateTextElement = document.getElementById('process-state-text');
 
                     endDateElement.innerHTML = `<strong>${process.end_date.replace("T", " ")}</strong>`;
-                    stateBadgeElement.className = `badge me-1 ${process.state === 'succeeded' ? 'bg-green' : process.state === 'failed' ? 'bg-danger' : 'bg-warning'}`;
-                    stateTextElement.innerHTML = process.state.charAt(0).toUpperCase() + process.state.slice(1);
+                    stateBadgeElement.className = `badge me-1 ${process.exec_state === 'succeeded' ? 'bg-green' : process.exec_state === 'failed' ? 'bg-danger' : 'bg-warning'}`;
+                    stateTextElement.innerHTML = process.exec_state.charAt(0).toUpperCase() + process.exec_state.slice(1);
                 }
             },
             error: function (xhr, status, error) {

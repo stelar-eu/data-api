@@ -602,11 +602,11 @@
                         logsEl.innerHTML = job.logs.replace(/\n/g, '<br>').replace(/\"/g, '');
                     }
                     // Update job status text and badge
-                    const statusEl = document.getElementById(`task-${id}-status`);
+                    const statusEl = document.getElementById(`jon-${id}-status`);
                     if (statusEl) {
                         statusEl.textContent = job.status;
                     }
-                    const badgeEl = document.getElementById(`task-${id}-badge`);
+                    const badgeEl = document.getElementById(`job-${id}-badge`);
                     if (badgeEl) {
                         if (job.status === 'Succeeded') {
                             badgeEl.className = 'badge bg-success me-1';
@@ -672,7 +672,7 @@
                                             <td><div>${item.resource_id}</div></td>
                                             <td><div>${item.url}</div></td>
                                             <td class="w-1 fw-bold text-end">
-                                                <a href="/stelar/console/v1/resource/${item.resource_id}" target="_blank">View</a>
+                                                <a href="{{ url_for('dashboard_blueprint.viewResource', resource_id='') }}${item.resource_id}" target="_blank">View</a>
                                             </td>
                                         </tr>`;
                         outputModalBody.append(row);
