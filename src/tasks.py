@@ -900,7 +900,7 @@ class Task(Entity):
                                 if (
                                     isinstance(artifact, str)
                                     and artifact.startswith("s3://")
-                                    and artifact.endswith("/*")
+                                    and "*" in artifact
                                 ):
                                     expanded_paths = expand_wildcard_path(
                                         artifact, credentials=credentials
@@ -918,7 +918,7 @@ class Task(Entity):
                             if (
                                 isinstance(artifact, str)
                                 and artifact.startswith("s3://")
-                                and artifact.endswith("/*")
+                                and "*" in artifact
                             ):
                                 expanded_paths = expand_wildcard_path(
                                     artifact, credentials=credentials

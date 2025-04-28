@@ -230,6 +230,7 @@ sql_2fa_template = {
 # Templates of SQL queries for workflow management
 # FIXME: Remove fixed parameters from SQL query for 'workflow_read_statistics'
 sql_workflow_execution_templates = {
+    "resource_read_template": "SELECT * FROM public.resource WHERE id = %s AND state = 'active'",
     "workflow_create_template": "INSERT INTO klms.workflow_execution(workflow_uuid, state, creator_user_id, start_date, wf_package_id) VALUES (%s, %s, %s, %s, %s)",
     "workflow_update_template": "UPDATE klms.workflow_execution SET state = %s WHERE workflow_uuid = %s",
     "workflow_commit_template": "UPDATE klms.workflow_execution SET state = %s, end_date = %s WHERE workflow_uuid = %s",
@@ -326,7 +327,7 @@ sql_workflow_execution_templates = {
     "task_insert_input_dataset_template": "INSERT INTO klms.task_input(task_uuid, order_num, dataset_id) VALUES (%s, %s, %s)",
     "task_insert_output_dataset_template": "INSERT INTO klms.task_output(task_uuid, order_num, dataset_id) VALUES (%s, %s, %s)",
     #
-    "task_insert_input_by_uuid_template": "INSERT INTO klms.task_input(task_uuid, order_num, resource_id, input_group_name) VALUES (%s, %s, %s, %s)",
+    "task_insert_input_by_uuid_template": "INSERT INTO klms.task_input(task_uuid, order_num, resource_id, resource_url, input_group_name) VALUES (%s, %s, %s, %s, %s)",
     "task_insert_input_by_path_template": "INSERT INTO klms.task_input(task_uuid, order_num, input_path, input_group_name) VALUES (%s, %s, %s, %s)",
     "task_insert_output_package": "INSERT INTO klms.task_output_package(task_uuid, package_uuid) VALUES (%s, %s)",
     #

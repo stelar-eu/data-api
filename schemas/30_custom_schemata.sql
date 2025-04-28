@@ -290,15 +290,23 @@ CREATE TABLE IF NOT EXISTS klms.task_input
 (
   task_uuid varchar(64) NOT NULL,
   order_num smallint,
-  resource_id varchar(64), 
+  resource_id varchar(64),
+  resource_url text,
   input_path text,
   input_group_name varchar(50) NOT NULL,
   CONSTRAINT fk_task_input_uuid FOREIGN KEY (task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
   CONSTRAINT fk_task_input_resource FOREIGN KEY (resource_id) REFERENCES public.resource(id) ON UPDATE CASCADE ON DELETE CASCADE, 
-  CONSTRAINT chk_task_input_one_id CHECK (
-    (resource_id IS NOT NULL AND input_path IS NULL) OR
-    (resource_id IS NULL AND input_path IS NOT NULL)
-  )
+  CONSTRAINT chk_input_validity CHECK (
+    (
+        input_path IS NOT NULL AND
+        resource_id IS NULL AND
+        resource_url IS NULL
+    )
+    OR
+    (
+        input_path IS NULL AND
+        resource_url IS NOT NULL
+    ));
 );
 
 

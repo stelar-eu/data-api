@@ -95,7 +95,9 @@
                       <path d="M9 12h-7" />
                       <path d="M15 12h7" />
                     </svg>
-                    ID: <strong>{{ dataset.get('id') }}</strong>
+                    ID: <span id="dataset-id"><strong>{{ dataset.get('id') }}</strong></span>
+                    <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary"
+                      onclick="navigator.clipboard.writeText(document.getElementById('dataset-id').innerText)">COPY</button>
                   </div>
                   <div class="mb-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"

@@ -2,16 +2,16 @@ import hashlib
 import io
 import json
 import logging
-import subprocess
 import xml.etree.ElementTree as ET
-import os
-
+import fnmatch
+from minio import Minio
+from minio.error import S3Error
+from urllib.parse import urlparse
 import requests
-from flask import current_app, make_response
+from flask import current_app
 from minio import Minio
 from minio.commonconfig import CopySource
 from minio.error import S3Error
-import backend.minio
 from backend.minio import minio_add_policy, minio_remove_policy
 
 from exceptions import InternalException, AuthorizationError
@@ -111,20 +111,14 @@ def get_temp_minio_credentials(access_token):
         response.raise_for_status()
 
 
-def expand_wildcard_path(path, credentials, bucket_name=None):
-    # Remove "s3://" prefix if present
+def expand_wildcard_path(path, credentials):
+    """
+    Stat objects in MinIO based on S3-like URL with wildcards.
 
-    if path.startswith("s3://"):
-        path = path[5:]
-
-    # Determine bucket and object (or prefix) from the input
-    if bucket_name is None:
-        parts = path.split("/", 1)
-        if len(parts) != 2:
-            raise ValueError("Path must be in the format 'bucket/object_name'")
-        bucket_name, object_name = parts
-    else:
-        object_name = path
+    :param minio_client: Minio client object
+    :param path: S3-like URL with wildcard (e.g. s3://bucket/data_2/*/input/*)
+    :return: List of tuples containing metadata and S3 path for matching objects
+    """
 
     client = initialize_minio_admin(
         ac_key=credentials["AccessKeyId"],
@@ -132,19 +126,38 @@ def expand_wildcard_path(path, credentials, bucket_name=None):
         token=credentials["SessionToken"],
     )
 
-    # Remove trailing '*' if present to get the prefix
-    prefix = object_name[:-1] if object_name.endswith("*") else object_name
+    # Parse the s3_url to extract the bucket and path
+    parsed_url = urlparse(path)
+    bucket_name = parsed_url.netloc
+    object_path = parsed_url.path.lstrip("/")
 
-    expanded_paths = list()
-    objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
+    # Replace '*' with '**' for recursive matching (for fnmatch)
+    wildcard_path = object_path.replace("*", "**")
 
-    for obj in objects:
-        # Exclude the object that exactly matches the prefix
-        if obj.object_name == prefix or obj.object_name.endswith("/"):
-            continue
-        expanded_paths.append(f"s3://{bucket_name}/{obj.object_name}")
+    # List all objects in the bucket
+    result = []
+    try:
+        # This will list objects in the specified bucket, matching the prefix (before wildcard)
+        objects = client.list_objects(
+            bucket_name, prefix=object_path.split("*")[0], recursive=True
+        )
 
-    return expanded_paths
+        # Now filter objects based on wildcard pattern
+        for obj in objects:
+            if fnmatch.fnmatch(obj.object_name, wildcard_path):
+                try:
+                    # Stat object if it matches the wildcard
+                    stat = client.stat_object(bucket_name, obj.object_name)
+
+                    # Add the metadata and S3 path to the result list
+                    result.append(f"s3://{bucket_name}/{obj.object_name}")
+                except S3Error as e:
+                    print(f"Error statting object {obj.object_name}: {e}")
+
+    except S3Error as e:
+        print(f"Error listing objects: {e}")
+
+    return result
 
 
 def evaluate_write_access(credentials, bucket_name, object_name):

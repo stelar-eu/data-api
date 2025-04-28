@@ -606,6 +606,28 @@ def task_execution_insert_log(task_exec_id, log):
     return True
 
 
+def resource_get_url_by_id(resource_id):
+    """Returns the path of a resource given its ID.
+
+    Args:
+        resource_id: UUID of the resource.
+
+    Returns:
+        A string with the path of the resource.
+    """
+
+    # Compose the SQL command using the template for reading metadata about a task execution
+    sql = utils.sql_workflow_execution_templates["resource_read_template"]
+
+    # Execute the SQL command in the database
+    resp = pgsql.execSql(sql, (resource_id,))
+
+    if resp and len(resp) > 0:
+        return resp[0]["url"]
+    else:
+        return None
+
+
 def task_execution_insert_input(task_exec_id, inputs, input_group_name):
     """Records in the database that the given dataset id was used as input in the given task execution.
     The input will be inserted with the order the were provided in the inputs array.
@@ -626,8 +648,11 @@ def task_execution_insert_input(task_exec_id, inputs, input_group_name):
             sql = utils.sql_workflow_execution_templates[
                 "task_insert_input_by_uuid_template"
             ]
+            # Find the url corresponding to the resource UUID in the database
+            url = resource_get_url_by_id(inp)
+
             # Execute the SQL command in the database
-            resp = pgsql.execSql(sql, (task_exec_id, idx, inp, input_group_name))
+            resp = pgsql.execSql(sql, (task_exec_id, idx, inp, url, input_group_name))
             if resp and "status" in resp:
                 if not resp.get("status"):
                     return False
