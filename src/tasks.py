@@ -1143,6 +1143,13 @@ class Task(Entity):
         if not self.verify_signature(id, signature):
             raise AuthorizationError("Invalid Task Signature. Access Denied.")
 
+        task = sql_utils.task_execution_read(id)
+
+        if task["exec_state"] != "running":
+            raise ConflictError(
+                f"Task '{id}' is terminated and no further updates are allowed."
+            )
+
         # Validate the task existence
         self.validate_task(id)
 
@@ -1150,7 +1157,6 @@ class Task(Entity):
         # the flask's g. This will allow the ckan_request to find the current_user
         # even though a token is not provided for this request. The current_user
         # becomes the user that created the task.
-        task = sql_utils.task_execution_read(id)
         user_rep = kutils.get_user(task["creator"])
         user_rep["sub"] = user_rep.pop("id")
         user_rep["preferred_username"] = user_rep.pop("username")
