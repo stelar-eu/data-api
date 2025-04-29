@@ -131,6 +131,7 @@ BEGIN
 
     RETURN NEW;
 END;
+$$ LANGUAGE plpgsql;
 
 DO $$
 BEGIN
