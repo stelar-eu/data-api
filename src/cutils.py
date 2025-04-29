@@ -311,7 +311,6 @@ def get_package(
             dataset = resp.get("result", None)
 
             if dataset:
-                dataset["organization"] = dataset["organization"]["title"]
 
                 if no_resources and "resources" in dataset:
                     dataset.pop("resources")

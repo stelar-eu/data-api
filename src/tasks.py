@@ -107,11 +107,9 @@ class TaskDatasetDictSchema(Schema):
     name = fields.String(
         required=True, validate=lambda s: re.match(r"^[a-zA-Z0-9_-]+$", s) is not None
     )
-    notes = fields.String(required=True)
     owner_org = fields.String(
         required=True, validate=lambda s: re.match(r"^[a-z0-9-]+$", s) is not None
     )
-    tags = fields.List(fields.String(), required=True)
 
     class Meta:
         unknown = INCLUDE
@@ -406,7 +404,7 @@ class Task(Entity):
 
         if task["exec_state"] in ["failed", "succeeded"]:
             task["messages"] = task["tags"].pop("log", None)
-            task["output"] = sql_utils.task_execution_read_outputs_sql(id)
+            task["outputs"] = sql_utils.task_execution_read_outputs_sql(id)
             task["metrics"] = sql_utils.task_execution_metrics_read_sql(id)
         return task
 
@@ -1090,16 +1088,7 @@ class Task(Entity):
                     except Exception:
 
                         # Package does not exist, should be created
-                        package_id = cutils.DATASET.create_entity(
-                            {
-                                "name": decoded_package.get("name"),
-                                "title": decoded_package.get("name")
-                                .replace("-", " ")
-                                .capitalize(),
-                                "owner_org": decoded_package.get("owner_org"),
-                                "tags": decoded_package.get("tags"),
-                            }
-                        )["id"]
+                        package_id = cutils.DATASET.create_entity(decoded_package)["id"]
 
                     res_id = cutils.RESOURCE.create_entity(
                         {

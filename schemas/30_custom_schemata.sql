@@ -295,7 +295,7 @@ CREATE TABLE IF NOT EXISTS klms.task_input
   input_path text,
   input_group_name varchar(50) NOT NULL,
   CONSTRAINT fk_task_input_uuid FOREIGN KEY (task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_task_input_resource FOREIGN KEY (resource_id) REFERENCES public.resource(id) ON UPDATE CASCADE ON DELETE CASCADE, 
+  CONSTRAINT fk_task_input_resource FOREIGN KEY (resource_id) REFERENCES public.resource(id) ON UPDATE CASCADE ON DELETE SET NULL, 
   CONSTRAINT chk_input_validity CHECK (
     (
         input_path IS NOT NULL AND

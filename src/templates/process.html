@@ -359,7 +359,7 @@
                                                                                 d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
                                                                         </svg>
                                                                         <span id="task-status-{{ task.id }}">{{
-                                                                            task.state | capitalize }}</span>
+                                                                            task.exec_state | capitalize }}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -367,7 +367,7 @@
                                                         <div class="col-auto">
                                                             <span id="task-indicator-{{ task.id }}"
                                                                 class="status-indicator 
-                                                                {% if task.state == 'succeeded' %}status-green{% elif task.state == 'failed' %}status-red{% elif task.state == 'created' %}status-secondary{% elif task.state == 'running' %}status-yellow status-indicator-animated{% endif %}">
+                                                                {% if task.exec_state == 'succeeded' %}status-green{% elif task.exec_state == 'failed' %}status-red{% elif task.exec_state == 'created' %}status-secondary{% elif task.exec_state == 'running' %}status-yellow status-indicator-animated{% endif %}">
                                                                 <span class="status-indicator-circle"></span>
                                                                 <span class="status-indicator-circle"></span>
                                                                 <span class="status-indicator-circle"></span>
@@ -481,8 +481,8 @@
 
             if (existingTask.length > 0) {
                 // Update status if the task already exists
-                existingTask.text(task.state.charAt(0).toUpperCase() + task.state.slice(1));
-                updateStatusIndicator(task.task_uuid, task.state);
+                existingTask.text(task.exec_state.charAt(0).toUpperCase() + task.exec_state.slice(1));
+                updateStatusIndicator(task.task_uuid, task.exec_state);
             } else {
                 // Add a new task to the list
                 const taskHTML = generateTaskHTML(task, currentIndex);
@@ -554,13 +554,13 @@
                                                 <path d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/>
                                                 <path d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/>
                                             </svg>
-                                            <span id="task-status-${task.id}">${task.state.charAt(0).toUpperCase() + task.state.slice(1)}</span>
+                                            <span id="task-status-${task.id}">${task.exec_state.charAt(0).toUpperCase() + task.exec_state.slice(1)}</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-auto">
-                                <span id="task-indicator-${task.id}" class="status-indicator ${task.state === 'succeeded' ? 'status-green' : task.state === 'running' ? 'status-yellow status-indicator-animated' : task.state === 'created' ? 'status-secondary' : 'status-red'}">
+                                <span id="task-indicator-${task.id}" class="status-indicator ${task.exec_state === 'succeeded' ? 'status-green' : task.exec_state === 'running' ? 'status-yellow status-indicator-animated' : task.exec_state === 'created' ? 'status-secondary' : 'status-red'}">
                                     <span class="status-indicator-circle"></span>
                                     <span class="status-indicator-circle"></span>
                                     <span class="status-indicator-circle"></span>

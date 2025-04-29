@@ -254,7 +254,7 @@ sql_workflow_execution_templates = {
         SELECT 
             tsk.task_uuid as id, 
             tsk.creator_user_id as creator,
-            tsk.state, 
+            tsk.state as exec_state, 
             tsk.start_date, 
             tsk.end_date, 
             (
