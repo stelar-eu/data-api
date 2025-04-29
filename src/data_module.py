@@ -3,6 +3,7 @@ import kutils as ku
 import mutils as mu
 import logging
 from backend.ckan import ckan_request
+from backend.kc import KEYCLOAK_OPENID_CLIENT
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ def creates_minio_resources(yaml_content):
         return
 
     try:
-        keycloak_openid = ku.initialize_keycloak_openid()
+        keycloak_openid = KEYCLOAK_OPENID_CLIENT()
         logger.info("Keycloak OpenID initialized successfully")
 
         token = keycloak_openid.token(grant_type="client_credentials")
