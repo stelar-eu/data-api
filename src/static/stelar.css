@@ -1,8 +1,8 @@
 :root,
-[data-bs-theme=light] {
-  --tblr-blue: #3E1E4B;
-  --tblr-primary: #3E1E4B; 
-  --tblr-tabler: #3E1E4B; 
+[data-bs-theme="light"] {
+  --tblr-blue: #3e1e4b;
+  --tblr-primary: #3e1e4b;
+  --tblr-tabler: #3e1e4b;
   --tblr-primary-rgb: 62, 30, 75;
   --tblr-primary-border-subtle: #988a9e;
   --tblr-info-border-subtle: #988a9e;
@@ -10,10 +10,28 @@
   --tblr-info: #573963;
 }
 
-.steps-vertical {
-  --tblr-steps-dot-offset: 2rem !important;
+.glowing-text {
+  animation: glowAnimation 1s ease-in-out;
 }
 
-.steps{
-  --tblr-steps-dot-size: 1rem !important;
+@keyframes glowAnimation {
+  0% {
+    text-shadow:
+      0 0 5px #fff,
+      0 0 10px #fff,
+      0 0 15px var(--tblr-primary),
+      0 0 20px var(--tblr-primary),
+      0 0 25px var(--tblr-primary);
+  }
+  50% {
+    text-shadow:
+      0 0 10px #fff,
+      0 0 20px #fff,
+      0 0 30px var(--tblr-primary),
+      0 0 40px var(--tblr-primary),
+      0 0 50px var(--tblr-primary);
+  }
+  100% {
+    text-shadow: none; /* This resets the text-shadow back to its original state */
+  }
 }

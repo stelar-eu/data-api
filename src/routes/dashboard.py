@@ -9,8 +9,14 @@ import ssl
 from datetime import datetime, timedelta
 from functools import wraps
 from math import ceil
+import execution
+from urllib.parse import quote
+
+import mutils
 
 from apiflask import APIBlueprint
+
+from exceptions import InvalidError
 from flask import (
     current_app,
     flash,
@@ -25,8 +31,10 @@ import cutils
 import kutils
 from processes import PROCESS
 from tasks import TASK
-from cutils import TAG, ORGANIZATION, DATASET
+from tools import TOOL
+from cutils import TAG, ORGANIZATION, DATASET, RESOURCE
 from auth import admin_required
+import re
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
 
@@ -40,6 +48,9 @@ def render_template_with_s3(template_name, **kwargs):
     config = current_app.config["settings"]
     # Add the S3_CONSOLE_URL to the kwargs
     kwargs["S3_CONSOLE_URL"] = config.get("S3_CONSOLE_URL", "#")
+    kwargs["AVATAR"] = session.get("AVATAR", None)
+    kwargs["GITHUB_API"] = "https://api.github.com"
+    kwargs["GITHUB_RAW"] = "https://raw.githubusercontent.com"
     return render_template(template_name, **kwargs)
 
 
@@ -57,6 +68,31 @@ def get_partner_logo():
         else:
             PARTNER_IMAGE = url_for("static", filename="logos/arc.png")
     return PARTNER_IMAGE
+
+
+def get_avatar():
+    """
+    Returns the URL of the user's avatar in static/avatars/ if it exists,
+    otherwise returns None.
+    """
+    username = session.get("USER_USERNAME")
+    if username:
+        avatar_filename = f"{username}.png"  # Modify extension if needed.
+        avatar_path = os.path.join(
+            current_app.root_path, "static", "avatars", avatar_filename
+        )
+        if os.path.exists(avatar_path):
+            return url_for("static", filename=f"avatars/{avatar_filename}")
+    return None
+
+
+def extract_github_repo_info(url):
+    pattern = r"^https?://(?:www\.)?github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$"
+    match = re.match(pattern, url)
+    if match:
+        user, repo = match.groups()
+        return user, repo
+    return None
 
 
 def session_required(f):
@@ -77,17 +113,38 @@ def session_required(f):
                 kutils.KEYCLOAK_OPENID_CLIENT().logout(session["refresh_token"])
             except Exception as e:
                 logger.error(f"Error during logout: {e}")
-                pass
-
             session.clear()
-            # Clear local session and redirect to the login page
             flash("Session Expired, Please Login Again", "warning")
             return redirect(url_for("dashboard_blueprint.login", next=request.url))
+
+        if "2FA_FLOW_IN_PROGRESS" in session and session["2FA_FLOW_IN_PROGRESS"]:
+            # Redirect to 2FA verification page
+            return redirect(url_for("dashboard_blueprint.verify_2fa", next=request.url))
 
         # If token is valid, continue with the requested function
         return f(*args, **kwargs)
 
     return decorated_function
+
+
+def handle_error(redirect="dashboard_index"):
+    """
+    Custom decorator to handle errors in the dashboard routes.
+    Redirects to the specified parent page on error.
+    """
+
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except Exception as e:
+                logger.error(f"Error in route: {e}")
+                return redirect(url_for(f"dashboard_blueprint.{redirect}"))
+
+        return decorated_function
+
+    return decorator
 
 
 # Home page (redirect target after login)
@@ -97,150 +154,9 @@ def dashboard_index():
     return render_template_with_s3("index.html", PARTNER_IMAGE_SRC=get_partner_logo())
 
 
-# Signup Route
-@dashboard_bp.route("/signup", methods=["GET", "POST"])
-def signup():
-    # Handle signup POST request (form submitted).
-    if request.method == "POST":
-        fullname = request.form.get("name")
-        email = request.form.get("email")
-        password = request.form.get("passwordIn")
-        passwordRepeat = request.form.get("passwordRepeatIn")
-
-        if not fullname or len(fullname.split()) < 2:
-            return render_template(
-                "signup.html", STATUS="ERROR", ERROR_MSG="Please provide a valid name."
-            )
-        if not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", email):
-            return render_template(
-                "signup.html", STATUS="ERROR", ERROR_MSG="Invalid email address."
-            )
-        if password != passwordRepeat:
-            return render_template(
-                "signup.html", STATUS="ERROR", ERROR_MSG="Passwords do not match."
-            )
-        if not re.match(r"^(?=.*[A-Z])(?=.*\d)(?=.*[^\w]).{8,}$", password):
-            return render_template(
-                "signup.html",
-                STATUS="ERROR",
-                ERROR_MSG="Password does not meet minimum requirements.",
-            )
-
-        try:
-            kutils.email_unique(email=email)
-        except ValueError:
-            return render_template(
-                "signup.html", STATUS="ERROR", ERROR_MSG="Mail address already in use"
-            )
-
-        # We need to decide the user's new username based on what usernames are already present in the system.
-        username_base = re.sub(r"\d", "", email.split("@")[0])
-        username = username_base
-        counter = 0
-        while True:
-            # Should not reach this, just for safety.
-            if counter == 20:
-                break
-            try:
-                # Check if the username is unique.
-                kutils.username_unique(username)
-                break
-            except ValueError:
-                # If not unique, append a counter to the base username.
-                counter += 1
-                username = f"{username_base}{counter}"
-        try:
-            new_uid = kutils.create_user_with_password(
-                username=username,
-                email=email,
-                first_name=fullname.split()[0],
-                last_name=fullname.split()[1],
-                password=password,
-                enabled=False,
-                email_verified=False,
-            )
-            if new_uid:
-                # Generate the vftoken for the email verification.
-                plain = f"{username}{email}"
-                vftoken = hashlib.sha256(plain.encode("utf-8")).hexdigest()
-                # Send verification email
-                send_verification_email(
-                    email, vftoken=vftoken, id=new_uid, fullname=fullname
-                )
-                # Registration was succesful
-                return render_template("signup.html", STATUS="SUCCESS")
-            else:
-                return render_template(
-                    "signup.html",
-                    STATUS="ERROR",
-                    ERROR_MSG="Registration could not be completed. KC Error 0x001",
-                )
-        except Exception as e:
-            return render_template(
-                "signup.html",
-                STATUS="ERROR",
-                ERROR_MSG=f"Registration could not be completed ML Error 0x001 {str(e)}",
-            )
-    else:
-        return render_template("signup.html")
-
-
-# Email verification status
-@dashboard_bp.route("/verify")
-def verify_email():
-    if request.method == "GET":
-        if request.args.get("vftoken") and request.args.get("id"):
-            uid = request.args.get("id")
-            vftoken = request.args.get("vftoken")
-            # Token and email were given, proceed with the verification
-            try:
-                # Fetch user from keycloak to check the status of email verification
-                user = kutils.get_user(uid)
-                if not user.get("emailVerified"):
-                    email = user.get("email")
-                    username = user.get("username")
-
-                    # Reproduce the hash to
-                    plain = f"{username}{email}"
-                    cipher = hashlib.sha256(plain.encode("utf-8")).hexdigest()
-
-                    # Cool the token given and the hash match, the email of the user becomes verified
-                    if cipher == vftoken:
-                        # We update the status of the email verification by updating the user in keycloak
-                        kutils.update_user(user_id=uid, email_verified=True)
-                        return render_template("verify.html", VERIFY_STATUS=True)
-                    else:
-                        # Sadly the email wasn't verified
-                        return render_template("verify.html", VERIFY_STATUS=False)
-
-                else:
-                    # If user's email is already verified do nothing
-                    return redirect(url_for("dashboard_blueprint.login"))
-            except:
-                # Didnt no what to do?!
-                return redirect(url_for("dashboard_blueprint.login"))
-
-    return redirect(url_for("dashboard_blueprint.login"))
-
-
-# Settings Route
-@dashboard_bp.route("/settings")
-@session_required
-def settings():
-    TWO_FACTOR_AUTH = dict()
-    try:
-        # Fetch user's 2FA status
-        TWO_FACTOR_AUTH = kutils.stat_user_2fa(session.get("KEYCLOAK_ID_USER"))
-        created_at = TWO_FACTOR_AUTH.get("created_at")
-        if created_at:
-            TWO_FACTOR_AUTH["created_at"] = created_at.strftime("%d-%m-%Y %H:%M:%S")
-    except Exception:
-        pass
-    return render_template_with_s3(
-        "settings.html",
-        PARTNER_IMAGE_SRC=get_partner_logo(),
-        TWO_FACTOR_AUTH=TWO_FACTOR_AUTH,
-    )
+# -------------------------------------
+# Workflow Processes Routes
+# -------------------------------------
 
 
 @dashboard_bp.route("/processes")
@@ -248,7 +164,7 @@ def settings():
 def processes():
 
     # Retrieve list of WFs from DB
-    processes = PROCESS.fetch_entities(limit=10, offset=0)
+    processes = PROCESS.fetch_entities(limit=50, offset=0)
     logger.debug(processes)
 
     if processes is not None and processes != []:
@@ -338,6 +254,11 @@ def task(process_id, task_id):
     )
 
 
+# -------------------------------------
+# Catalog Routes
+# -------------------------------------
+
+
 @dashboard_bp.route("/catalog", methods=["GET", "POST"])
 @dashboard_bp.route("/catalog/page/<page_number>", methods=["GET", "POST"])
 @dashboard_bp.doc(False)
@@ -356,7 +277,7 @@ def catalog(page_number=None):
 
     return render_template_with_s3(
         "catalog.html",
-        tags=TAG.fetch_entities(limit=200, offset=0),
+        tags=TAG.list_entities(limit=200, offset=0),
         datasets=packages,
         page_number=page_number,
         total_pages=total_pages,
@@ -364,11 +285,120 @@ def catalog(page_number=None):
     )
 
 
-@dashboard_bp.route("/tools", methods=["GET"])
-@dashboard_bp.doc(False)
+@dashboard_bp.route("/catalog/<dataset_id>", methods=["GET", "POST"])
 @session_required
-def tools():
-    return render_template_with_s3("tools.html", PARTNER_IMAGE_SRC=get_partner_logo())
+def dataset_detail(dataset_id):
+    if request.method == "POST":
+        if request.form.get("dataset_delete"):
+            try:
+                id = request.form.get("dataset_delete")
+                if id == dataset_id:
+                    cutils.delete_package(id)
+                    return redirect(url_for("dashboard_blueprint.catalog"))
+            except:
+                return redirect(url_for("dashboard_blueprint.catalog"))
+        else:
+            return redirect(url_for("dashboard_blueprint.catalog"))
+    else:
+        metadata_data = None
+        try:
+            metadata_data = cutils.get_package(id=dataset_id)
+        except ValueError as e:
+            return redirect(url_for("dashboard_blueprint.catalog"))
+        except Exception as e:
+            return redirect(url_for("dashboard_blueprint.catalog"))
+
+        if metadata_data:
+            return render_template_with_s3(
+                "catalog_view.html",
+                dataset=metadata_data,
+                PARTNER_IMAGE_SRC=get_partner_logo(),
+            )
+        else:
+            return redirect(url_for("dashboard_blueprint.catalog"))
+
+
+@dashboard_bp.route("/catalog/<dataset_id>/annotate")
+@session_required
+def dataset_annotate(dataset_id):
+
+    metadata_data = None
+    try:
+        metadata_data = cutils.get_package(id=dataset_id)
+    except ValueError as e:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+    except Exception as e:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+    if metadata_data:
+        return render_template_with_s3(
+            "annotator.html",
+            dataset=metadata_data,
+            PARTNER_IMAGE_SRC=get_partner_logo(),
+        )
+    else:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+
+@dashboard_bp.route("/catalog/resource/<resource_id>")
+@session_required
+def viewResource(resource_id):
+    config = current_app.config["settings"]
+    if resource_id:
+        try:
+            minio_console_url = config.get("S3_CONSOLE_URL").replace(
+                "login", "browser/"
+            )
+            resource_mtd = cutils.get_resource(id=resource_id)
+            url = resource_mtd.get("url")
+            if url and url.startswith("s3://"):
+                url = url.replace("s3://", minio_console_url)
+                resource_mtd["url"] = url
+            return render_template_with_s3(
+                "resource.html",
+                PARTNER_IMAGE_SRC=get_partner_logo(),
+                resource=resource_mtd,
+            )
+        except:
+            return redirect(url_for("dashboard_blueprint.catalog"))
+    else:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+
+@dashboard_bp.route("/catalog/visualize/<profile_id>")
+@session_required
+def visualize(profile_id):
+    config = current_app.config["settings"]
+    host = config.get("MAIN_EXT_URL")
+
+    # Get the profile path from the Catalog
+    resource = RESOURCE.get_entity(profile_id)
+    if resource.get("relation") != "profile":
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+    package_name = DATASET.get_entity(resource.get("package_id"))["title"]
+
+    profile_file = resource.get("url")
+
+    s3_endpoint = "minio.stelar.gr"
+    creds = mutils.get_temp_minio_credentials(kutils.current_token())
+
+    embed_uri = (
+        f"/visualizer/?embed=true"
+        f"&access_key={quote(creds['AccessKeyId'])}"
+        f"&secret_key={quote(creds['SecretAccessKey'])}"
+        f"&session_token={quote(creds['SessionToken'])}"
+        f"&s3_endpoint={quote(s3_endpoint)}"
+        f"&s3_path={quote(profile_file)}"
+    )
+
+    return render_template_with_s3(
+        "visualizer.html",
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+        VIS_URL=host + embed_uri,
+        profile=resource,
+        package_name=package_name,
+    )
 
 
 @dashboard_bp.route("/datasets/compare", methods=["GET"])
@@ -394,69 +424,58 @@ def dataset_compare():
     )
 
 
-@dashboard_bp.route("/datasets/<dataset_id>", methods=["GET", "POST"])
+# --------------------------------------
+# Tools Routes
+# --------------------------------------
+
+
+@dashboard_bp.route("/tools", methods=["GET"])
+@dashboard_bp.doc(False)
 @session_required
-def dataset_detail(dataset_id):
-    if request.method == "POST":
-        if request.form.get("dataset_delete"):
-            try:
-                id = request.form.get("dataset_delete")
-                if id == dataset_id:
-                    cutils.delete_package(id)
-                    return redirect(url_for("dashboard_blueprint.catalog"))
-            except:
-                return redirect(url_for("dashboard_blueprint.catalog"))
-        else:
-            return redirect(url_for("dashboard_blueprint.catalog"))
-    else:
-        metadata_data = None
-        try:
-            metadata_data = cutils.get_package(id=dataset_id)
-        except ValueError as e:
-            return redirect(url_for("dashboard_blueprint.catalog"))
-        except Exception as e:
-            return redirect(url_for("dashboard_blueprint.catalog"))
+def tools():
+    registry = current_app.config["settings"].get("REGISTRY_EXT_URL")
+    if registry:
+        registry = re.sub(r"^https?://", "", registry)
 
-        if metadata_data:
-            return render_template_with_s3(
-                "dataset_view.html",
-                dataset=metadata_data,
-                PARTNER_IMAGE_SRC=get_partner_logo(),
-            )
-        else:
-            return redirect(url_for("dashboard_blueprint.catalog"))
+    return render_template_with_s3(
+        "tools.html", REGISTRY_URL=registry, PARTNER_IMAGE_SRC=get_partner_logo()
+    )
 
 
-@dashboard_bp.route("/resource/<resource_id>")
+@dashboard_bp.route("/tool/<tool_id>", methods=["GET"])
+@dashboard_bp.doc(False)
 @session_required
-def viewResource(resource_id):
-    config = current_app.config["settings"]
-    if resource_id:
-        try:
-            minio_console_url = config.get("S3_CONSOLE_URL").replace(
-                "login", "browser/"
-            )
-            resource_mtd = cutils.get_resource(id=resource_id)
-            url = resource_mtd.get("url")
-            if url and url.startswith("s3://"):
-                url = url.replace("s3://", minio_console_url)
-                resource_mtd["url"] = url
-            return render_template_with_s3(
-                "resource.html",
-                PARTNER_IMAGE_SRC=get_partner_logo(),
-                resource=resource_mtd,
-            )
-        except:
-            return redirect(url_for("dashboard_blueprint.catalog"))
-    else:
-        return redirect(url_for("dashboard_blueprint.catalog"))
+@handle_error(redirect="tools")
+def tool(tool_id):
+
+    tool = TOOL.get_entity(tool_id)
+
+    if (
+        "git_repository" in tool
+        and tool["git_repository"] is not None
+        and tool["git_repository"] != ""
+    ):
+        # Extract the GitHub repository information
+        repo_info = extract_github_repo_info(tool["git_repository"])
+        if repo_info:
+            tool["git_user"], tool["git_repo"] = repo_info
+
+    if "repository" in tool:
+        registry = current_app.config["settings"].get("REGISTRY_EXT_URL")
+        if registry:
+            registry = re.sub(r"^https?://", "", registry)
+            image_repo = registry + "/stelar/" + tool["repository"]
+            logger.debug("Image repo: %s", image_repo)
+            tool["repository"] = image_repo
+
+    return render_template_with_s3(
+        "tool.html", tool=tool, PARTNER_IMAGE_SRC=get_partner_logo()
+    )
 
 
-@dashboard_bp.route("/admin-settings")
-@session_required
-@admin_required
-def adminSettings():
-    return render_template_with_s3("cluster.html", PARTNER_IMAGE_SRC=get_partner_logo())
+# --------------------------------------
+# Organizations & Groups Routes
+# --------------------------------------
 
 
 @dashboard_bp.route("/organizations")
@@ -479,10 +498,10 @@ def organizations():
 def organization(organization_id):
     org = ORGANIZATION.get_entity(organization_id)
     org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
-    datasets = DATASET.search_entities()
+    # datasets = DATASET.search_entities()
 
-    for dataset in datasets[:4]:
-        org["datasets"].append(DATASET.get_entity(dataset[0]))
+    # for dataset in datasets[:4]:
+    #     org["datasets"].append(DATASET.get_entity(dataset[0]))
 
     for member in org["members"][:5]:
         user = kutils.get_user(member[0])
@@ -493,6 +512,42 @@ def organization(organization_id):
     )
 
 
+# -------------------------------------------
+# Admin Settings & Account Settings Routes
+# -------------------------------------------
+
+
+@dashboard_bp.route("/admin-settings")
+@session_required
+@admin_required
+def adminSettings():
+    return render_template_with_s3("cluster.html", PARTNER_IMAGE_SRC=get_partner_logo())
+
+
+# Settings Route
+@dashboard_bp.route("/settings")
+@session_required
+def settings():
+    TWO_FACTOR_AUTH = dict()
+    try:
+        # Fetch user's 2FA status
+        TWO_FACTOR_AUTH = kutils.stat_user_2fa(session.get("KEYCLOAK_ID_USER"))
+        created_at = TWO_FACTOR_AUTH.get("created_at")
+        if created_at:
+            TWO_FACTOR_AUTH["created_at"] = created_at.strftime("%d-%m-%Y %H:%M:%S")
+    except Exception:
+        pass
+    return render_template_with_s3(
+        "settings.html",
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+        REGISTRY_EXT_URL=current_app.config["settings"].get("REGISTRY_EXT_URL"),
+        TWO_FACTOR_AUTH=TWO_FACTOR_AUTH,
+    )
+
+
+# --------------------------------------
+# 2FA & Reset Routes
+# --------------------------------------
 @dashboard_bp.route("/login/verify", methods=["GET", "POST"])
 def verify_2fa(next_url=None):
     if request.method == "GET":
@@ -502,10 +557,16 @@ def verify_2fa(next_url=None):
             return render_template("2fa.html", PARTNER_IMAGE_SRC=get_partner_logo())
     elif request.method == "POST":
         token = request.form.get("token")
+        if request.form.get("cancel"):
+            session.pop("PASSWORD_RESET_FLOW", None)
+            session.clear()
+            return redirect(url_for("dashboard_blueprint.login"))
+
         if token:
             try:
                 kutils.validate_2fa_otp(session.get("KEYCLOAK_ID_USER"), token)
                 session["ACTIVE"] = True
+                session.pop("2FA_FLOW_IN_PROGRESS", None)
                 if next_url:
                     return redirect(next_url)
                 else:
@@ -572,9 +633,139 @@ def reset_password(rs_token, user_id):
                 return redirect(url_for("dashboard_blueprint.login"))
 
 
-####################################
+# ----------------------------------------
+# Signup Routes
+# ----------------------------------------
+@dashboard_bp.route("/signup", methods=["GET", "POST"])
+def signup():
+    # Handle signup POST request (form submitted).
+    if request.method == "POST":
+        fullname = request.form.get("name")
+        email = request.form.get("email")
+        password = request.form.get("passwordIn")
+        passwordRepeat = request.form.get("passwordRepeatIn")
+
+        if not fullname or len(fullname.split()) < 2:
+            return render_template(
+                "signup.html", STATUS="ERROR", ERROR_MSG="Please provide a valid name."
+            )
+        if not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", email):
+            return render_template(
+                "signup.html", STATUS="ERROR", ERROR_MSG="Invalid email address."
+            )
+        if password != passwordRepeat:
+            return render_template(
+                "signup.html", STATUS="ERROR", ERROR_MSG="Passwords do not match."
+            )
+        if not re.match(r"^(?=.*[A-Z])(?=.*\d)(?=.*[^\w]).{8,}$", password):
+            return render_template(
+                "signup.html",
+                STATUS="ERROR",
+                ERROR_MSG="Password does not meet minimum requirements.",
+            )
+
+        try:
+            kutils.email_unique(email=email)
+        except ValueError:
+            return render_template(
+                "signup.html", STATUS="ERROR", ERROR_MSG="Mail address already in use"
+            )
+
+        # We need to decide the user's new username based on what usernames are already present in the system.
+        username_base = re.sub(r"\d", "", email.split("@")[0])
+        username = username_base
+        counter = 0
+        while True:
+            # Should not reach this, just for safety.
+            if counter == 20:
+                break
+            try:
+                # Check if the username is unique.
+                kutils.username_unique(username)
+                break
+            except InvalidError:
+                # If not unique, append a counter to the base username.
+                counter += 1
+                username = f"{username_base}{counter}"
+        try:
+            new_uid = kutils.create_user_with_password(
+                username=username,
+                email=email,
+                first_name=fullname.split()[0],
+                last_name=fullname.split()[1],
+                password=password,
+                enabled=False,
+                email_verified=False,
+            )
+            if new_uid:
+                # Generate the vftoken for the email verification.
+                plain = f"{username}{email}"
+                vftoken = hashlib.sha256(plain.encode("utf-8")).hexdigest()
+                # Send verification email
+                send_verification_email(
+                    email, vftoken=vftoken, id=new_uid, fullname=fullname
+                )
+                # Registration was succesful
+                return render_template("signup.html", STATUS="SUCCESS")
+            else:
+                return render_template(
+                    "signup.html",
+                    STATUS="ERROR",
+                    ERROR_MSG="Registration could not be completed. KC Error 0x001",
+                )
+        except Exception as e:
+            return render_template(
+                "signup.html",
+                STATUS="ERROR",
+                ERROR_MSG=f"Registration could not be completed ML Error 0x001 {str(e)}",
+            )
+    else:
+        return render_template("signup.html")
+
+
+# Email verification status
+@dashboard_bp.route("/verify")
+def verify_email():
+    if request.method == "GET":
+        if request.args.get("vftoken") and request.args.get("id"):
+            uid = request.args.get("id")
+            vftoken = request.args.get("vftoken")
+            # Token and email were given, proceed with the verification
+            try:
+                # Fetch user from keycloak to check the status of email verification
+                user = kutils.get_user(uid)
+                if not user.get("emailVerified"):
+                    email = user.get("email")
+                    username = user.get("username")
+
+                    # Reproduce the hash to
+                    plain = f"{username}{email}"
+                    cipher = hashlib.sha256(plain.encode("utf-8")).hexdigest()
+
+                    # Cool the token given and the hash match, the email of the user becomes verified
+                    if cipher == vftoken:
+                        # We update the status of the email verification by updating the user in keycloak
+                        kutils.update_user(user_id=uid, email_verified=True)
+                        return render_template("verify.html", VERIFY_STATUS=True)
+                    else:
+                        # Sadly the email wasn't verified
+                        return render_template("verify.html", VERIFY_STATUS=False)
+
+                else:
+                    # If user's email is already verified do nothing
+                    return redirect(url_for("dashboard_blueprint.login"))
+            except:
+                # Didnt no what to do?!
+                return redirect(url_for("dashboard_blueprint.login"))
+
+    return redirect(url_for("dashboard_blueprint.login"))
+
+
+# ---------------------------------------
 # Login Route
-####################################
+# ---------------------------------------
+
+
 @dashboard_bp.route("/login", methods=["GET", "POST"])
 def login():
     """
@@ -590,6 +781,8 @@ def login():
     # Check if the user is already logged in and redirect him to console home page if so
     if request.method == "GET":
         session["PASSWORD_RESET_FLOW"] = False
+        if "2FA_FLOW_IN_PROGRESS" in session and session["2FA_FLOW_IN_PROGRESS"]:
+            return redirect(url_for("dashboard_blueprint.verify_2fa"))
         if "ACTIVE" in session and session["ACTIVE"]:
             return redirect(url_for("dashboard_blueprint.dashboard_index"))
 
@@ -621,6 +814,7 @@ def login():
                         "email_verified", False
                     )
                     session["USER_USERNAME"] = userinfo.get("preferred_username")
+                    session["AVATAR"] = get_avatar()
                     session["USER_ROLES"] = userinfo.get("realm_access", {}).get(
                         "roles", []
                     )
@@ -637,6 +831,7 @@ def login():
                     next_url = request.args.get("next")
 
                     if kutils.user_has_2fa(session["KEYCLOAK_ID_USER"]):
+                        session["2FA_FLOW_IN_PROGRESS"] = True
                         return redirect(url_for("dashboard_blueprint.verify_2fa"))
 
                     session["ACTIVE"] = True
@@ -665,9 +860,9 @@ def login():
     )
 
 
-####################################
+# ---------------------------------------
 # Logout Route
-####################################
+# ---------------------------------------
 @dashboard_bp.route("/logout")
 def logout():
     if "ACTIVE" not in session or not session["ACTIVE"]:

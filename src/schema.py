@@ -251,6 +251,10 @@ class ResourceSearchQuery(PaginationParameters):
     order_by = String(required=False, example="name")
 
 
+class RegistryCredentials(Schema):
+    title = String(required=True)
+
+
 # =============================================
 #
 #  Older non-generic schema definitions

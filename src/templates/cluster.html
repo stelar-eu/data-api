@@ -6,14 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>STELAR | Cluster Settings</title>
-
     <link rel="preload" href="https://code.jquery.com/jquery-3.6.0.min.js" as="script">
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css" as="style">
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js" as="script">
-
+    {% include 'tabler.html' %}
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.36.5/ace.js" type="text/javascript"
         charset="utf-8"></script>
     <script src="{{ url_for('static', filename='utils.js') }}"></script>
@@ -194,37 +189,6 @@
                                     <div class="d-flex justify-content-end mt-3" id="editor-footer">
                                         <button id="apply-policy-btn" class="btn btn-primary">Apply YAML as new
                                             Policy</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="container container-xl mt-4">
-                    <div class="card card-md">
-                        <div class="card-body">
-                            <div class="row row-cards">
-                                <div class="col-lg-12">
-                                    <h2 class="mb-3">Tool Settings</h2>
-                                    <p class="text-secondary mb-4">
-                                        Manage the data tool images that are allowed to be run in the KLMS cluster
-                                    </p>
-                                    <div class="table-responsive">
-                                        <table class="table table-vcenter card-table">
-                                            <thead>
-                                                <tr>
-                                                    <th style="width: 25%;">Tool</th>
-                                                    <th style="width: 25%;">Image Name</th>
-                                                    <th style="width: 25%;">Source Code Repo</th>
-                                                    <th style="width: 15%;">Owner</th>
-                                                    <th style="width: 10%;">Execution Allowed</th>
-                                                    <th class="w-1"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="tool-body">
-                                            </tbody>
-                                        </table>
                                     </div>
                                 </div>
                             </div>

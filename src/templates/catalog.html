@@ -6,9 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta http-equiv="X-UA-Compatible" content="ie=edge" />
   <title>STELAR | Data Catalog</title>
-  <!-- CSS files -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+  {% include 'tabler.html' %}
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <!-- Leaflet PM CSS (for polygon editing) -->
@@ -78,21 +76,45 @@
 
               </a>
 
-              <div class="form-label">Tags</div>
-              <div class="mb-4">
-                <label class="form-check">
-                  <input type="checkbox" class="form-check-input" name="form-type[]" value="1" checked>
-                  <span class="form-check-label">Geo-Spatial Data</span>
-                </label>
-                <label class="form-check">
-                  <input type="checkbox" class="form-check-input" name="form-type[]" value="2" checked>
-                  <span class="form-check-label">Greek Farms</span>
-                </label>
-                <label class="form-check">
-                  <input type="checkbox" class="form-check-input" name="form-type[]" value="3">
-                  <span class="form-check-label">NL Weather Data</span>
-                </label>
+              <div class="form-label h3">Tags</div>
+              <div class="mb-1 p-1" style="max-height: 16.5rem; overflow: auto;">
+                {% for tag in tags %}
+                {% if loop.index <= 8 %} <label class="form-check tag-item">
+                  <input type="checkbox" class="form-check-input" name="form-type[]" value="{{ tag }}">
+                  <span class="form-check-label">{{ tag }}</span>
+                  </label>
+                  {% else %}
+                  <label class="form-check tag-item more-tag" style="display: none;">
+                    <input type="checkbox" class="form-check-input" name="form-type[]" value="{{ tag }}">
+                    <span class="form-check-label">{{ tag }}</span>
+                  </label>
+                  {% endif %}
+                  {% endfor %}
               </div>
+              {% if tags|length > 8 %}
+              <a id="toggle-tags-btn" class="me-1 mb-1 cursor-pointer" data-expanded="false" onclick="
+                          var moreTags = document.querySelectorAll('.more-tag');
+                          var btn = document.getElementById('toggle-tags-btn');
+                          if (btn.getAttribute('data-expanded') === 'true') {
+                          moreTags.forEach(el => el.style.display = 'none');
+                          btn.innerHTML = 'Show All <svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;24&quot; height=&quot;24&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; class=&quot;me-2 icon icon-tabler icons-tabler-outline icon-tabler-chevron-down&quot;><path stroke=&quot;none&quot; d=&quot;M0 0h24v24H0z&quot; fill=&quot;none&quot;/><path d=&quot;M6 9l6 6l6 -6&quot; /></svg>';
+                          btn.setAttribute('data-expanded','false');
+                          } else {
+                          moreTags.forEach(el => el.style.display = 'block');
+                          btn.innerHTML = 'Show Less <svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;24&quot; height=&quot;24&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; class=&quot;me-2 icon icon-tabler icons-tabler-outline icon-tabler-chevron-up&quot;><path stroke=&quot;none&quot; d=&quot;M0 0h24v24H0z&quot; fill=&quot;none&quot;/><path d=&quot;M6 15l6 -6l6 6&quot; /></svg>';
+                          btn.setAttribute('data-expanded','true');
+                          }
+                        ">
+                Show All
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-chevron-down">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                  <path d="M6 9l6 6l6 -6" />
+                </svg>
+              </a>
+              {% endif %}
+              <hr>
               <div class="form-label">Resource Formats</div>
               <div class="mb-4">
                 <label class="form-check">
@@ -279,7 +301,7 @@
                                     <path d="M12 14l0 3" />
                                     <path d="M16 14l0 3" />
                                   </svg>
-                                  {{ dataset.get('organization') }}
+                                  {{ dataset.organization.title }}
                                 </div>
                                 <div class="list-inline-item">
                                   <svg xmlns="http://www.w3.org/2000/svg"

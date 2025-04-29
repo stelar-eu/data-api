@@ -1,0 +1,7 @@
+.steps-vertical {
+    --tblr-steps-dot-offset: 2rem !important;
+}
+
+.steps {
+    --tblr-steps-dot-size: 1rem !important;
+}

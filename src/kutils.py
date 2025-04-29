@@ -18,8 +18,17 @@ import sql_utils
 from backend.ckan import ckan_request
 from backend.pgsql import execSql
 from backend.kc import KEYCLOAK_ADMIN_CLIENT, KEYCLOAK_OPENID_CLIENT
+from backend.redis import REDIS
 
-from exceptions import APIException, AuthenticationError, AuthorizationError, BackendError, InternalException, InvalidError
+from exceptions import (
+    APIException,
+    AuthenticationError,
+    AuthorizationError,
+    BackendError,
+    InternalException,
+    InvalidError,
+    NotFoundError,
+)
 from utils import is_valid_uuid, validate_email
 
 logger = logging.getLogger(__name__)
@@ -112,7 +121,6 @@ def verify_reset_token(token, user_id):
         return None
 
 
-
 def introspect_admin_token(access_token):
     """
     Introspects the given access token to check if it's valid, active,
@@ -121,7 +129,7 @@ def introspect_admin_token(access_token):
     Raises TokenExpiredError if the token is inactive/expired.
     Raises AuthorizationError if the token is active but not for an admin user.
     """
-    
+
     # keycloak_openid = initialize_keycloak_openid()
     # introspect_response = keycloak_openid.introspect(access_token)
     introspect_response = introspect_token(access_token)
@@ -129,7 +137,7 @@ def introspect_admin_token(access_token):
     # # Check if the token is active
     # if not introspect_response.get("active", False):
     #     raise AuthenticationError(message="Token expired")
-    
+
     # Optionally check for realm_access if needed
     if not introspect_response.get("realm_access", False):
         # You can decide how to handle this; here we treat it as a token issue.
@@ -144,10 +152,8 @@ def introspect_admin_token(access_token):
         raise AuthorizationError(
             message="Bearer Token is not related to an admin user",
         )
-    
+
     return True
-
-
 
 
 def get_user_by_token(access_token):
@@ -170,6 +176,7 @@ def introspect_token(access_token):
         return introspect_response
     else:
         raise AuthenticationError(message="Token is invalid or expired")
+
 
 def is_token_active(access_token):
     """
@@ -359,8 +366,7 @@ def is_2fa_otp_valid(secret, token):
 
 def disable_2fa(user_id):
     if is_valid_uuid(user_id):
-        if sql_utils.two_factor_revoke(user_id=user_id):
-            return True
+        return sql_utils.two_factor_revoke(user_id=user_id)
     else:
         raise ValueError("Not valid UUID")
 
@@ -552,28 +558,70 @@ def create_user_with_password(
                 user_id=user_id, password=password, temporary=temporary_password
             )
 
-        ckan_payload = {
-            "name": username,
-            "id": user_id,
-            "fullname": f"{first_name} {last_name}",
-            "email": email,
-            "password": password,
-        }
-
-        try:
-            obj = ckan_request("user_create", json=ckan_payload)
-            logger.debug("CKAN Response: %s", obj)
-        except Exception as e:
-            logger.error("Error while calling ckan_request: %s", str(e), exc_info=True)
-            keycloak_admin.delete_user(user_id)
-            raise BackendError("Error while creating user") from e
-
-        query = 'UPDATE public."user" SET sysadmin = %s WHERE id = %s'
-        execSql(query, (True, user_id))
+        create_ckan_user(username, user_id, email, first_name, last_name, password)
 
         return user_id
     except KeycloakAuthenticationError as e:
         raise InternalException("Keycloak authentication error") from e
+
+
+def create_ckan_user(username, user_id, email, first_name, last_name, password):
+    ckan_payload = {
+        "name": username,
+        "id": user_id,
+        "fullname": f"{first_name} {last_name}",
+        "email": email,
+        "password": password,
+    }
+
+    try:
+        obj = ckan_request("user_create", json=ckan_payload)
+        logger.debug("CKAN Response: %s", obj)
+    except Exception as e:
+        logger.error("Error while calling ckan_request: %s", str(e), exc_info=True)
+        KEYCLOAK_ADMIN_CLIENT().delete_user(user_id)
+        raise BackendError("Error while creating user") from e
+
+    query = 'UPDATE public."user" SET sysadmin = %s WHERE id = %s'
+    execSql(query, (True, user_id))
+
+
+def delete_ckan_user(username):
+    # Delete user's API tokens
+    query = 'DELETE FROM public.api_token WHERE user_id IN (SELECT id FROM public."user" WHERE name = %s)'
+    execSql(query, (username,))
+    # Remove references to user's ID where he was a creator
+    query = "UPDATE public.package SET creator_user_id='__deleted__' WHERE creator_user_id IN (SELECT id FROM public.\"user\" WHERE name = %s)"
+    execSql(query, (username,))
+    # Finally, delete the user
+    query = 'DELETE FROM public."user" WHERE name= %s'
+    execSql(query, (username,))
+
+
+def update_ckan_id(username, old_id, new_id):
+    """
+    Updates the CKAN user ID in the database.
+    This function updates the user ID in the CKAN database for a given username and matches
+    it with the ID the user has in Keycloak.
+
+    Because CKAN uses the user id as a foreign key, we need to delete the API tokens
+    associated with the old user ID before updating it to the new one. In this context
+    we also need to invalidate the cached API tokens in Redis.
+
+    Args:
+        username (str): The username of the user to update.
+        old_id (str): The old ID of the user.
+        new_id (str): The new ID of the user.
+    """
+    # Invalidate the cached CKAN API tokens in Redis
+    REDIS.delete("ckantoken:" + new_id)
+    REDIS.delete("ckantoken:" + old_id)
+    # Delete user's CKAN API tokens
+    query = 'DELETE FROM public.api_token WHERE user_id IN (SELECT id FROM public."user" WHERE name = %s)'
+    execSql(query, (username,))
+    # Update the user ID in CKAN's database
+    query = 'UPDATE public."user" SET id=%s WHERE name= %s'
+    execSql(query, (new_id, username))
 
 
 def update_user(
@@ -637,6 +685,99 @@ def update_user(
 
     except KeycloakAuthenticationError as e:
         raise InternalException("Keycloak authentication error") from e
+
+
+def sync_users():
+    """
+    Syncs users from Keycloak to CKAN and updates their roles.
+    This function retrieves all users from Keycloak and checks if they exist in CKAN.
+    If a user does not exist in CKAN, it creates the user and assigns the appropriate roles.
+    """
+    try:
+        # Fetch all users from Keycloak
+        kc_users = get_users_from_keycloak(offset=0, limit=0)
+        ckan_users = ckan_request("user_list", params={"limit": 0})
+
+        # Build mappings of users by username excluding "admin" and "ckan_admin"
+        kc_users_map = {
+            user["username"]: user
+            for user in kc_users
+            if user["username"] not in ["admin", "ckan_admin"]
+        }
+        ckan_users_map = {
+            user["name"]: user
+            for user in ckan_users
+            if user["name"] not in ["admin", "ckan_admin"]
+        }  # Assuming CKAN uses "name" as username
+
+        # 1. Users present in Keycloak but not in CKAN
+        keycloak_only = [
+            user
+            for username, user in kc_users_map.items()
+            if username not in ckan_users_map
+        ]
+
+        # 2. Users that have the same username in both but their IDs do not match
+        mismatched_ids = [
+            {
+                "username": username,
+                "keycloak_id": kc_users_map[username]["id"],
+                "ckan_id": ckan_users_map[username]["id"],
+            }
+            for username in kc_users_map.keys() & ckan_users_map.keys()
+            if kc_users_map[username]["id"] != ckan_users_map[username]["id"]
+        ]
+
+        # 3. Users present in CKAN but not in Keycloak
+        ckan_only = [
+            user
+            for username, user in ckan_users_map.items()
+            if username not in kc_users_map
+        ]
+
+        logger.info("Users in Keycloak but not in CKAN: %s", keycloak_only)
+        logger.info("Users with mismatched IDs: %s", mismatched_ids)
+        logger.info("Users in CKAN but not in Keycloak: %s", ckan_only)
+
+        # Create users in CKAN for those present in Keycloak but not in CKAN
+        for user in keycloak_only:
+            try:
+                create_ckan_user(
+                    username=user["username"],
+                    user_id=user["id"],
+                    email=user["email"],
+                    first_name=user["first_name"],
+                    last_name=user["last_name"],
+                    password="empty_pass",
+                )
+            except Exception as e:
+                logger.error(
+                    "Error while creating CKAN user for Keycloak user %s: %s",
+                    user["username"],
+                    str(e),
+                )
+
+        # Delete users in CKAN that are not in Keycloak
+        for user in ckan_only:
+            try:
+                delete_ckan_user(user["name"])
+            except Exception as e:
+                logger.error(
+                    "Error while deleting CKAN user %s: %s", user["name"], str(e)
+                )
+
+        # Update the mismatched IDs in CKAN
+        for user in mismatched_ids:
+            update_ckan_id(user["username"], user["ckan_id"], user["keycloak_id"])
+
+        return {
+            "keycloak_only": keycloak_only,
+            "mismatched_ids": mismatched_ids,
+            "ckan_only": ckan_only,
+        }
+
+    except Exception as e:
+        logger.error("Error while syncing users: %s", str(e), exc_info=True)
 
 
 def get_user(user_id=None):
@@ -806,23 +947,19 @@ def assign_role_to_user(user_id, role_id):
         user_rep = get_user(user_id)
 
         if not user_rep:
-            raise ValueError(f"User with ID: {user_id} was not found.")
+            raise NotFoundError(f"User with ID: {user_id} was not found.")
 
         user_roles = get_user_roles(user_rep.get("id"))
 
         role_rep = get_role(role_id)
         if not role_rep:
-            raise ValueError(f"Role with ID: {role_id} was not found")
+            raise NotFoundError(f"Role with ID: {role_id} was not found")
 
         # Assign the role to the user if it is not already assigned
         if role_rep["name"] not in user_roles:
             KEYCLOAK_ADMIN_CLIENT().assign_realm_roles(user_rep["id"], [role_rep])
-            return get_user(user_id)
-        else:
-            raise AttributeError(
-                f"Role with ID: {role_id} already assigned to user with ID: {user_id}"
-            )
 
+        return get_user(user_id)
     except ValueError as ve:
         raise ValueError(str(ve))
     except AttributeError as ae:
@@ -1075,24 +1212,16 @@ def send_reset_password_email(to_email, rstoken, user_id, fullname):
     subject = "Reset your STELAR account password"
     sender_name = "STELAR KLMS"
 
-    # Plain text message without headers (headers will be handled separately)
-    plain_message = f"""\
-Dear {fullname},
-
-Follow this link to reset your password: 
-
-{config['MAIN_EXT_URL']}{url_for('dashboard_blueprint.reset_password', rs_token=rstoken, user_id=user_id)}
-
-The link will be valid for the next 30 minutes.
-
-If you didn't request a password reset, consider changing your password and enabling 2FA for your account.
-
-Kind Regards,
-STELAR KLMS
-"""
-    # Create the full email message with subject, sender, and receiver
-    full_message = f"Subject: {subject}\nFrom: {sender_name} <{sender_email}>\nTo: {to_email}\n\n{plain_message}"
-
+    # HTML message with headers for HTML content
+    html_message = flask.render_template(
+        "reset_password_email.html",
+        fullname=fullname,
+        rstoken=rstoken,
+        user_id=user_id,
+        main_ext_url=config["MAIN_EXT_URL"],
+    )
+    # Create the full email message with subject, MIME headers, and HTML content
+    full_message = f"Subject: {subject}\nMIME-Version: 1.0\nContent-type: text/html\nFrom: {sender_name} <{sender_email}>\nTo: {to_email}\n\n{html_message}"
     context = ssl.create_default_context()
 
     try:

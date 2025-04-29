@@ -7,8 +7,7 @@
   <meta http-equiv="X-UA-Compatible" content="ie=edge" />
   <title>STELAR | Manage Dataset </title>
   <!-- CSS files -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+  {% include 'tabler.html' %}
   <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
@@ -24,15 +23,26 @@
       <div class="page-header d-print-none">
         <div class="container-xl">
           <div class="row g-2 align-items-center">
+
+
             <div class="col">
-              <!-- Page pre-title -->
               <div class="page-pretitle">
-                {{ dataset.get('id') }}
+                DATA CATALOG
               </div>
-              <div class="d-flex">
-                <h2 class="page-title">
-                  {{ dataset.get('title') }}
-                </h2>
+              <h3 class="page-title">
+                <ol class="breadcrumb breadcrumb-arrows">
+                  <li class="breadcrumb-item"><a class="text-secondary"
+                      href="{{ url_for('dashboard_blueprint.catalog')}}">
+                      Data Catalog
+                    </a>
+                  </li>
+                  <li class="breadcrumb-item active"><a href="#"><span class="text-strong">{{
+                        dataset.title }}</span></a></li>
+                </ol>
+              </h3>
+            </div>
+            <div class="col-auto ms-auto d-print-none">
+              <div class="d-flex align-items-center">
                 <form action="" method="POST" class="ms-auto">
                   <input type="hidden" name="dataset_delete" value="{{ dataset.get('id') }}">
                   <button type="submit" class="btn btn-danger ms-auto text-white">
@@ -51,17 +61,102 @@
                 </form>
               </div>
             </div>
+
           </div>
         </div>
       </div>
       <!-- Page body -->
       <div class="page-body">
         <div class="container-xl">
+          <div class="row row-deck row-cards">
+            <div class="col-8 col">
+              <div class="card mb-2">
+                <div class="row g-0">
+                  <div class="col-auto">
+                    <div class="card-body">
+                      <div class="avatar avatar-xl bg-white">
+                        {% if dataset.organization.image_url and dataset.organization.image_url != '' %}
+                        <img src="{{dataset.organization.image_url}}" />
+                        {% else %}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          class="text-secondary icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
+                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                          <path d="M3 21l18 0" />
+                          <path d="M3 10l18 0" />
+                          <path d="M5 6l7 -3l7 3" />
+                          <path d="M4 10l0 11" />
+                          <path d="M20 10l0 11" />
+                          <path d="M8 14l0 3" />
+                          <path d="M12 14l0 3" />
+                          <path d="M16 14l0 3" />
+                        </svg>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col">
+                    <div class="card-body ps-0">
+                      <div class="row">
+                        <div class="col">
+                          <p class="text-secondary mt-1">{{ dataset.get('notes',
+                            'No
+                            description specified') }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-4 col">
+              <div class="card mb-2">
+                <div class="card-body">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="card-title mb-0">Tags</h5>
+                    <a class="cursor-pointer" title="Update Tags" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                      id="update-tags-icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="text-primary ms-2 icon icon-tabler icons-tabler-outline icon-tabler-cloud-up">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path
+                          d="M12 18.004h-5.343c-2.572 -.004 -4.657 -2.011 -4.657 -4.487c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.38 0 2.57 .811 3.128 1.986" />
+                        <path d="M19 22v-6" />
+                        <path d="M22 19l-3 -3l-3 3" />
+                      </svg>
+                      <span class="text-primary">Update</span>
+                    </a>
+                  </div>
+                  <div class="mb-2">
+                    <input type="hidden" name="packageTags" id="hiddenTagsInput"
+                      value="{{ dataset.get('tags') | map(attribute='display_name') | join(',') }}" />
+                    <div class="col-lg-12 mt-3">
+                      <div class="mb-3">
+                        <input type="text" id="tagInput" class="form-control" placeholder="Type a tag and press enter"
+                          required>
+                        <div class="col tags-list mt-3" id="tagsContainer">
+                          {% for tag in dataset.get('tags') %}
+                          <span class="tag me-2 mb-2">
+                            {{ tag.get('display_name') }}
+                            <a href="#" class="btn-close ms-1" data-index="1"></a>
+                          </span>
+                          {% endfor %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="row g-4">
             <div class="col-md-4">
               <div class="card">
                 <div class="card-body">
-                  <div class="card-title">Basic info</div>
+                  <div class="card-title">Basic Information</div>
                   <div class="mb-2"> <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="24"
                       height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                       stroke-linecap="round" stroke-linejoin="round">
@@ -72,7 +167,13 @@
                       <path d="M12 6l0 13" />
                       <path d="M21 6l0 13" />
                     </svg>
-                    Title: <strong>{{ dataset.get('title') }}</strong>
+                    Name: <span id="dataset-name"><code>{{ dataset.get('name') }}</code></span>
+                    <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
+                      navigator.clipboard.writeText(document.getElementById('dataset-name').innerText);
+                      var el = document.getElementById('dataset-name');
+                      el.classList.remove('glowing-text');
+                      void el.offsetWidth; // trigger reflow to restart animation
+                      el.classList.add('glowing-text');">COPY</button>
                   </div>
                   <div class="mb-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -84,7 +185,13 @@
                       <path d="M9 12h-7" />
                       <path d="M15 12h7" />
                     </svg>
-                    ID: <strong>{{ dataset.get('id') }}</strong>
+                    ID: <span id="dataset-id"><strong>{{ dataset.get('id') }}</strong></span>
+                    <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
+                                          navigator.clipboard.writeText(document.getElementById('dataset-id').innerText);
+                                          var el = document.getElementById('dataset-id');
+                                          el.classList.remove('glowing-text');
+                                          void el.offsetWidth; // trigger reflow to restart animation
+                                          el.classList.add('glowing-text');">COPY</button>
                   </div>
                   <div class="mb-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -109,7 +216,7 @@
                       <path d="M12 14l0 3" />
                       <path d="M16 14l0 3" />
                     </svg>
-                    Owner Organization: <strong>{{ dataset.get('organization') }}</strong>
+                    Owner Organization: <strong>{{ dataset.organization.title }}</strong>
                   </div>
                   <div class="mb-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="44" height="44"
@@ -171,45 +278,6 @@
               <div class="card mt-2">
                 <div class="card-body">
                   <div class="d-flex align-items-center justify-content-between">
-                    <h5 class="card-title mb-0">Tags</h5>
-                    <a class="cursor-pointer" title="Update Tags" data-bs-toggle="tooltip" data-bs-placement="bottom"
-                      id="update-tags-icon">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="text-primary ms-2 icon icon-tabler icons-tabler-outline icon-tabler-cloud-up">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path
-                          d="M12 18.004h-5.343c-2.572 -.004 -4.657 -2.011 -4.657 -4.487c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.38 0 2.57 .811 3.128 1.986" />
-                        <path d="M19 22v-6" />
-                        <path d="M22 19l-3 -3l-3 3" />
-                      </svg>
-                      <span class="text-primary">Update</span>
-                    </a>
-                  </div>
-                  <div class="mb-2">
-                    <input type="hidden" name="packageTags" id="hiddenTagsInput"
-                      value="{{ dataset.get('tags') | map(attribute='display_name') | join(',') }}" />
-                    <div class="col-lg-12 mt-3">
-                      <div class="mb-3">
-                        <input type="text" id="tagInput" class="form-control" placeholder="Type a tag and press enter"
-                          required>
-                        <div class="col tags-list mt-3" id="tagsContainer">
-                          {% for tag in dataset.get('tags') %}
-                          <span class="tag me-2 mb-2">
-                            {{ tag.get('display_name') }}
-                            <a href="#" class="btn-close ms-1" data-index="1"></a>
-                          </span>
-                          {% endfor %}
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-              </div>
-              <div class="card mt-2">
-                <div class="card-body">
-                  <div class="d-flex align-items-center justify-content-between">
                     <div class="card-title">Description</div>
                     <a class="cursor-pointer" title="Update Tags" data-bs-toggle="tooltip" data-bs-placement="bottom"
                       id="update-description-icon">
@@ -237,7 +305,8 @@
                 <div class="card-body">
                   <div class="card-title">Resources</div>
                   <div class="col-auto mb-3 d-flex justify-content-end">
-                    <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-new-resource">
+                    <a href="#" class="btn btn-outline-primary" data-bs-toggle="modal"
+                      data-bs-target="#modal-new-resource">
                       <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24"
                         stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
                         stroke-linejoin="round">
@@ -247,7 +316,23 @@
                       </svg>
                       New Resource
                     </a>
+                    <a href="{{url_for('dashboard_blueprint.dataset_annotate', dataset_id=dataset.id)}}"
+                      class="btn ms-2 btn-outline-primary">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="icon icon-tabler icons-tabler-outline icon-tabler-tag-plus">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M7.5 7.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                        <path
+                          d="M21.002 13c0 -.617 -.235 -1.233 -.706 -1.704l-7.71 -7.71c-.375 -.375 -.884 -.586 -1.414 -.586h-5.172c-1.657 0 -3 1.343 -3 3v5.172c0 .53 .211 1.039 .586 1.414l7.71 7.71c.471 .47 1.087 .706 1.704 .706" />
+                        <path d="M16 19h6" />
+                        <path d="M19 16v6" />
+                      </svg>
+                      Annotate Files
+                    </a>
                   </div>
+                </div>
+                <div class="card-body p-0">
                   <div class="table-responsive">
                     <table class="table table-vcenter card-table">
                       <thead>
@@ -272,8 +357,7 @@
                             {% endif %}
                           </td>
                           <td class="text-sm">{{ resource['name'] }}</td>
-                          <td class="text-sm"><small>{{ resource['url'] | replace('https://minio.stelar.gr', '')
-                              }}</small></td>
+                          <td class="text-sm"><small>{{ resource['url'] }}</small></td>
                           <td class="text-sm">{{ resource['format'] }}</td>
                           <td>
                             <div class="dropdown">
@@ -301,6 +385,21 @@
                                     <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
                                   </svg>
                                   View - Edit</a>
+
+                                {% if resource['relation'] == 'profile' %}
+                                <a class="dropdown-item view-resource-btn cursor-pointer"
+                                  href="{{url_for('dashboard_blueprint.visualize', profile_id=resource['id'])}}">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-graph">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path
+                                      d="M4 18v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" />
+                                    <path d="M7 14l3 -3l2 2l3 -3l2 2" />
+                                  </svg>
+                                  Visualize</a>
+                                {% endif %}
                                 <div class="dropdown-divider"></div>
                                 <a del-resource-id="{{ resource['id'] }}"
                                   class="text-danger cursor-pointer dropdown-item del-resource-btn">
@@ -323,10 +422,12 @@
                         {% endfor %}
                       </tbody>
                     </table>
-                    <p class="text-secondary text-sm mt-2 text-center">In order to use the above resources to tool
+                    <p class="mt-2 text-secondary text-center">In order to use the above resources to
+                      tool
                       executions please use the <strong>Resource ID</strong> as input.</p>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>
@@ -384,7 +485,7 @@
                   </div>
                   <label class="form-label">Resource Type</label>
                   <div class="form-selectgroup-boxes row mb-3">
-                    <div class="col-lg-6">
+                    <div class="col-lg-4 mb-2">
                       <label class="form-selectgroup-item">
                         <input type="radio" name="resource-type" value="external" class="form-selectgroup-input">
                         <span class="form-selectgroup-label d-flex align-items-center p-3">
@@ -399,7 +500,7 @@
                         </span>
                       </label>
                     </div>
-                    <div class="col-lg-6">
+                    <div class="col-lg-4 mb-2">
                       <label class="form-selectgroup-item">
                         <input type="radio" name="resource-type" value="internal" class="form-selectgroup-input"
                           checked>
@@ -415,6 +516,23 @@
                         </span>
                       </label>
                     </div>
+                    <div class="col-lg-4 mb-2">
+                      <label class="form-selectgroup-item">
+                        <input type="radio" name="resource-type" value="internal" class="form-selectgroup-input"
+                          checked>
+                        <span class="form-selectgroup-label d-flex align-items-center p-3">
+                          <span class="me-3">
+                            <span class="form-selectgroup-check"></span>
+                          </span>
+                          <span class="form-selectgroup-label-content">
+                            <span class="form-selectgroup-title strong mb-1">Multiple Upload</span>
+                            <span class="d-block text-secondary">Upload multiple files to MinIO and create resources
+                              with
+                              the S3 paths.</span>
+                          </span>
+                        </span>
+                      </label>
+                    </div>
                   </div>
                 </div>
                 <div class="modal-body" id="externalResource">
@@ -422,7 +540,7 @@
                     <div class="row">
                       <div class="col-lg-12">
                         <div class="mb-3">
-                          <label class="form-label">URL</label>
+                          <label class="form-label">Path</label>
                           <input type="text" name="external-url" class="form-control">
                         </div>
                       </div>

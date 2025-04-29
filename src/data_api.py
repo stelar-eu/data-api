@@ -43,6 +43,7 @@ import sql_utils
 import utils
 from auth import security_doc, token_active
 from backend.ckan import initialize_ckan_client
+from backend.registry import initialize_registry_client
 from backend.pgsql import get_mdb_pool, initialize_mdb_pool
 
 # Import demo token creator
@@ -98,7 +99,6 @@ app.register_blueprint(users_bp, url_prefix="/api/v1/users")
 app.register_blueprint(dashboard_bp, url_prefix="/console/v1")
 app.register_blueprint(publisher_bp, url_prefix="/console/v1/publisher")
 app.register_blueprint(settings_bp, url_prefix="/console/v1/settings")
-app.register_blueprint(admin_bp, url_prefix="/console/v1/admin")
 app.register_blueprint(auth_tool_bp, url_prefix="/api/v1/auth")
 app.register_blueprint(catalog_bp, url_prefix="/api/v2")
 app.register_blueprint(workflows_bp, url_prefix="/api/v2")
@@ -2306,6 +2306,7 @@ def main(app):
         ),
         "CKAN_API": f"{os.getenv('CKAN_SITE_URL', 'http://<CKAN-HOST>')}/api/3/action/",
         "CKAN_ADMIN_TOKEN": os.getenv("CKAN_ADMIN_TOKEN", ""),
+        "CKAN_ENCODE_KEY": os.getenv("CKAN_ENCODE_KEY", ""),
         "dbname": os.getenv("POSTGRES_DB", "<DB-NAME>"),
         "dbuser": os.getenv("POSTGRES_USER", "<DB-USERNAME>"),
         "dbpass": os.getenv("POSTGRES_PASSWORD", "<DB-PASSWORD>"),
@@ -2323,12 +2324,17 @@ def main(app):
         "KLMS_DOMAIN_NAME": os.getenv("KLMS_DOMAIN_NAME", "stelar.gr"),
         "MAIN_INGRESS_SUBDOMAIN": os.getenv("MAIN_INGRESS_SUBDOMAIN", "klms"),
         "KEYCLOAK_SUBDOMAIN": os.getenv("KEYCLOAK_SUBDOMAIN", "kc"),
+        "REGISTRY_SUBDOMAIN": os.getenv("REGISTRY_SUBDOMAIN", "img"),
         "MINIO_API_SUBDOMAIN": os.getenv("MINIO_API_SUBDOMAIN", "minio"),
         "MINIO_API_EXT_URL": os.getenv("MINIO_API_EXT_URL", "***MISSING***"),
         "KEYCLOAK_EXT_URL": os.getenv("KEYCLOAK_EXT_URL", "***MISSING***"),
         "KEYCLOAK_ISSUER_URL": os.getenv("KEYCLOAK_ISSUER_URL", "***MISSING***"),
         "MAIN_EXT_URL": os.getenv("MAIN_EXT_URL", "***MISSING***"),
+        "REGISTRY_API": os.getenv("REGISTRY_API", "http://quay:8080"),
+        "REGISTRY_EXT_URL": os.getenv("REGISTRY_EXT_URL", "***MISSING***"),
         "S3_CONSOLE_URL": os.getenv("MINIO_CONSOLE_URL", ""),
+        "REDIS_HOST": os.getenv("REDIS_SERVICE_HOST", "redis"),
+        "REDIS_PORT": os.getenv("REDIS_SERVICE_PORT", "6379"),
         "SMTP_SERVER": os.getenv("SMTP_SERVER", "stelar.gr"),
         "SMTP_PORT": os.getenv("SMTP_PORT", "465"),
         "SMTP_EMAIL": os.getenv("SMTP_EMAIL", "info@stelar.gr"),
@@ -2349,6 +2355,9 @@ def main(app):
 
     # Configure the CKAN client
     initialize_ckan_client(app.config["settings"])
+
+    # Configure the Registry client
+    initialize_registry_client(app.config["settings"])
 
     # Configure execution
     execution.configure(app.config["settings"])

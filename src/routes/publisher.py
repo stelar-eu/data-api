@@ -6,6 +6,7 @@ from flask import current_app, jsonify, make_response, request, session
 from minio import Minio
 from minio.error import S3Error
 
+import kutils
 import mutils as mu
 from auth import token_active
 
@@ -25,19 +26,7 @@ logger = logging.getLogger(__name__)
 @token_active
 def fetch_minio_paths():
     try:
-        # Try to get the token from the Authorization header
-        access_token = request.headers.get("Authorization")
-
-        if access_token:
-            # Token found in Authorization header, remove 'Bearer ' prefix
-            access_token = access_token.replace("Bearer ", "")
-        else:
-            # No token in Authorization header, try to fetch from session
-            access_token = session.get("access_token")
-
-        # If access_token is still None, raise an exception
-        if not access_token:
-            raise ValueError("No access token found in headers or session.")
+        access_token = kutils.current_token()
 
         credentials = mu.get_temp_minio_credentials(access_token)
         # Now use the temporary credentials to list the paths the user has access to
@@ -66,7 +55,107 @@ def fetch_minio_paths():
         )
 
 
-@publisher_bp.route("/upload_file", methods=["POST"])
+@publisher_bp.route("/fetch_buckets", methods=["GET"])
+@token_active
+def fetch_buckets():
+    try:
+        access_token = kutils.current_token()
+
+        credentials = mu.get_temp_minio_credentials(access_token)
+
+        return mu.list_buckets(credentials)
+
+    except Exception as e:
+        # Handle any other unexpected errors, return 500 Internal Server Error
+        return make_response(
+            {
+                "success": False,
+                "error": {"__type": "Unexpected Error", "name": [str(e)]},
+            },
+            500,
+        )
+
+
+@publisher_bp.route("/stat_path", methods=["GET"])
+@token_active
+def stat_minio_path():
+    try:
+        access_token = kutils.current_token()
+        credentials = mu.get_temp_minio_credentials(access_token)
+
+        # Get the bucket and path parameters from the query string
+        bucket_name = request.args.get("bucket")
+        object_path = request.args.get("path")
+
+        if not bucket_name:
+            return jsonify({"error": "Bucket not specified"}), 400
+
+        # If no path is provided or path is root, assume top level of the bucket
+        if not object_path or object_path == "/":
+            object_path = ""
+        else:
+            # Ensure the prefix ends with a '/' if provided
+            object_path = (
+                object_path if object_path.endswith("/") else object_path + "/"
+            )
+
+        config = current_app.config["settings"]
+        minio_url = config["MINIO_API_SUBDOMAIN"] + "." + config["KLMS_DOMAIN_NAME"]
+
+        client = Minio(
+            minio_url,
+            access_key=credentials["AccessKeyId"],
+            secret_key=credentials["SecretAccessKey"],
+            session_token=credentials["SessionToken"],
+            secure=True,
+        )
+
+        # List objects at the given level (non-recursive)
+        objects = list(
+            client.list_objects(bucket_name, prefix=object_path, recursive=False)
+        )
+
+        directories = []
+        files = []
+
+        for obj in objects:
+            try:
+                stat_info = client.stat_object(bucket_name, obj.object_name)
+                stat_dict = {
+                    "size": stat_info.size,
+                    "last_modified": stat_info.last_modified.isoformat(),
+                    "etag": stat_info.etag,
+                    "content_type": stat_info.content_type,
+                }
+            except S3Error:
+                continue
+
+            # Directories: keys ending with '/'
+            if obj.object_name.endswith("/"):
+                directories.append({"name": obj.object_name, "stats": stat_dict})
+            else:
+                files.append({"name": obj.object_name, "stats": stat_dict})
+
+        directories_sorted = sorted(directories, key=lambda x: x["name"])
+        files_sorted = sorted(files, key=lambda x: x["name"])
+
+        ordered_list = directories_sorted + files_sorted
+
+        return jsonify({"objects": ordered_list}), 200
+
+    except S3Error as e:
+        return jsonify({"error": str(e)}), 500
+
+    except Exception as e:
+        return make_response(
+            {
+                "success": False,
+                "error": {"__type": "Unexpected Error", "name": [str(e)]},
+            },
+            500,
+        )
+
+
 @publisher_bp.route("/upload_file", methods=["POST"])
 @token_active
 def upload_file_to_minio():

@@ -6,12 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>STELAR | Task Overview</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+    {% include 'tabler.html' %}
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="{{ url_for('static', filename='utils.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
-
     <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
 </head>
 
@@ -44,7 +42,7 @@
                                     <span id="task-state-text" class="ms-2 me-1">{{ task.exec_state |
                                         capitalize }}</span>
                                     <span id="task-state-badge"
-                                        class="status-indicator {% if task.exec_state == 'succeeded' %}status-green{% elif task.exec_state == 'failed' %}status-red{% else %}status-yellow status-indicator-animated{% endif %}">
+                                        class="status-indicator {% if task.exec_state == 'succeeded' %}status-green{% elif task.exec_state == 'failed' %}status-red{% elif task.exec_state == 'created' %}status-secondary{% else %}status-yellow status-indicator-animated{% endif %}">
                                         <span class="status-indicator-circle"></span>
                                         <span class="status-indicator-circle"></span>
                                         <span class="status-indicator-circle"></span>
@@ -78,7 +76,12 @@
                                         ID: <strong id="task-id">{{ task.id }}</strong>
                                         <button type="button"
                                             class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary"
-                                            onclick="navigator.clipboard.writeText(document.getElementById('task-id').innerText)">COPY</button>
+                                            onclick="
+                                                                              navigator.clipboard.writeText(document.getElementById('task-id').innerText);
+                                                                              var el = document.getElementById('task-id');
+                                                                              el.classList.remove('glowing-text');
+                                                                              void el.offsetWidth; // trigger reflow to restart animation
+                                                                              el.classList.add('glowing-text');">COPY</button>
                                     </div>
                                     <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="me-2 text-secondary icon"
@@ -604,11 +607,11 @@
                         logsEl.innerHTML = job.logs.replace(/\n/g, '<br>').replace(/\"/g, '');
                     }
                     // Update job status text and badge
-                    const statusEl = document.getElementById(`task-${id}-status`);
+                    const statusEl = document.getElementById(`jon-${id}-status`);
                     if (statusEl) {
                         statusEl.textContent = job.status;
                     }
-                    const badgeEl = document.getElementById(`task-${id}-badge`);
+                    const badgeEl = document.getElementById(`job-${id}-badge`);
                     if (badgeEl) {
                         if (job.status === 'Succeeded') {
                             badgeEl.className = 'badge bg-success me-1';
@@ -674,7 +677,7 @@
                                             <td><div>${item.resource_id}</div></td>
                                             <td><div>${item.url}</div></td>
                                             <td class="w-1 fw-bold text-end">
-                                                <a href="/stelar/console/v1/resource/${item.resource_id}" target="_blank">View</a>
+                                                <a href="{{ url_for('dashboard_blueprint.viewResource', resource_id='') }}${item.resource_id}" target="_blank">View</a>
                                             </td>
                                         </tr>`;
                         outputModalBody.append(row);
@@ -724,7 +727,7 @@
                 } else if (newState === 'failed') {
                     taskStateBadge.className = 'status-indicator status-red';
                 } else if (newState === 'created') {
-                    taskStateBadge.className = 'status-indicator status-gray';
+                    taskStateBadge.className = 'status-indicator status-secondary';
                 } else {
                     taskStateBadge.className = 'status-indicator status-indicator-animated status-yellow';
                 }

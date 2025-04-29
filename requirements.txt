@@ -20,7 +20,7 @@ Pillow==11.0.0
 pyjwt==2.10.1
 redis==5.2.1
 flask-session==0.8.0
-
+markdown==3.7
 # For the tests
 jmespath>=1.0.1
 # pyjq==2.6

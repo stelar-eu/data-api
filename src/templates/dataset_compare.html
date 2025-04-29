@@ -7,8 +7,7 @@
   <meta http-equiv="X-UA-Compatible" content="ie=edge" />
   <title>STELAR | Compare Datasets</title>
   <!-- CSS files -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+  {% include 'tabler.html' %}
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <!-- Leaflet PM CSS (for polygon editing) -->
@@ -290,7 +289,7 @@
                         };
 
                         var chart{{ loop.index }} = new ApexCharts(document.querySelector("#chart{{ loop.index }}"), options{{ loop.index }});
-                          chart{{ loop.index }}.render();
+                          chart{ { loop.index } }.render();
                       </script>
                     </td>
                     {% endfor %} {% endif %}

@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional
 
 from apiflask import Schema, fields, validators
-from flask import current_app
+from flask import current_app, g
 from mutils import get_temp_minio_credentials, expand_wildcard_path
 from processes import PROCESS
 import cutils
@@ -24,6 +24,8 @@ from exceptions import (
     AuthorizationError,
 )
 from utils import is_valid_url, is_valid_uuid
+from marshmallow import ValidationError, pre_load, validates_schema
+from marshmallow import INCLUDE
 
 logger = logging.getLogger(__name__)
 
@@ -101,16 +103,16 @@ logger = logging.getLogger(__name__)
 """
 
 
-class TaskInputSchema(Schema):
-    pass
+class TaskDatasetDictSchema(Schema):
+    name = fields.String(
+        required=True, validate=lambda s: re.match(r"^[a-zA-Z0-9_-]+$", s) is not None
+    )
+    owner_org = fields.String(
+        required=True, validate=lambda s: re.match(r"^[a-z0-9-]+$", s) is not None
+    )
 
-
-class TaskOutputSchema(Schema):
-    pass
-
-
-class TaskDatasetSchema(Schema):
-    pass
+    class Meta:
+        unknown = INCLUDE
 
 
 # Besides the state, all other params are dump_only
@@ -123,9 +125,15 @@ class TaskSchema(Schema):
     id = fields.UUID(dump_only=True)
     process_id = fields.UUID(required=True)
     secrets = fields.Dict(values=fields.Raw(), allow_none=True, required=False)
-    inputs = fields.Dict(values=fields.Raw(), required=False)
-    outputs = fields.Dict(values=fields.Raw(), required=False)
-    datasets = fields.Dict(values=fields.Raw(), required=False)
+    inputs = fields.Dict(
+        keys=fields.String(), values=fields.Raw(), required=True, allow_none=True
+    )
+    outputs = fields.Dict(
+        keys=fields.String(), values=fields.Raw(), required=True, allow_none=True
+    )
+    datasets = fields.Dict(
+        keys=fields.String(), values=fields.Raw(), required=True, allow_none=True
+    )
     parameters = fields.Dict(required=False, values=fields.Raw(), allow_none=True)
     name = fields.String(required=True)
     # Limit the execution ability only to internally stored images in the STELAR registry.
@@ -141,9 +149,7 @@ class TaskSchema(Schema):
     # )
     image = fields.String(required=False, allow_none=False)
     exec_state = fields.String(
-        validate=validators.OneOf(["running", "failed", "succeeded"]),
-        dump_only=True,
-        required=False,
+        validate=validators.OneOf(["running", "failed", "succeeded"]), dump_only=True
     )
     creator = fields.String(dump_only=True)
     start_date = fields.DateTime(dump_only=True)
@@ -151,6 +157,148 @@ class TaskSchema(Schema):
     tags = fields.Dict(
         keys=fields.String, values=fields.String(), required=False, allow_none=True
     )
+
+    @validates_schema
+    def validate_datasets(self, data, **kwargs):
+        datasets = data.get("datasets", {})
+        for key, value in datasets.items():
+            if isinstance(value, str):
+                if not is_valid_uuid(value):
+                    raise ValidationError(
+                        f"Dataset '{key}' has a string value but it's not a valid UUID."
+                    )
+            elif isinstance(value, dict):
+                try:
+                    TaskDatasetDictSchema().load(value)
+                except ValidationError as err:
+                    raise ValidationError({f"datasets.{key}": err.messages})
+            else:
+                raise ValidationError(
+                    f"Dataset '{key}' must be either a UUID string or a valid dataset dictionary."
+                )
+
+    @validates_schema
+    def validate_inputs(self, data, **kwargs):
+        inputs = data.get("inputs", {})
+        datasets = data.get("datasets", {}).keys()  # So we can validate 'd0', 'd1' etc.
+
+        uuid_pattern = re.compile(
+            r"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})(::[a-zA-Z0-9_-]+)?$"
+        )
+        ctx_pattern = re.compile(r"^(ctx)(::[a-zA-Z0-9_-]+)?$")
+        s3_pattern = re.compile(r"^s3://[^\s]+$")
+        dataset_ref_pattern = re.compile(r"^([a-zA-Z0-9_\-]+)(::[a-zA-Z0-9_-]+)?$")
+
+        for key, value in inputs.items():
+            if not isinstance(value, list):
+                raise ValidationError({f"inputs.{key}": "Must be a list."})
+            for item in value:
+                if not isinstance(item, str):
+                    raise ValidationError(
+                        {f"inputs.{key}": f"Item '{item}' must be a string."}
+                    )
+
+                if uuid_pattern.match(item):
+                    continue
+                if ctx_pattern.match(item):
+                    continue
+                if s3_pattern.match(item):
+                    continue
+                ds_match = dataset_ref_pattern.match(item)
+                if ds_match:
+                    ds_key = ds_match.group(1)
+                    if ds_key not in datasets:
+                        raise ValidationError(
+                            {
+                                f"inputs.{key}": f"Invalid dataset reference '{ds_key}' not found in datasets."
+                            }
+                        )
+                    continue
+
+                raise ValidationError(
+                    {
+                        f"inputs.{key}": f"Invalid item '{item}'. Must be a UUID (::filter), an s3:// path, 'ctx' (::filter) or a key from datasets."
+                    }
+                )
+
+    @validates_schema
+    def validate_outputs(self, data, **kwargs):
+        outputs = data.get("outputs", {})
+        datasets = data.get("datasets", {}).keys()
+
+        def is_valid_uuid(val):
+            try:
+                uuid.UUID(str(val))
+                return True
+            except Exception:
+                return False
+
+        for key, value in outputs.items():
+            if not isinstance(value, dict):
+                raise ValidationError(
+                    {f"outputs.{key}": "Each output must be a dictionary."}
+                )
+
+            # url is always required
+            if "url" not in value or not isinstance(value["url"], str):
+                raise ValidationError(
+                    {
+                        f"outputs.{key}.url": "Missing or invalid 'url'. Must be a string."
+                    }
+                )
+
+            resource = value.get("resource")
+
+            if resource is not None:
+                if isinstance(resource, str):
+                    if not is_valid_uuid(resource):
+                        raise ValidationError(
+                            {
+                                f"outputs.{key}.resource": "'resource' string must be a valid UUID."
+                            }
+                        )
+                    # UUID case: dataset is NOT required
+                elif isinstance(resource, dict):
+                    # Validate required fields
+                    missing = [f for f in ("name", "relation") if f not in resource]
+                    if missing:
+                        raise ValidationError(
+                            {
+                                f"outputs.{key}.resource": f"Missing fields in 'resource': {', '.join(missing)}"
+                            }
+                        )
+
+                    # Now dataset becomes required
+                    if "dataset" not in value:
+                        raise ValidationError(
+                            {
+                                f"outputs.{key}.dataset": "'dataset' is required when 'resource' is a dict."
+                            }
+                        )
+                    dataset_ref = value["dataset"]
+                    if not isinstance(dataset_ref, str):
+                        raise ValidationError(
+                            {f"outputs.{key}.dataset": "'dataset' must be a string."}
+                        )
+                    if dataset_ref not in datasets:
+                        raise ValidationError(
+                            {
+                                f"outputs.{key}.dataset": f"'{dataset_ref}' not found in datasets."
+                            }
+                        )
+                else:
+                    raise ValidationError(
+                        {
+                            f"outputs.{key}.resource": "'resource' must be a UUID string or a dict with 'name' and 'relation'."
+                        }
+                    )
+            elif "dataset" in value:
+                # If dataset is given, resource must be present
+                raise ValidationError(
+                    {
+                        f"outputs.{key}.resource": "'resource' is required when 'dataset' is provided."
+                    }
+                )
 
 
 class Task(Entity):
@@ -251,12 +399,13 @@ class Task(Entity):
         # Pop system reserved tags from the final dict.
         task["tags"].pop("__image__", None)
         task["tags"].pop("__name__", None)
+        task["inputs"] = sql_utils.task_execution_input_read_sql(id)
+        task["parameters"] = sql_utils.task_execution_parameters_read_sql(id)
 
         if task["exec_state"] in ["failed", "succeeded"]:
-            task["messages"] = task["tags"].get("log", None)
-            task["output"] = sql_utils.task_execution_read_outputs_sql(id)
+            task["messages"] = task["tags"].pop("log", None)
+            task["outputs"] = sql_utils.task_execution_read_outputs_sql(id)
             task["metrics"] = sql_utils.task_execution_metrics_read_sql(id)
-            task["parameters"] = sql_utils.task_execution_parameters_read_sql(id)
         return task
 
     def update(self, id, update_attr):
@@ -750,7 +899,7 @@ class Task(Entity):
                                 if (
                                     isinstance(artifact, str)
                                     and artifact.startswith("s3://")
-                                    and artifact.endswith("/*")
+                                    and "*" in artifact
                                 ):
                                     expanded_paths = expand_wildcard_path(
                                         artifact, credentials=credentials
@@ -768,7 +917,7 @@ class Task(Entity):
                             if (
                                 isinstance(artifact, str)
                                 and artifact.startswith("s3://")
-                                and artifact.endswith("/*")
+                                and "*" in artifact
                             ):
                                 expanded_paths = expand_wildcard_path(
                                     artifact, credentials=credentials
@@ -932,20 +1081,14 @@ class Task(Entity):
                         output_spec.get("package_details")
                     )
 
-                    decoded_package["title"]
-                    decoded_package.setdefault("owner_org", "stelar-klms")
-                    decoded_package.setdefault(
-                        "name", re.sub(r"[\W_]+", "_", decoded_package["title"]).lower()
-                    )
-
                     try:
-                        package_id = cutils.DATASET.create_entity(decoded_package)["id"]
-                    except Exception:
-                        # Package already exists
-                        # TODO: DPETROU: change this to get_entity of the dataset class
-                        package_id = cutils.get_package(
-                            id="0", title=decoded_package.get("title")
+                        package_id = cutils.DATASET.get_entity(
+                            decoded_package.get("name")
                         )["id"]
+                    except Exception:
+
+                        # Package does not exist, should be created
+                        package_id = cutils.DATASET.create_entity(decoded_package)["id"]
 
                     res_id = cutils.RESOURCE.create_entity(
                         {
@@ -990,8 +1133,25 @@ class Task(Entity):
         if not self.verify_signature(id, signature):
             raise AuthorizationError("Invalid Task Signature. Access Denied.")
 
+        task = sql_utils.task_execution_read(id)
+
+        if task["exec_state"] != "running":
+            raise ConflictError(
+                f"Task '{id}' is terminated and no further updates are allowed."
+            )
+
         # Validate the task existence
         self.validate_task(id)
+
+        # Since the signature is verified, we fictionally mimic the presence of the user in
+        # the flask's g. This will allow the ckan_request to find the current_user
+        # even though a token is not provided for this request. The current_user
+        # becomes the user that created the task.
+        user_rep = kutils.get_user(task["creator"])
+        user_rep["sub"] = user_rep.pop("id")
+        user_rep["preferred_username"] = user_rep.pop("username")
+        if "current_user" not in g:
+            g.current_user = user_rep
 
         # Parse the output JSON provided in the request
         outputs = spec.get("output", {})
