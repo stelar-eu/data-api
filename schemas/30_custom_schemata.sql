@@ -136,7 +136,7 @@ $$ LANGUAGE plpgsql;
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_trigger WHERE tgname = 'public_set_author_info'
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_author_info'
     ) THEN
         CREATE TRIGGER trigger_set_author_info
         BEFORE INSERT ON public.package
@@ -307,7 +307,7 @@ CREATE TABLE IF NOT EXISTS klms.task_input
     (
         input_path IS NULL AND
         resource_url IS NOT NULL
-    ));
+    ))
 );
 
 

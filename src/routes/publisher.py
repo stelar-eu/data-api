@@ -107,7 +107,7 @@ def stat_minio_path():
             access_key=credentials["AccessKeyId"],
             secret_key=credentials["SecretAccessKey"],
             session_token=credentials["SessionToken"],
-            secure=True,
+            secure=False, #TODO
         )
 
         # List objects at the given level (non-recursive)
@@ -221,7 +221,7 @@ def upload_file_to_minio():
                 access_key=credentials["AccessKeyId"],
                 secret_key=credentials["SecretAccessKey"],
                 session_token=credentials["SessionToken"],
-                secure=True,  # Set to False if you are using HTTP instead of HTTPS
+                secure=False,  # Set to False if you are using HTTP instead of HTTPS #TODO
             )
 
             # Upload the file to MinIO in the specified bucket and path

@@ -2387,7 +2387,10 @@ def main(app):
 # This entry point is used with gunicorn -b -w ....
 def create_app():
     main(app)
-    with app.app_context():
-        authz_module.load_authorization_schema()
+    try:
+        with app.app_context():
+            authz_module.load_authorization_schema()
+    except Exception as e:
+        logger.error("Failed to load authorization schema: %s", e)
     # Return the application instance so that gunicorn can run it.
     return app
