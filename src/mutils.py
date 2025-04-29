@@ -160,6 +160,39 @@ def expand_wildcard_path(path, credentials):
     return result
 
 
+def list_buckets(credentials):
+    """
+    List all buckets in MinIO using the provided credentials.
+    """
+    # Initialize the MinIO client with STS credentials
+    # config = current_app.config['settings']
+    # minio_url = config['MINIO_API_SUBDOMAIN'] + "." + config['KLMS_DOMAIN_NAME']
+
+    # client = Minio(
+    #     minio_url,
+    #     access_key=credentials['AccessKeyId'],
+    #     secret_key=credentials['SecretAccessKey'],
+    #     session_token=credentials['SessionToken'],
+    #     secure=True  # Set to False if not using HTTPS
+    # )
+
+    client = initialize_minio_admin(
+        ac_key=credentials["AccessKeyId"],
+        sec_key=credentials["SecretAccessKey"],
+        token=credentials["SessionToken"],
+    )
+
+    try:
+        # List all buckets
+        buckets = client.list_buckets()
+        bucket_names = [bucket.name for bucket in buckets]
+
+        # Return the list of bucket names
+        return bucket_names
+    except S3Error as e:
+        return None
+
+
 def evaluate_write_access(credentials, bucket_name, object_name):
     """
     Checks if the user has write access to an object in MinIO by attempting to copy the object to itself.

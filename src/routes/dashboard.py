@@ -277,7 +277,7 @@ def catalog(page_number=None):
 
     return render_template_with_s3(
         "catalog.html",
-        tags=TAG.fetch_entities(limit=200, offset=0),
+        tags=TAG.list_entities(limit=200, offset=0),
         datasets=packages,
         page_number=page_number,
         total_pages=total_pages,
@@ -316,6 +316,28 @@ def dataset_detail(dataset_id):
             )
         else:
             return redirect(url_for("dashboard_blueprint.catalog"))
+
+
+@dashboard_bp.route("/catalog/<dataset_id>/annotate")
+@session_required
+def dataset_annotate(dataset_id):
+
+    metadata_data = None
+    try:
+        metadata_data = cutils.get_package(id=dataset_id)
+    except ValueError as e:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+    except Exception as e:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+    if metadata_data:
+        return render_template_with_s3(
+            "annotator.html",
+            dataset=metadata_data,
+            PARTNER_IMAGE_SRC=get_partner_logo(),
+        )
+    else:
+        return redirect(url_for("dashboard_blueprint.catalog"))
 
 
 @dashboard_bp.route("/catalog/resource/<resource_id>")

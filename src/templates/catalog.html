@@ -80,13 +80,13 @@
               <div class="mb-1 p-1" style="max-height: 16.5rem; overflow: auto;">
                 {% for tag in tags %}
                 {% if loop.index <= 8 %} <label class="form-check tag-item">
-                  <input type="checkbox" class="form-check-input" name="form-type[]" value="{{ tag.name }}">
-                  <span class="form-check-label">{{ tag.name }}</span>
+                  <input type="checkbox" class="form-check-input" name="form-type[]" value="{{ tag }}">
+                  <span class="form-check-label">{{ tag }}</span>
                   </label>
                   {% else %}
                   <label class="form-check tag-item more-tag" style="display: none;">
-                    <input type="checkbox" class="form-check-input" name="form-type[]" value="{{ tag.name }}">
-                    <span class="form-check-label">{{ tag.name }}</span>
+                    <input type="checkbox" class="form-check-input" name="form-type[]" value="{{ tag }}">
+                    <span class="form-check-label">{{ tag }}</span>
                   </label>
                   {% endif %}
                   {% endfor %}
