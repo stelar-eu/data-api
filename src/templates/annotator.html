@@ -108,7 +108,7 @@
                                         <table class="table">
                                             <thead>
                                                 <tr>
-                                                    <th>Path</th>
+                                                    <th style="width:15rem;">Path</th>
                                                     <th>Resource Name</th>
                                                     <th>Format</th>
                                                     <th>Relation</th>
@@ -121,6 +121,22 @@
                                                 </tr>
                                             </tbody>
                                         </table>
+                                    </div>
+                                    <div class="d-flex justify-content-end" id="resource-actions">
+                                        <button class="btn btn-secondary me-2" id="cancel-resources"
+                                            onclick="resetSelection()">Reset</button>
+                                        <button class="btn btn-primary me-2" id="save-resources"
+                                            onclick="saveResources()">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-device-floppy">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path
+                                                    d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" />
+                                                <path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                                                <path d="M14 4l0 4l-6 0l0 -4" />
+                                            </svg>Save Resources</button>
                                     </div>
                                 </div>
                             </div>
@@ -262,9 +278,14 @@
                     });
                 } else {
                     tr.addClass('file-item');
+                    // Remove duplicate folder name if present
+                    var fileName = item.name;
+                    if (path && item.name.indexOf(path) === 0) {
+                        fileName = item.name.substring(path.length);
+                    }
                     // Add a hidden s3 URL as a data attribute.
-                    tr.attr('data-s3-url', 's3://' + bucket + '/' + path + item.name);
-                    tr.append($('<td style="word-break: break-all;"></td>').text(item.name));
+                    tr.attr('data-s3-url', 's3://' + bucket + '/' + path + fileName);
+                    tr.append($('<td style="word-break: break-all;"></td>').text(fileName));
                     tr.append($('<td></td>').text(item.stats && item.stats.last_modified ? formatIsoDate(item.stats.last_modified) : ''));
                     tr.append('<td>' + (item.stats && item.stats.size ? formatSize(item.stats.size) : '') + '</td>');
                 }
@@ -276,11 +297,72 @@
             var bucket = $('#bucket-select').val();
             var path = $('#minio-file-list').data('current-path');
             var parent = $('#minio-file-list').data('parent-path');
-            if (path) {
-                statBucketPath(bucket, path, parent);
-            }
+
+            statBucketPath(bucket, path, parent);
+
         }
 
+        function resetSelection() {
+            $('#dataset-file-list').empty();
+            refreshCurrentPath();
+            var holderRow = $('<tr class="holder"><td colspan="4" class="text-center">No Resources Added</td></tr>');
+            $('#dataset-file-list').append(holderRow);
+        }
+
+
+        function saveResources() {
+            $('#resource-actions .stelar-loader').remove();
+            $('#resource-actions').prepend(createLoaderElement(false, true));
+            $('#save-resources').addClass('disabled');
+            var rows = $('#dataset-file-list tr.file-item');
+            var resources = [];
+            rows.each(function () {
+                var path = $(this).find('td').eq(0).text().trim();
+                var resourceName = $(this).find('textarea').val().trim();
+                var format = $(this).find('select').eq(0).val();
+                var relation = $(this).find('select').eq(1).val();
+                resources.push({
+                    url: $(this).data('s3-url'),
+                    name: resourceName,
+                    format: format,
+                    relation: relation,
+                    table_item: this
+                });
+            });
+
+            var ajaxCalls = [];
+            for (var i = 0; i < resources.length; i++) {
+                (function (resource) {
+                    var request = $.ajax({
+                        url: `{{url_for('catalog_blueprint.api_create_resource')}}`,
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: (function (r) {
+                            var dataToPost = $.extend({}, r);
+                            delete dataToPost.table_item;
+                            var payload = $.extend({ package_id: '{{ dataset.id }}' }, dataToPost);
+                            return JSON.stringify(payload);
+                        })(resource),
+                        success: function (response) {
+                            $(resource.table_item).addClass('bg-success-lt');
+                        },
+                        error: function (xhr, status, error) {
+                            if (xhr.status === 401) {
+                                window.location.href = '/';
+                            } else {
+                                $(resource.table_item).addClass('bg-danger-lt');
+                                console.error("Error adding resource:", error);
+                            }
+                        }
+                    });
+                    ajaxCalls.push(request);
+                })(resources[i]);
+            }
+            $.when.apply($, ajaxCalls).always(function () {
+                $('#resource-actions .stelar-loader').remove();
+                $('#save-resources').removeClass('disabled');
+            });
+        }
 
         // On bucket change, fetch the files in the selected bucket and path.
         $('#bucket-select').on('change', function () {
@@ -328,27 +410,34 @@
 
             if (target.id === "dataset-file-list") {
                 // When a file is dropped into the dataset list, update the row cells.
-                var filename = el.textContent.trim();
+                var s3url = el.getAttribute('data-s3-url');
+                var filename = s3url.split('/').pop();
                 el.innerHTML = "";
 
                 // Create cell 1: Filename (read-only)
                 var td1 = document.createElement("td");
+                td1.setAttribute("style", "max-height: 100%; overflow: auto; white-space: pre-wrap; word-break: break-all;");
                 td1.textContent = el.getAttribute('data-s3-url');
 
                 // Create cell 2: Resource Name as text input.
                 var td2 = document.createElement("td");
-                td2.innerHTML = '<input type="text" class="form-control" value="' + filename + '">';
+                td2.innerHTML = '<textarea class="form-control">' + filename + '</textarea>';
 
-                // Create cell 3: Format select with popular formats.
+                // Determine file extension from filename
+                var ext = "";
+                if (filename.lastIndexOf('.') !== -1) {
+                    ext = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+                }
+                // Create cell 3: Format select with auto-selection based on file suffix.
                 var td3 = document.createElement("td");
                 td3.innerHTML = '<select class="form-select">' +
-                    '<option value="">Select Format</option>' +
-                    '<option value="csv">CSV</option>' +
-                    '<option value="csv">TXT</option>' +
-                    '<option value="json">JSON</option>' +
-                    '<option value="xml">TIF</option>' +
-                    '<option value="xlsx">RAS</option>' +
-                    '<option value="parquet">RHD</option>' +
+                    '<option value=""' + (ext === "" ? " selected" : "") + '>Format</option>' +
+                    '<option value="csv"' + (ext === "csv" ? " selected" : "") + '>CSV</option>' +
+                    '<option value="csv"' + (ext === "txt" ? " selected" : "") + '>TXT</option>' +
+                    '<option value="json"' + (ext === "json" ? " selected" : "") + '>JSON</option>' +
+                    '<option value="xml"' + (ext === "tif" ? " selected" : "") + '>TIF</option>' +
+                    '<option value="xlsx"' + (ext === "ras" ? " selected" : "") + '>RAS</option>' +
+                    '<option value="parquet"' + (ext === "rhd" ? " selected" : "") + '>RHD</option>' +
                     '</select>';
 
                 // Create cell 4: Relation select.
@@ -364,13 +453,7 @@
                 el.appendChild(td3);
                 el.appendChild(td4);
             }
-            else if (target.id === "minio-file-list") {
-                // When a file is returned back to the MinIO list, remove extra fields.
-                // We extract the original filename (assumed to be in the first cell)
-                var td = el.querySelector("td");
-                var filename = td ? td.textContent.trim() : "";
-                el.innerHTML = '<td>' + filename + '</td>' + '<td></td>' + '<td></td>' + '<td></td>';
-            }
+
             // Re-check for emptiness of both containers:
             checkEmpty(el.parentNode);
             if (target.id !== el.parentNode.id) {
@@ -406,6 +489,7 @@
                 }
             }
         }
+
 
         // When the DOM is loaded, check both containers for emptiness and set up observers to re-check on any item movement.
         document.addEventListener("DOMContentLoaded", function () {
