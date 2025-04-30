@@ -105,7 +105,7 @@
                                     <h4 class="card-title">Dataset Resources</h4>
                                     <p class="card-subtitle">Drop files here to add them to the dataset.</p>
                                     <div style="max-height: 60vh; overflow-y: auto;">
-                                        <table class="table">
+                                        <table class="table" id="resources-table">
                                             <thead>
                                                 <tr>
                                                     <th style="width:15rem;">Path</th>
@@ -272,6 +272,7 @@
                     tr.append($('<td style="word-break: break-all;"></td>').html(folderIcon + displayText));
                     tr.append('<td>' + (item.stats && item.stats.last_modified ? formatIsoDate(item.stats.last_modified) : '') + '</td>');
                     tr.append('<td></td>');
+                    tr.append('<td class="d-none"></td>');
                     tr.on('click', function () {
                         // Navigate into the folder.
                         statBucketPath(bucket, item.name);
@@ -404,7 +405,20 @@
             removeOnSpill: true
         });
 
+
+        drake.on("drag", function (el) {
+            // Add a class to the table to indicate that a file is being dragged.
+            $('#resources-table').addClass('border border-success');
+        });
+
+        drake.on("dragend", function (el) {
+            // Remove the class from the table when dragging ends.
+            $('#resources-table').removeClass('border border-success');
+        });
+
         drake.on("drop", function (el, target, source, sibling) {
+
+            $('#resources-table').removeClass('border border-success');
             // Remove any placeholder from the target
             removePlaceholder(target);
 
