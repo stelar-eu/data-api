@@ -387,7 +387,10 @@
                                                                 </div>
                                                                 <button class="col-lg-1 mb-3 btn btn-outline-secondary"
                                                                     id="copy-docker-command"
-                                                                    onclick="copyToClipboard('docker-command-input')">Copy</button>
+                                                                    onclick="copyToClipboard('docker-command-input'); 
+                                                                        var dockerInput = document.getElementById('docker-command-code'); 
+                                                                        dockerInput.classList.remove('glowing-text'); 
+                                                                        dockerInput.classList.add('glowing-text');">Copy</button>
                                                             </div>
                                                         </div>
                                                     </div>

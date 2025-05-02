@@ -51,12 +51,8 @@ def create_and_cache_user_token():
     return token
 
 
-def get_user_ckan_token(config, admin=False):
-    """Get the CKAN token for the current user.
-
-    This should be called once at the start of the application.
-    """
-    user = None
+def get_user_ckan_token(config, user=None, admin=False):
+    """Get the CKAN token for the current user."""
     try:
         user = kutils.current_user()
     except Exception as e:
