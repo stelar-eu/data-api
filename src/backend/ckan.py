@@ -72,7 +72,6 @@ def get_user_ckan_token(config, user=None, admin=False):
     if not token:
         raise BackendError(500, "ckan", "Failed to get CKAN token from Redis")
 
-    logger.debug("CKAN token: %s", token)
     return token
 
 

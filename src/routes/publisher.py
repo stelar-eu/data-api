@@ -3,6 +3,9 @@ import os
 
 from apiflask import APIBlueprint
 from flask import current_app, jsonify, make_response, request, session
+from routes.generic import render_api_output
+from backend.ckan import ckan_request
+import schema
 from minio import Minio
 from minio.error import S3Error
 
@@ -154,6 +157,15 @@ def stat_minio_path():
             },
             500,
         )
+
+
+@publisher_bp.route("/autocomplete/<limit>/<query>", methods=["POST"])
+@render_api_output(logger)
+@token_active
+def autocomplete_datasets(limit, query):
+    return ckan_request(
+        "package_autocomplete", method="POST", json={"q": query, "limit": limit}
+    )
 
 
 @publisher_bp.route("/upload_file", methods=["POST"])

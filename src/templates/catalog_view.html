@@ -39,7 +39,15 @@
                     </a>
                   </li>
                   <li class="breadcrumb-item active"><a href="#"><span class="text-strong">{{
-                        dataset.title }}</span></a></li>
+                        dataset.title }}</span></a>
+                    {% if dataset.get('type') == 'workflow' %}
+                    <span class="badge bg-purple-lt ms-2">WORKFLOW</span>
+                    {% elif dataset.get('type') == 'dataset' %}
+                    <span class="badge bg-blue-lt ms-2">DATASET</span>
+                    {% elif dataset.get('type') == 'process' %}
+                    <span class="badge bg-yellow-lt ms-2">PROCESS</span>
+                    {% endif %}
+                  </li>
                 </ol>
               </h3>
             </div>

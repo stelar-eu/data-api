@@ -39,11 +39,11 @@
             <div class="col-auto me-2 d-print-none">
               <div class="input-group">
 
-                <button type="button" class="btn btn-secondary" id="compare-datasets-button"
+                <button type="button" class="btn btn-outline-primary" id="compare-datasets-button"
                   onclick="window.location.href='{{url_for('dashboard_blueprint.dataset_compare')}}'">Compare Selected
                   <span class="ms-1" id="dataset-compare-number">(0)</span></button>
 
-                <button data-bs-toggle="dropdown" role="button" class="btn btn-secondary dropdown-toggle"
+                <button data-bs-toggle="dropdown" role="button" class="btn btn-outline-primary dropdown-toggle"
                   datas-bs-auto-close="outside"></button>
                 <div class="dropdown-menu dropdown-menu-end" id="compare-dataset-options">
 
@@ -67,12 +67,30 @@
       <!-- Page body -->
       <div class="page-body">
         <div class="container-xl">
-          <div class="row g-4">
+          <div class="mb-6 mt-2" style="position: relative;">
+            <div class="input-icon">
+              <span class="input-icon-addon">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24"
+                  stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                  <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"></path>
+                  <path d="M21 21l-6 -6"></path>
+                </svg>
+              </span>
+              <input type="text" value="" class="form-control h3" placeholder="Search for a keyword"
+                id="catalog-search-box" aria-label="Catalog Search" style="height:3.5rem;" autocomplete="off">
+            </div>
+            <ul id="suggestions-list" class="bg-white list-group"
+              style="position:absolute; top:100%; left:0; z-index:1001; display:none; width:100%;">
+            </ul>
+          </div>
+
+          <div class="row g-4 mt-3">
             <div class="col-md-3">
 
               <div class="form-label">Spatial Queries</div>
               <a data-bs-toggle="modal" data-bs-target="#spatial-search-modal" href="#" class="mb-4 card card-link m"
-                style="height: 15%;" id="map">
+                style="height: 16rem;" id="map">
 
               </a>
 
@@ -141,21 +159,6 @@
               </div>
             </div>
             <div class="col-md-9">
-              <div class="mb-4 mt-2">
-                <div class="input-icon">
-                  <span class="input-icon-addon">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24"
-                      stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                      <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
-                      <path d="M21 21l-6 -6" />
-                    </svg>
-                  </span>
-                  <input type="text" value="" class="form-control" placeholder="Search for a keyword"
-                    id="catalog-search-box" aria-label="Catalog Search">
-                </div>
-              </div>
-
               <ul class="pagination d-flex justify-content-end">
                 {% if page_number > 1 %}
                 <!-- Previous Button -->
@@ -233,7 +236,25 @@
                     <div class="row g-0">
                       <div class="col-auto">
                         <div class="card-body">
-                          <div class="avatar avatar-md bg-white" style="background-image: url({{ PARTNER_IMAGE_SRC }})">
+                          <div class="avatar avatar-md bg-white">
+                            {% if dataset.organization.image_url and dataset.organization.image_url != '' %}
+                            <img src="{{dataset.organization.image_url}}" />
+                            {% else %}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                              stroke-linejoin="round"
+                              class="text-secondary icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M3 21l18 0" />
+                              <path d="M3 10l18 0" />
+                              <path d="M5 6l7 -3l7 3" />
+                              <path d="M4 10l0 11" />
+                              <path d="M20 10l0 11" />
+                              <path d="M8 14l0 3" />
+                              <path d="M12 14l0 3" />
+                              <path d="M16 14l0 3" />
+                            </svg>
+                            {% endif %}
                           </div>
                         </div>
                       </div>
@@ -624,6 +645,77 @@
     }).addTo(map);
 
   </script>
+
+
+  <script>
+    $(document).ready(function () {
+      var selectedIndex = -1;
+      var suggestions = [];
+
+      $('#catalog-search-box').on('input', function () {
+      var query = $(this).val();
+      if (query.length >= 2) {
+        $.ajax({
+        url: `{{url_for('pub_blueprint.autocomplete_datasets', limit=10, query='')}}` + encodeURIComponent(query),
+        method: 'POST',
+        dataType: 'json',
+        success: function (response) {
+          if (response.success) {
+          suggestions = response.result;
+          var html = "";
+          suggestions.forEach(function (item, index) {
+            html += '<li class="list-group-item suggestion-item" data-name="' + item.name + '" style="cursor:pointer;">' +
+                '<strong>' + item.title + '</strong> - <small><code>' + item.name + '</code></small>' +
+                '</li>';
+          });
+          $('#suggestions-list').html(html).show();
+          selectedIndex = -1;
+          }
+        }
+        });
+      } else {
+        $('#suggestions-list').hide();
+      }
+      });
+
+      $('#catalog-search-box').on('keydown', function (e) {
+      var items = $('#suggestions-list li');
+      if (items.length === 0) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        selectedIndex = (selectedIndex + 1) % items.length;
+        items.removeClass('active');
+        $(items[selectedIndex]).addClass('active');
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+        items.removeClass('active');
+        $(items[selectedIndex]).addClass('active');
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (selectedIndex > -1) {
+        var selectedItem = $(items[selectedIndex]);
+        var name = selectedItem.data('name');
+        window.location.href = `{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}` + encodeURIComponent(name);
+        }
+      }
+      });
+
+      // Click selection of suggestion
+      $(document).on('click', '.suggestion-item', function () {
+      var name = $(this).data('name');
+      window.location.href = `{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}` + encodeURIComponent(name);
+      });
+
+      // Hide suggestions on blur after slight delay
+      $('#catalog-search-box').on('blur', function () {
+      setTimeout(function () {
+        $('#suggestions-list').hide();
+      }, 100);
+      });
+    });
+  </script>
+
 
   <!-- Spatial Modal Map -->
   <script>
