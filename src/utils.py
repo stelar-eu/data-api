@@ -1543,7 +1543,7 @@ def prepareZenodoMetadata(dataset, creator, creator_org, doi: None):
     # Basic metadata
     title = dataset["title"]
     description = dataset["notes"]
-    tags = [t["name"] for t in dataset["tags"]]
+    tags = dataset["tags"]
 
     # List of creators/authors of the Zenodo deposition (dataset)
     author = dataset["author"] if dataset["author"] else None
@@ -1559,9 +1559,8 @@ def prepareZenodoMetadata(dataset, creator, creator_org, doi: None):
 
     url = dataset["url"] if dataset["url"] else None
     version = dataset["version"] if dataset["version"] else None
-    isopen = dataset["isopen"]
     private = dataset["private"]
-    license_title = dataset["license_title"] if dataset["license_title"] else None
+    license_title = dataset["license_title"] if "license_title" in dataset else None
 
     # Handle some of the available extra metadata
     spatial = next(
@@ -1633,7 +1632,7 @@ def prepareZenodoMetadata(dataset, creator, creator_org, doi: None):
     # * embargoed: Embargoed Access
     # * restricted: Restricted Access
     # * closed: Closed Access
-    if isopen:
+    if not private:
         access_right = "open"
         license = license_title if license_title else None
     elif private:

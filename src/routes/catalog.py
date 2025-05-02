@@ -5,6 +5,8 @@ from apiflask import APIBlueprint
 import schema
 from auth import security_doc, token_active
 from backend.ckan import get_solr_schema
+import utils
+import kutils
 from cutils import DATASET, GROUP, ORGANIZATION, RESOURCE, TAG, VOCABULARY
 from routes.generic import error_responses, generate_endpoints, render_api_output
 
@@ -42,3 +44,27 @@ For  detailed information on the Sorl schema, refer to the Solr documentation.
 @render_api_output(logger)
 def api_get_search_shema():
     return get_solr_schema()
+
+
+@catalog_bp.route("/export/zenodo/<dataset_id>", methods=["GET"])
+@catalog_bp.output(schema.APIResponse, status_code=200)
+@catalog_bp.doc(tags=["Search Operations"])
+@token_active
+@render_api_output(logger)
+def api_export_zenodo_dataset_id(dataset_id):
+    """Export all metadata available for a dataset in order to published to Zenodo.
+
+    Args:
+        id: The unique identifier of the dataset as listed in CKAN.
+
+    Returns:
+        A JSON with metadata compliant with DataCite's Metadata Schema employed by Zenodo.
+    """
+    # Formulate metadata according to Zenodo specifications; no DOI specified
+    dset = DATASET.get_entity(dataset_id)
+    return utils.prepareZenodoMetadata(
+        dset,
+        kutils.get_user(dset["creator_user_id"])["fullname"],
+        dset["organization"]["title"],
+        None,
+    )
