@@ -317,15 +317,14 @@ sql_workflow_execution_templates = {
     "task_read_metrics_template": "SELECT key, value from klms.metrics WHERE task_uuid = %s",
     "task_read_parameters_template": "SELECT key, value from klms.parameters WHERE task_uuid = %s",
     "task_read_output_dataset_template": "SELECT * FROM klms.task_output WHERE task_uuid = %s",
-    "task_read_output_with_paths_template": """SELECT dataset_id as resource_id, name, url FROM klms.task_output as tsk_out 
+    "task_read_output_with_paths_template": """SELECT dataset_id as resource_id, output_name as name, url FROM klms.task_output as tsk_out 
                                                LEFT JOIN public.resource as rsrc 
                                                ON tsk_out.dataset_id = rsrc.id
                                                WHERE task_uuid = %s""",
     "task_read_dataset_by_uuid_template": """SELECT package_friendly_name, package_details, package_uuid
                                              FROM klms.task_future_output_packages WHERE task_uuid = %s AND package_friendly_name = %s""",
     #
-    "task_insert_input_dataset_template": "INSERT INTO klms.task_input(task_uuid, order_num, dataset_id) VALUES (%s, %s, %s)",
-    "task_insert_output_dataset_template": "INSERT INTO klms.task_output(task_uuid, order_num, dataset_id) VALUES (%s, %s, %s)",
+    "task_insert_output_dataset_template": "INSERT INTO klms.task_output(task_uuid, order_num, dataset_id, output_name) VALUES (%s, %s, %s, %s)",
     #
     "task_insert_input_by_uuid_template": "INSERT INTO klms.task_input(task_uuid, order_num, resource_id, resource_url, input_group_name) VALUES (%s, %s, %s, %s, %s)",
     "task_insert_input_by_path_template": "INSERT INTO klms.task_input(task_uuid, order_num, input_path, input_group_name) VALUES (%s, %s, %s, %s)",

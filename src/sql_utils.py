@@ -675,25 +675,27 @@ def task_execution_insert_input(task_exec_id, inputs, input_group_name):
     return True
 
 
-def task_execution_insert_output(task_exec_id, resource_ids):
+def task_execution_insert_output(task_exec_id, resources):
     """Records in the database that the given dataset id was issued as output from the given task execution.
 
     Args:
         task_exec_id: UUID of the task execution.
-        resource_ids: Array of UUIDs of the dataset(s) (i.e.,CKAN resources) issued as output from this task execution.
+        resources: Array of dict of the resource(s) (i.e.,CKAN resources) issued as output from this task execution.
 
     Returns:
         A boolean: True, if the statement executed successfully; otherwise, False.
     """
 
     # Compose the SQL command using the template for recording output datasets
-    for idx, res_id in enumerate(resource_ids):
+    for idx, res in enumerate(resources):
         sql = utils.sql_workflow_execution_templates[
             "task_insert_output_dataset_template"
         ]
 
         # Execute the SQL command in the database
-        resp = pgsql.execSql(sql, (task_exec_id, idx, res_id))
+        resp = pgsql.execSql(
+            sql, (task_exec_id, idx, res["resource_id"], res["output"])
+        )
         if resp and "status" in resp:
             if not resp.get("status"):
                 return False
