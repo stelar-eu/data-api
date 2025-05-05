@@ -399,14 +399,17 @@ class Task(Entity):
         if task["exec_state"] in ["failed", "succeeded"]:
             task["messages"] = task["tags"].pop("log", None)
 
-            task["outputs"] = sql_utils.task_execution_read_outputs_sql(id)
-            task["outputs"] = {
-                output["name"]: {
-                    "resource_id": output["resource_id"],
-                    "url": output["url"],
+            outputs = sql_utils.task_execution_read_outputs_sql(id)
+            if outputs:
+                task["outputs"] = {
+                    output["name"]: {
+                        "resource_id": output["resource_id"],
+                        "url": output["url"],
+                    }
+                    for output in outputs
                 }
-                for output in task["outputs"]
-            }
+            else:
+                task["outputs"] = {}
             task["metrics"] = sql_utils.task_execution_metrics_read_sql(id)
         return task
 
