@@ -35,12 +35,12 @@ ckan_client = None
 api_url = None
 
 
-def create_and_cache_user_token():
+def create_and_cache_user_token(config):
     user = kutils.current_user()
     response = raw_request(
         endpoint="api_token_create",
         json={"user": user["sub"], "name": "stelar-token"},
-        admin=True,
+        token_override=config["CKAN_ADMIN_TOKEN"],
     )
     raise_ckan_error(response, {"user_token": user["sub"]})
 
@@ -67,7 +67,7 @@ def get_user_ckan_token(config, user=None, admin=False):
     token = REDIS.get("ckantoken:" + user["sub"])
     if token is None:
         # If not cached, create and cache the token
-        token = create_and_cache_user_token()
+        token = create_and_cache_user_token(config)
 
     if not token:
         raise BackendError(500, "ckan", "Failed to get CKAN token from Redis")
@@ -98,7 +98,7 @@ def raw_request(
     json: Optional[dict] = None,
     headers: dict = {},
     params=None,
-    admin=False,
+    token_override=None,
     **kwargs,
 ):
     """
@@ -125,7 +125,8 @@ def raw_request(
     # Prepare headers, defaulting to Authorization if token is present and Content-Type
     # headers = {"Authorization": config["CKAN_ADMIN_TOKEN"]} | headers
     headers = {
-        "Authorization": get_user_ckan_token(current_app.config["settings"], admin),
+        "Authorization": token_override
+        or get_user_ckan_token(current_app.config["settings"]),
     } | headers
 
     # Make the request using the provided method, url, params, data, json, and headers
