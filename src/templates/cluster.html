@@ -777,8 +777,8 @@
                     method: 'GET',
                     dataType: 'json',
                     success: function (response) {
-                        if (response.result.roles && Array.isArray(response.result.roles)) {
-                            systemRoles = response.result.roles.map(role => role.name);
+                        if (response.result && Array.isArray(response.result)) {
+                            systemRoles = response.result.map(role => role.name);
                             renderRoleCheckboxes();
                         } else {
                             console.error("Unexpected format for roles");
@@ -827,7 +827,7 @@
                     method: 'GET',
                     dataType: 'json',
                     success: function (response) {
-                        user = response.result.user
+                        user = response.result;
                         $('#edit-username').val(user.username);
                         $('#edit-fullname').val(user.fullname);
                         $('#edit-email').val(user.email);
@@ -882,6 +882,7 @@
                         success: function (response) {
                             alert("User deleted successfully.");
                             $("#verify-delete-user").modal("hide");
+                            fetchAllUsers();
                         },
                         error: function (xhr, status, error) {
                             let errorMessage = "Failed to delete user.";
@@ -891,7 +892,7 @@
                             alert(errorMessage);
                         },
                     });
-                    fetchAllUsers();
+                   
                 }
             });
 
@@ -928,11 +929,11 @@
                 const lastName = fullName.slice(1).join(' ') || '';
 
                 const userData = {
-                    firstName: firstName,
-                    lastName: lastName,
+                    first_name: firstName,
+                    last_name: lastName,
                     email: $("#edit-email").val().trim(),
                     enabled: $("#edit-active-account").is(':checked'),
-                    emailVerified: $("#edit-verified-email").is(':checked')
+                    email_verified: $("#edit-verified-email").is(':checked')
                 };
 
                 const roles = [];
@@ -959,7 +960,7 @@
                 $("#user-modal-footer").prepend(createLoaderElement())
 
                 $.ajax({
-                    url: `{{ url_for('users_blueprint.api_put_user', user_id='') }}${userId}`,
+                    url: `{{ url_for('users_blueprint.api_patch_user', user_id='') }}${userId}`,
                     type: 'PATCH',
                     contentType: 'application/json',
                     data: JSON.stringify(userData),

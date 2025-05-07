@@ -138,7 +138,6 @@ def quay_request(
         **kwargs,
     )
     raise_registry_error(response, context={})
-    logger.debug(f"Quay Response Body: {response.text}")
     if response.status_code == 204:
         return True
     jsobj = response.json()
