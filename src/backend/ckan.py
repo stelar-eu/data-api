@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 import traceback
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from urllib.parse import urljoin
 from flask import current_app
 import requests
@@ -19,6 +19,7 @@ from exceptions import (
     BackendError,
     BackendLogicError,
     DataError,
+    InternalException,
     InvalidError,
     NotFoundError,
 )
@@ -298,3 +299,349 @@ def get_solr_schema():
     if response.status_code != 200:
         raise BackendError(500, "solr", "Failed to fetch schema", response.status_code)
     return response.json()["schema"]
+
+
+# -------------------------------------------
+#  CKAN relationships
+#
+#
+# The folowing code bypasses some idiosyncracies of the
+# CKAN API re. relationships, which is not very well documented.
+#
+#  1. When an illegal relationship type is passed to the
+#     CKAN API, it returns a 500 error!
+#  2. The CKAN API returns relationships using package names instead of IDs.
+#  3. Creation and update of relationships often raises a 500 error,
+#     even though the relationship is created/updated successfully.
+#     This error is a bug in the CKAN code constructing the response, and
+#     does not affect the integrity of the database.
+#  4. In returning responses, the CKAN API does not mention package type.
+#
+#  Therefore, we return relationships using the following format:
+#  {
+#      "subject": <subject_id>,
+#      "object": <object_id>,
+#      "relationship": <relationship_type>,
+#      "comment": <comment>,
+#      "subject_type": <subject_type>,
+#      "object_type": <object_type>,
+#      "subject_name": <subject_name>,
+#      "object_name": <object_name>,
+#  }
+# ---------------------------------------------
+
+
+# Define the relationship types between entities (forward, reverse)
+# These are synchronized with the CKAN implementation.
+# The forward relationship is the one that is used in the database.
+RELATIONSHIPS: list[tuple[str, str]] = [
+    ("depends_on", "dependency_of"),
+    ("derives_from", "has_derivation"),
+    ("links_to", "linked_from"),
+    ("child_of", "parent_of"),
+]
+
+ALL_RELATIONSHIPS: set[str] = {r for pair in RELATIONSHIPS for r in pair}
+FWD_RELATIONSHIPS: set[str] = {r[0] for r in RELATIONSHIPS}
+REV_RELATIONSHIPS: set[str] = {r[1] for r in RELATIONSHIPS}
+PEER_RELATIONSHIPS: set[str] = {r[0]: r[1] for r in RELATIONSHIPS} | {
+    r[1]: r[0] for r in RELATIONSHIPS
+}
+
+
+def get_id_for_entity_id_or_name(eid: str, tablename: str = "package") -> str:
+    """Get the ID for an entity, given its name or ID.
+
+    Args:
+        eid (str): The entity ID or name.
+        tablename (str): The entity type. Can be one of 'package', 'group', 'vocabulary', or 'user'.
+
+    Returns:
+        str: The entity ID.
+    """
+    if tablename not in ["package", "group", "vocabulary", "user"]:
+        raise ValueError(f"Invalid entity type: {tablename}")
+
+    query = sql.SQL(
+        """\
+        SELECT id
+        FROM {tablename}
+        WHERE id = %s OR name = %s"""
+    ).format(tablename=sql.Identifier(tablename))
+    with transaction() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, (eid, eid))
+            rows = cur.fetchall()
+            if not rows:
+                return None
+            if len(rows) > 1:
+                raise DataError(
+                    f"Multiple rows found for {tablename} with id/name {eid}"
+                )
+            return rows[0][0]
+
+
+def _compose_relationship_sql_query(
+    subid: str, objid: str | None = None, rel: str | None = None
+) -> tuple[sql.SQL, tuple]:
+    select_clause = """\
+    SELECT DISTINCT
+        r.subject_package_id as subject, 
+        r.object_package_id as object, 
+        r.type as relationship, 
+        r.comment,
+        ps.type as subject_type,
+        po.type as object_type,
+        ps.name as subject_name,
+        po.name as object_name
+    """
+
+    from_clause = """\
+    FROM package_relationship r
+    JOIN package ps ON r.subject_package_id = ps.id
+    JOIN package po ON r.object_package_id = po.id
+    """
+
+    where_clause = """\
+        WHERE r.state='active'
+    """
+
+    if rel is None:
+        select_clause += """\
+        , r.object_package_id=%s as flag
+        """
+
+        if objid is None:
+            where_clause += """\
+                AND (r.subject_package_id = %s OR r.object_package_id = %s)
+                """
+            params = (subid, subid, subid)
+        else:
+            where_clause += """\
+                AND( (r.subject_package_id = %s AND r.object_package_id = %s)
+                    OR (r.object_package_id = %s AND r.subject_package_id = %s) )
+                """
+            params = (subid, subid, objid, subid, objid)
+    elif rel in REV_RELATIONSHIPS:
+        select_clause += """\
+        , true as flag
+        """
+
+        if objid is None:
+            where_clause += """AND r.object_package_id = %s AND r.type = %s"""
+            params = (subid, PEER_RELATIONSHIPS[rel])
+        else:
+            where_clause += """\
+                AND r.subject_package_id = %s AND r.object_package_id = %s
+                    AND r.type = %s
+                """
+            params = (objid, subid, PEER_RELATIONSHIPS[rel])
+    else:
+        select_clause += """\
+        , false as flag
+        """
+
+        if objid is None:
+            where_clause += """AND r.subject_package_id = %s AND r.type = %s"""
+            params = (subid, rel)
+        else:
+            where_clause += """\
+                AND r.subject_package_id = %s AND r.object_package_id = %s
+                    AND r.type = %s
+                """
+            params = (subid, objid, rel)
+
+    query = sql.SQL(select_clause + from_clause + where_clause)
+    return query, params
+
+
+def relationships_from_sql(
+    subid: str, objid: str | None = None, rel: str | None = None
+) -> list[dict[str, Any]]:
+    """Get relationships from the SQL database.
+
+    Returns the relationships of <subid>, filtering by <objid> and <rel> if
+    provided.
+
+    The relationships are returned as a list of dictionaries, where each
+    dictionary contains the following keys:
+        - subject: The subject ID.
+        - object: The object ID.
+        - relationship: The relationship type.
+        - comment: The comment or description of the relationship.
+        - subject_type: The type of the subject.
+        - object_type: The type of the object.
+        - subject_name: The name of the subject.
+        - object_name: The name of the object.
+
+    Args:
+        subid (str): Subject ID.
+        objid (str|None): Object ID.
+        rel (str|None): Relationship type.
+
+    Returns:
+        list[dict[str, Any]]: List of relationships.
+    """
+
+    assert rel is None or rel in ALL_RELATIONSHIPS, f"Invalid relationship: {rel}"
+    assert isinstance(subid, str), "Subject ID must be a string"
+    assert isinstance(objid, str | None), "Object ID must be a string or None"
+
+    with transaction() as conn:
+        # Step 1: Canonicalize the IDs
+        subid = get_id_for_entity_id_or_name(subid)
+        if objid is not None:
+            objid = get_id_for_entity_id_or_name(objid)
+            if objid is None:
+                raise NotFoundError(
+                    entity=f"Object {objid} not found", detail={"subid": subid}
+                )
+
+        # Step 2: Compose the SQL query and execute it
+        query, params = _compose_relationship_sql_query(subid, objid, rel)
+
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            rows = cur.fetchall()
+
+    # Step 3: Process the results, reversing the tuples that need to be reversed
+    return [_relationsip_row_to_dict(row) for row in rows]
+
+
+def _relationsip_row_to_dict(row: tuple) -> dict[str, Any]:
+    """Convert a row from the SQL query to a dictionary.
+
+    Args:
+        row (tuple): The row from the SQL query.
+
+    Returns:
+        dict[str, Any]: The dictionary representation of the row.
+    """
+    if row[8]:
+        # Reverse the order of the subject and object and the relationship direction
+        # if the flag is set
+        row = (
+            row[1],
+            row[0],
+            PEER_RELATIONSHIPS[row[2]],
+            row[3],
+            row[5],
+            row[4],
+            row[7],
+            row[6],
+        )
+    return {
+        "subject": row[0],
+        "object": row[1],
+        "relationship": row[2],
+        "comment": row[3],
+        "subject_type": row[4],
+        "object_type": row[5],
+        "subject_name": row[6],
+        "object_name": row[7],
+    }
+
+
+def establish_relationship(
+    operation: str,
+    subid: str,
+    objid: str,
+    rel: str,
+    comment: Optional[str] = None,
+):
+    """Update a CKAN relationship between two entities.
+
+    If the relationship already exists, it will be updated (w/ the new comment).
+    If the relationship does not exist, it will be created.
+
+    Args:
+        operation (str): The operation to perform: "create" or "update".
+        subid (str): Subject ID.
+        objid (str): Object ID.
+        rel (str): Relationship type.
+        comment (Any): Comment or description of the relationship.
+
+    """
+
+    if operation not in ["create", "update"]:
+        raise InternalException(
+            f"In ckan.establish_relationship invalid op {repr(operation)}, expected 'create' or 'update'"
+        )
+
+    # Check if the relationship is valid
+    if rel not in ALL_RELATIONSHIPS:
+        raise InvalidError(f"Invalid relationship type: {rel}")
+
+    # Perform the create operation, using raw request, ignoring the
+    # Internal Server Error
+    # response, since it is a bug in CKAN.
+
+    response = raw_request(
+        f"package_relationship_{operation}",
+        json={
+            "subject": subid,
+            "object": objid,
+            "type": rel,
+            "comment": comment,
+        },
+    )
+
+    # Check for errors in the response
+    if (
+        response.status_code == 500
+        and response.json().get("error", {}).get("__type") == "Internal Server Error"
+    ):
+        # Ignore the error, since it is a bug in CKAN
+        logger.info("CKAN error: %s", response.json())
+    else:
+        raise_ckan_error(response, {"subid": subid, "objid": objid, "rel": rel})
+
+    return relationships_from_sql(subid, objid, rel)
+
+
+def disband_relationship(
+    subid: str,
+    objid: str,
+    rel: str,
+):
+    """Delete a CKAN relationship between two entities.
+
+    If the relationship does not exist, it will be ignored.
+    If the relationship exists, it will be deleted.
+
+    Args:
+        subid (str): Subject ID.
+        objid (str): Object ID.
+        rel (str): Relationship type.
+
+    """
+    if rel not in ALL_RELATIONSHIPS:
+        raise InvalidError(f"Invalid relationship type: {rel}")
+
+    response = raw_request(
+        "package_relationship_delete",
+        json={
+            "subject": subid,
+            "object": objid,
+            "type": rel,
+        },
+    )
+
+    # This is a bit tricky:
+    # CKAN returns a 404 error if the relationship does not exist,
+    # and also a 404 if any of the two entities do not exist.
+    # We need to ignore the former case and raise an error
+    # on the latter case.
+
+    if (
+        response.status_code == 404
+        and (err := response.json()["error"])
+        and err.get("__type") == "Not Found Error"
+        and err.get("message") == "Not found"
+    ):
+        pass
+    else:
+        # Check for errors in the response
+        raise_ckan_error(response, {"subid": subid, "objid": objid, "rel": rel})
+
+    return None
