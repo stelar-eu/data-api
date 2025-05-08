@@ -1,134 +1,143 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-    <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
-    <title>STELAR | 2FA Verification</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">    
-    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="{{ url_for('static', filename='images.js') }}"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
-  </head>
-  <body  class=" d-flex flex-column">
-    <div class="page page-center">
-      <div class="container container-tight py-4">
-        <div class="text-center mb-4">
-            <a href="{{ url_for('dashboard_blueprint.dashboard_index') }}" class="navbar-brand navbar-brand-autodark">
-              <div class="d-flex align-items-center justify-content-center">
-                <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR" class="me-3">
-                {% if PARTNER_IMAGE_SRC %}
-                <div class="vr" style="height: 75; margin: 15px;"></div>
-                <img src="{{ PARTNER_IMAGE_SRC }}" width="75" alt="Partner Logo">
-                {% endif %}
-              </div>          
-            </a>
-        </div>
-        <form method="POST" class="card card-md" autocomplete="off" novalidate>
-          <div class="card-body">
-            <h2 class="card-title card-title-lg text-center mb-4">Verify Access to Your Account</h2>
-            <p class="my-4 text-center">Please confirm your login by entering the authorization code from your authenticator app.</p>
-            <div class="my-5">
-              <div class="row g-4">
-                <div class="col">
-                  <div class="row g-2">
-                    <div class="col">
-                      <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
-                    </div>
-                    <div class="col">
-                      <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
-                    </div>
-                    <div class="col">
-                      <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
-                    </div>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <title>STELAR | 2FA Verification</title>
+  {% include 'tabler.html' %}
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="{{ url_for('static', filename='images.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+</head>
+
+<body class=" d-flex flex-column">
+  <div class="page page-center">
+    <div class="container container-tight py-4">
+      <div class="text-center mb-4">
+        <a href="{{ url_for('dashboard_blueprint.dashboard_index') }}" class="navbar-brand navbar-brand-autodark">
+          <div class="d-flex align-items-center justify-content-center">
+            <img src="{{ url_for('static', filename='logo.png') }}" width="150" alt="STELAR" class="me-3">
+            {% if PARTNER_IMAGE_SRC %}
+            <div class="vr" style="height: 75; margin: 15px;"></div>
+            <img src="{{ PARTNER_IMAGE_SRC }}" width="75" alt="Partner Logo">
+            {% endif %}
+          </div>
+        </a>
+      </div>
+      <form method="POST" class="card card-md" autocomplete="off" novalidate>
+        <div class="card-body">
+          <h2 class="card-title card-title-lg text-center mb-4">Verify Access to Your Account</h2>
+          <p class="my-4 text-center">Please confirm your login by entering the authorization code from your
+            authenticator app.</p>
+          <div class="my-5">
+            <div class="row g-4">
+              <div class="col">
+                <div class="row g-2">
+                  <div class="col">
+                    <input type="text" class="form-control form-control-lg text-center px-3 py-3" maxlength="1"
+                      inputmode="numeric" pattern="[0-9]*" data-code-input />
                   </div>
-                </div>
-                <div class="col">
-                  <div class="row g-2">
-                    <div class="col">
-                      <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
-                    </div>
-                    <div class="col">
-                      <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
-                    </div>
-                    <div class="col">
-                      <input type="text" class="form-control form-control-lg text-center py-3" maxlength="1" inputmode="numeric" pattern="[0-9]*" data-code-input />
-                    </div>
+                  <div class="col">
+                    <input type="text" class="form-control form-control-lg text-center px-3 py-3" maxlength="1"
+                      inputmode="numeric" pattern="[0-9]*" data-code-input />
+                  </div>
+                  <div class="col">
+                    <input type="text" class="form-control form-control-lg text-center px-3  py-3" maxlength="1"
+                      inputmode="numeric" pattern="[0-9]*" data-code-input />
                   </div>
                 </div>
               </div>
-            </div>
-            <input type="hidden" name="token" id="token" value="" />
-            <div class="form-footer">
-              <div class="btn-list flex-nowrap">
-                <a href=" " class="btn w-100">
-                  Cancel
-                </a>
-                <button type='submit' class="btn btn-primary w-100">
-                  Verify
-                </button>
+              <div class="col">
+                <div class="row g-2">
+                  <div class="col">
+                    <input type="text" class="form-control form-control-lg text-center px-3 py-3" maxlength="1"
+                      inputmode="numeric" pattern="[0-9]*" data-code-input />
+                  </div>
+                  <div class="col">
+                    <input type="text" class="form-control form-control-lg text-center px-3 py-3" maxlength="1"
+                      inputmode="numeric" pattern="[0-9]*" data-code-input />
+                  </div>
+                  <div class="col">
+                    <input type="text" class="form-control form-control-lg text-center px-3 py-3" maxlength="1"
+                      inputmode="numeric" pattern="[0-9]*" data-code-input />
+                  </div>
+                </div>
               </div>
-              {% with messages = get_flashed_messages(with_categories=true) %}
-                  {% if messages %}
-                      {% for category, message in messages %}
-                          <div class="mt-2 alert alert-{{ category }}">
-                              {{ message }}
-                          </div>
-                      {% endfor %}
-                  {% endif %}
-              {% endwith %}
             </div>
           </div>
-        </form>
-        <div class="text-center text-secondary mt-3">
-          No access to the authenticator app? <br>Receive <a href="#">a code to your email instead</a>
+          <input type="hidden" name="token" id="token" value="" />
+          <div class="form-footer">
+            <div class="btn-list flex-nowrap">
+              <button type="submit" name="cancel" value="true" class="btn w-100">
+                Cancel
+              </button>
+              <button type='submit' class="btn btn-primary w-100">
+                Verify
+              </button>
+            </div>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="mt-2 alert alert-{{ category }}">
+              {{ message }}
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+          </div>
         </div>
+      </form>
+      <div class="text-center text-secondary mt-3">
+        No access to the authenticator app? <br>Receive <a href="#">a code to your email instead</a>
       </div>
     </div>
-    <script>
-      document.addEventListener("DOMContentLoaded", function() {
-        var inputs = document.querySelectorAll('[data-code-input]');
-        var tokenField = document.getElementById('token');
-    
-        function updateToken() {
-          let tokenValue = Array.from(inputs).map(input => input.value).join('');
-          tokenField.value = tokenValue;
-        }
-    
-        // Attach event listeners to update the token fields
-        for (let i = 0; i < inputs.length; i++) {
-          inputs[i].addEventListener('input', function(e) {
-            if (e.target.value.length === e.target.maxLength && i + 1 < inputs.length) {
-              inputs[i + 1].focus();
-            }
-            updateToken();
-          });
-          inputs[i].addEventListener('keydown', function(e) {
-            if (e.target.value.length === 0 && e.keyCode === 8 && i > 0) {
-              inputs[i - 1].focus();
-            }
-            updateToken();
-          });
-          inputs[i].addEventListener('keypress', function(e) {
-            if (!/[0-9]/.test(e.key)) {
-              e.preventDefault();
-            }
-          });
-        }
-    
-        document.addEventListener('paste', function(e) {
-          let pasteData = (e.clipboardData || window.clipboardData).getData('text');
-          if (/^\d+$/.test(pasteData)) {
-            for (let i = 0; i < inputs.length && i < pasteData.length; i++) {
-              inputs[i].value = pasteData[i];
-            }
-            updateToken();
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      var inputs = document.querySelectorAll('[data-code-input]');
+      var tokenField = document.getElementById('token');
+
+      function updateToken() {
+        let tokenValue = Array.from(inputs).map(input => input.value).join('');
+        tokenField.value = tokenValue;
+      }
+
+      // Attach event listeners to update the token fields
+      for (let i = 0; i < inputs.length; i++) {
+        inputs[i].addEventListener('input', function (e) {
+          if (e.target.value.length === e.target.maxLength && i + 1 < inputs.length) {
+            inputs[i + 1].focus();
           }
-          e.preventDefault();
+          updateToken();
         });
+        inputs[i].addEventListener('keydown', function (e) {
+          if (e.target.value.length === 0 && e.keyCode === 8 && i > 0) {
+            inputs[i - 1].focus();
+          }
+          updateToken();
+        });
+        inputs[i].addEventListener('keypress', function (e) {
+          if (!/[0-9]/.test(e.key)) {
+            e.preventDefault();
+          }
+        });
+      }
+
+      document.addEventListener('paste', function (e) {
+        let pasteData = (e.clipboardData || window.clipboardData).getData('text');
+        if (/^\d+$/.test(pasteData)) {
+          for (let i = 0; i < inputs.length && i < pasteData.length; i++) {
+            inputs[i].value = pasteData[i];
+          }
+          updateToken();
+        }
+        e.preventDefault();
       });
-    </script>
-  </body>
+    });
+  </script>
+</body>
+
 </html>

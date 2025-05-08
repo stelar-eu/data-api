@@ -43,6 +43,7 @@ import sql_utils
 import utils
 from auth import security_doc, token_active
 from backend.ckan import initialize_ckan_client
+from backend.registry import initialize_registry_client
 from backend.pgsql import get_mdb_pool, initialize_mdb_pool
 
 # Import demo token creator
@@ -98,7 +99,6 @@ app.register_blueprint(users_bp, url_prefix="/api/v1/users")
 app.register_blueprint(dashboard_bp, url_prefix="/console/v1")
 app.register_blueprint(publisher_bp, url_prefix="/console/v1/publisher")
 app.register_blueprint(settings_bp, url_prefix="/console/v1/settings")
-app.register_blueprint(admin_bp, url_prefix="/console/v1/admin")
 app.register_blueprint(auth_tool_bp, url_prefix="/api/v1/auth")
 app.register_blueprint(catalog_bp, url_prefix="/api/v2")
 app.register_blueprint(workflows_bp, url_prefix="/api/v2")
@@ -197,195 +197,6 @@ def help():
 
 
 ################################## SEARCH OPERATIONS ########################################
-
-
-@app.route("/api/v1/dataset/export_zenodo", methods=["GET"])
-@app.input(
-    schema.Identifier, location="query", example="cf0c3c59-fc41-48c9-a529-6b9feff42991"
-)
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Search Operations"])
-def api_export_zenodo_dataset_id(query_data):
-    """Export all metadata available for a dataset (i.e., CKAN package) in order to published to Zenodo.
-
-    Args:
-        id: The unique identifier of the dataset as listed in CKAN.
-
-    Returns:
-        A JSON with metadata compliant with DataCite's Metadata Schema employed by Zenodo.
-    """
-
-    config = current_app.config["settings"]
-
-    # Check if an ID (name) for a dataset was provided as argument
-    if "id" in query_data:
-        id = query_data["id"]
-    else:
-        response = {
-            "success": False,
-            "help": request.url + "?id=",
-            "error": {
-                "__type": "No specifications",
-                "name": [
-                    "No identifier provided. Please specify the id of the requested dataset."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # Make a GET request to the CKAN API with the parameters
-    # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.get(
-        config["CKAN_API"] + "package_show?id=" + id
-    )  # , headers=config.package_headers)  #auth=HTTPBasicAuth(config.username, config.password))
-    resp_json = response.json()
-
-    zenodo_metadata = {}
-    if resp_json["success"]:
-        dataset = resp_json["result"]
-        creator_id = dataset["creator_user_id"]
-
-        # Make another GET request to the CKAN API to get details about the creator of the CKAN package
-        # IMPORTANT! CKAN requires NO authentication for GET requests
-        resp_creator = requests.get(
-            config["CKAN_API"] + "user_show?id=" + creator_id
-        )  # , headers=config.package_headers)  #auth=HTTPBasicAuth(config.username, config.password))
-        json_creator = resp_creator.json()
-
-        # Internal call to find the organization where the creator of the dataset belongs to
-        #        resp_org = requests.get(api_user_organization, params = {'id':creator_id})
-        #        params = {'id':creator_id}
-        #        resp_org = redirect(url_for('api_user_organization', query_data=creator_id))
-
-        # Make a GET request to the CKAN API to find the organization where the creator of the dataset belongs to
-        # IMPORTANT! CKAN requires NO authentication for GET requests
-        resp_org = requests.get(
-            config["CKAN_API"] + "organization_list_for_user?id=" + creator_id
-        )  # , headers=config.package_headers)  #auth=HTTPBasicAuth(config.username, config.password))
-        json_org = resp_org.json()
-
-        if json_org["success"]:
-            # Formulate metadata according to Zenodo specifications; no DOI specified
-            zenodo_metadata = utils.prepareZenodoMetadata(
-                dataset,
-                json_creator["result"]["display_name"],
-                json_org["result"][0]["title"],
-                None,
-            )
-
-    return jsonify(zenodo_metadata)
-
-
-@app.route("/api/v1/catalog/search", methods=["POST"])
-@app.input(
-    schema.Query,
-    location="json",
-    example={
-        "q": {
-            "Topic": "POI",
-            "INSPIRE theme": "Location",
-            "spatial": {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        [12.362, 45.39],
-                        [12.485, 45.39],
-                        [12.485, 45.576],
-                        [12.362, 45.576],
-                        [12.362, 45.39],
-                    ]
-                ],
-            },
-        }
-    },
-)
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Search Operations"])
-def api_catalog_search(json_data):
-    """Submit a search request to the Data Catalog.
-
-    Args:
-        json_data: A JSON with filtering criteria for searching in the Data Catalog. Keys should match properties specified in the STELAR Ontology.
-
-    Returns:
-        A JSON with all metadata available in the Catalog for each dataset qualifying to the filtering criteria and accessible by the user.
-    """
-
-    # EXAMPLE: curl -X POST -H 'Content-Type: application/json' http://127.0.0.1:9055/api/v1/catalog/search -d '{"q":{"Topic":"POI", "INSPIRE theme":"Location", "spatial":{"type": "Polygon", "coordinates": [[[ 12.362, 45.39], [12.485, 45.39], [12.485, 45.576], [12.362, 45.576], [12.362, 45.39]]]}}}'
-
-    config = current_app.config["settings"]
-
-    if request.headers:
-        if request.headers:
-            package_headers, resource_headers = utils.create_CKAN_headers(
-                get_demo_ckan_token()
-            )
-        else:
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {
-                    "__type": "Authorization Error",
-                    "name": [
-                        "No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "Authorization Error",
-                "name": [
-                    "No headers specified. Please specify headers for your request, including a valid API TOKEN."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    if request.data:
-        filter = request.data
-        specs = json.loads(filter.decode("utf-8"))
-        if "q" in specs:
-            q = utils.format_CKAN_filter(specs["q"])
-        #            print(q)
-        else:
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {
-                    "__type": "Incorrect specifications",
-                    "name": [
-                        "Incorrect or no filters provided to search in the Data Catalog. Please specify at least one filtering criterion in a dictionary."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "No specifications",
-                "name": [
-                    "No filters provided to search in the Data Catalog. Please specify at least one filtering criterion in a dictionary."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # Make a GET request to the CKAN API with the parameters
-    # IMPORTANT! Although CKAN generally requires NO authentication for GET requests, it is important in order to also retrieve private datasets of the user's organization
-    response = requests.get(
-        config["CKAN_API"] + "package_search" + q + "&include_private=True&fl=*,score",
-        headers=package_headers,
-    )
-
-    return response.json()
-
-
 @app.route("/api/v1/dataset/search", methods=["GET"])
 @app.input(
     schema.ComplexFilter, location="query", example="q=Lakes&ext_bbox=20,35,30,42"
@@ -452,79 +263,6 @@ def api_package_search(query_data):
 
     # Pass an empty data frame to report the original SOLR scores; no facet specs need be added; no profiling attributes involved
     return utils.assign_scores(response, pd.DataFrame(), {}, {}, [])
-
-
-@app.route("/api/v1/resource/search", methods=["GET"])
-@app.input(schema.Filter, location="query", example="q=format:JSON")
-@app.output(schema.ResponseOK, status_code=200)
-@app.doc(tags=["Search Operations"])
-def api_resource_search(query_data):
-    """Submit a request to search among the CKAN resources accessible by the user.
-
-    Args:
-        q: Filtering criteria for searching in CKAN. Syntax must follow SOLR specifications for filtering. https://docs.ckan.org/en/latest/api/#ckan.logic.action.get.resource_search
-
-    Returns:
-        A JSON with all metadata available in CKAN for each dataset qualifying to the filtering criteria and accessible by the user.
-    """
-
-    # EXAMPLE: curl -X GET http://127.0.0.1:9055/api/v1/resource/search?q=format:JSON
-
-    config = current_app.config["settings"]
-
-    if request.headers:
-        if request.headers:
-            package_headers, resource_headers = utils.create_CKAN_headers(
-                get_demo_ckan_token()
-            )
-        else:
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {
-                    "__type": "Authorization Error",
-                    "name": [
-                        "No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "Authorization Error",
-                "name": [
-                    "No headers specified. Please specify headers for your request, including a valid API TOKEN."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # Check if filtering criteria was provided as argument
-    if "q" in query_data:
-        q = query_data["q"]
-    else:
-        response = {
-            "success": False,
-            "help": request.url + "?q=",
-            "error": {
-                "__type": "No specifications",
-                "name": [
-                    "No filtering criteria provided to search for resources in the Catalog. Please specify at least one filter as argument."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # Make a GET request to the CKAN API with the parameters
-    # IMPORTANT! CKAN requires NO authentication for GET requests
-    response = requests.post(
-        config["CKAN_API"] + "resource_search?query=" + q, headers=package_headers
-    )
-
-    return response.json()
 
 
 @app.route("/api/v1/resource/profile", methods=["GET"])
@@ -1105,159 +843,7 @@ def api_sparql(json_data):
     return response.json()
 
 
-# !!!!!!!
-# THE FOLLOWING ENDPOINTS ARE SUCCEPTIBLE TO SQL INJECTION ATTACKS
-
-
-# @app.route("/api/v1/catalog/sql", methods=["POST"])
-# @app.input(
-#    schema.Filter,
-#    location="json",
-#    example={"q": "SELECT * FROM public.package LIMIT 5"},
-# )
-# @app.output(schema.ResponseOK, status_code=200)
-# @app.doc(tags=["Search Operations"], security=security_doc)
-# @token_active
-def api_sql(json_data):
-    """Submit a SELECT SQL command to the PostgreSQL database.
-
-    Args:
-        json_data: A JSON specifying the SELECT query in SQL for searching the Data Catalog in PostgreSQL. Syntax must follow SQL specifications for PostgreSQL.
-
-    Returns:
-        A JSON with all results qualifying to the search criteria.
-    """
-
-    # EXAMPLE: curl -X POST -H 'Content-Type: application/text' http://127.0.0.1:9055/api/v1/catalog/sql -d '{"q":"SELECT * FROM public.package LIMIT 5"}'
-
-    config = current_app.config["settings"]
-
-    if request.data:
-        specs = json.loads(request.data.decode("utf-8"))
-        if "q" in specs:
-            sql = specs["q"]
-        #            print(sql)
-        else:
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {
-                    "__type": "Incorrect specifications",
-                    "name": [
-                        "Incorrect or no filters provided to search in the Data Catalog. Please specify a valid SELECT query command in SQL."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "No specifications",
-                "name": [
-                    "No SQL query provided to search in the Data Catalog. Please specify a valid SELECT query command in SQL."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # sql_headers = {'Content-Type':'application/sql-query', 'Accept':'application/json'}
-
-    conn = psycopg2.connect(
-        dbname=config["dbname"],
-        user=config["dbuser"],
-        password=config["dbpass"],
-        host=config["dbhost"],
-        port=config["dbport"],
-    )  # , sslmode=config['sslmode'])
-
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute(sql)
-    results = cur.fetchall()
-    conn.commit()
-
-    return jsonify(results)
-
-
-# @app.route("/api/v1/catalog/facet/values", methods=["POST"])
-# @app.input(schema.Filter, location="json", example={"q": "format"})
-# @app.output(schema.ResponseOK, status_code=200)
-# @app.doc(tags=["Search Operations"], security=security_doc)
-# @token_active
-def api_facet_values(json_data):
-    """Submit a SELECT SQL command to the PostgreSQL database.
-
-    Args:
-        json_data: A JSON specifying the facet name (corresponding to an SQL view or table) to query in the PostgreSQL database of the Data Catalog.
-
-    Returns:
-        A JSON with all values available for the specified facet.
-    """
-
-    # EXAMPLE: curl -X POST -H 'Content-Type: application/text' http://127.0.0.1:9055/api/v1/catalog/facet/values -d '{"q":"format"}'
-
-    config = current_app.config["settings"]
-
-    if request.data:
-        specs = json.loads(request.data.decode("utf-8"))
-        # Identify the SQL view that corresponds to the specified facet
-        if "q" in specs and utils.sql_views.get(specs["q"]):
-            view_name = str(utils.sql_views.get(specs["q"]))
-            sql = "SELECT * FROM " + view_name
-        #            print(sql)
-        else:
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {
-                    "__type": "Incorrect specifications",
-                    "name": [
-                        "Incorrect or no filters provided to fetch facet values from the Data Catalog. Please specify a valid name for SQL view."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "No specifications",
-                "name": [
-                    "No valid facet specified to fetch its values from the Data Catalog. Please specify a valid name for SQL view."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # Execute the SQL view to fetch the values
-    # sql_headers = {'Content-Type':'application/sql-query', 'Accept':'application/json'}
-    conn = psycopg2.connect(
-        dbname=config["dbname"],
-        user=config["dbuser"],
-        password=config["dbpass"],
-        host=config["dbhost"],
-        port=config["dbport"],
-    )  # , sslmode=config['sslmode'])
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute(sql)
-    results = cur.fetchall()
-    conn.commit()
-
-    # Exclude identifiers from the returned results
-    for res in results:
-        if "id" in res:
-            del res["id"]
-        elif "package_id" in res:
-            del res["package_id"]
-
-    return jsonify(results)
-
-
 ################################## RANKING OPERATIONS ########################################
-
-
 @app.route("/api/v1/catalog/rank", methods=["POST"])
 @app.input(
     schema.Ranking,
@@ -2051,166 +1637,6 @@ def api_profile_store(json_data):
         return jsonify(response)
 
 
-# @app.route("/api/v1/resource/link", methods=["POST"])
-# @app.input(
-#     schema.Resource,
-#     location="json",
-#     example={
-#         "resource_metadata": {
-#             "package_id": "test_data_api_1",
-#             "url": "https://data.smartdublin.ie/dataset/09870e46-26a3-4dc2-b632-4d1fba5092f9/resource/40a718a8-cb99-468d-962b-af4fed4b0def/download/bleeperbike_map.geojson",
-#             "name": "Test GeoJSON resource",
-#             "description": "This is the test resource in GeoJSON format",
-#             "format": "GeoJSON",
-#             "resource_type": "Tabular",
-#             "resource_tags": ["Link to external resource", "Found in the Web"],
-#         }
-#     },
-# )
-# @app.output(schema.ResponseOK, status_code=200)
-# @app.doc(tags=["Publishing Operations"], security=security_doc)
-# @token_active
-def api_resource_link(json_data):
-    """Associate a resource (with its URL) to an existing dataset in CKAN. The user will become the publisher of this resource.
-
-    Args:
-        data: A JSON with all metadata information provided by the publisher about the new resource.
-
-    Returns:
-        A JSON with the CKAN response to the publishing request.
-    """
-
-    # EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/resource/link -d '{"resource_metadata": {"package_id": "test_data_api_1", "url":"https://data.smartdublin.ie/dataset/09870e46-26a3-4dc2-b632-4d1fba5092f9/resource/40a718a8-cb99-468d-962b-af4fed4b0def/download/bleeperbike_map.geojson", "name": "Test GeoJSON resource", "description": "This is the test resource in GeoJSON format", "format": "GeoJSON", "resource_tags": ["Link to external resource", "Found in the Web"]}}'
-
-    config = current_app.config["settings"]
-
-    if request.headers:
-        if request.headers:
-            package_headers, resource_headers = utils.create_CKAN_headers(
-                get_demo_ckan_token()
-            )
-        else:
-            response = {
-                "success": False,
-                "help": request.url,
-                "error": {
-                    "__type": "Authorization Error",
-                    "name": [
-                        "No API_TOKEN specified. Please specify a valid API_TOKEN in the headers of your request."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "Authorization Error",
-                "name": [
-                    "No headers specified. Please specify headers for your request, including a valid API TOKEN."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    if request.data:
-        metadata = json.loads(
-            request.data.decode("utf-8")
-        )  # json.loads(json.dumps(str(request.data)))
-        if "resource_metadata" in metadata:
-            resource_metadata = metadata["resource_metadata"]
-        else:
-            response = {
-                "success": False,
-                "help": request.url + "?q=",
-                "error": {
-                    "__type": "No specifications",
-                    "name": [
-                        "No metadata provided for publishing this resource in the Catalog. Please specify metadata for the resource you wish to publish."
-                    ],
-                },
-            }
-            return jsonify(response)
-    else:
-        response = {
-            "success": False,
-            "help": request.url,
-            "error": {
-                "__type": "No specifications",
-                "name": [
-                    "No metadata provided for publishing this resource in the Catalog. Please specify metadata for the resource you wish to publish."
-                ],
-            },
-        }
-        return jsonify(response)
-
-    # Make a POST request to the CKAN API with the parameters
-    response = requests.post(
-        config["CKAN_API"] + "resource_create",
-        data=resource_metadata,
-        headers=resource_headers,
-    )
-
-    if response.status_code == 200:
-        # Also ingest profile information into PostgreSQL according to KLMS schema
-        resource_id = response.json()["result"]["id"]
-        # print("RESOURCE ID: ", resource_id)
-        # Distinguish handling according to Profile type
-        sql_commands = utils.extractResourceProperties(resource_id, resource_metadata)
-        for sql in sql_commands:
-            utils.execSql(sql)
-
-    return response.json()
-
-
-# @app.route("/api/v1/workflow/statistics", methods=["POST"])
-# @app.input(
-#     schema.Workflow_Statistics,
-#     location="json",
-#     example={
-#         "workflow_tags": ["A3-4"],
-#         "metrics": ["food_tags", "total_tags", "f1_micro", "f1_macro", "f1_weighted"],
-#         "parameters": ["k", "model"],
-#     },
-# )
-# # @app.output(schema.ResponseOK, status_code=200)
-# @app.doc(tags=["Tracking Operations"], security=security_doc)
-# @token_active
-def api_workflow_statistics(json_data):
-    """Fetch statistics for each Worfklow Execution for a specific group of
-    workflow executions.
-
-    Args:
-        data: A JSON with the id of the Worfklow Execution and the state of the task.
-
-    Returns:
-        A JSON with the result of the update.
-    """
-
-    # EXAMPLE: curl -X POST -H 'Content-Type: application/json' -H 'Api-Token: XXXXXXXXX' http://127.0.0.1:9055/api/v1/workflow/statistics -d '{"workflow_tags": ["A3-4"], "metrics": ['food_tags', 'total_tags', 'f1_micro', 'f1_macro', 'f1_weighted'], "parameters": ['k', 'model']}'
-
-    workflow_tags = json_data["workflow_tags"]
-    parameters = json_data["parameters"]
-    metrics = json_data["metrics"]
-
-    try:
-        response = sql_utils.workflow_statistics(workflow_tags, parameters, metrics)
-        if not response:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "message": "Workflow Statistics cannot not be returned.",
-                    }
-                ),
-                500,
-            )
-        return jsonify({"success": True, "result": response}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
 ###########################################################
 
 
@@ -2306,6 +1732,7 @@ def main(app):
         ),
         "CKAN_API": f"{os.getenv('CKAN_SITE_URL', 'http://<CKAN-HOST>')}/api/3/action/",
         "CKAN_ADMIN_TOKEN": os.getenv("CKAN_ADMIN_TOKEN", ""),
+        "CKAN_ENCODE_KEY": os.getenv("CKAN_ENCODE_KEY", ""),
         "dbname": os.getenv("POSTGRES_DB", "<DB-NAME>"),
         "dbuser": os.getenv("POSTGRES_USER", "<DB-USERNAME>"),
         "dbpass": os.getenv("POSTGRES_PASSWORD", "<DB-PASSWORD>"),
@@ -2323,12 +1750,20 @@ def main(app):
         "KLMS_DOMAIN_NAME": os.getenv("KLMS_DOMAIN_NAME", "stelar.gr"),
         "MAIN_INGRESS_SUBDOMAIN": os.getenv("MAIN_INGRESS_SUBDOMAIN", "klms"),
         "KEYCLOAK_SUBDOMAIN": os.getenv("KEYCLOAK_SUBDOMAIN", "kc"),
+        "REGISTRY_SUBDOMAIN": os.getenv("REGISTRY_SUBDOMAIN", "img"),
         "MINIO_API_SUBDOMAIN": os.getenv("MINIO_API_SUBDOMAIN", "minio"),
+        "MC_INSECURE": os.getenv("MC_INSECURE", "false"),
+        "MINIO_ROOT_PASSWORD": os.getenv("MINIO_ROOT_PASSWORD", "***MISSING***"),
+        "MINIO_ROOT_USER": os.getenv("MINIO_ROOT_USER", "***MISSING***"),
         "MINIO_API_EXT_URL": os.getenv("MINIO_API_EXT_URL", "***MISSING***"),
         "KEYCLOAK_EXT_URL": os.getenv("KEYCLOAK_EXT_URL", "***MISSING***"),
         "KEYCLOAK_ISSUER_URL": os.getenv("KEYCLOAK_ISSUER_URL", "***MISSING***"),
         "MAIN_EXT_URL": os.getenv("MAIN_EXT_URL", "***MISSING***"),
+        "REGISTRY_API": os.getenv("REGISTRY_API", "http://quay:8080"),
+        "REGISTRY_EXT_URL": os.getenv("REGISTRY_EXT_URL", "***MISSING***"),
         "S3_CONSOLE_URL": os.getenv("MINIO_CONSOLE_URL", ""),
+        "REDIS_HOST": os.getenv("REDIS_SERVICE_HOST", "redis"),
+        "REDIS_PORT": os.getenv("REDIS_SERVICE_PORT", "6379"),
         "SMTP_SERVER": os.getenv("SMTP_SERVER", "stelar.gr"),
         "SMTP_PORT": os.getenv("SMTP_PORT", "465"),
         "SMTP_EMAIL": os.getenv("SMTP_EMAIL", "info@stelar.gr"),
@@ -2349,6 +1784,9 @@ def main(app):
 
     # Configure the CKAN client
     initialize_ckan_client(app.config["settings"])
+
+    # Configure the Registry client
+    initialize_registry_client(app.config["settings"])
 
     # Configure execution
     execution.configure(app.config["settings"])
@@ -2378,7 +1816,10 @@ def main(app):
 # This entry point is used with gunicorn -b -w ....
 def create_app():
     main(app)
-    with app.app_context():
-        authz_module.load_authorization_schema()
+    try:
+        with app.app_context():
+            authz_module.load_authorization_schema()
+    except Exception as e:
+        logger.error("Failed to load authorization schema: %s", e)
     # Return the application instance so that gunicorn can run it.
     return app

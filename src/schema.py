@@ -251,6 +251,10 @@ class ResourceSearchQuery(PaginationParameters):
     order_by = String(required=False, example="name")
 
 
+class RegistryCredentials(Schema):
+    title = String(required=True)
+
+
 # =============================================
 #
 #  Older non-generic schema definitions
@@ -322,11 +326,12 @@ class RolesInput(Schema):
 
 class NewUser(Schema):
     username = String(required=True, validate=Length(0, 25))
-    email = String(required=True, validate=Length(0, 100))
-    firstName = String(required=True, validate=Length(0, 100))
-    lastName = String(required=True, validate=Length(0, 100))
+    email = String(required=True, validate=Length(0, 125))
+    first_name = String(required=True, validate=Length(0, 100))
+    last_name = String(required=True, validate=Length(0, 100))
     password = String(required=True, validate=Length(8, 25))
     enabled = Boolean(required=True)
+    email_verified = Boolean(required=True)
 
 
 class ActivationInput(Schema):
@@ -334,11 +339,11 @@ class ActivationInput(Schema):
 
 
 class UpdatedUser(Schema):
-    email = String(required=False, validate=Length(0, 100))
-    firstName = String(required=False, validate=Length(0, 100))
-    lastName = String(required=False, validate=Length(0, 100))
+    email = String(required=False, validate=Length(0, 125))
+    first_name = String(required=False, validate=Length(0, 100))
+    last_name = String(required=False, validate=Length(0, 100))
     enabled = Boolean(required=False)
-    emailVerified = Boolean(required=False)
+    email_verified = Boolean(required=False)
 
 
 class UserRole(Schema):

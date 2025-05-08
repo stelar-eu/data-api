@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>STELAR | Annotate Resources </title>
+    <!-- CSS files -->
+    {% include 'tabler.html' %}
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+    <script type="text/javascript" src="{{ url_for('static', filename='utils.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.6.6/dragula.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.6.6/dragula.min.css">
+    <style>
+        /* Ensure drop areas remain visible even when empty */
+        #minio-file-list,
+        #dataset-file-list {
+            min-height: 50px;
+        }
+
+        /* Add drag cursor to draggable file items */
+        .file-item {
+            cursor: move;
+        }
+
+        .holder {
+            text-align: center;
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <!-- Navbar -->
+        {% include 'header.html' %}
+        <div class="page-wrapper">
+            <!-- Page header -->
+            <div class="page-header d-print-none">
+                <div class="container-xl">
+                    <div class="row g-2 align-items-center">
+                        <div class="col">
+                            <div class="page-pretitle">
+                                DATA CATALOG
+                            </div>
+                            <h3 class="page-title">
+                                <ol class="breadcrumb breadcrumb-arrows">
+                                    <li class="breadcrumb-item"><a class="text-secondary"
+                                            href="{{ url_for('dashboard_blueprint.catalog')}}">Data Catalog</a></li>
+                                    <li class="breadcrumb-item"><a class="text-secondary"
+                                            href="{{ url_for('dashboard_blueprint.dataset_detail', dataset_id=dataset.id) }}">
+                                            {{ dataset.title }}
+                                        </a></li>
+                                    <li class="breadcrumb-item active"><span class="text-strong">Annotate files as
+                                            resources</span>
+                                    </li>
+                                </ol>
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="page-body">
+                <div class="container-xl">
+                    <div class="card" style="height: 80vh;">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-lg-5">
+                                    <h4 class="card-title">Files in MinIO</h4>
+                                    <p class="card-subtitle">Drag and drop files to the right to add them as resources
+                                        to the dataset.</p>
+                                    <h4 class="d-flex align-items-center">
+                                        Bucket:
+                                        <select name="bucket" class="form-select ms-2 w-50" id="bucket-select"></select>
+                                        <a onclick="refreshCurrentPath()" class="ms-auto me-3 cursor-pointer">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="text-primary icon icon-tabler icons-tabler-outline icon-tabler-refresh">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path>
+                                                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+                                            </svg>
+                                        </a>
+                                    </h4>
+                                    <div style="max-height: 60vh; overflow-y: auto;">
+                                        <table class="table" style="overflow: auto;">
+                                            <tbody id="minio-file-list">
+                                                <tr class="text-center">
+                                                    <td colspan="4" class="border-bottom-0">
+                                                        <div class="spinner-border spinner-border-sm m-6 text-secondary"
+                                                            style="width: 4rem; height: 4rem;"></div>
+                                                        <div class="text-muted">Please wait while we retrieve files from
+                                                            MinIO...</div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="col-lg-7">
+                                    <h4 class="card-title">Dataset Resources</h4>
+                                    <p class="card-subtitle">Drop files here to add them to the dataset.</p>
+                                    <div style="max-height: 60vh; overflow-y: auto;">
+                                        <table class="table" id="resources-table">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width:15rem;">Path</th>
+                                                    <th>Resource Name</th>
+                                                    <th>Format</th>
+                                                    <th>Relation</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="dataset-file-list">
+                                                <!-- A placeholder row that is not draggable -->
+                                                <tr class="holder">
+                                                    <td colspan="4" class="text-center">No Resources Added</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="d-flex justify-content-end" id="resource-actions">
+                                        <button class="btn btn-secondary me-2" id="cancel-resources"
+                                            onclick="resetSelection()">Reset</button>
+                                        <button class="btn btn-primary me-2" id="save-resources"
+                                            onclick="saveResources()">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-device-floppy">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path
+                                                    d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" />
+                                                <path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                                                <path d="M14 4l0 4l-6 0l0 -4" />
+                                            </svg>Save Resources</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% include 'footer.html' %}
+        </div>
+    </div>
+    <script>
+
+        function populateBuckets() {
+            $.ajax({
+                url: `{{url_for('pub_blueprint.fetch_buckets')}}`,
+                method: 'GET',
+                dataType: 'json',
+                success: function (buckets) {
+                    var $select = $('#bucket-select');
+                    $select.empty();
+                    // Sort buckets so that those starting with 'klms' appear first
+                    buckets.sort(function (a, b) {
+                        if (a.indexOf('klms') === 0 && b.indexOf('klms') !== 0) return -1;
+                        if (a.indexOf('klms') !== 0 && b.indexOf('klms') === 0) return 1;
+                        return 0;
+                    });
+                    $.each(buckets, function (index, bucket) {
+                        $select.append($('<option></option>').attr('value', bucket).text(bucket));
+                    });
+                    // Trigger the change event to load the initial bucket's path
+                    $select.trigger('change');
+                },
+                error: function (xhr, status, error) {
+                    if (xhr.status === 401) {
+                        window.location.href = '/';
+                    } else {
+                        console.error("Error fetching buckets:", error);
+                    }
+                }
+            });
+        }
+
+        // Automatically determine a folder’s parent path.
+        function computeParent(path) {
+            if (!path) return '';
+            // Remove trailing slash if present.
+            var trimmed = path.endsWith('/') ? path.slice(0, -1) : path;
+            var lastSlash = trimmed.lastIndexOf('/');
+            return (lastSlash !== -1) ? trimmed.slice(0, lastSlash + 1) : '';
+        }
+
+        function insertLoader() {
+            var fileList = $('#minio-file-list');
+            fileList.empty();
+            var loaderRow = $('<tr class="text-center"><td colspan="4" class="border-bottom-0"><div class="spinner-border spinner-border-sm m-6 text-secondary" style="width: 4rem; height: 4rem;"></div><div class="text-muted">Loading...</div></td></tr>');
+            fileList.append(loaderRow);
+        }
+
+        function statBucketPath(bucket, path, parent) {
+
+            // Show loading spinner while fetching data.
+            insertLoader();
+
+            // If parent is undefined, compute it from the current path.
+            if (typeof parent === 'undefined') {
+                parent = computeParent(path);
+            }
+            $.ajax({
+                url: `{{url_for('pub_blueprint.stat_minio_path')}}`,
+                method: 'GET',
+                data: { bucket: bucket, path: path },
+                dataType: 'json',
+                success: function (response) {
+                    if (response.objects) {
+                        // Pass full objects so that we can use last_modified and size.
+                        buildPathStructure(bucket, path, response.objects, parent);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    if (xhr.status === 401) {
+                        window.location.href = '/';
+                    } else {
+                        console.error("Error fetching files:", error);
+                    }
+                }
+            });
+        }
+
+        // Helper function to format size.
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            else if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            else if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+            else return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+        }
+
+        function buildPathStructure(bucket, path, objects, parent) {
+            var fileList = $('#minio-file-list');
+            // Set the current path as a data attribute for easy access later.
+            fileList.data('current-path', path);
+            // Set the parent path as a data attribute for easy access later.
+            fileList.data('parent-path', parent);
+            fileList.empty();
+
+            // Always add the ".." (up one level) row if current path is not empty.
+            if (path !== '') {
+                var parentRow = $('<tr class="cursor-pointer card-link"></tr>');
+                // Apply CSS to allow long paths to wrap even if it breaks words.
+                var parentCell = $('<td style="word-break: break-all;"></td>');
+                var folderIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-folder"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2" /></svg>';
+                parentCell.html(folderIcon + '..');
+                parentRow.append(parentCell);
+                // Two extra columns for Last Modified and Size.
+                parentRow.append('<td></td><td></td>');
+                parentRow.on('click', function () {
+                    // Navigate to the parent directory.
+                    statBucketPath(bucket, parent);
+                });
+                fileList.append(parentRow);
+            }
+
+            $.each(objects, function (index, item) {
+                // Exclude the current path from listing.
+                if (path !== '' && item.name === path) {
+                    return true; // Continue to next iteration.
+                }
+
+                var tr = $('<tr></tr>');
+                if (item.name.endsWith('/')) {
+                    tr.addClass('cursor-pointer card-link');
+                    var displayText = item.name.substring(0, item.name.length - 1);
+                    var folderIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-folder"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2" /></svg>';
+                    tr.append($('<td style="word-break: break-all;"></td>').html(folderIcon + displayText));
+                    tr.append('<td>' + (item.stats && item.stats.last_modified ? formatIsoDate(item.stats.last_modified) : '') + '</td>');
+                    tr.append('<td></td>');
+                    tr.append('<td class="d-none"></td>');
+                    tr.on('click', function () {
+                        // Navigate into the folder.
+                        statBucketPath(bucket, item.name);
+                    });
+                } else {
+                    tr.addClass('file-item');
+                    // Remove duplicate folder name if present
+                    var fileName = item.name;
+                    if (path && item.name.indexOf(path) === 0) {
+                        fileName = item.name.substring(path.length);
+                    }
+                    // Add a hidden s3 URL as a data attribute.
+                    tr.attr('data-s3-url', 's3://' + bucket + '/' + path + fileName);
+                    tr.append($('<td style="word-break: break-all;"></td>').text(fileName));
+                    tr.append($('<td></td>').text(item.stats && item.stats.last_modified ? formatIsoDate(item.stats.last_modified) : ''));
+                    tr.append('<td>' + (item.stats && item.stats.size ? formatSize(item.stats.size) : '') + '</td>');
+                }
+                fileList.append(tr);
+            });
+        }
+
+        function refreshCurrentPath() {
+            var bucket = $('#bucket-select').val();
+            var path = $('#minio-file-list').data('current-path');
+            var parent = $('#minio-file-list').data('parent-path');
+
+            statBucketPath(bucket, path, parent);
+
+        }
+
+        function resetSelection() {
+            $('#dataset-file-list').empty();
+            refreshCurrentPath();
+            var holderRow = $('<tr class="holder"><td colspan="4" class="text-center">No Resources Added</td></tr>');
+            $('#dataset-file-list').append(holderRow);
+        }
+
+
+        function saveResources() {
+            $('#resource-actions .stelar-loader').remove();
+            $('#resource-actions').prepend(createLoaderElement(false, true));
+            $('#save-resources').addClass('disabled');
+            var rows = $('#dataset-file-list tr.file-item');
+            var resources = [];
+            rows.each(function () {
+                var path = $(this).find('td').eq(0).text().trim();
+                var resourceName = $(this).find('textarea').val().trim();
+                var format = $(this).find('select').eq(0).val();
+                var relation = $(this).find('select').eq(1).val();
+                resources.push({
+                    url: $(this).data('s3-url'),
+                    name: resourceName,
+                    format: format,
+                    relation: relation,
+                    table_item: this
+                });
+            });
+
+            var ajaxCalls = [];
+            for (var i = 0; i < resources.length; i++) {
+                (function (resource) {
+                    var request = $.ajax({
+                        url: `{{url_for('catalog_blueprint.api_create_resource')}}`,
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: (function (r) {
+                            var dataToPost = $.extend({}, r);
+                            delete dataToPost.table_item;
+                            var payload = $.extend({ package_id: '{{ dataset.id }}' }, dataToPost);
+                            return JSON.stringify(payload);
+                        })(resource),
+                        success: function (response) {
+                            $(resource.table_item).addClass('bg-success-lt');
+                        },
+                        error: function (xhr, status, error) {
+                            if (xhr.status === 401) {
+                                window.location.href = '/';
+                            } else {
+                                $(resource.table_item).addClass('bg-danger-lt');
+                                console.error("Error adding resource:", error);
+                            }
+                        }
+                    });
+                    ajaxCalls.push(request);
+                })(resources[i]);
+            }
+            $.when.apply($, ajaxCalls).always(function () {
+                $('#resource-actions .stelar-loader').remove();
+                $('#save-resources').removeClass('disabled');
+            });
+        }
+
+        // On bucket change, fetch the files in the selected bucket and path.
+        $('#bucket-select').on('change', function () {
+            var selectedBucket = $(this).val();
+            if (selectedBucket) {
+                statBucketPath(selectedBucket, '', null);
+            }
+        });
+
+        $(document).ready(function () {
+            populateBuckets();
+        });
+
+
+
+    </script>
+
+
+    <script>
+        // Allow dragging of rows from MinIO if they have the "file-item" class,
+        // and allow dragging of any row from the dataset list to be removed.
+        var drake = dragula([document.getElementById("minio-file-list"), document.getElementById("dataset-file-list")], {
+            moves: function (el, source, handle, sibling) {
+                if (source.id === 'minio-file-list') {
+                    return el.classList.contains("file-item");
+                }
+                if (source.id === 'dataset-file-list') {
+                    return true;
+                }
+                return false;
+            },
+            accepts: function (el, target, source, sibling) {
+                // Prevent files dragged from the dataset list from being dropped back to the MinIO list.
+                if (target.id === "minio-file-list" && source.id === "dataset-file-list") {
+                    return false;
+                }
+                return true;
+            },
+            removeOnSpill: true
+        });
+
+
+        drake.on("drag", function (el) {
+            // Add a class to the table to indicate that a file is being dragged.
+            $('#resources-table').addClass('border border-success');
+        });
+
+        drake.on("dragend", function (el) {
+            // Remove the class from the table when dragging ends.
+            $('#resources-table').removeClass('border border-success');
+        });
+
+        drake.on("drop", function (el, target, source, sibling) {
+
+            $('#resources-table').removeClass('border border-success');
+            // Remove any placeholder from the target
+            removePlaceholder(target);
+
+            if (target.id === "dataset-file-list") {
+                // When a file is dropped into the dataset list, update the row cells.
+                var s3url = el.getAttribute('data-s3-url');
+                var filename = s3url.split('/').pop();
+                el.innerHTML = "";
+
+                // Create cell 1: Filename (read-only)
+                var td1 = document.createElement("td");
+                td1.setAttribute("style", "max-height: 100%; overflow: auto; white-space: pre-wrap; word-break: break-all;");
+                td1.textContent = el.getAttribute('data-s3-url');
+
+                // Create cell 2: Resource Name as text input.
+                var td2 = document.createElement("td");
+                td2.innerHTML = '<textarea class="form-control">' + filename + '</textarea>';
+
+                // Determine file extension from filename
+                var ext = "";
+                if (filename.lastIndexOf('.') !== -1) {
+                    ext = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+                }
+                // Create cell 3: Format select with auto-selection based on file suffix.
+                var td3 = document.createElement("td");
+                td3.innerHTML = '<select class="form-select">' +
+                    '<option value=""' + (ext === "" ? " selected" : "") + '>Format</option>' +
+                    '<option value="csv"' + (ext === "csv" ? " selected" : "") + '>CSV</option>' +
+                    '<option value="csv"' + (ext === "txt" ? " selected" : "") + '>TXT</option>' +
+                    '<option value="json"' + (ext === "json" ? " selected" : "") + '>JSON</option>' +
+                    '<option value="xml"' + (ext === "tif" ? " selected" : "") + '>TIF</option>' +
+                    '<option value="xlsx"' + (ext === "ras" ? " selected" : "") + '>RAS</option>' +
+                    '<option value="parquet"' + (ext === "rhd" ? " selected" : "") + '>RHD</option>' +
+                    '</select>';
+
+                // Create cell 4: Relation select.
+                var td4 = document.createElement("td");
+                td4.innerHTML = '<select class="form-select">' +
+                    '<option value="owned">owned</option>' +
+                    '<option value="profile">profile</option>' +
+                    '<option value="none">none</option>' +
+                    '</select>';
+
+                el.appendChild(td1);
+                el.appendChild(td2);
+                el.appendChild(td3);
+                el.appendChild(td4);
+            }
+
+            // Re-check for emptiness of both containers:
+            checkEmpty(el.parentNode);
+            if (target.id !== el.parentNode.id) {
+                checkEmpty(target);
+            }
+        });
+
+        drake.on("cancel", function (el, container) {
+            checkEmpty(container);
+        });
+
+        function removePlaceholder(container) {
+            var placeholder = container.querySelector("tr.holder");
+            if (placeholder) {
+                placeholder.parentNode.removeChild(placeholder);
+            }
+        }
+
+        // If no draggable file-item exists, add a placeholder row.
+        function checkEmpty(container) {
+            if (container && (container.id === "dataset-file-list")) {
+                if (!container.querySelector("tr.file-item")) {
+                    if (!container.querySelector("tr.holder")) {
+                        var tr = document.createElement("tr");
+                        tr.className = "holder";
+                        var td = document.createElement("td");
+                        td.colSpan = 4;
+                        td.className = "text-center";
+                        td.textContent = container.id === "dataset-file-list" ? "No Resources Selected" : "No Files Unused";
+                        tr.appendChild(td);
+                        container.appendChild(tr);
+                    }
+                }
+            }
+        }
+
+
+        // When the DOM is loaded, check both containers for emptiness and set up observers to re-check on any item movement.
+        document.addEventListener("DOMContentLoaded", function () {
+            var minioList = document.getElementById("minio-file-list");
+            var datasetList = document.getElementById("dataset-file-list");
+
+            checkEmpty(minioList);
+            checkEmpty(datasetList);
+
+            // Create a MutationObserver for each container to monitor changes
+            function createObserver(container) {
+                var observer = new MutationObserver(function () {
+                    checkEmpty(container);
+                });
+                observer.observe(container, { childList: true });
+            }
+
+            createObserver(minioList);
+            createObserver(datasetList);
+        });
+    </script>
+</body>
+
+</html>

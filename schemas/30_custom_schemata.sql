@@ -116,6 +116,36 @@ BEGIN
     END IF;
 END;
 $$;
+
+
+---------------------------------------------
+--            CKAN AUTHOR TRIGGER 
+---------------------------------------------
+CREATE OR REPLACE FUNCTION set_author_info()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Set the author and author_email based on the creator_user_id
+    SELECT name, email INTO NEW.author, NEW.author_email
+    FROM "user"
+    WHERE id = NEW.creator_user_id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_set_author_info'
+    ) THEN
+        CREATE TRIGGER trigger_set_author_info
+        BEFORE INSERT ON public.package
+        FOR EACH ROW
+        EXECUTE FUNCTION set_author_info();
+    END IF;
+END;
+$$;
+
 ---------------------------------------------
 --           WORKFLOW EXECUTIONS
 ---------------------------------------------
@@ -261,15 +291,23 @@ CREATE TABLE IF NOT EXISTS klms.task_input
 (
   task_uuid varchar(64) NOT NULL,
   order_num smallint,
-  resource_id varchar(64), 
+  resource_id varchar(64),
+  resource_url text,
   input_path text,
   input_group_name varchar(50) NOT NULL,
   CONSTRAINT fk_task_input_uuid FOREIGN KEY (task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
-  CONSTRAINT fk_task_input_resource FOREIGN KEY (resource_id) REFERENCES public.resource(id) ON UPDATE CASCADE ON DELETE CASCADE, 
-  CONSTRAINT chk_task_input_one_id CHECK (
-    (resource_id IS NOT NULL AND input_path IS NULL) OR
-    (resource_id IS NULL AND input_path IS NOT NULL)
-  )
+  CONSTRAINT fk_task_input_resource FOREIGN KEY (resource_id) REFERENCES public.resource(id) ON UPDATE CASCADE ON DELETE SET NULL, 
+  CONSTRAINT chk_input_validity CHECK (
+    (
+        input_path IS NOT NULL AND
+        resource_id IS NULL AND
+        resource_url IS NULL
+    )
+    OR
+    (
+        input_path IS NULL AND
+        resource_url IS NOT NULL
+    ))
 );
 
 
@@ -278,6 +316,7 @@ CREATE TABLE IF NOT EXISTS klms.task_output
 ( task_uuid varchar(64) NOT NULL,
   order_num smallint,
   dataset_id text NOT NULL, 
+  output_name text NOT NULL,
   PRIMARY KEY (task_uuid, dataset_id),
   CONSTRAINT fk_task_output_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
   CONSTRAINT fk_task_output_dataset FOREIGN KEY(dataset_id) REFERENCES public.resource(id) ON UPDATE CASCADE ON DELETE CASCADE

@@ -6,16 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta http-equiv="X-UA-Compatible" content="ie=edge" />
   <title>STELAR | Data Catalog</title>
-  <!-- CSS files -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
+  {% include 'tabler.html' %}
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <!-- Leaflet PM CSS (for polygon editing) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.css" />
 
   <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <script src="{{ url_for('static', filename='images.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.13/dayjs.min.js"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
 </head>
@@ -41,11 +41,11 @@
             <div class="col-auto me-2 d-print-none">
               <div class="input-group">
 
-                <button type="button" class="btn btn-secondary" id="compare-datasets-button"
+                <button type="button" class="btn btn-outline-primary" id="compare-datasets-button"
                   onclick="window.location.href='{{url_for('dashboard_blueprint.dataset_compare')}}'">Compare Selected
                   <span class="ms-1" id="dataset-compare-number">(0)</span></button>
 
-                <button data-bs-toggle="dropdown" role="button" class="btn btn-secondary dropdown-toggle"
+                <button data-bs-toggle="dropdown" role="button" class="btn btn-outline-primary dropdown-toggle"
                   datas-bs-auto-close="outside"></button>
                 <div class="dropdown-menu dropdown-menu-end" id="compare-dataset-options">
 
@@ -69,46 +69,105 @@
       <!-- Page body -->
       <div class="page-body">
         <div class="container-xl">
-          <div class="row g-4">
+          <div class="mt-2" style="position: relative;">
+            <div class="input-icon">
+              <span class="input-icon-addon">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24"
+                  stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                  <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"></path>
+                  <path d="M21 21l-6 -6"></path>
+                </svg>
+              </span>
+              <div class="input-group">
+                <input type="text" value="" class="form-control mb-0 h3" placeholder="Search for a keyword"
+                  id="catalog-search-box" aria-label="Catalog Search" style="height:3.5rem;" autocomplete="off">
+                <button class="btn" type="button">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="me-1 icon icon-tabler icons-tabler-outline icon-tabler-search">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+                    <path d="M21 21l-6 -6" />
+                  </svg>
+                  Search</button>
+              </div>
+            </div>
+            <ul id="suggestions-list" class="bg-white list-group"
+              style="position:absolute; top:100%; left:0; z-index:1001; display:none; width:100%;">
+            </ul>
+          </div>
+          <div class="badges-list mt-3 mb-0">
+            <span class="badge badge-lg badge-outline text-default">Default</span>
+          </div>
+
+          <div class="row g-4 mt-3">
             <div class="col-md-3">
 
-              <div class="form-label">Spatial Queries</div>
+              <div class="form-label h3">Spatial Coverage</div>
               <a data-bs-toggle="modal" data-bs-target="#spatial-search-modal" href="#" class="mb-4 card card-link m"
-                style="height: 15%;" id="map">
+                style="height: 16rem;" id="map">
 
               </a>
-
-              <div class="form-label">Tags</div>
-              <div class="mb-4">
-                <label class="form-check">
-                  <input type="checkbox" class="form-check-input" name="form-type[]" value="1" checked>
-                  <span class="form-check-label">Geo-Spatial Data</span>
-                </label>
-                <label class="form-check">
-                  <input type="checkbox" class="form-check-input" name="form-type[]" value="2" checked>
-                  <span class="form-check-label">Greek Farms</span>
-                </label>
-                <label class="form-check">
-                  <input type="checkbox" class="form-check-input" name="form-type[]" value="3">
-                  <span class="form-check-label">NL Weather Data</span>
-                </label>
+              <div class="form-label h3">Temporal Coverage</div>
+              <div class="mb-0 p-1" style="max-height: 16.5rem; overflow: auto;" id="facet-temporal">
+                <div>
+                    <div class="mb-1">
+                      <label for="start-datetime" class="form-label">Start Time</label>
+                      <input type="datetime-local" id="start-datetime" class="form-control"  onchange="updateChart()">
+                    </div>
+                    <div>
+                      <label for="end-datetime" class="form-label">End Time</label>
+                      <input type="datetime-local" id="end-datetime" class="form-control"  onchange="updateChart()">
+                    </div>
+                   <div class="mt-2" id="temporal-chart"></div>
+                </div>
               </div>
-              <div class="form-label">Resource Formats</div>
-              <div class="mb-4">
-                <label class="form-check">
-                  <input type="checkbox" class="form-check-input" name="form-type[]" value="1" checked>
-                  <span class="form-check-label">JSON</span>
-                </label>
-                <label class="form-check">
-                  <input type="checkbox" class="form-check-input" name="form-type[]" value="2" checked>
-                  <span class="form-check-label">XML</span>
-                </label>
-                <label class="form-check">
-                  <input type="checkbox" class="form-check-input" name="form-type[]" value="3">
-                  <span class="form-check-label">CSV</span>
-                </label>
-              </div>
+              <hr class="mt-0">
+              <div class="form-label h3">Tags</div>
+              <div class="mb-1 p-1" style="max-height: 16.5rem; overflow: auto;" id="facet-tags">
 
+                <div class="placeholder-glow">
+                  {% for i in range(0, 7) %}
+                  <label class="form-check tag-item">
+                    <div class="placeholder col-3 mb-3"></div>
+                  </label>
+                  {% endfor %}
+                </div>
+              </div>
+              <hr>
+              <div class="form-label h3">Resource Format</div>
+              <div class="mb-1 p-1" style="max-height: 16.5rem; overflow: auto;" id="facet-format">
+                <div class="placeholder-glow">
+                  {% for i in range(0, 7) %}
+                  <label class="form-check tag-item">
+                    <div class="placeholder col-3 mb-3"></div>
+                  </label>
+                  {% endfor %}
+                </div>
+              </div>
+              <hr>
+              <div class="form-label h3">Creator</div>
+              <div class="mb-1 p-1" style="max-height: 16.5rem; overflow: auto;" id="facet-author">
+                <div class="placeholder-glow">
+                  {% for i in range(0, 7) %}
+                  <label class="form-check tag-item">
+                    <div class="placeholder col-3 mb-3"></div>
+                  </label>
+                  {% endfor %}
+                </div>
+              </div>
+              <hr>
+              <div class="form-label h3">Owner Organization</div>
+              <div class="mb-1 p-1" style="max-height: 16.5rem; overflow: auto;" id="facet-organization">
+                <div class="placeholder-glow">
+                  {% for i in range(0, 7) %}
+                  <label class="form-check tag-item">
+                    <div class="placeholder col-3 mb-3"></div>
+                  </label>
+                  {% endfor %}
+                </div>
+              </div>
               <div class="mt-5">
                 <button class="btn btn-primary w-100">
                   Apply filters
@@ -119,21 +178,6 @@
               </div>
             </div>
             <div class="col-md-9">
-              <div class="mb-4 mt-2">
-                <div class="input-icon">
-                  <span class="input-icon-addon">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24"
-                      stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                      <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
-                      <path d="M21 21l-6 -6" />
-                    </svg>
-                  </span>
-                  <input type="text" value="" class="form-control" placeholder="Search for a keyword"
-                    id="catalog-search-box" aria-label="Catalog Search">
-                </div>
-              </div>
-
               <ul class="pagination d-flex justify-content-end">
                 {% if page_number > 1 %}
                 <!-- Previous Button -->
@@ -211,7 +255,25 @@
                     <div class="row g-0">
                       <div class="col-auto">
                         <div class="card-body">
-                          <div class="avatar avatar-md bg-white" style="background-image: url({{ PARTNER_IMAGE_SRC }})">
+                          <div class="avatar avatar-md bg-white">
+                            {% if dataset.organization.image_url and dataset.organization.image_url != '' %}
+                            <img src="{{dataset.organization.image_url}}" />
+                            {% else %}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                              stroke-linejoin="round"
+                              class="text-secondary icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M3 21l18 0" />
+                              <path d="M3 10l18 0" />
+                              <path d="M5 6l7 -3l7 3" />
+                              <path d="M4 10l0 11" />
+                              <path d="M20 10l0 11" />
+                              <path d="M8 14l0 3" />
+                              <path d="M12 14l0 3" />
+                              <path d="M16 14l0 3" />
+                            </svg>
+                            {% endif %}
                           </div>
                         </div>
                       </div>
@@ -235,7 +297,8 @@
                               </p>
                             </div>
                             <div class="col-md-1 d-flex justify-content-end">
-                              <button class="btn btn-pill btn-outline-success m-3 me-1 p-1 text-center comparator-btn"
+                              <button
+                                class="btn btn-pill btn-outline-success m-3 me-1 p-1 text-center comparator-btn align-self-center"
                                 data-dataset-id="{{ dataset.get('id') }}" title="Add to comparison">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                   fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -279,7 +342,7 @@
                                     <path d="M12 14l0 3" />
                                     <path d="M16 14l0 3" />
                                   </svg>
-                                  {{ dataset.get('organization') }}
+                                  {{ dataset.organization.title }}
                                 </div>
                                 <div class="list-inline-item">
                                   <svg xmlns="http://www.w3.org/2000/svg"
@@ -582,7 +645,6 @@
   <script src="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-
   <!-- Preview Map -->
   <script>
     var map = L.map('map', {
@@ -601,6 +663,300 @@
     }).addTo(map);
 
   </script>
+
+
+  <script>
+    $(document).ready(function () {
+      var selectedIndex = -1;
+      var suggestions = [];
+
+      $('#catalog-search-box').on('input', function () {
+        var query = $(this).val();
+        if (query.length >= 2) {
+          $.ajax({
+            url: `{{url_for('pub_blueprint.autocomplete_datasets', limit=10, query='')}}` + encodeURIComponent(query),
+            method: 'POST',
+            dataType: 'json',
+            success: function (response) {
+              if (response.success) {
+                suggestions = response.result;
+                var html = "";
+                suggestions.forEach(function (item, index) {
+                  html += '<li class="list-group-item suggestion-item" data-name="' + item.name + '" style="cursor:pointer;">' +
+                    '<strong>' + item.title + '</strong> - <small><code>' + item.name + '</code></small>' +
+                    '</li>';
+                });
+                $('#suggestions-list').html(html).show();
+                selectedIndex = -1;
+              }
+            }
+          });
+        } else {
+          $('#suggestions-list').hide();
+        }
+      });
+
+      $('#catalog-search-box').on('keydown', function (e) {
+        var items = $('#suggestions-list li');
+        if (items.length === 0) return;
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          selectedIndex = (selectedIndex + 1) % items.length;
+          items.removeClass('active');
+          $(items[selectedIndex]).addClass('active');
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+          items.removeClass('active');
+          $(items[selectedIndex]).addClass('active');
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          if (selectedIndex > -1) {
+            var selectedItem = $(items[selectedIndex]);
+            var name = selectedItem.data('name');
+            window.location.href = `{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}` + encodeURIComponent(name);
+          }
+        }
+      });
+
+      // Click selection of suggestion
+      $(document).on('click', '.suggestion-item', function () {
+        var name = $(this).data('name');
+        window.location.href = `{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}` + encodeURIComponent(name);
+      });
+
+      // Hide suggestions on blur after slight delay
+      $('#catalog-search-box').on('blur', function () {
+        setTimeout(function () {
+          $('#suggestions-list').hide();
+        }, 100);
+      });
+    });
+  </script>
+
+  <!-- Datepickers -->
+  <script>
+    var startDate = new Date(document.getElementById('start-datetime').value).getTime();
+    var endDate = new Date(document.getElementById('end-datetime').value).getTime();
+    
+    var options = {
+      series: [{
+        data: [{
+          x: 'Date Range',
+          y: [startDate, endDate]
+        }]
+      }],
+      chart: {
+        height: 100,
+        type: 'rangeBar',
+        zoom: {
+          enabled: true
+        }
+      },
+      colors: ['#3f1757'],
+      plotOptions: {
+        bar: {
+          horizontal: true
+        }
+      },
+      xaxis: {
+        type: 'datetime'
+      },
+      grid: {
+        xaxis: {
+          lines: {
+            show: true
+          }
+        },
+        yaxis: {
+          lines: {
+            show: false
+          }
+        }
+      }
+    };
+
+    var chart = new ApexCharts(document.querySelector("#temporal-chart"), options);
+    chart.render();
+
+    function updateChart() {
+      startDate = new Date(document.getElementById('start-datetime').value).getTime();
+      endDate = new Date(document.getElementById('end-datetime').value).getTime();
+      chart.updateSeries([{
+        data: [{
+          x: 'Date Range',
+          y: [startDate, endDate]
+        }]
+      }]);
+    }
+  </script>
+
+
+  <!-- Search Script -->
+  <script>
+
+    query = {
+      "q": "",
+      "fl": [
+        "id",
+        "title",
+        "tags",
+        "notes",
+        "score",
+        "author",
+        "organization",
+        "metadata_modified"
+      ],
+      "sort": "metadata_modified desc",
+      "fq": [],
+      "fq": [],
+      "facet": {
+        "fields": [
+          "tags",
+          "author",
+          "organization",
+          "res_format",
+        ]
+      }
+    };
+
+    function performSearch(query) {
+
+      $.ajax({
+        url: "{{url_for('catalog_blueprint.api_search_datasets')}}",
+        type: "POST",
+        data: JSON.stringify(query),
+        contentType: "application/json",
+        success: function (response) {
+          if (response.success) {
+            if (response.result.facets) {
+              buildFacets(response.result.facets);
+              buildPackageCards(response.result.results);
+            }
+          } else {
+            console.error("Search failed:", response.message);
+          }
+        },
+        error: function (xhr, status, error) {
+          console.error("AJAX request failed:", error);
+        }
+      });
+
+    }
+
+    function buildPackageCard(package) {
+
+    }
+
+    function buildPackageCards(packages) {
+
+    }
+
+    function buildFacet(facet, count, field, display) {
+      if (facet) {
+        if (display) {
+          return `<label class="form-check tag-item">
+              <input type="checkbox" class="form-check-input" name="form-type[]" value="${facet}">
+              <div class="d-flex">
+                <span class="form-check-label">${facet}</span>
+                <span class="badge ms-auto text-light-fg ms-2">${count}</span>
+              </div>
+            </label>`;
+        } else {
+          return `<label class="form-check tag-item more-tag" style="display: none;">
+              <input type="checkbox" class="form-check-input" name="form-type[]" value="${facet}">
+              <div class="d-flex">
+                <span class="form-check-label">${facet}</span>
+                <span class="badge ms-auto text-light-fg ms-2">${count}</span>
+              </div>
+            </label>`;
+        }
+      }
+    }
+
+    function createShowAllFacetButton(facet, facetContainerId) {
+      return `<a class="toggle-facet-btn me-1 mb-1 cursor-pointer" data-expanded="false" onclick="
+          var container = document.getElementById('${facetContainerId}');
+          var moreTags = container.querySelectorAll('.more-tag');
+          var btn = this;
+          if (btn.getAttribute('data-expanded') === 'true') {
+            moreTags.forEach(el => el.style.display = 'none');
+            btn.innerHTML = 'Show All <svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;24&quot; height=&quot;24&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; class=&quot;me-2 icon icon-tabler icons-tabler-outline icon-tabler-chevron-down&quot;><path stroke=&quot;none&quot; d=&quot;M0 0h24v24H0z&quot; fill=&quot;none&quot;/><path d=&quot;M6 9l6 6l6 -6&quot; /></svg>';
+            btn.setAttribute('data-expanded','false');
+          } else {
+            moreTags.forEach(el => el.style.display = 'block');
+            btn.innerHTML = 'Show Less <svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;24&quot; height=&quot;24&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; class=&quot;me-2 icon icon-tabler icons-tabler-outline icon-tabler-chevron-up&quot;><path stroke=&quot;none&quot; d=&quot;M0 0h24v24H0z&quot; fill=&quot;none&quot;/><path d=&quot;M6 15l6 -6l6 6&quot; /></svg>';
+            btn.setAttribute('data-expanded','true');
+          }
+        ">
+        Show All
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+        class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-chevron-down">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+        <path d="M6 9l6 6l6 -6" />
+        </svg>
+        </a>`;
+    }
+
+    function buildFacets(facets) {
+      if (facets) {
+        for (const [key, value] of Object.entries(facets)) {
+          if (key == "tags") {
+            const entries = Object.entries(value);
+            $("#facet-tags").html("");
+            let i = 0;
+            for (const [tag, count] of entries) {
+              $("#facet-tags").append(buildFacet(tag, count, key, i < 8));
+              i++;
+            }
+            if (entries.length > 8) {
+              $("#facet-tags").after(createShowAllFacetButton(key, "facet-tags"));
+            }
+          } else if (key == "author") {
+            const entries = Object.entries(value);
+            $("#facet-author").html("");
+            let i = 0;
+            for (const [author, count] of entries) {
+              $("#facet-author").append(buildFacet(author, count, key, i < 8));
+              i++;
+            }
+            if (entries.length > 8) {
+              $("#facet-author").after(createShowAllFacetButton(key, "facet-author"));
+            }
+          } else if (key == "organization") {
+            const entries = Object.entries(value);
+            $("#facet-organization").html("");
+            let i = 0;
+            for (const [organization, count] of entries) {
+              $("#facet-organization").append(buildFacet(organization, count, key, i < 8));
+              i++;
+            }
+            if (entries.length > 8) {
+              $("#facet-organization").after(createShowAllFacetButton(key, "facet-organization"));
+            }
+          } else if (key == "res_format") {
+            const entries = Object.entries(value);
+            $("#facet-format").html("");
+            let i = 0;
+            for (const [organization, count] of entries) {
+              $("#facet-format").append(buildFacet(organization, count, key, i < 8));
+              i++;
+            }
+            if (entries.length > 8) {
+              $("#facet-format").after(createShowAllFacetButton(key, "facet-format"));
+            }
+          }
+        }
+      }
+    }
+
+    $(document).ready(function () {
+      performSearch(query);
+    });
+
+  </script>
+
 
   <!-- Spatial Modal Map -->
   <script>
@@ -640,11 +996,7 @@
       edit: false, // Disable bulk editing
       draw: {
 
-        polygon: {
-          allowIntersection: false,
-          showArea: true,
-          remove: true
-        },
+        polygon: false,
         polyline: false,
         rectangle: true,
         circle: false,

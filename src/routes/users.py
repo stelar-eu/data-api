@@ -42,38 +42,7 @@ users_bp = APIBlueprint(
 @users_bp.route("/", methods=["GET"])
 @users_bp.doc(tags=["User Management"], security=security_doc)
 @users_bp.input(schema.PaginationParameters, location="query")
-@users_bp.output(
-    schema.ResponseAmbiguous,
-    status_code=200,
-    example={
-        "help": "http://klms.stelar.gr/stelar/docs",
-        "success": True,
-        "result": {
-            "count": 2,
-            "users": [
-                {
-                    "active": True,
-                    "email": "user1@example.com",
-                    "fullname": "User One",
-                    "joined_date": "01-01-2024",
-                    "roles": ["admin"],
-                    "user_id": "uuid-1234",
-                    "username": "userone",
-                },
-                {
-                    "active": True,
-                    "email": "user2@example.com",
-                    "fullname": "User Two",
-                    "joined_date": "01-01-2024",
-                    "roles": ["user"],
-                    "user_id": "uuid-5678",
-                    "username": "usertwo",
-                },
-            ],
-        },
-    },
-)
-@token_active
+@render_api_output(logger)
 @admin_required
 def get_users(query_data):
     """
@@ -86,28 +55,30 @@ def get_users(query_data):
         - limit: Maximum number of users returned per request, if limit is 0 all users are returned.
         - offset: Offset of the result by #offset user.
     """
-    try:
-        offset = query_data.get("offset", 0)
-        limit = query_data.get("limit", 0)
+    offset = query_data.get("offset", 0)
+    limit = query_data.get("limit", 0)
 
-        users = kutils.get_users_from_keycloak(offset=offset, limit=limit)
+    return kutils.get_users_from_keycloak(offset=offset, limit=limit)
 
-        return {
-            "help": request.url,
-            "result": {"users": users, "count": len(users)},
-            "success": True,
-        }, 200
-    except ValueError as ve:
-        return {"help": request.url, "result": {str(e)}, "success": False}, 400
-    except Exception as e:
-        return {"help": request.url, "result": {str(e)}, "success": False}, 500
+
+@users_bp.route("/sync", methods=["POST"])
+@users_bp.doc(tags=["User Management"], security=security_doc)
+@users_bp.output(schema.APIResponse(), status_code=200)
+@render_api_output(logger)
+@admin_required
+def sync_users():
+    """
+    Syncs the users of the STELAR KLMS with the CKAN instance. Requires admin role.
+
+    """
+    return kutils.sync_users()
 
 
 @users_bp.route("/token", methods=["POST"])
 @users_bp.input(
     schema.NewToken,
     location="json",
-    example={"username": "dpetrou", "password": "mypassword"},
+    example={"username": "user", "password": "mypassword"},
 )
 @users_bp.output(
     schema.APIResponse(),
@@ -116,6 +87,9 @@ def get_users(query_data):
         "result": {
             "token": "$$$ACCESS_TOKEN$$$",
             "refresh_token": "$$$REFRESH_TOKEN$$$",
+            "expires_in": 3600,
+            "refresh_expires_in": 18000,
+            "token_type": "Bearer",
         },
         "success": True,
     },
@@ -129,7 +103,6 @@ def api_token_create(json_data):
     Args in a JSON:
         - username: The username of the user
         - password: The user's secret password
-
     Returns:
         - A JSON response with the OAuth2.0 token or an error message.
     """
@@ -154,18 +127,22 @@ def api_token_create(json_data):
     example={"refresh_token": "$$$REFRESH_TOKEN$$$"},
 )
 @users_bp.output(
-    schema.ResponseOK,
+    schema.APIResponse(),
     example={
         "help": "https://klms.stelar.gr/stelar/docs",
         "result": {
             "token": "$$$ACCESS_TOKEN$$$",
             "refresh_token": "$$$REFRESH_TOKEN$$$",
+            "expires_in": 3600,
+            "refresh_expires_in": 18000,
+            "token_type": "Bearer",
         },
         "success": True,
     },
     status_code=200,
 )
 @users_bp.doc(tags=["User Management"])
+@render_api_output(logger)
 def api_token_refresh(json_data):
     """
     Refresh an OAuth2.0 token using a refresh token.
@@ -177,35 +154,25 @@ def api_token_refresh(json_data):
         - A JSON response with the OAuth2.0 token or an error message.
     """
 
-    try:
-        reftoken = json_data.get("refresh_token")
+    reftoken = json_data.get("refresh_token")
+    token = kutils.refresh_access_token(reftoken)
 
-        token = kutils.refresh_access_token(reftoken)
-
-        if token:
-            return {
-                "help": request.url,
-                "result": {
-                    "token": token["access_token"],
-                    "refresh_token": token["refresh_token"],
-                    "expires_in": token["expires_in"],
-                    "refresh_expires_in": token["refresh_expires_in"],
-                    "token_type": token["token_type"],
-                },
-                "success": True,
-            }, 200
-        else:
-            return {"help": request.url, "result": {}, "success": False}, 400
-    except Exception as e:
-        return {"help": request.url, "result": {}, "success": False}, 400
+    return {
+        "token": token["access_token"],
+        "refresh_token": token["refresh_token"],
+        "expires_in": token["expires_in"],
+        "refresh_expires_in": token["refresh_expires_in"],
+        "token_type": token["token_type"],
+    }
 
 
 @users_bp.route("/", methods=["POST"])
 @users_bp.input(schema.NewUser, location="json")
-@users_bp.output(schema.ResponseAmbiguous, status_code=200)
+@users_bp.output(schema.APIResponse(), status_code=200)
 @users_bp.doc(tags=["User Management"], security=security_doc)
 @token_active
 @admin_required
+@render_api_output(logger)
 def api_create_user(json_data):
     """
     Creates a new user in the STELAR KLMS. Requires admin role.
@@ -216,137 +183,51 @@ def api_create_user(json_data):
     JSON Fields (validated against schema.NewUser):
         - username (str): The username for the new user. Should be unique.
         - email (str): The user's email address. Should be unique.
-        - firstName (str): The user's first name.
-        - lastName (str): The user's last name.
+        - first_name (str): The user's first name.
+        - last_name (str): The user's last name.
         - password (str): The user's password.
         - enabled (bool): Whether the user account should be enabled.
     """
-    try:
-        username = json_data["username"]
-        email = json_data["email"]
-        first_name = json_data["firstName"]
-        last_name = json_data["lastName"]
-        password = json_data["password"]
-        enabled = json_data.get("enabled", True)
-        attributes = json_data.get("attributes", {})
+    username = json_data["username"]
+    email = json_data["email"]
+    first_name = json_data["first_name"]
+    last_name = json_data["last_name"]
+    password = json_data["password"]
+    enabled = json_data.get("enabled", True)
 
-        user_id = kutils.create_user_with_password(
-            username=username,
-            email=email,
-            first_name=first_name,
-            last_name=last_name,
-            password=password,
-            enabled=enabled,
-        )
-
-        if not user_id:
-            raise RuntimeError(
-                "Failed to create user. Please check the logs for details."
-            )
-
-        # Retrieve and return the newly created user representation
-        user_rep = kutils.get_user(user_id)
-
-        if user_rep:
-            return {
-                "help": request.url,
-                "result": {"user": user_rep},
-                "success": True,
-            }, 200
-        else:
-            raise AttributeError(f"Failed to find user with identifier: {user_id}")
-
-    except ValueError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Validation error: {ve}",
-                "__type": "User Entity Error",
-            },
-            "success": False,
-        }, 400
-
-    except AttributeError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Existence error: {ve}",
-                "__type": "User Entity Not Found",
-            },
-            "success": False,
-        }, 404
-
-    except Exception as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Unknown Error",
-            },
-            "success": False,
-        }, 500
+    return kutils.create_user_with_password(
+        username=username,
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        password=password,
+        enabled=enabled,
+    )
 
 
 @users_bp.route("/<user_id>", methods=["GET"])
-@users_bp.output(schema.ResponseAmbiguous, status_code=200)
+@users_bp.output(schema.APIResponse(), status_code=200)
 @users_bp.doc(tags=["User Management"], security=security_doc)
 @token_active
 @admin_required
+@render_api_output(logger)
 def api_get_user(user_id):
     """Get information about a specific STELAR KLMS User by ID. Requires admin role.
 
     Args:
     - user_id: The UUID of the user in STELAR KLMS or the username.
     """
-
-    try:
-        user_rep = kutils.get_user(user_id=user_id)
-        if user_rep:
-            return {
-                "help": request.url,
-                "result": {"user": user_rep},
-                "success": True,
-            }, 200
-        else:
-            raise AttributeError(f"Failed to find user with identifier: {user_id}")
-
-    except ValueError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Validation error: {ve}",
-                "__type": "User Entity Error",
-            },
-            "success": False,
-        }, 400
-
-    except AttributeError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Existence error: {ve}",
-                "__type": "User Entity Not Found",
-            },
-            "success": False,
-        }, 404
-
-    except Exception as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Unknown Error",
-            },
-            "success": False,
-        }, 500
+    return kutils.get_user(user_id)
 
 
 @users_bp.route("/<user_id>", methods=["PATCH"])
 @users_bp.input(schema.UpdatedUser, location="json")
-@users_bp.output(schema.ResponseAmbiguous, status_code=200)
+@users_bp.output(schema.APIResponse(), status_code=200)
 @users_bp.doc(tags=["User Management"], security=security_doc)
 @token_active
-def api_put_user(user_id, json_data):
+@admin_required
+@render_api_output(logger)
+def api_patch_user(user_id, json_data):
     """
     Update information of a specific STELAR KLMS User by ID. Requires admin role.
 
@@ -355,70 +236,29 @@ def api_put_user(user_id, json_data):
 
     JSON Fields:
         - email (str) (Optional): The user's email address. Should be unique.
-        - firstName (str) (Optional): The user's first name.
-        - lastName (str) (Optional): The user's last name.
+        - first_name (str) (Optional): The user's first name.
+        - last_name (str) (Optional): The user's last name.
         - enabled (bool) (Optional): Whether the user account should be enabled.
+        - email_verified (bool) (Optional): Whether the user's email address is verified.
 
     Returns:
         - A JSON with the updated user
     """
-
-    try:
-        email = json_data.get("email")
-        first_name = json_data.get("firstName")
-        last_name = json_data.get("lastName")
-        enabled = json_data.get("enabled")
-        email_verified = json_data.get("emailVerified")
-
-        user_upd = kutils.update_user(
-            user_id=user_id,
-            first_name=first_name,
-            last_name=last_name,
-            email=email,
-            enabled=enabled,
-            email_verified=email_verified,
-        )
-        if user_upd:
-            return {
-                "success": True,
-                "result": user_upd,
-                "help": request.url,
-            }, 200
-        else:
-            raise AttributeError(f"User with ID or username: {user_id} not found")
-    except ValueError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Validation error: {ve}",
-                "__type": "User Entity Error",
-            },
-            "success": False,
-        }, 400
-    except AttributeError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Existence error: {ve}",
-                "__type": "User Entity Not Found",
-            },
-            "success": False,
-        }, 404
-    except Exception as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Unknown Error",
-            },
-            "success": False,
-        }, 500
+    return kutils.update_user(
+        user_id=user_id,
+        first_name=json_data.get("first_name"),
+        last_name=json_data.get("last_name"),
+        email=json_data.get("email"),
+        enabled=json_data.get("enabled"),
+        email_verified=json_data.get("email_verified"),
+    )
 
 
 @users_bp.route("/<user_id>", methods=["DELETE"])
-@users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=["User Management"], security=security_doc)
+@users_bp.output(schema.APIResponse(), status_code=200)
 @token_active
+@render_api_output(logger)
 def api_delete_user(user_id):
     """
     Delete a specific STELAR KLMS User by ID or by username. Requires admin role.
@@ -429,70 +269,30 @@ def api_delete_user(user_id):
     Returns:
      - The UUID of the deleted user
     """
-
-    try:
-        id = kutils.delete_user(user_id)
-        if id:
-            return {
-                "success": True,
-                "result": {"deleted_id": id},
-                "help": request.url,
-            }, 200
-
-    except AttributeError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Existence error: {ve}",
-                "__type": "User Entity Not Found",
-            },
-            "success": False,
-        }, 404
-    except Exception as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Unknown Error",
-            },
-            "success": False,
-        }, 500
+    return kutils.delete_user(user_id)
 
 
 @users_bp.route("/roles", methods=["GET"])
-@users_bp.output(schema.ResponseAmbiguous, status_code=200)
 @users_bp.doc(tags=["Authorization Management"], security=security_doc)
 @token_active
 @admin_required
+@render_api_output(logger)
 def api_get_roles():
     """
     Get roles existing in the STELAR KLMS. Requires admin role.
 
     Returns:
-        - A JSON containing the roles present inside the KLMS with.
+        - A JSON containing the roles present inside the KLMS.
     """
-
-    try:
-        roles = kutils.get_realm_roles()
-
-        return {"success": True, "result": {"roles": roles}, "help": request.url}, 200
-
-    except Exception as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Unknown Error",
-            },
-            "success": False,
-        }, 500
+    return kutils.get_realm_roles()
 
 
 @users_bp.route("/<user_id>/roles/<role_id>", methods=["POST"])
-@users_bp.output(schema.ResponseAmbiguous, status_code=200)
+@users_bp.output(schema.APIResponse(), status_code=200)
 @users_bp.doc(tags=["Authorization Management"], security=security_doc)
 @token_active
 @admin_required
+@render_api_output(logger)
 def api_assign_role(user_id, role_id):
     """Assign role to a specific STELAR KLMS User by ID and by Role ID. Requires admin role.
 
@@ -501,46 +301,17 @@ def api_assign_role(user_id, role_id):
         - role_id: The UUID of the role or the name of it.
 
     Returns:
-        - JSON: the updated user description
+        - JSON: the updated user representation
     """
-
-    try:
-        user = kutils.assign_role_to_user(user_id, role_id)
-        return {"success": True, "result": {"user": user}, "help": request.url}, 200
-    except AttributeError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Uniqueness error: {ve}",
-                "__type": "Entity Already Present",
-            },
-            "success": False,
-        }, 400
-    except ValueError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Existence error: {ve}",
-                "__type": "Entity Not Found",
-            },
-            "success": False,
-        }, 404
-    except Exception as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Unknown Error",
-            },
-            "success": False,
-        }, 500
+    return kutils.assign_role_to_user(user_id, role_id)
 
 
 @users_bp.route("/<user_id>/roles/<role_id>", methods=["DELETE"])
-@users_bp.output(schema.ResponseAmbiguous, status_code=200)
+@users_bp.output(schema.APIResponse(), status_code=200)
 @users_bp.doc(tags=["Authorization Management"], security=security_doc)
 @token_active
 @admin_required
+@render_api_output(logger)
 def api_delete_role(user_id, role_id):
     """Unassign role from a specific STELAR KLMS User by ID. Requires admin role.
 
@@ -549,46 +320,19 @@ def api_delete_role(user_id, role_id):
         - role_id: The UUID of the role or the name of it.
 
     Returns:
-        - JSON: the updated user description
+        - JSON: the updated user representation
     """
-    try:
-        user = kutils.unassign_role_from_user(user_id, role_id)
-        return {"success": True, "result": {"user": user}, "help": request.url}, 200
-    except AttributeError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Existence error: {ve}",
-                "__type": "Entity Not Present",
-            },
-            "success": False,
-        }, 400
-    except ValueError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Existence error: {ve}",
-                "__type": "Entity Not Found",
-            },
-            "success": False,
-        }, 404
-    except Exception as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Unknown Error",
-            },
-            "success": False,
-        }, 500
+
+    return kutils.unassign_role_from_user(user_id, role_id)
 
 
 @users_bp.route("/<user_id>/roles", methods=["POST"])
 @users_bp.input(schema.RolesInput, location="json")
-@users_bp.output(schema.ResponseAmbiguous, status_code=200)
+@users_bp.output(schema.APIResponse(), status_code=200)
 @users_bp.doc(tags=["Authorization Management"], security=security_doc)
 @token_active
 @admin_required
+@render_api_output(logger)
 def api_assign_roles(user_id, json_data):
     """
     Assing lot-of roles to a specific STELAR KLMS User by id. Requires admin role.
@@ -597,46 +341,18 @@ def api_assign_roles(user_id, json_data):
         - user_id: The UUID of the user or the username.
         - roles: A list containing the role name or role IDs to be assigned.
     Returns:
-        - JSON: the updated user description
+        - JSON: the updated user representation
     """
-    try:
-        user = kutils.assign_roles_to_user(user_id, json_data.get("roles"))
-        return {"success": True, "result": {"user": user}, "help": request.url}, 200
-    except AttributeError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Existence error: {ve}",
-                "__type": "Entity Not Present",
-            },
-            "success": False,
-        }, 400
-    except ValueError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Existence error: {ve}",
-                "__type": "Entity Not Found",
-            },
-            "success": False,
-        }, 404
-    except Exception as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Unknown Error",
-            },
-            "success": False,
-        }, 500
+    return kutils.assign_roles_to_user(user_id, json_data.get("roles"))
 
 
 @users_bp.route("/<user_id>/roles", methods=["PATCH"])
 @users_bp.input(schema.RolesInput, location="json")
-@users_bp.output(schema.ResponseAmbiguous, status_code=200)
+@users_bp.output(schema.APIResponse(), status_code=200)
 @users_bp.doc(tags=["Authorization Management"], security=security_doc)
 @token_active
 @admin_required
+@render_api_output(logger)
 def api_patch_roles(user_id, json_data):
     """Patch the roles of a user in the STELAR KLMS. Requires admin role.
     This will remove any roles not present in the input JSON and assign
@@ -647,39 +363,10 @@ def api_patch_roles(user_id, json_data):
     - roles: A list containing the role name or role IDs to be patched.
 
     Returns:
-    - JSON: the updated user description
+    - JSON: the updated user representation
     """
 
-    try:
-        user = kutils.patch_user_roles(user_id=user_id, role_ids=json_data["roles"])
-        return {"success": True, "result": {"user": user}, "help": request.url}, 200
-    except AttributeError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Existence error: {ve}",
-                "__type": "Entity Not Present",
-            },
-            "success": False,
-        }, 400
-    except ValueError as ve:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Existence error: {ve}",
-                "__type": "Entity Not Found",
-            },
-            "success": False,
-        }, 404
-    except Exception as e:
-        return {
-            "help": request.url,
-            "error": {
-                "name": f"Error: {e}",
-                "__type": "Unknown Error",
-            },
-            "success": False,
-        }, 500
+    return kutils.patch_user_roles(user_id=user_id, role_ids=json_data["roles"])
 
 
 @users_bp.route("/s3/credentials", methods=["GET"])

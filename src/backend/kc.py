@@ -12,7 +12,7 @@ class KeycloakClientSingleton:
     _lock = threading.Lock()
 
     @classmethod
-    def get_admin(cls):
+    def get_admin(cls) -> KeycloakAdmin:
         """Ensure pool is initialized and return one admin client (round robin)."""
         if not cls._pool:
             cls._initialize_keycloak()
@@ -20,7 +20,7 @@ class KeycloakClientSingleton:
         return pool_item["admin"]
 
     @classmethod
-    def get_openid(cls):
+    def get_openid(cls) -> KeycloakOpenID:
         """Ensure pool is initialized and return one openid client (round robin)."""
         if not cls._pool:
             cls._initialize_keycloak()

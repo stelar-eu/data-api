@@ -23,6 +23,7 @@ TODOs:
       e.g. service runs in docker but executes jobs on k8s
 
 """
+
 from __future__ import annotations
 
 import logging
@@ -267,6 +268,7 @@ class K8sExecEngine(ExecEngine):
                     ),
                 ),
                 backoff_limit=4,
+                ttl_seconds_after_finished=60 * 60 * 24,  # 1 day
             ),
         )
 

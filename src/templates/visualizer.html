@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>STELAR | Profile Visualizer </title>
+    <!-- CSS files -->
+    {% include 'tabler.html' %}
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+</head>
+
+<body>
+    <div class="page">
+        <!-- Navbar -->
+        {% include 'header.html' %}
+        <div class="page-wrapper">
+            <!-- Page header -->
+            <div class="page-header d-print-none">
+                <div class="container-xl">
+                    <div class="row g-2 align-items-center">
+                        <div class="col">
+                            <div class="page-pretitle">
+                                DATA CATALOG
+                            </div>
+                            <h3 class="page-title">
+                                <ol class="breadcrumb breadcrumb-arrows">
+                                    <li class="breadcrumb-item"><a class="text-secondary"
+                                            href="{{ url_for('dashboard_blueprint.catalog')}}">
+                                            Data Catalog
+                                        </a>
+                                    </li>
+                                    <li class="breadcrumb-item"><a class="text-secondary"
+                                            href="{{ url_for('dashboard_blueprint.dataset_detail', dataset_id=profile.package_id) }}">
+                                            {{package_name}}
+                                        </a>
+                                    </li>
+                                    <li class="breadcrumb-item active"><a
+                                            href="{{ url_for('dashboard_blueprint.viewResource', resource_id=profile.id)}}"><span
+                                                class="text-strong">Visualizing
+                                                profile "{{profile.name}}"</span></a></li>
+                                </ol>
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="page-body">
+                <div class="container-xl">
+                    <iframe src="{{VIS_URL}}" width="100%" height="1000px" frameborder="0"></iframe>
+                </div>
+            </div>
+            {% include 'footer.html' %}
+        </div>
+    </div>
+</body>
+
+</html>

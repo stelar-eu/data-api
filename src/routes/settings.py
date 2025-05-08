@@ -5,11 +5,16 @@ import ssl
 
 from apiflask import APIBlueprint
 from email_validator import EmailNotValidError, validate_email
-from flask import current_app, jsonify, request, session
+from flask import current_app, jsonify, request, session, make_response, url_for
 from keycloak.exceptions import KeycloakAuthenticationError
-
+from exceptions import InternalException
+from routes.generic import render_api_output
+import schema
 import kutils
 from routes.dashboard import session_required
+from PIL import Image
+from io import BytesIO
+import os
 
 """
     This .py file contains the endpoints attached to the blueprint
@@ -378,6 +383,83 @@ def generate_2fa_key():
         return jsonify({"success": True, "qr": qrcode})
 
 
+@settings_bp.route("/avatar", methods=["POST"])
+@session_required
+def upload_avatar():
+
+    username = session.get("USER_USERNAME")
+
+    if "file" not in request.files:
+        return jsonify({"success": False, "message": "No file provided."}), 400
+
+    file = request.files["file"]
+
+    file.seek(0, os.SEEK_END)
+    if file.tell() > 2 * 1024 * 1024:  # 2MB size limit
+        return (
+            jsonify({"success": False, "message": "File size exceeds 2MB limit."}),
+            400,
+        )
+    file.seek(0)
+
+    try:
+        image = Image.open(file)
+    except Exception:
+        return jsonify({"success": False, "message": "Invalid image file."}), 400
+
+    if image.format not in ["PNG", "JPEG", "JPG"]:
+        return (
+            jsonify(
+                {"success": False, "message": "Only PNG and JPEG files are allowed."}
+            ),
+            400,
+        )
+
+    # Compress and convert image to PNG
+    output = BytesIO()
+    if image.mode in ("RGBA", "P"):
+        image = image.convert("RGB")
+    image.save(output, format="PNG", optimize=True)
+    output.seek(0)
+
+    avatar_dir = os.path.join(current_app.root_path, "static", "avatars")
+    if not os.path.exists(avatar_dir):
+        os.makedirs(avatar_dir)
+
+    avatar_path = os.path.join(avatar_dir, f"{username}.png")
+    with open(avatar_path, "wb") as f:
+        f.write(output.read())
+
+    session["AVATAR"] = url_for("static", filename=f"avatars/{username}.png")
+    return jsonify({"success": True, "message": "Avatar uploaded successfully."}), 200
+
+
+@settings_bp.route("/avatar", methods=["DELETE"])
+@session_required
+def delete_avatar():
+    username = session.get("USER_USERNAME")
+    avatar_dir = os.path.join(current_app.root_path, "static", "avatars")
+    avatar_path = os.path.join(avatar_dir, f"{username}.png")
+
+    if os.path.exists(avatar_path):
+        try:
+            os.remove(avatar_path)
+            session.pop("AVATAR")
+            return (
+                jsonify({"success": True, "message": "Avatar deleted successfully."}),
+                200,
+            )
+        except Exception as e:
+            return (
+                jsonify(
+                    {"success": False, "message": f"Error deleting avatar: {str(e)}"}
+                ),
+                500,
+            )
+    else:
+        return jsonify({"success": True, "message": "No avatar to delete."}), 200
+
+
 @settings_bp.route("/validate-2fa-activation", methods=["POST"])
 @session_required
 def validate_2fa_activation():
@@ -410,11 +492,20 @@ def validate_2fa_activation():
                     {"success": True, "message": "2FA activated successfully."}
                 )
             else:
-                return jsonify({"success": False, "message": "Failed to activate 2FA."})
+                return (
+                    jsonify({"success": False, "message": "Failed to activate 2FA."}),
+                    403,
+                )
         else:
-            return jsonify({"success": False, "message": "Failed to activate 2FA."})
+            return (
+                jsonify({"success": False, "message": "Invalid OTP."}),
+                401,
+            )
     else:
-        return jsonify({"success": False, "message": "No 2FA activation in progress."})
+        return (
+            jsonify({"success": False, "message": "No 2FA activation in progress."}),
+            400,
+        )
 
 
 @settings_bp.route("/check-2fa-state", methods=["GET"])
@@ -457,9 +548,13 @@ def validate_2fa_otp():
     token = request.json.get("token", "").strip()
 
     if kutils.validate_2fa_otp(session.get("KEYCLOAK_ID_USER"), token):
-        return jsonify({"success": True, "message": "2FA OTP is valid."})
+        return make_response(
+            jsonify({"success": True, "message": "2FA OTP is valid."}), 200
+        )
     else:
-        return jsonify({"success": False, "message": "Invalid 2FA OTP."})
+        return make_response(
+            jsonify({"success": False, "message": "Invalid 2FA OTP."}), 403
+        )
 
 
 @settings_bp.route("/disable-2fa", methods=["POST"])
@@ -467,7 +562,6 @@ def validate_2fa_otp():
 def disable_2fa():
     """
     Disable 2FA for the current user.
-
     This endpoint disables two-factor authentication (2FA) for the user associated with the current session.
     It does not require any additional data in the request, as it only disables 2FA for the current user.
 
@@ -475,6 +569,6 @@ def disable_2fa():
         JSON response indicating the success or failure of the 2FA deactivation process.
     """
     if kutils.disable_2fa(session.get("KEYCLOAK_ID_USER")):
-        return jsonify({"success": True, "message": "2FA disabled successfully."})
+        return {"message": "2FA disabled successfully.", "success": True}, 200
     else:
-        return jsonify({"success": False, "message": "Failed to disable 2FA."})
+        return {"message": "2FA failed to disable.", "success": False}, 400

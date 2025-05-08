@@ -5,17 +5,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>STELAR | Tool</title>
+    <title>STELAR | Tools | {{tool.name}}</title>
     <!-- CSS files -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/js/tabler.min.js"></script>
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Leaflet PM CSS (for polygon editing) -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.css" />
+    {% include 'tabler.html' %}
+    <!-- Easy MDE files -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="{{ url_for('static', filename='images.js') }}"></script>
+    <script src="{{ url_for('static', filename='utils.js') }}"></script>
+
     <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
     <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
 </head>
@@ -34,232 +34,758 @@
                             <div class="page-pretitle">
                                 Toolkit
                             </div>
-                            <h2 class="page-title">
-                                Browse & Manage STELAR Tools
-                            </h2>
+                            <h3 class="page-title">
+                                <ol class="breadcrumb breadcrumb-arrows">
+                                    <li class="breadcrumb-item"><a class="text-secondary"
+                                            href="{{ url_for('dashboard_blueprint.tools') }}">Browse & Manage STELAR
+                                            Tools</a>
+                                        </a>
+                                    </li>
+                                    <li class="breadcrumb-item active"><a href="#"><span class="text-strong">{{
+                                                tool.name }}</span></a></li>
+                                </ol>
+                            </h3>
+                        </div>
+                        <div class="col-auto ms-auto d-print-none">
+                            <div id="programming-language" class="h2">
+
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="page-body">
                 <div class="container-xl">
-                    <div class="row justify-content-center">
-                        <div class="col-lg-10 col-xl-9">
-                            <div class="card card-lg">
-                                <div class="card-body markdown">
-                                    <h1>Who's that then?</h1>
-                                    <p>
-                                        Well, she turned me into a newt. Burn her! We want a shrubbery!! Well, I got
-                                        better. Listen.
-                                        Strange women lying in ponds distributing
-                                        swords is no basis for a system of government. Supreme executive power derives
-                                        from a mandate
-                                        from the masses, not from some farcical
-                                        aquatic ceremony.
-                                    </p>
-                                    <p>
-                                        Listen. <strong>Strange women lying in ponds distributing swords is no basis for
-                                            a system of
-                                            government.</strong>
-                                        <em>Supreme executive power derives from a mandate from the masses, not from
-                                            some farcical
-                                            aquatic ceremony.</em> The swallow may fly
-                                        south with the sun, and the house martin or the plover may seek warmer climes in
-                                        winter, yet
-                                        these are not strangers to our land.
-                                    </p>
-                                    <h2>Well, Mercia's a temperate zone!</h2>
-                                    <p>
-                                        You don't frighten us, English pig-dogs! Go and boil your bottoms, sons of a
-                                        silly person! I
-                                        blow my nose at you, so-called Ah-thoor
-                                        Keeng, you and all your silly English K-n-n-n-n-n-n-n-niggits! A newt?
-                                    </p>
-                                    <ol>
-                                        <li>
-                                            Listen. Strange women lying in ponds distributing swords is no basis for a
-                                            system of
-                                            government. Supreme executive power derives from a
-                                            mandate from the masses, not from some farcical aquatic ceremony.
-                                        </li>
-                                        <li>
-                                            I don't want to talk to you no more, you empty-headed animal food trough
-                                            water! I fart in
-                                            your general direction! Your mother was a
-                                            hamster and your father smelt of elderberries! Now leave before I am forced
-                                            to taunt you a
-                                            second time!
-                                        </li>
-                                        <li>We found them.</li>
-                                    </ol>
-                                    <h3>What do you mean?</h3>
-                                    <p>
-                                        Oh! Come and see the violence inherent in the system! Help, help, I'm being
-                                        repressed! The Lady
-                                        of the Lake, her arm clad in the purest
-                                        shimmering samite, held aloft Excalibur from the bosom of the water, signifying
-                                        by divine
-                                        providence that I, Arthur, was to carry
-                                        Excalibur. That is why I am your king.
-                                    </p>
-                                    <ul>
-                                        <li>The Knights Who Say Ni demand a sacrifice!</li>
-                                        <li>Be quiet!</li>
-                                        <li>Bloody Peasant!</li>
-                                    </ul>
-                                    <p>
-                                        Well, I got better. Camelot! A newt? We want a shrubbery!! The Lady of the Lake,
-                                        her arm clad in
-                                        the purest shimmering samite, held aloft
-                                        Excalibur from the bosom of the water, signifying by divine providence that I,
-                                        Arthur, was to
-                                        carry Excalibur. That is why I am your king.
-                                    </p>
-                                    <p>Shut up! …Are you suggesting that coconuts migrate? I'm not a witch. Well, we did
-                                        do the nose.
-                                    </p>
-                                    <p>
-                                        Well, how'd you become king, then? Shut up! Ni! Ni! Ni! Ni! Well, Mercia's a
-                                        temperate zone! I
-                                        don't want to talk to you no more, you
-                                        empty-headed animal food trough water! I fart in your general direction! Your
-                                        mother was a
-                                        hamster and your father smelt of elderberries!
-                                        Now leave before I am forced to taunt you a second time!
-                                    </p>
-                                    <pre><code class="language-scss">$extra-colors: (
-                  "blue": $blue,
-                  "azure": $azure,
-                  "indigo": $indigo,
-                  "purple": $purple,
-                  "pink": $pink,
-                  "red": $red,
-                  "orange": $orange,
-                  "yellow": $yellow,
-                  "lime": $lime,
-                  "green": $green,
-                  "teal": $teal,
-                  "cyan": $cyan,
-                  "gray": $gray-600,
-                  "gray-dark": $gray-800,
-                  "dark": $dark
-                ) !default;
-                </code></pre>
-                                    <p>
-                                        You can't expect to wield supreme power just 'cause some watery tart threw a
-                                        sword at you! You
-                                        don't frighten us, English pig-dogs! Go and
-                                        boil your bottoms, sons of a silly person! I blow my nose at you, so-called
-                                        Ah-thoor Keeng, you
-                                        and all your silly English
-                                        K-n-n-n-n-n-n-n-niggits!
-                                    </p>
-                                    <p>
-                                        What do you mean? Listen. Strange women lying in ponds distributing swords is no
-                                        basis for a
-                                        system of government. Supreme executive power
-                                        derives from a mandate from the masses, not from some farcical aquatic ceremony.
-                                    </p>
-                                    <p><img src="./static/photos/group-of-people-brainstorming-and-taking-notes-2.jpg"
-                                            alt="Image Alt">
-                                    </p>
-                                    <p>
-                                        Well, how'd you become king, then? You can't expect to wield supreme power just
-                                        'cause some
-                                        watery tart threw a sword at you! The Lady of
-                                        the Lake, her arm clad in the purest shimmering samite, held aloft Excalibur
-                                        from the bosom of
-                                        the water, signifying by divine providence
-                                        that I, Arthur, was to carry Excalibur. That is why I am your king.
-                                    </p>
-                                    <p>
-                                        Well, I got better. Shut up! Will you shut up?! Well, I got better. I don't want
-                                        to talk to you
-                                        no more, you empty-headed animal food
-                                        trough water! I fart in your general direction! Your mother was a hamster and
-                                        your father smelt
-                                        of elderberries! Now leave before I am
-                                        forced to taunt you a second time!
-                                    </p>
-                                    <hr>
-                                    <h1>Typographic elements</h1>
-                                    <h2>Emphasis</h2>
-                                    <p><strong>This is bold text</strong></p>
-                                    <p><strong>This is bold text</strong></p>
-                                    <p><em>This is italic text</em></p>
-                                    <p><em>This is italic text</em></p>
-                                    <p><s>Strikethrough</s></p>
-                                    <h2>Blockquotes</h2>
-                                    <blockquote>
-                                        <p>Blockquotes can also be nested...</p>
-                                        <blockquote>
-                                            <p>...by using additional greater-than signs right next to each other...</p>
-                                            <blockquote>
-                                                <p>...or with spaces between arrows.</p>
-                                            </blockquote>
-                                        </blockquote>
-                                    </blockquote>
-                                    <p>Bloody Peasant! What do you mean? It's only a model. Well, Mercia's a temperate
-                                        zone!</p>
-                                    <p>
-                                        I am your king. Shh! Knights, I bid you welcome to your new home. Let us ride to
-                                        Camelot! Ni!
-                                        Ni! Ni! Ni! Who's that then? Listen. Strange
-                                        women lying in ponds distributing swords is no basis for a system of government.
-                                        Supreme
-                                        executive power derives from a mandate from the
-                                        masses, not from some farcical aquatic ceremony.
-                                    </p>
-                                    <h2>Lists</h2>
-                                    <p>Unordered</p>
-                                    <ul>
-                                        <li>Create a list by starting a line with <code>+</code>, <code>-</code>, or
-                                            <code>*</code>
-                                        </li>
-                                        <li>
-                                            Sub-lists are made by indenting 2 spaces:
-                                            <ul>
-                                                <li>
-                                                    Marker character change forces new list start:
-                                                    <ul>
-                                                        <li>Ac tristique libero volutpat at</li>
-                                                    </ul>
-                                                    <ul>
-                                                        <li>Facilisis in pretium nisl aliquet</li>
-                                                    </ul>
-                                                    <ul>
-                                                        <li>Nulla volutpat aliquam velit</li>
-                                                    </ul>
-                                                </li>
-                                            </ul>
-                                        </li>
-                                        <li>Very easy!</li>
-                                    </ul>
-                                    <p>Ordered</p>
-                                    <ol>
-                                        <li>Lorem ipsum dolor sit amet</li>
-                                        <li>Consectetur adipiscing elit</li>
-                                        <li>Integer molestie lorem at massa</li>
-                                    </ol>
-                                    <h2>Code</h2>
-                                    <p>Inline <code>code</code></p>
-                                    <p>Indented code</p>
-                                    <p>// Some comments line 1 of code line 2 of code line 3 of code</p>
-                                    <p>Block code "fences"</p>
-                                    <pre><code>Sample text here...
-                </code></pre>
-                                    <p>Syntax highlighting</p>
-                                    <pre><code class="language-js">var foo = function (bar) {
-                  return bar++;
-                };
-                console.log(foo(5));
-                </code></pre>
+                    <div class="row row-cards">
+                        <div class="col-lg-8">
+                            <div class="card card-lg ">
+                                <div class="d-flex p-4 card-body pb-3">
+                                    <div class=" me-3 h2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="mb-1 me-1 icon icon-tabler icons-tabler-outline icon-tabler-book">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
+                                            <path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
+                                            <path d="M3 6l0 13" />
+                                            <path d="M12 6l0 13" />
+                                            <path d="M21 6l0 13" />
+                                        </svg>
+                                        Documentation
+                                    </div>
+
+                                    <div class="ms-auto d-flex align-items-center" id="documentation-actions">
+                                        {% if tool.git_repo and tool.git_user %}
+                                        <button class="btn" onclick="syncDocumentationFromGithub()"
+                                            id="sync-markdown-btn">
+                                            <span class="icon social social-app-github"></span>
+                                            Sync from GitHub
+                                        </button>
+                                        {% endif %}
+                                        <button class="ms-2 btn" onclick="openMarkdownEditor()" id="edit-markdown-btn">
+                                            <svg xmlns=" http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="icon me-1 icon-tabler icons-tabler-outline icon-tabler-pencil">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+                                                <path d="M13.5 6.5l4 4" />
+                                            </svg>
+                                            Edit
+                                        </button>
+                                        <button class="btn ms-2" onclick="saveEditedDocumentation()"
+                                            id="save-markdown-btn" style="display: none;"><svg
+                                                xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-device-floppy">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path
+                                                    d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" />
+                                                <path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                                                <path d="M14 4l0 4l-6 0l0 -4" />
+                                            </svg>Save</button>
+                                        <button class="btn ms-2" onclick="closeMarkdownEditor()" id="close-editor-btn"
+                                            style="display: none;">Close</button>
+                                    </div>
                                 </div>
+                                <div class="card-body markdown p-5" id="documentation-content">
+                                    {{ tool.readme | safe }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card mb-2" style="max-height: 22rem;">
+                                <div class="card-header d-flex align-items-center">
+                                    <div class="me-3">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-brand-docker">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path
+                                                d="M22 12.54c-1.804 -.345 -2.701 -1.08 -3.523 -2.94c-.487 .696 -1.102 1.568 -.92 2.4c.028 .238 -.32 1 -.557 1h-14c0 5.208 3.164 7 6.196 7c4.124 .022 7.828 -1.376 9.854 -5c1.146 -.101 2.296 -1.505 2.95 -2.46z" />
+                                            <path d="M5 10h3v3h-3z" />
+                                            <path d="M8 10h3v3h-3z" />
+                                            <path d="M11 10h3v3h-3z" />
+                                            <path d="M8 7h3v3h-3z" />
+                                            <path d="M11 7h3v3h-3z" />
+                                            <path d="M11 4h3v3h-3z" />
+                                            <path d="M4.571 18c1.5 0 2.047 -.074 2.958 -.78" />
+                                            <path d="M10 16l0 .01" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="m-0">
+                                            {{ tool.repository }}
+                                        </h3>
+                                        <small class="text-secondary">
+                                            Docker images pushed in the local registry
+                                        </small>
+                                    </div>
+                                    <a class="ms-auto cursor-pointer" data-bs-toggle="modal"
+                                        data-bs-target="#docker-push-modal"><svg xmlns="http://www.w3.org/2000/svg"
+                                            width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="text-primary icon icon-tabler icons-tabler-outline icon-tabler-info-circle">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
+                                            <path d="M12 9h.01" />
+                                            <path d="M11 12h1v4h1" />
+                                        </svg>
+                                    </a>
+                                    <a onclick="fetchToolImages(true)" class="ms-auto cursor-pointer"><svg
+                                            xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="text-primary icon icon-tabler icons-tabler-outline icon-tabler-refresh">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+                                            <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+                                        </svg>
+                                    </a>
+                                </div>
+                                <div class="card-body card-body-scrollable card-body-scrollable-shadow">
+                                    <div class="ms-1">
+                                        <div class="divide-y" id="tool-images">
+                                            <div class="row">
+                                                <div class="text-secondary placeholder-glow">
+                                                    <div class="placeholder placeholder-xs col-9"></div>
+                                                    <div class="placeholder placeholder-xs col-7"></div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="text-secondary placeholder-glow">
+                                                    <div class="placeholder placeholder-xs col-9"></div>
+                                                    <div class="placeholder placeholder-xs col-7"></div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="text-secondary placeholder-glow">
+                                                    <div class="placeholder placeholder-xs col-9"></div>
+                                                    <div class="placeholder placeholder-xs col-7"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% if tool.git_repo and tool.git_user %}
+                            <div class="card mb-2" style="max-height: 25rem">
+                                <div class="card-header d-flex align-items-center">
+                                    <div class="me-3">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-brand-github">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path
+                                                d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="m-0">
+                                            <a href="{{ tool.git_repository }}" target="_blank">
+                                                {{ tool.git_user }}/{{ tool.git_repo }}
+                                            </a>
+                                        </h3>
+                                        <small class="text-secondary">
+                                            Latest commits under the <kbd>main</kbd> branch
+                                        </small>
+                                    </div>
+                                    <a onclick="refreshCommitList()" class="ms-auto cursor-pointer"><svg
+                                            xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="text-primary icon icon-tabler icons-tabler-outline icon-tabler-refresh">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+                                            <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+                                        </svg>
+                                    </a>
+                                </div>
+                                <div class="card-body card-body-scrollable card-body-scrollable-shadow">
+                                    <div class="mt-3 ms-1">
+                                        <ul class="steps steps-vertical" id="git-commits">
+                                            <li class="step-item">
+                                                <div class="text-secondary placeholder-glow">
+                                                    <div class="placeholder placeholder-xs col-9"></div>
+                                                    <div class="placeholder placeholder-xs col-7"></div>
+                                                </div>
+                                            </li>
+                                            <li class="step-item">
+                                                <div class="text-secondary placeholder-glow">
+                                                    <div class="placeholder placeholder-xs col-9"></div>
+                                                    <div class="placeholder placeholder-xs col-7"></div>
+                                                </div>
+                                            </li>
+                                            <li class="step-item">
+
+                                                <div class="text-secondary placeholder-glow">
+                                                    <div class="placeholder placeholder-xs col-9"></div>
+                                                    <div class="placeholder placeholder-xs col-7"></div>
+                                                </div>
+                                            </li>
+                                            <li class="step-item">
+                                                <div class="text-secondary placeholder-glow">
+                                                    <div class="placeholder placeholder-xs col-9"></div>
+                                                    <div class="placeholder placeholder-xs col-7"></div>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            <div class="card mb-2">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <h5 class="card-title mb-0">Tags</h5>
+                                        <a class="cursor-pointer" title="Update Tags" data-bs-toggle="tooltip"
+                                            onclick="updateTags()" data-bs-placement="bottom" id="update-tags-icon">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="text-primary ms-2 icon icon-tabler icons-tabler-outline icon-tabler-cloud-up">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path
+                                                    d="M12 18.004h-5.343c-2.572 -.004 -4.657 -2.011 -4.657 -4.487c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.38 0 2.57 .811 3.128 1.986" />
+                                                <path d="M19 22v-6" />
+                                                <path d="M22 19l-3 -3l-3 3" />
+                                            </svg>
+                                            <span class="text-primary">Update</span>
+                                        </a>
+                                    </div>
+                                    <div class="mb-2">
+                                        <input type="hidden" name="packageTags" id="hiddenTagsInput"
+                                            value="{{ tool.get('tags') | join(',') }}" />
+                                        <div class="col-lg-12 mt-3">
+                                            <div class="mb-3">
+                                                <input type="text" id="tagInput" class="form-control"
+                                                    placeholder="Type a tag and press enter" required>
+                                                <div class="col tags-list mt-3" id="tagsContainer">
+                                                    {% for tag in tool.get('tags') %}
+                                                    <span class="tag me-2 mb-2">
+                                                        {{ tag }}
+                                                        <a class="cursor-pointer btn-close ms-1" data-index="1"></a>
+                                                    </span>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Modals -->
+                <!-- Docker Push Instructions -->
+                <div class="modal modal-blur fade" id="docker-push-modal" tabindex="-1" style="display: none;"
+                    aria-hidden="true">
+                    <div class="modal-dialog modal-1 modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Push an Image</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-secondary mb-1">
+                                    You may push a Docker image to the local registry using the command:</p>
+
+                                <div class="text-center">
+                                    <kbd id="docker-command">docker push {{ tool.repository
+                                        }}:&lt;tag-name&gt;</kbd>
+                                </div>
+                                <p class="text-secondary mt-4">Adjust the <kbd>&lt;tag-name&gt;</kbd> to define the
+                                    desired version.</p>
+                                </p>
+                                <p class="text-secondary my-1">
+                                    Issue docker-cli credentials through
+                                    <a href="{{url_for('dashboard_blueprint.settings')}}" target='_blank'>Account
+                                        Settings</a>. Tool images should adhere to the <a
+                                        href="https://github.com/stelar-eu/klms-tool-template" target="_blank">KLMS
+                                        Tool Template</a>
+                                </p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal modal-blur fade" id="image-layer-modal" tabindex="-1" style="display: none;"
+                    aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Image Layers</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class=" card-body card-body-scrollable card-body-scrollable-shadow">
+                                    <div class="mt-3 ms-1">
+                                        <ul class="steps steps-vertical" id="image-layers">
+
+
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+        {% include 'footer.html' %}
     </div>
+
+    <script>
+        var easyMde = null; // Initialize EasyMDE variable outside the function
+
+        function openMarkdownEditor() {
+            $('#edit-markdown-btn').hide();
+            $('#save-markdown-btn').show();
+            $('#close-editor-btn').show();
+            $('#sync-markdown-btn').hide();
+            $('#documentation-content').html('<textarea id="markdown-editor"></textarea>');
+            easyMde = new EasyMDE({
+                element: document.getElementById("markdown-editor"), spellChecker: false,
+            });
+            $.ajax({
+                url: "{{ url_for('rest_workflows_blueprint.api_get_tool', entity_id=tool.id) }}",
+                type: "GET",
+                dataType: "json",
+                success: function (data) {
+                    easyMde.value(data.result.notes);
+                },
+                error: function (error) {
+                    if (error.status == 401) {
+                        window.reload();
+                    }
+                }
+            });
+        }
+
+        function closeMarkdownEditor() {
+            $.ajax({
+                url: "{{ url_for('rest_workflows_blueprint.api_get_tool', entity_id=tool.id) }}",
+                type: "GET",
+                dataType: "json",
+                success: function (data) {
+                    $('#documentation-content').html(data.result.readme);
+                    $("markdown-editor").val('');
+                    $('#edit-markdown-btn').show();
+                    $('#sync-markdown-btn').show();
+                    $('#save-markdown-btn').hide();
+                    $('#close-editor-btn').hide();
+                },
+                error: function (error) {
+                    console.error("Error loading documentation:", error);
+                }
+            });
+        }
+
+        function saveEditedDocumentation() {
+            const readme = easyMde.value();
+            const payload = {
+                notes: readme
+            };
+            $('#save-markdown-btn .stelar-symbol').remove();
+            $('#documentation-actions').prepend(createLoaderElement(true, true));
+            $.ajax({
+                url: "{{ url_for('rest_workflows_blueprint.api_patch_tool', entity_id=tool.id) }}",
+                type: "PATCH",
+                contentType: "application/json; charset=UTF-8",
+                data: JSON.stringify(payload),
+                success: function (response) {
+                    $('#edit-markdown-btn').show();
+                    $('#sync-markdown-btn').show();
+                    $('#save-markdown-btn').hide();
+                    $('#close-editor-btn').hide();
+                    $('#documentation-actions .stelar-loader').remove();
+                    $('#documentation-actions').prepend(createGreenTick(false));
+                    setTimeout(function () {
+                        $('#documentation-actions .stelar-symbol').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                    $('#documentation-content').html(response.result.readme);
+                },
+                error: function (error) {
+                    $('#save-markdown-btn .stelar-loader').remove();
+                    $('#save-markdown-btn').prepend(createRedCross(true));
+                }
+            });
+        }
+    </script>
+
+    <script>
+        const tagInput = document.getElementById('tagInput');
+        const tagsContainer = document.getElementById('tagsContainer');
+        const hiddenTagsInput = document.getElementById('hiddenTagsInput');
+        const updateTagsIcon = $('#update-tags-icon');
+
+        let tags = hiddenTagsInput.value ? hiddenTagsInput.value.split(',') : [];
+
+        function renderTags() {
+            tagsContainer.innerHTML = '';
+            tags.forEach((tag, index) => {
+                const tagElement = document.createElement('span');
+                tagElement.classList.add('tag', 'me-2', 'mb-2');
+                tagElement.innerHTML = `
+                        ${tag}
+                        <a href="#" class="btn-close ms-1" data-index="${index}"></a>
+                    `;
+
+                tagsContainer.appendChild(tagElement);
+            });
+            const closeButtons = document.querySelectorAll('.btn-close');
+            closeButtons.forEach(button => {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    const index = button.getAttribute('data-index');
+                    removeTag(index);
+                });
+            });
+            hiddenTagsInput.value = tags.join(',');
+        }
+
+        function removeTag(index) {
+            tags.splice(index, 1);
+            renderTags();
+        }
+
+        function fetchReadMeFromGithub(callback) {
+            if (!"{{GITHUB_RAW}}") {
+                console.error("GITHUB_RAW is not defined");
+                return;
+            } else if (!"{{ tool.git_repo }}" || !"{{ tool.git_user }}") {
+                return;
+            }
+
+            $.ajax({
+                url: "{{GITHUB_RAW}}/{{ tool.git_user }}/{{ tool.git_repo }}/main/README.md",
+                type: "GET",
+                dataType: "text",
+                success: function (data) {
+                    callback(data); // Pass the markdown to the callback
+                },
+                error: function (error) {
+                    console.error("Error loading README:", error);
+                }
+            });
+        }
+
+        function syncDocumentationFromGithub() {
+            $('#documentation-actions .stelar-loader').remove();
+            $('#documentation-actions .stelar-symbol').remove();
+            $('#documentation-actions').prepend(createLoaderElement(true, true));
+            fetchReadMeFromGithub(function (readme) {
+                const payload = {
+                    notes: readme
+                };
+
+                $.ajax({
+                    url: "{{ url_for('rest_workflows_blueprint.api_patch_tool', entity_id=tool.id) }}",
+                    type: "PATCH",
+                    contentType: "application/json; charset=UTF-8",
+                    data: JSON.stringify(payload),
+                    success: function (response) {
+                        $('#documentation-actions .stelar-loader').remove();
+                        $('#documentation-actions').prepend(createGreenTick(false));
+                        setTimeout(function () {
+                            $('#documentation-actions .stelar-symbol').fadeOut(500, function () {
+                                $(this).remove();
+                            });
+                        }, 3000);
+                        // Update the documentation with the new readme from the response
+                        if (response && response.result && response.result.readme) {
+                            $('#documentation-content').html(response.result.readme);
+                        }
+                    },
+                    error: function (error) {
+                        $('#documentation-actions .stelar-loader').remove();
+                        $('#documentation-actions').prepend(createRedCross(false));
+                        setTimeout(function () {
+                            $('#documentation-actions .stelar-symbol').fadeOut(500, function () {
+                                $(this).remove();
+                            });
+                        }, 3000);
+                        console.error("Error syncing documentation:", error);
+                    }
+                });
+            });
+        }
+
+        tagInput.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const newTag = tagInput.value.trim();
+                if (newTag !== '' && !tags.includes(newTag)) {
+                    tags.push(newTag);
+                    tagInput.value = '';
+                    renderTags();
+                }
+            }
+            if (event.key === 'Backspace' && tagInput.value === '') {
+                tags.pop();
+                renderTags();
+            }
+        });
+
+        function updateTags() {
+            const tags = hiddenTagsInput.value ? hiddenTagsInput.value.split(',') : [];
+            const payload = {
+                tags: tags
+            };
+            $('#update-tags-icon .stelar-symbol').remove();
+            updateTagsIcon.prepend(createLoaderElement(true, true));
+            $.ajax({
+                url: "{{ url_for('rest_workflows_blueprint.api_patch_tool', entity_id=tool.id) }}",
+                type: "PATCH",
+                contentType: "application/json",
+                data: JSON.stringify(payload),
+                success: function (response) {
+                    $('#update-tags-icon .stelar-loader').remove()
+                    updateTagsIcon.prepend(createGreenTick(true));
+                },
+                error: function (error) {
+                    $('#update-tags-icon .stelar-loader').remove()
+                    updateTagsIcon.prepend(createRedCross(true));
+                }
+            });
+            setTimeout(function () {
+                $('#update-tags-icon .stelar-symbol').fadeOut(500, function () {
+                    $(this).remove();
+                });
+            }, 3000);
+        }
+
+        renderTags();
+
+    </script>
+
+    <script>
+        function loadLayers(imageTagName) {
+
+            $.ajax({
+                url: "{{ url_for('rest_workflows_blueprint.api_get_tag_manifest', entity_id=tool.id, image_tag='')}}/" + imageTagName,
+                type: "GET",
+                dataType: "json",
+                contentType: "application/json",
+                success: function (response) {
+                    $("#image-layers").html("");
+                    var layers = response.result.layers;
+                    for (var i = layers.length - 1; i >= 0; i--) {
+                        var layer = layers[i];
+                        $("#image-layers").append(
+                            "<li class='step-item'>" +
+                            "<strong>Layer " + layer.index + "</strong><br>" +
+                            "&gt;_ <code>" + layer.command.join(" ") + "</code><br>" +
+                            "</li>"
+                        );
+                    }
+                    $("#image-layer-modal").modal("show");
+
+                },
+                error: function (error) {
+                }
+            })
+
+        }
+    </script>
+    <script>
+
+        function renderProgrammingLanguage() {
+            const programmingLanguage = "{{ tool.get('programming_language') }}";
+            const programmingLanguageIcon = $("#programming-language");
+            programmingLanguageIcon.html(getProgrammingLanguageBadge(programmingLanguage));
+        }
+        renderProgrammingLanguage();
+
+        function parseMessage(message) {
+            // Create a temporary element to safely escape HTML
+            var div = document.createElement('div');
+            div.textContent = message;
+            // Replace newlines with <br> so that line breaks are preserved
+            return div.innerHTML.replace(/(?:\r\n|\r|\n)/g, '<br>');
+        }
+
+
+        function refreshCommitList() {
+            commitPlaceholder = `<li class="step-item"><div class="text-secondary placeholder-glow"><div class="placeholder placeholder-xs col-9"></div><div class="placeholder placeholder-xs col-7"></div></div></li>`;
+            $("#git-commits").html(commitPlaceholder + commitPlaceholder + commitPlaceholder + commitPlaceholder + commitPlaceholder);
+            getLatestCommits();
+        }
+
+
+        function getLatestCommits() {
+            if (!"{{ tool.git_repo }}" || !"{{ tool.git_user }}") {
+                return;
+            }
+            else if (!"{{GITHUB_API}}") {
+                console.error("GITHUB_API is not defined");
+                return;
+            }
+            else if (document.getElementById("git-commits") == null) {
+                return;
+            }
+            $.ajax({
+                url: "{{GITHUB_API}}/repos/{{ tool.git_user }}/{{ tool.git_repo }}/commits?per_page=4",
+                type: "GET",
+                dataType: "json",
+                success: function (data) {
+                    var commits = "";
+                    $.each(data, function (index, commit) {
+                        commits += "<li class='step-item'>";
+                        commits += "<div class='m-0'>"
+                        if (commit.author && commit.author.avatar_url != null && commit.author.html_url != "") {
+                            commits += "<span class='avatar avatar-xs avatar-rounded me-2' style='background-image: url(\"" + commit.author.avatar_url + "\")'></span>";
+                            commits += "<a href='" + commit.author.html_url + "' target='_blank' class=''>";
+                            commits += "<strong class='text-black'>" + commit.commit.author.name + "</strong>" + "</a>";
+                        } else {
+                            commits += "<span class='avatar avatar-xs avatar-rounded me-2'></span>";
+                            commits += "<strong>" + commit.commit.author.name + "</strong>";
+                        }
+                        commits += "<span class='text-secondary'> at <a href='" + commit.html_url + "' target='_blank' class='text-secondary'>" + formatIsoDate(commit.commit.author.date) + "</a></span></div>";
+                        commits += "<div class='mt-2 text-secondary'> <a href='" + commit.html_url + "' target='_blank' class='text-secondary'>" + parseMessage(commit.commit.message) + "</a></div>";
+                        commits += "</li>";
+                    });
+                    $("#git-commits").html(commits);
+                },
+                error: function (error) {
+                    if (error.status == 404) {
+                        console.log("Repository not found");
+
+                        $("#git-commits").html(`<div class='text-secondary text-center'><svg  xmlns="http://www.w3.org/2000/svg"  width="48"  height="48"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="h-25 w-25 p-4 icon icon-tabler icons-tabler-outline icon-tabler-zoom-question"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" /><path d="M21 21l-6 -6" /><path d="M10 13l0 .01" /><path d="M10 10a1.5 1.5 0 1 0 -1.14 -2.474" /></svg> <br>Make sure the repository is public and exists</div>`);
+
+
+                    } else if (error.status == 403) {
+                        console.log("API rate limit exceeded. Please try again later.");
+                    } else {
+                        console.log("Error fetching commits:", error);
+                    }
+                }
+            });
+        }
+
+        function fetchToolImages() {
+            $.ajax({
+                url: "{{ url_for('rest_workflows_blueprint.api_get_tool', entity_id=tool.id) }}",
+                type: "GET",
+                dataType: "json",
+                success: function (data) {
+                    renderToolImages(data.result.images);
+                },
+                error: function (error) {
+                    console.error("Error loading tool images:", error);
+                }
+            });
+        }
+
+        function formatBytes(bytes) {
+            const GiB = 1024 * 1024 * 1024;
+            const MiB = 1024 * 1024;
+            if (bytes < GiB) {
+                return Math.round(bytes / MiB) + " MiB";
+            } else {
+                return Math.round(bytes / GiB) + " GiB";
+            }
+        }
+
+        function timeAgo(rfc2822Timestamp) {
+            const past = new Date(rfc2822Timestamp);
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - past) / 1000);
+
+            if (diffInSeconds < 60) {
+                return diffInSeconds + (diffInSeconds === 1 ? " second ago" : " seconds ago");
+            }
+
+            const diffInMinutes = Math.floor(diffInSeconds / 60);
+            if (diffInMinutes < 60) {
+                return diffInMinutes + (diffInMinutes === 1 ? " minute ago" : " minutes ago");
+            }
+
+            const diffInHours = Math.floor(diffInMinutes / 60);
+            if (diffInHours < 24) {
+                return diffInHours + (diffInHours === 1 ? " hour ago" : " hours ago");
+            }
+
+            const diffInDays = Math.floor(diffInHours / 24);
+            return diffInDays + (diffInDays === 1 ? " day ago" : " days ago");
+        }
+
+        function renderToolImages(images, refresh = false) {
+            const toolImagesContainer = $("#tool-images");
+            toolImagesContainer.empty(); // Clear existing content
+
+            placeholder = "<div class='text-secondary placeholder-glow'><div class='placeholder placeholder-xs col-9'></div><div class='placeholder placeholder-xs col-7'></div></div>";
+            if (refresh) {
+                toolImagesContainer.append(placeholder + placeholder + placeholder);
+            }
+            if (images.length === 0) {
+                toolImagesContainer.append("<div class='text-secondary text-center'>No images have been pushed yet.</div>");
+                return;
+            }
+
+            images.forEach((image, index) => {
+                const imageElement = `
+                <div class="row">
+                    <div class="col">
+                        <strong> ${image.name} </strong>
+                        <div class="text-secondary">
+                            <div class="list-inline list-inline-dots mb-0 text-secondary">
+                                <div class="list-inline-item">${timeAgo(image.last_modified)}</div>
+                                <div class="list-inline-item">${formatBytes(image.size)}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-auto align-self-center">
+                        <span class="badge badge-outline text-purple">sha256</span>
+                        <a class="text-link cursor-pointer" onclick="loadLayers('${image.name}')">
+                            ${image.manifest_digest.replace(/^sha256:/, '').substring(0, 12)}
+                        </a>
+                    </div>
+                </div >`;
+                toolImagesContainer.append(imageElement);
+            });
+        }
+
+        //Get the images from the registry and the latest commits from the GitHub repository
+        $(document).ready(function () {
+            getLatestCommits();
+            fetchToolImages();
+        });
+    </script>
 </body>
