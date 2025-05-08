@@ -5,11 +5,13 @@ from exceptions import (
     BackendError,
     NotFoundError,
 )
+import traceback
 
 
 class RedisClient:
     _pool = None
 
+    @classmethod
     def _initialize_redis(cls):
         app = current_app._get_current_object()
         with app.app_context():
@@ -31,7 +33,7 @@ class RedisClient:
             conn = redis.Redis(connection_pool=self._pool)
             conn.set(key, value)
         except Exception as e:
-            raise BackendError(f"Redis error: {str(e)}")
+            raise BackendError("Redis error", detail=traceback.format_exc())
 
     def get(self, key):
         """Get a value from Redis using a connection from the pool."""
@@ -42,7 +44,7 @@ class RedisClient:
             value = conn.get(key)
             return value
         except Exception as e:
-            raise BackendError(f"Redis error: {str(e)}")
+            raise BackendError("Redis error", detail=traceback.format_exc())
 
     def delete(self, key):
         """Delete a value from Redis using a connection from the pool."""
@@ -52,7 +54,7 @@ class RedisClient:
             conn = redis.Redis(connection_pool=self._pool)
             conn.delete(key)
         except Exception as e:
-            raise BackendError(f"Redis error: {str(e)}")
+            raise BackendError("Redis error", detail=traceback.format_exc())
 
 
 # Create a singleton instance of RedisClient

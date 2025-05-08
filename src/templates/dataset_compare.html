@@ -118,7 +118,7 @@
                     {% if datasets %} {% for dataset in datasets %}
                     <td class="text-center fw-bold">
                       <div class="p text-wrap">
-                        {{dataset.get('organization')}}
+                        {{dataset.organization.title}}
                       </div>
                     </td>
                     {% endfor %} {% endif %}
@@ -289,7 +289,7 @@
                         };
 
                         var chart{{ loop.index }} = new ApexCharts(document.querySelector("#chart{{ loop.index }}"), options{{ loop.index }});
-                          chart{ { loop.index } }.render();
+                          chart{{ loop.index }}.render();
                       </script>
                     </td>
                     {% endfor %} {% endif %}

@@ -3,6 +3,9 @@ import os
 
 from apiflask import APIBlueprint
 from flask import current_app, jsonify, make_response, request, session
+from routes.generic import render_api_output
+from backend.ckan import ckan_request
+import schema
 from minio import Minio
 from minio.error import S3Error
 
@@ -107,7 +110,7 @@ def stat_minio_path():
             access_key=credentials["AccessKeyId"],
             secret_key=credentials["SecretAccessKey"],
             session_token=credentials["SessionToken"],
-            secure=False, #TODO
+            secure=config["MC_INSECURE"] == "false",
         )
 
         # List objects at the given level (non-recursive)
@@ -156,89 +159,88 @@ def stat_minio_path():
         )
 
 
+@publisher_bp.route("/autocomplete/<limit>/<query>", methods=["POST"])
+@render_api_output(logger)
+@token_active
+def autocomplete_datasets(limit, query):
+    return ckan_request(
+        "package_autocomplete", method="POST", json={"q": query, "limit": limit}
+    )
+
+
 @publisher_bp.route("/upload_file", methods=["POST"])
 @token_active
 def upload_file_to_minio():
     try:
-        # Try to get the token from the Authorization header
+        # Get access token from Authorization header or session
         access_token = request.headers.get("Authorization")
-
         if access_token:
-            # Token found in Authorization header, remove 'Bearer ' prefix
-            access_token = access_token.replace("Bearer ", "")
+            access_token = access_token.replace("Bearer", "").strip()
         else:
-            # No token in Authorization header, try to fetch from session
             access_token = session.get("access_token")
 
-        # If access_token is still None, raise an exception
         if not access_token:
             raise ValueError("No access token found in headers or session.")
 
+        # Get temporary Minio credentials using the token
         credentials = mu.get_temp_minio_credentials(access_token)
 
+        # Validate file upload
         if "file" not in request.files:
             return jsonify({"error": "No file specified"}), 400
 
         file = request.files["file"]
-        destination_path = request.form.get("path")
-
         if file.filename == "":
             return jsonify({"error": "No selected file"}), 400
 
-        if "file" not in request.files:
-            return jsonify({"error": "No file part"}), 400
-
-        file = request.files["file"]
-        bucket_name = request.form.get("bucket")  # Get the bucket from the form
-        destination_path = request.form.get("path")  # Get the full path from the form
-
+        # Get bucket and destination path from the form data
+        bucket_name = request.form.get("bucket")
+        destination_path = request.form.get("path")
         if not bucket_name or not destination_path:
             return jsonify({"error": "Bucket or path not specified"}), 400
 
-        if file.filename == "":
-            return jsonify({"error": "No selected file"}), 400
+        # Construct the object name from the destination folder and uploaded filename
+        folder = os.path.dirname(destination_path)
+        object_name = os.path.join(folder, file.filename)
 
-        try:
-            bucket_prefix = bucket_name + "/"
-            # Extract the folder from the cleaned destination path
-            folder = os.path.dirname(destination_path)
+        # Ensure the object name does not accidentally include the bucket prefix
+        bucket_prefix = bucket_name + "/"
+        if object_name.startswith(bucket_prefix):
+            object_name = object_name[len(bucket_prefix) :]
 
-            # Combine the folder with the filename to create the object name
-            object_name = os.path.join(folder, file.filename)
+        logger.debug(
+            "Uploading to bucket: %s, object key: %s", bucket_name, object_name
+        )
 
-            # Remove Bucket Prefix from Object Full Path (Avoid creating subfolder with the same name as the bucket)
-            object_name.replace(bucket_prefix, "", 1)
+        # Get MinIO client configuration from Flask config
+        config = current_app.config["settings"]
+        minio_url = config["MINIO_API_SUBDOMAIN"] + "." + config["KLMS_DOMAIN_NAME"]
 
-            logger.debug(object_name)
+        # Configure the client (adjust the secure flag as needed)
+        client = Minio(
+            minio_url,
+            access_key=credentials["AccessKeyId"],
+            secret_key=credentials["SecretAccessKey"],
+            session_token=credentials["SessionToken"],
+            secure=config["MC_INSECURE"] == "false",
+        )
 
-            # Upload the file to MinIO
-            config = current_app.config["settings"]
+        # Upload the file to MinIO
+        client.put_object(
+            bucket_name,
+            object_name,
+            file.stream,
+            length=-1,
+            part_size=10 * 1024 * 1024,  # 10MB part size
+        )
+        return jsonify({"message": "File uploaded successfully!"}), 200
 
-            minio_url = config["MINIO_API_SUBDOMAIN"] + "." + config["KLMS_DOMAIN_NAME"]
-
-            client = Minio(
-                minio_url,
-                access_key=credentials["AccessKeyId"],
-                secret_key=credentials["SecretAccessKey"],
-                session_token=credentials["SessionToken"],
-                secure=False,  # Set to False if you are using HTTP instead of HTTPS #TODO
-            )
-
-            # Upload the file to MinIO in the specified bucket and path
-            client.put_object(
-                bucket_name,
-                object_name,
-                file.stream,
-                length=-1,
-                part_size=10 * 1024 * 1024,  # 10MB part size
-            )
-            return jsonify({"message": "File uploaded successfully!"}), 200
-
-        except S3Error as e:
-            return jsonify({"error": str(e)}), 500
+    except S3Error as e:
+        logger.error("S3Error during file upload: %s", str(e))
+        return jsonify({"error": str(e)}), 500
 
     except ValueError as e:
-        # Handle the case where no token is found, return 401 Unauthorized
+        logger.error("Authorization error: %s", str(e))
         return make_response(
             {
                 "success": False,
@@ -248,7 +250,7 @@ def upload_file_to_minio():
         )
 
     except Exception as e:
-        # Handle any other unexpected errors, return 500 Internal Server Error
+        logger.error("Unexpected error: %s", str(e))
         return make_response(
             {
                 "success": False,

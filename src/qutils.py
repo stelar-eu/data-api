@@ -203,5 +203,26 @@ class QuayClient:
 
         return {"id": token_id}
 
+    def sync_user_permissions(self, user: dict):
+        """
+        Sync the permissions of a user in Quay.
+
+        Args:
+            user (dict): The representation of the user updated permissions.
+
+            Example:
+                {
+                    "oauth_id": "<UUID>",
+                    "username": "example",
+                    "email": "example@example.com",
+                    "groups": ["pushers"]
+                }
+        Returns:
+            dict: The response from the Quay API.
+        """
+        endpoint = "/user/"
+        response = quay_request(endpoint, method="PATCH", json=user)
+        return response
+
 
 REGISTRY = QuayClient()

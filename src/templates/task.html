@@ -324,7 +324,7 @@
                 </div>
                 <div class="modal modal-blur fade" id="inputs-json-modal" tabindex="-1" role="dialog"
                     aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+                    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title">Task Inputs</h5>
@@ -335,10 +335,10 @@
                                 <table class="table table-sm table-borderless">
                                     <thead>
                                         <tr>
-                                            <th>Resource ID</th>
+                                            <th class="w-50">Resource ID</th>
                                             <th>Input Path</th>
                                             <th>Input Group</th>
-                                            <th class="text-end">File Actions</th>
+                                            <th class="text-end w-25">File Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -378,7 +378,7 @@
                 </div>
                 <div class="modal modal-blur fade" id="outputs-json-modal" tabindex="-1" role="dialog"
                     aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+                    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title">Task Output Resources</h5>
@@ -389,24 +389,32 @@
                                 <table class="table table-sm table-borderless">
                                     <thead>
                                         <tr>
+                                            <th>Output Name</th>
                                             <th>Resource ID</th>
                                             <th>Output Path</th>
-                                            <th class="text-end">Actions</th>
+                                            <th class="text-end w-25">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% if task.get('output') %}
-                                        {% for item in task.get('output') %}
+                                        {% if task.get('outputs') %}
+                                        {% for key, item in task.get('outputs').items() %}
                                         <tr>
                                             <td>
-                                                <div>{{ item.get("resource_id", 'Not associated') }}</div>
+                                                <div>{{ key }}</div>
+                                            </td>
+                                            <td>
+                                                <div>
+                                                    <a target="_blank"
+                                                        href='{{ url_for("dashboard_blueprint.viewResource", resource_id= item.get("resource_id")) }}'>
+                                                        {{ item.get('resource_id') }}</a>
+                                                </div>
                                             </td>
                                             <td>
                                                 <div>{{ item.get("url", "Not registered") }}</div>
                                             </td>
                                             <td class="w-1 fw-bold text-end">
-                                                <a href="{{url_for('dashboard_blueprint.viewResource', resource_id = item)}}"
-                                                    target="_blank">View</a>
+                                                <a href="/s3/browser/{{ item.get('url') | replace('s3://', '') }}"
+                                                    target="_blank">Open in S3</a>
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -643,13 +651,13 @@
                     if (response.success) {
 
                         // Update Output Resources Modal
-                        updateOutputModal(response.result.output);
+                        updateOutputModal(response.result.outputs);
 
                         // Update Metrics Modal
                         updateMetricsModal(response.result.metrics);
 
                         // Update Logs Modal
-                        updateLogsModal(response.result.tags.log);
+                        updateLogsModal(response.result.messages);
 
                         // Update the task state
                         updateTaskState(response.result.exec_state, response.result.end_date);
@@ -670,23 +678,33 @@
         function updateOutputModal(output) {
             const outputModalBody = $('#outputs-json-modal .modal-body tbody');
             outputModalBody.empty();
-            if (output) {
-                if (output.length > 0) {
-                    output.forEach(item => {
-                        const row = `<tr>
-                                            <td><div>${item.resource_id}</div></td>
-                                            <td><div>${item.url}</div></td>
-                                            <td class="w-1 fw-bold text-end">
-                                                <a href="{{ url_for('dashboard_blueprint.viewResource', resource_id='') }}${item.resource_id}" target="_blank">View</a>
-                                            </td>
-                                        </tr>`;
-                        outputModalBody.append(row);
-                    });
-                } else {
-                    outputModalBody.append('<tr><td colspan="2">No Output Resources Available</td></tr>');
-                }
+            if (output && Object.keys(output).length > 0) {
+            Object.entries(output).forEach(([key, item]) => {
+                const resourceUrl = "{{ url_for('dashboard_blueprint.viewResource', resource_id='') }}" + item.resource_id;
+                const displayUrl = item.url ? item.url : "Not registered";
+                const s3Url = item.url ? "/s3/browser/" + item.url.replace("s3://", "") : "#";
+                const row = `<tr>
+                <td>
+                    <div>${key}</div>
+                </td>
+                <td>
+                    <div>
+                    <a target="_blank" href="${resourceUrl}">
+                        ${item.resource_id}
+                    </a>
+                    </div>
+                </td>
+                <td>
+                    <div>${displayUrl}</div>
+                </td>
+                <td class="w-1 fw-bold text-end">
+                    <a href="${s3Url}" target="_blank">Open in S3</a>
+                </td>
+                </tr>`;
+                outputModalBody.append(row);
+            });
             } else {
-                outputModalBody.append('<tr><td colspan="2">No Output Resources Available</td></tr>');
+            outputModalBody.append('<tr><td colspan="2">No Output Resources Available</td></tr>');
             }
         }
 

@@ -25,7 +25,7 @@ def initialize_minio_admin(ac_key, sec_key, token):
         access_key=ac_key,
         secret_key=sec_key,
         session_token=token,
-        secure=False,  # Set to False if you are using HTTP instead of HTTPS #TODO: take it from env variables
+        secure=config["MC_INSECURE"] == "false",
     )
     return client
 

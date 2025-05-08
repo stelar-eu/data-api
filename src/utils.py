@@ -317,15 +317,14 @@ sql_workflow_execution_templates = {
     "task_read_metrics_template": "SELECT key, value from klms.metrics WHERE task_uuid = %s",
     "task_read_parameters_template": "SELECT key, value from klms.parameters WHERE task_uuid = %s",
     "task_read_output_dataset_template": "SELECT * FROM klms.task_output WHERE task_uuid = %s",
-    "task_read_output_with_paths_template": """SELECT dataset_id as resource_id, name, url FROM klms.task_output as tsk_out 
+    "task_read_output_with_paths_template": """SELECT dataset_id as resource_id, output_name as name, url FROM klms.task_output as tsk_out 
                                                LEFT JOIN public.resource as rsrc 
                                                ON tsk_out.dataset_id = rsrc.id
                                                WHERE task_uuid = %s""",
     "task_read_dataset_by_uuid_template": """SELECT package_friendly_name, package_details, package_uuid
                                              FROM klms.task_future_output_packages WHERE task_uuid = %s AND package_friendly_name = %s""",
     #
-    "task_insert_input_dataset_template": "INSERT INTO klms.task_input(task_uuid, order_num, dataset_id) VALUES (%s, %s, %s)",
-    "task_insert_output_dataset_template": "INSERT INTO klms.task_output(task_uuid, order_num, dataset_id) VALUES (%s, %s, %s)",
+    "task_insert_output_dataset_template": "INSERT INTO klms.task_output(task_uuid, order_num, dataset_id, output_name) VALUES (%s, %s, %s, %s)",
     #
     "task_insert_input_by_uuid_template": "INSERT INTO klms.task_input(task_uuid, order_num, resource_id, resource_url, input_group_name) VALUES (%s, %s, %s, %s, %s)",
     "task_insert_input_by_path_template": "INSERT INTO klms.task_input(task_uuid, order_num, input_path, input_group_name) VALUES (%s, %s, %s, %s)",
@@ -1544,7 +1543,7 @@ def prepareZenodoMetadata(dataset, creator, creator_org, doi: None):
     # Basic metadata
     title = dataset["title"]
     description = dataset["notes"]
-    tags = [t["name"] for t in dataset["tags"]]
+    tags = dataset["tags"]
 
     # List of creators/authors of the Zenodo deposition (dataset)
     author = dataset["author"] if dataset["author"] else None
@@ -1560,9 +1559,8 @@ def prepareZenodoMetadata(dataset, creator, creator_org, doi: None):
 
     url = dataset["url"] if dataset["url"] else None
     version = dataset["version"] if dataset["version"] else None
-    isopen = dataset["isopen"]
     private = dataset["private"]
-    license_title = dataset["license_title"] if dataset["license_title"] else None
+    license_title = dataset["license_title"] if "license_title" in dataset else None
 
     # Handle some of the available extra metadata
     spatial = next(
@@ -1634,7 +1632,7 @@ def prepareZenodoMetadata(dataset, creator, creator_org, doi: None):
     # * embargoed: Embargoed Access
     # * restricted: Restricted Access
     # * closed: Closed Access
-    if isopen:
+    if not private:
         access_right = "open"
         license = license_title if license_title else None
     elif private:

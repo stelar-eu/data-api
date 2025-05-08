@@ -9,6 +9,7 @@ from apiflask import Schema, fields, validators
 from flask import current_app, g
 from mutils import get_temp_minio_credentials, expand_wildcard_path
 from processes import PROCESS
+from tools import TOOL
 import cutils
 import execution
 import kutils
@@ -136,20 +137,10 @@ class TaskSchema(Schema):
     )
     parameters = fields.Dict(required=False, values=fields.Raw(), allow_none=True)
     name = fields.String(required=True)
-    # Limit the execution ability only to internally stored images in the STELAR registry.
-    # TODO: The registry domain should be populated by an appropriate environment variable.
-    # image = fields.String(
-    #    required=False,
-    #    allow_none=False,
-    #    validate=lambda value: re.match(
-    #        r"^img\.stelar\.gr/stelar/[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]+$", value
-    #    )
-    #    is not None,
-    #    example="img.stelar.gr/stelar/sample:latest",
-    # )
+    tool = fields.String(required=False, allow_none=False)
     image = fields.String(required=False, allow_none=False)
     exec_state = fields.String(
-        validate=validators.OneOf(["running", "failed", "succeeded"]), dump_only=True
+        validate=validators.OneOf(["running", "failed", "succeeded"])
     )
     creator = fields.String(dump_only=True)
     start_date = fields.DateTime(dump_only=True)
@@ -393,18 +384,32 @@ class Task(Entity):
         if task["tags"]:
             if task["tags"].get("__image__"):
                 task["image"] = task["tags"]["__image__"]
+            if task["tags"].get("__tool__"):
+                task["tool"] = task["tags"]["__tool__"]
             if task["tags"].get("__name__"):
                 task["name"] = task["tags"]["__name__"]
 
         # Pop system reserved tags from the final dict.
         task["tags"].pop("__image__", None)
         task["tags"].pop("__name__", None)
+        task["tags"].pop("__tool__", None)
         task["inputs"] = sql_utils.task_execution_input_read_sql(id)
         task["parameters"] = sql_utils.task_execution_parameters_read_sql(id)
 
         if task["exec_state"] in ["failed", "succeeded"]:
             task["messages"] = task["tags"].pop("log", None)
-            task["outputs"] = sql_utils.task_execution_read_outputs_sql(id)
+
+            outputs = sql_utils.task_execution_read_outputs_sql(id)
+            if outputs:
+                task["outputs"] = {
+                    output["name"]: {
+                        "resource_id": output["resource_id"],
+                        "url": output["url"],
+                    }
+                    for output in outputs
+                }
+            else:
+                task["outputs"] = {}
             task["metrics"] = sql_utils.task_execution_metrics_read_sql(id)
         return task
 
@@ -447,7 +452,28 @@ class Task(Entity):
             sql_utils.task_execution_delete(id)
             return id
 
-    def parse_inputs(self, id: uuid.UUID, process_id: uuid.UUID, inputs: dict):
+    def extract_resources(self, package, filter):
+        """
+        Extracts the resources from a package based on the filter provided.
+        Args:
+            package: The package from which to extract resources.
+            filter: The filter to apply when extracting resources.
+        Returns:
+            A list of resources that match the filter.
+        """
+        if package.get("resources") is not None:
+            # If the package has resources, filter them based on the filter provided
+            resources = [
+                resource["id"]
+                for resource in package["resources"]
+                if filter is None or resource.get("relation") == filter
+            ]
+            return resources
+        else:
+            # If the package has no resources, return an empty list
+            return []
+
+    def parse_inputs(self, id: uuid.UUID, inputs: dict, credentials: dict):
         """Parses the input provided in the Task Spec
 
         It is highly recommended to use this method within a 'transaction()' context
@@ -489,8 +515,8 @@ class Task(Entity):
                           expanded to the input list upon filter.
         Args:
             id: The ID of the newly created Task.
-            process_id: The ID of the process the task belongs to.
             inputs: The inputs of the task as provided in the Task Spec.
+            credentials: The credentials to use for accessing the input resources in S3
         """
         for group in inputs:
             # Maintain a list of resources to be inserted in the database as
@@ -508,34 +534,15 @@ class Task(Entity):
                 if is_valid_uuid(artifact_uuid or val):
                     if cutils.is_package(artifact_uuid or val):
                         # Pass dataset_uuid and filter_value to get_package_resources
-                        # to fetch resources matching the query.
-                        # TODO: DPETROU: Consider changing this to DATASET.get_entity
-                        # to align it with the authorization model. This requires a
-                        # cascading permission set initiating from 'task_create'.
-                        dataset_resources = [
-                            resource["id"]
-                            for resource in cutils.get_package_resources(
-                                artifact_uuid or val, filter_value
-                            )
-                        ]
+                        # to fetch resources matching the relation filter
+                        dataset_resources = self.extract_resources(
+                            cutils.DATASET.get_entity(artifact_uuid or val),
+                            filter_value,
+                        )
                         input_artifacts.extend(dataset_resources)
 
                     elif cutils.is_resource(artifact_uuid or val):
                         input_artifacts.append(artifact_uuid or val)
-
-                elif re.match(r"ctx(::.*)?", artifact_uuid or val):
-                    # Handle the special case of 'ctx' which refers to the 'Process' package
-                    # the task belongs to. Validate the existence and type of package first.
-                    PROCESS.validate_process(process_id)
-
-                    # Fetch the resources of the 'Process' package and append them to the input list.
-                    process_resources = [
-                        resource["id"]
-                        for resource in cutils.get_package_resources(
-                            process_id, filter_value
-                        )
-                    ]
-                    input_artifacts.extend(process_resources)
 
                 elif is_valid_url(val):
                     # We delegate URLs that are not referenced by the Catalog.
@@ -543,19 +550,41 @@ class Task(Entity):
                     # Wildcard support is also provided for S3 paths (s3://bucket/klms/data/*)
                     # The wildcards are unfolded during the generation of the input spec destined
                     # to the tool.
-                    input_artifacts.append(val)
+                    # Delegate the URL as is or expand widlcards.
+                    if credentials:
+                        if (
+                            isinstance(val, str)
+                            and val.startswith("s3://")
+                            and "*" in val
+                        ):
+                            try:
+                                val = expand_wildcard_path(val, credentials=credentials)
+                            except Exception as e:
+                                logger.info("Error expanding wildcard path: %s", e)
+
+                    if type(val) == list:
+                        input_artifacts.extend(val)
+                    else:
+                        input_artifacts.append(val)
 
                 elif self.dataset_exists(id, artifact_uuid or val):
                     # Handle the case where the value is a dataset friendly name
                     # and the dataset exists in the Task.
                     package = sql_utils.task_read_dataset(id, artifact_uuid or val)
                     if package and package.get("package_uuid") is not None:
-                        package_resources = [
-                            resource["id"]
-                            for resource in cutils.get_package_resources(
-                                package.get("package_uuid"), filter_value
+
+                        if (artifact_uuid or val) == "ctx":
+                            # ctx is a special case that refers to the Process package
+                            # the Task belongs to.
+                            package_resources = self.extract_resources(
+                                PROCESS.get(package.get("package_uuid")), filter_value
                             )
-                        ]
+                        else:
+                            package_resources = self.extract_resources(
+                                cutils.DATASET.get_entity(package.get("package_uuid")),
+                                filter_value,
+                            )
+
                     input_artifacts.extend(package_resources)
 
             # Insert the input artifacts in the database. Exception or errors are
@@ -625,7 +654,7 @@ class Task(Entity):
         """
         sql_utils.task_execution_insert_parameters(id, parameters)
 
-    def parse_datasets(self, id: uuid.UUID, datasets: dict):
+    def parse_datasets(self, id: uuid.UUID, process_id: uuid.UUID, datasets: dict):
         """Parses the datasets provided in the Task Spec
 
         It is highly recommended to use this method within a 'transaction()' context
@@ -651,23 +680,30 @@ class Task(Entity):
             id: The ID of the newly created Task.
             datasets: The datasets of the task as provided in the Task Spec.
         """
+        # First insert the 'ctx' alias which correspondes to the Process package
+        # the task belongs to.
+        sql_utils.task_execution_insert_future_package_existing(
+            task_exec_id=id, package_id=process_id, package_friendly_name="ctx"
+        )
 
         for dataset, value in datasets.items():
-            # Handle the case where the value is a package_id
-            if is_valid_uuid(value) and cutils.is_package(value):
-                sql_utils.task_execution_insert_future_package_existing(
-                    task_exec_id=id,
-                    package_id=value,
-                    package_friendly_name=dataset,
-                )
-            # Handle the case where the value is a package_dict
-            elif utils.is_valid_package_dict(value):
-                encoded_details = utils.encode_to_base64(value)
-                sql_utils.task_execution_insert_future_package_details(
-                    task_exec_id=id,
-                    package_details=encoded_details,
-                    package_friendly_name=dataset,
-                )
+            # Do not allow the use of 'ctx' as a dataset friendly name
+            if dataset != "ctx":
+                # Handle the case where the value is a package_id
+                if is_valid_uuid(value) and cutils.is_package(value):
+                    sql_utils.task_execution_insert_future_package_existing(
+                        task_exec_id=id,
+                        package_id=value,
+                        package_friendly_name=dataset,
+                    )
+                # Handle the case where the value is a package_dict
+                elif utils.is_valid_package_dict(value):
+                    encoded_details = utils.encode_to_base64(value)
+                    sql_utils.task_execution_insert_future_package_details(
+                        task_exec_id=id,
+                        package_details=encoded_details,
+                        package_friendly_name=dataset,
+                    )
 
     def parse_outputs(self, id: uuid.UUID, outputs: dict):
         """Parses the output provided in the Task Spec
@@ -760,6 +796,7 @@ class Task(Entity):
         parameters = spec.get("parameters")
         tags = spec.get("tags", {})
         image = spec.get("image")
+        tool = spec.get("tool")
 
         # Validate the process existence
         PROCESS.validate_process(process_id)
@@ -770,15 +807,17 @@ class Task(Entity):
                 f"Process '{process_id}' is not running and it may not accept tasks"
             )
 
+        # Fetch the tool entity if it exists
+        tool_entity = TOOL.get_entity(tool) if tool else None
+
         # Generate the ID and start date of the Task under creation
         sdate = datetime.now().isoformat()
         task_id = str(uuid.uuid4())
 
-        # Store the name and image of the task in the tags table.
-        if "name" in spec:
-            tags["__name__"] = spec["name"]
-        if "image" in spec:
-            tags["__image__"] = spec["image"]
+        # Get MinIO credentials to access S3 resources
+        credentials = None
+        if token:
+            credentials = get_temp_minio_credentials(token)
 
         # Act within a transaction to ensure that the task is created in a consistent manner.
         # Avoid partial creation of the task in the database leading to inconsistencies.
@@ -793,15 +832,18 @@ class Task(Entity):
 
             # Parse the datasets. Performs insertion in the database, failures
             # handled by the transaction context.
-            self.parse_datasets(task_id, datasets)
+            if datasets is not None:
+                self.parse_datasets(task_id, process_id, datasets)
 
             # Parse the inputs. Performs insertion in the database, failures
             # handled by the transaction context.
-            self.parse_inputs(task_id, process_id, inputs)
+            if inputs is not None:
+                self.parse_inputs(task_id, inputs, credentials)
 
             # Parse the params. Performs insertion in the database, failures
             # handled by the transaction context.
-            self.parse_parameters(task_id, parameters)
+            if parameters is not None:
+                self.parse_parameters(task_id, parameters)
 
             # Insert possible secrets in the database. Exception or errors are
             # catched through the 'transaction' context.
@@ -809,17 +851,57 @@ class Task(Entity):
 
             # Insert the output specs in the database. Exception or errors are
             # catched through the 'transaction' context.
-            self.parse_outputs(task_id, outputs)
+            if outputs is not None:
+                self.parse_outputs(task_id, outputs)
 
             # If the task is to be executed in the cluster, create the task execution
             # on the engine and store the container_id and job_id in the database as task tags.
-            if image:
-                engine = execution.exec_engine()
-                token = "Bearer " + token
-                task_signature = self.generate_signature(task_id)
-                tags["container_id"], tags["job_id"] = engine.create_task(
-                    image, token, task_id, task_signature
-                )
+
+            # If tool and image are provided construct
+            if tool:
+                local_images = tool_entity.get("images")
+
+                if local_images:
+                    if image is None:
+                        # get the latest image
+                        image = local_images[0].get("name")
+                    else:
+                        for local_image in local_images:
+                            if local_image.get("name") == image:
+                                image = local_image.get("name")
+                                break
+                        else:
+                            raise NotFoundError(
+                                tool,
+                                message=f"Image '{image}' not found in tool images.",
+                            )
+
+                registry = current_app.config["settings"].get("REGISTRY_EXT_URL")
+                if registry:
+                    registry = re.sub(r"^https?://", "", registry)
+                    image = (
+                        registry
+                        + "/stelar/"
+                        + tool_entity.get("repository")
+                        + ":"
+                        + image
+                    )
+
+            # Store the name and image of the task in the tags table.
+            if "tool" in spec:
+                tags["__tool__"] = spec["tool"]
+            if "name" in spec:
+                tags["__name__"] = spec["name"]
+            if "tool" in spec or "image" in spec:
+                tags["__image__"] = image
+
+                if image:
+                    engine = execution.exec_engine()
+                    token = "Bearer " + token
+                    task_signature = self.generate_signature(task_id)
+                    tags["container_id"], tags["job_id"] = engine.create_task(
+                        image, token, task_id, task_signature
+                    )
 
                 sql_utils.task_execution_update(task_id, "running", tags=tags)
 
@@ -912,20 +994,6 @@ class Task(Entity):
 
                             delegated_inputs[input_group].append(artifact)
                     elif is_valid_url(artifact):
-                        # Delegate the URL as is or expand widlcards.
-                        if credentials:
-                            if (
-                                isinstance(artifact, str)
-                                and artifact.startswith("s3://")
-                                and "*" in artifact
-                            ):
-                                expanded_paths = expand_wildcard_path(
-                                    artifact, credentials=credentials
-                                )
-                                if expanded_paths:
-                                    delegated_inputs[input_group].extend(expanded_paths)
-                                    continue
-
                         delegated_inputs[input_group].append(artifact)
         return delegated_inputs
 
@@ -1164,11 +1232,14 @@ class Task(Entity):
         # TODO: DPETROU: Consider also registering paths that were generated
         # but have no presence in the catalog.
         for output, path in outputs.items():
-            actual_resource_output.append(self.handle_output_key(id, output, path))
+            resource_id = self.handle_output_key(id, output, path)
+            actual_resource_output.append(
+                {"output": output, "resource_id": resource_id, "path": path}
+            )
 
-        # Remove nones (which are the outputs that were not registered in the catalog)
+        # Remove entries where resource_id is None (outputs that were not registered in the catalog)
         actual_resource_output = [
-            res for res in actual_resource_output if res is not None
+            res for res in actual_resource_output if res["resource_id"] is not None
         ]
 
         # Register the actual resources registered in the catalog by the task

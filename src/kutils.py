@@ -4,20 +4,27 @@ import logging
 import smtplib
 import ssl
 from io import BytesIO
-
+from functools import wraps
 import flask
 import jwt
 import pyotp
+import json
 import qrcode
 from flask import current_app, session, url_for
 from keycloak import (
     KeycloakAuthenticationError,
     KeycloakGetError,
+    KeycloakPostError,
+    KeycloakPutError,
+    KeycloakDeleteError,
+    KeycloakConnectionError,
+    KeycloakInvalidTokenError,
 )
 import sql_utils
 from backend.ckan import ckan_request
 from backend.pgsql import execSql
 from backend.kc import KEYCLOAK_ADMIN_CLIENT, KEYCLOAK_OPENID_CLIENT
+from qutils import REGISTRY
 from backend.redis import REDIS
 
 from exceptions import (
@@ -28,10 +35,65 @@ from exceptions import (
     InternalException,
     InvalidError,
     NotFoundError,
+    ConflictError,
 )
 from utils import is_valid_uuid, validate_email
 
 logger = logging.getLogger(__name__)
+
+
+def raise_keycloak_error(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except (
+            KeycloakAuthenticationError,
+            KeycloakGetError,
+            KeycloakPostError,
+            KeycloakPutError,
+            KeycloakDeleteError,
+            KeycloakConnectionError,
+            KeycloakInvalidTokenError,
+        ) as e:
+            logger.error(
+                "Keycloak error in %s: %s", func.__name__, str(e), exc_info=True
+            )
+            response_code = getattr(e, "response_code", None)
+            detail_message = ""
+            if hasattr(e, "response_body") and e.response_body:
+                try:
+                    # Attempt to decode and extract the detailed message from the response body.
+                    error_detail = json.loads(e.response_body.decode("utf-8"))
+                    detail_message = error_detail.get("message", str(e))
+                except Exception:
+                    detail_message = str(e.response_body)
+            else:
+                detail_message = str(e)
+
+            if response_code == 409:
+                raise ConflictError(
+                    message="Conflict: Duplicate resource", detail=detail_message
+                ) from e
+            elif response_code == 400:
+                raise InvalidError(
+                    message="Bad Request: Invalid data sent to Keycloak",
+                    detail=detail_message,
+                ) from e
+            elif response_code == 404:
+                raise NotFoundError(
+                    message="Resource not found in Keycloak",
+                    detail=detail_message,
+                ) from e
+            elif response_code == 401:
+                raise AuthenticationError(
+                    message="Authorization using the provided credentials failed",
+                    detail=detail_message,
+                ) from e
+            else:
+                raise InternalException(message=detail_message) from e
+
+    return wrapper
 
 
 def email_username_unique(username, email):
@@ -48,19 +110,21 @@ def convert_iat_to_date(timestamp):
         return None
 
 
+@raise_keycloak_error
 def username_unique(username):
     # Check for existing users with the same username
     existing_users = KEYCLOAK_ADMIN_CLIENT().get_users({"username": username})
 
     if existing_users:
-        raise InvalidError(f"A user with the username '{username}' already exists.")
+        raise ConflictError(f"A user with the username '{username}' already exists.")
 
 
+@raise_keycloak_error
 def email_unique(email):
     # Check for existing users with the same email
     existing_emails = KEYCLOAK_ADMIN_CLIENT().get_users({"email": email})
     if existing_emails:
-        raise InvalidError(f"A user with the email '{email}' already exists.")
+        raise ConflictError(f"A user with the email '{email}' already exists.")
 
 
 def generate_reset_token(user_id, expiration_minutes=30):
@@ -78,6 +142,7 @@ def generate_reset_token(user_id, expiration_minutes=30):
     return token
 
 
+@raise_keycloak_error
 def reset_password_init_flow(email):
     """Sends an email with a reset link for the account linked with the
     given email address. Initiates the flow for reseting the password.
@@ -121,6 +186,21 @@ def verify_reset_token(token, user_id):
         return None
 
 
+@raise_keycloak_error
+def introspect_token(access_token):
+    """
+    Introspects the given access token to check if it's valid and active.
+    Returns True if the token is valid, False if the token is invalid or expired.
+    """
+
+    introspect_response = KEYCLOAK_OPENID_CLIENT().introspect(access_token)
+    # Check if the token is active
+    if introspect_response.get("active", False):
+        return introspect_response
+    else:
+        raise AuthenticationError(message="Token is invalid or expired")
+
+
 def introspect_admin_token(access_token):
     """
     Introspects the given access token to check if it's valid, active,
@@ -129,20 +209,11 @@ def introspect_admin_token(access_token):
     Raises TokenExpiredError if the token is inactive/expired.
     Raises AuthorizationError if the token is active but not for an admin user.
     """
-
-    # keycloak_openid = initialize_keycloak_openid()
-    # introspect_response = keycloak_openid.introspect(access_token)
     introspect_response = introspect_token(access_token)
-
-    # # Check if the token is active
-    # if not introspect_response.get("active", False):
-    #     raise AuthenticationError(message="Token expired")
 
     # Optionally check for realm_access if needed
     if not introspect_response.get("realm_access", False):
-        # You can decide how to handle this; here we treat it as a token issue.
-        raise APIException(
-            401,
+        raise AuthenticationError(
             message="Token is missing realm access information",
         )
 
@@ -162,20 +233,6 @@ def get_user_by_token(access_token):
     Returns the user json if the token is valid, False if the token is invalid or expired.
     """
     return introspect_token(access_token)
-
-
-def introspect_token(access_token):
-    """
-    Introspects the given access token to check if it's valid and active.
-    Returns True if the token is valid, False if the token is invalid or expired.
-    """
-
-    introspect_response = KEYCLOAK_OPENID_CLIENT().introspect(access_token)
-    # Check if the token is active
-    if introspect_response.get("active", False):
-        return introspect_response
-    else:
-        raise AuthenticationError(message="Token is invalid or expired")
 
 
 def is_token_active(access_token):
@@ -287,9 +344,9 @@ def generate_2fa_token(user_id):
 
             return secret, qr_base64
         except Exception as e:
-            raise AttributeError(f"Failed to generate 2FA token: {str(e)}")
+            raise (f"Failed to generate 2FA token: {str(e)}")
     else:
-        raise ValueError("Not valid UUID")
+        raise InvalidError(message=f"{user_id} is not a valid UUID")
 
 
 def activate_2fa(user_id, secret):
@@ -313,6 +370,24 @@ def activate_2fa(user_id, secret):
             return False
     else:
         raise ValueError("Not valid UUID or User not found")
+
+
+def is_2fa_otp_valid(secret, token):
+    """
+    Validate a 2FA OTP token for a given secret
+
+    Args:
+        secret (str): The secret key for the user.
+        token (str): The OTP token to be validated.
+
+    Returns:
+        bool: True if the token is valid, False otherwise.
+    """
+    totp = pyotp.TOTP(secret)
+    if totp.verify(token):
+        return True
+    else:
+        return False
 
 
 def validate_2fa_otp(user_id, token):
@@ -346,31 +421,14 @@ def validate_2fa_otp(user_id, token):
         raise ValueError("Not valid UUID")
 
 
-def is_2fa_otp_valid(secret, token):
-    """
-    Validate a 2FA OTP token for a given secret
-
-    Args:
-        secret (str): The secret key for the user.
-        token (str): The OTP token to be validated.
-
-    Returns:
-        bool: True if the token is valid, False otherwise.
-    """
-    totp = pyotp.TOTP(secret)
-    if totp.verify(token):
-        return True
-    else:
-        return False
-
-
 def disable_2fa(user_id):
     if is_valid_uuid(user_id):
         return sql_utils.two_factor_revoke(user_id=user_id)
     else:
-        raise ValueError("Not valid UUID")
+        raise InvalidError(400, message=f"{user_id} is not a valid UUID")
 
 
+@raise_keycloak_error
 def refresh_access_token(refresh_token):
     """
     Refreshes the access token using the refresh token given as args.
@@ -386,47 +444,36 @@ def refresh_access_token(refresh_token):
         tuple: A tuple containing:
             - str or None: The refreshed access token if successful, otherwise None.
             - str or None: An error message if the refresh fails, otherwise None.
-
-    Raises:
-        Exception: If an error occurs during the token refresh process.
     """
 
     if not refresh_token:
-        return None
+        raise InvalidError(message="Missing refresh token.")
 
-    try:
-        token = KEYCLOAK_OPENID_CLIENT().refresh_token(
-            refresh_token, grant_type="refresh_token"
-        )
-        return token
-    except Exception as e:
-        return None, str(e)
+    token = KEYCLOAK_OPENID_CLIENT().refresh_token(
+        refresh_token, grant_type="refresh_token"
+    )
+    return token
 
 
+@raise_keycloak_error
 def get_token(username, password):
     """
     Returns a token for a user in Keycloak by using username and password.
 
     Args:
-        username: The username of the user in Keycloak
-        password The secret password of the user in Keycloak
+        username: The username of the user in Keycloak.
+        password: The secret password of the user in Keycloak.
 
     Returns:
-        str: The access_token
-        null: Error return
+        dict: The token dictionary containing the access_token and additional details.
 
+    Raises:
+        AuthenticationError: If the token could not be retrieved.
     """
-    try:
-        token = KEYCLOAK_OPENID_CLIENT().token(username, password)
-        if token:
-            return token
-        else:
-            return None
-    except Exception as e:
-        logger.debug("Error while getting token: %s", str(e), exc_info=True)
-        return None
+    return KEYCLOAK_OPENID_CLIENT().token(username, password)
 
 
+@raise_keycloak_error
 def get_user_roles(user_id):
     """
     Fetches the roles assigned to a user with the given user_id using KeycloakAdmin object.
@@ -434,25 +481,22 @@ def get_user_roles(user_id):
     :param user_id: The ID of the user whose roles are to be fetched.
     :return: A list of roles assigned to the user.
     """
-    try:
-        realm_roles = KEYCLOAK_ADMIN_CLIENT().get_realm_roles_of_user(user_id)
+    realm_roles = KEYCLOAK_ADMIN_CLIENT().get_realm_roles_of_user(user_id)
 
-        if not realm_roles:
-            return []
-
-        # Filter out default roles and extract role names
-        filtered_roles = [
-            role["name"]
-            for role in realm_roles
-            if role.get("name") and role["name"] != "default-roles-master"
-        ]
-
-        return filtered_roles
-
-    except Exception as e:
+    if not realm_roles:
         return []
 
+    # Filter out default roles and extract role names
+    filtered_roles = [
+        role["name"]
+        for role in realm_roles
+        if role.get("name") and role["name"] != "default-roles-master"
+    ]
 
+    return filtered_roles
+
+
+@raise_keycloak_error
 def get_role(role_id):
     """
     Fetches the role by ID from the Realm
@@ -460,48 +504,37 @@ def get_role(role_id):
     :param user_id: The ID or the name of the role to be fetched.
     :return: The role representation
     """
-    try:
-        if is_valid_uuid(role_id):
-            role_rep = KEYCLOAK_ADMIN_CLIENT().get_realm_role_by_id(role_id)
-        else:
-            role_rep = KEYCLOAK_ADMIN_CLIENT().get_realm_role(role_id)
 
-        if not role_rep:
-            return None
+    if is_valid_uuid(role_id):
+        role_rep = KEYCLOAK_ADMIN_CLIENT().get_realm_role_by_id(role_id)
+    else:
+        role_rep = KEYCLOAK_ADMIN_CLIENT().get_realm_role(role_id)
 
-        return role_rep
-
-    except Exception as e:
-        return None
+    return role_rep
 
 
+@raise_keycloak_error
 def get_realm_roles():
     """
     Returns the realm roles exluding the Keycloak default roles.
     """
+    roles = KEYCLOAK_ADMIN_CLIENT().get_realm_roles(brief_representation=True)
 
-    try:
-        roles = KEYCLOAK_ADMIN_CLIENT().get_realm_roles(brief_representation=True)
+    # Define a set of roles to exclude
+    roles_to_exclude = {
+        "offline_access",
+        "uma_authorization",
+        "create-realm",
+        "default-roles-master",
+    }
 
-        # Define a set of roles to exclude
-        roles_to_exclude = {
-            "offline_access",
-            "uma_authorization",
-            "create-realm",
-            "default-roles-master",
-        }
+    # Filter the roles, excluding those in the roles_to_exclude set
+    filtered_roles = [role for role in roles if role["name"] not in roles_to_exclude]
 
-        # Filter the roles, excluding those in the roles_to_exclude set
-        filtered_roles = [
-            role for role in roles if role["name"] not in roles_to_exclude
-        ]
-
-        return filtered_roles
-
-    except Exception as e:
-        raise Exception(str(e))
+    return filtered_roles
 
 
+@raise_keycloak_error
 def create_user_with_password(
     username,
     email,
@@ -526,43 +559,37 @@ def create_user_with_password(
     :param attributes: Additional attributes to add to the user
     :param emailVerified: Boolean to mark the verification state of the email
     :return: The ID of the created user, or None if creation failed
-
-    Raises:
-    - ValueError if the username or the email are not unique
-
     """
-    try:
-        # Initialize the Keycloak admin client
-        keycloak_admin = KEYCLOAK_ADMIN_CLIENT()
+    # Validate that an email matches the RegEx
+    validate_email(email=email)
 
-        # Validate that an email matches the RegEx
-        validate_email(email=email)
+    # Will raise ValueError if the username or email already exist.
+    email_username_unique(username=username, email=email)
 
-        # Will raise ValueError if the username or email already exist.
-        email_username_unique(username=username, email=email)
+    user_payload = {
+        "username": username,
+        "email": email,
+        "firstName": first_name,
+        "lastName": last_name,
+        "enabled": enabled,
+        "emailVerified": email_verified,
+        "attributes": attributes or {},
+    }
 
-        user_payload = {
-            "username": username,
-            "email": email,
-            "firstName": first_name,
-            "lastName": last_name,
-            "enabled": enabled,
-            "emailVerified": email_verified,
-            "attributes": attributes or {},
-        }
+    user_id = KEYCLOAK_ADMIN_CLIENT().create_user(payload=user_payload, exist_ok=False)
 
-        user_id = keycloak_admin.create_user(payload=user_payload, exist_ok=False)
+    if user_id:
+        KEYCLOAK_ADMIN_CLIENT().set_user_password(
+            user_id=user_id, password=password, temporary=temporary_password
+        )
 
-        if user_id:
-            keycloak_admin.set_user_password(
-                user_id=user_id, password=password, temporary=temporary_password
-            )
+    # Create the twin user in CKAN
+    create_ckan_user(username, user_id, email, first_name, last_name, password)
 
-        create_ckan_user(username, user_id, email, first_name, last_name, password)
+    # Sync the user default permission in QUAY
+    sync_registry_user(user_id, username, email, [])
 
-        return user_id
-    except KeycloakAuthenticationError as e:
-        raise InternalException("Keycloak authentication error") from e
+    return get_user(user_id)
 
 
 def create_ckan_user(username, user_id, email, first_name, last_name, password):
@@ -577,13 +604,26 @@ def create_ckan_user(username, user_id, email, first_name, last_name, password):
     try:
         obj = ckan_request("user_create", json=ckan_payload)
         logger.debug("CKAN Response: %s", obj)
-    except Exception as e:
-        logger.error("Error while calling ckan_request: %s", str(e), exc_info=True)
+    except Exception:
         KEYCLOAK_ADMIN_CLIENT().delete_user(user_id)
-        raise BackendError("Error while creating user") from e
+        raise
 
+    # Promote the user to sysadmin in CKAN
     query = 'UPDATE public."user" SET sysadmin = %s WHERE id = %s'
     execSql(query, (True, user_id))
+
+
+def sync_registry_user(username, user_id, email, roles):
+    try:
+        user = {
+            "oauth_id": user_id,
+            "username": username,
+            "email": email,
+            "groups": roles,
+        }
+        REGISTRY.sync_user_permissions(user)
+    except:
+        pass
 
 
 def delete_ckan_user(username):
@@ -647,44 +687,41 @@ def update_user(
     Raises:
     - ValueError: if the username or the email are not unique
     """
-    try:
-        # Prepare the update data dictionary with only the fields that are not None
-        user_data = {}
-        user_repr = get_user(user_id=user_id)
 
-        if user_repr["username"] == "admin":
-            return {"warning": "Modifications to administrator account are not allowed"}
+    # Prepare the update data dictionary with only the fields that are not None
+    user_data = {}
+    user_repr = get_user(user_id=user_id)
 
-        if first_name:
-            user_data["firstName"] = first_name
-        if last_name:
-            user_data["lastName"] = last_name
-        if email:
-            # Validate that an email matches the RegEx
-            validate_email(email=email)
-            # Will raise ValueError if email not unique for other users not the user being updated itself
-            if user_repr.get("email") != email:
-                email_unique(email=email)
+    if user_repr["username"] == "admin":
+        raise InvalidError("Modifications to administrator account are not allowed")
 
-            user_data["email"] = email
-        if enabled is not None:
-            user_data["enabled"] = enabled
+    if first_name:
+        user_data["firstName"] = first_name
+    if last_name:
+        user_data["lastName"] = last_name
+    if email:
+        # Validate that an email matches the RegEx
+        validate_email(email=email)
+        # Will raise ValueError if email not unique for other users not the user being updated itself
+        if user_repr.get("email") != email:
+            email_unique(email=email)
 
-        if email_verified is not None:
-            user_data["emailVerified"] = email_verified
+        user_data["email"] = email
+    if enabled is not None:
+        user_data["enabled"] = enabled
 
-        # Support both selecting user by UUID and by Username
-        if not is_valid_uuid(user_id):
-            user_id = KEYCLOAK_ADMIN_CLIENT().get_user_id(user_id)
+    if email_verified is not None:
+        user_data["emailVerified"] = email_verified
 
-        KEYCLOAK_ADMIN_CLIENT().update_user(user_id, user_data)
+    # Support both selecting user by UUID and by Username
+    if not is_valid_uuid(user_id):
+        user_id = KEYCLOAK_ADMIN_CLIENT().get_user_id(user_id)
 
-        updated_user_json = get_user(user_id=user_id)
+    KEYCLOAK_ADMIN_CLIENT().update_user(user_id, user_data)
 
-        return updated_user_json
+    updated_user_json = get_user(user_id=user_id)
 
-    except KeycloakAuthenticationError as e:
-        raise InternalException("Keycloak authentication error") from e
+    return updated_user_json
 
 
 def sync_users():
@@ -735,9 +772,9 @@ def sync_users():
             if username not in kc_users_map
         ]
 
-        logger.info("Users in Keycloak but not in CKAN: %s", keycloak_only)
-        logger.info("Users with mismatched IDs: %s", mismatched_ids)
-        logger.info("Users in CKAN but not in Keycloak: %s", ckan_only)
+        # logger.info("Users in Keycloak but not in CKAN: %s", keycloak_only)
+        # logger.info("Users with mismatched IDs: %s", mismatched_ids)
+        # logger.info("Users in CKAN but not in Keycloak: %s", ckan_only)
 
         # Create users in CKAN for those present in Keycloak but not in CKAN
         for user in keycloak_only:
@@ -778,9 +815,11 @@ def sync_users():
 
     except Exception as e:
         logger.error("Error while syncing users: %s", str(e), exc_info=True)
+        raise InternalException("Error while syncing users") from e
 
 
-def get_user(user_id=None):
+@raise_keycloak_error
+def get_user(user_id):
     """
     Retrieve a user from Keycloak by user ID.
     It also returns the roles
@@ -788,129 +827,97 @@ def get_user(user_id=None):
     :param user_id: The ID of the user to retrieve (str). If None, returns None.
     :return: A dictionary representation of the user if found, otherwise None.
     """
-    if not user_id or not isinstance(user_id, str):
-        return None
+    # Support both searching by UUID and by Username
+    if is_valid_uuid(user_id):
+        user_representation = KEYCLOAK_ADMIN_CLIENT().get_user(user_id)
+    else:
+        id = KEYCLOAK_ADMIN_CLIENT().get_user_id(user_id)
+        user_representation = KEYCLOAK_ADMIN_CLIENT().get_user(id)
 
-    try:
-        # Support both searching by UUID and by Username
-        if is_valid_uuid(user_id):
-            user_representation = KEYCLOAK_ADMIN_CLIENT().get_user(user_id)
-        else:
-            id = KEYCLOAK_ADMIN_CLIENT().get_user_id(user_id)
-            user_representation = KEYCLOAK_ADMIN_CLIENT().get_user(id)
+    if user_representation:
+        creation_date = convert_iat_to_date(user_representation["createdTimestamp"])
 
-        if user_representation:
-            creation_date = convert_iat_to_date(user_representation["createdTimestamp"])
+        filtered_roles = get_user_roles(user_representation["id"])
 
-            filtered_roles = get_user_roles(user_representation["id"])
+        active_status = user_representation.get("enabled", False)
+        email_verified = user_representation.get("emailVerified", False)
 
-            active_status = user_representation.get("enabled", False)
-            email_verified = user_representation.get("emailVerified", False)
+        user_info = {
+            "username": user_representation.get("username"),
+            "email": user_representation.get("email"),
+            "fullname": f"{user_representation.get('firstName', '')} {user_representation.get('lastName', '')}".strip(),
+            "first_name": user_representation.get("firstName"),
+            "last_name": user_representation.get("lastName"),
+            "joined_date": creation_date,
+            "id": user_representation.get("id"),
+            "roles": filtered_roles,
+            "active": active_status,
+            "email_verified": email_verified,
+        }
 
-            user_info = {
-                "username": user_representation.get("username"),
-                "email": user_representation.get("email"),
-                "fullname": f"{user_representation.get('firstName', '')} {user_representation.get('lastName', '')}".strip(),
-                "first_name": user_representation.get("firstName"),
-                "last_name": user_representation.get("lastName"),
-                "joined_date": creation_date,
-                "id": user_representation.get("id"),
-                "roles": filtered_roles,
-                "active": active_status,
-                "email_verified": email_verified,
-            }
-
-            return user_info
-        return None
-
-    except Exception as e:
-        logger.debug("Error while getting user: %s", str(e), exc_info=True)
-        return None
+        return user_info
+    return None
 
 
-def delete_user(user_id=None):
+@raise_keycloak_error
+def delete_user(user_id):
     """
     Delete a user from Keycloak by user UUID.
 
     :param user_id: The UUID of the user to delete (str). If None, returns None.
-    :return: The UUID of the deleted user.
-    :raises AttributeError: If the user is not found.
-
+    :return: A dictionary containing the UUID of the deleted user.
     """
-    if not user_id or not isinstance(user_id, str):
-        return None
+    # Support both UUID and username
+    if not is_valid_uuid(user_id):
+        id = KEYCLOAK_ADMIN_CLIENT().get_user_id(user_id)
+        user_id = KEYCLOAK_ADMIN_CLIENT().get_user(id)["id"]
 
-    try:
-        # Support both UUID andsername
-        if not is_valid_uuid(user_id):
-            id = KEYCLOAK_ADMIN_CLIENT().get_user_id(user_id)
-            user_id = KEYCLOAK_ADMIN_CLIENT().get_user(id)["id"]
-
-        KEYCLOAK_ADMIN_CLIENT().delete_user(user_id)
-        return user_id
-
-    except KeycloakGetError as e:
-        if e.response_code == 404:
-            raise AttributeError(f"User with ID '{user_id}' not found.") from e
-        else:
-            raise
-
-    except Exception as e:
-        raise
+    KEYCLOAK_ADMIN_CLIENT().delete_user(user_id)
+    return {"id": user_id}
 
 
+@raise_keycloak_error
 def get_users_from_keycloak(offset, limit):
     """
     Retrieves a list of users from Keycloak with pagination and additional user details.
 
     Args:
-        offset (int): The starting index for the users to retrieve (default is 0).
-        limit (int): The maximum number of users to retrieve (default is 50).
+        offset (int): The starting index for the users to retrieve.
+        limit (int): The maximum number of users to retrieve. Use 0 to retrieve all users starting from offset.
 
     Returns:
         A list of user dictionaries containing user details.
 
     Raises:
-        ValueError: If invalid values for offset or limit are provided.
-        RuntimeError: If there is an issue with the Keycloak connection or API interaction.
+        InvalidError: If invalid values for offset or limit are provided.
     """
-    try:
-        # Validate and adjust pagination values
-        if limit < 0 or offset < 0:
-            raise ValueError("Limit and offset must be greater than 0.")
+    if offset < 0 or limit < 0:
+        raise InvalidError("Limit and offset must be greater than 0.")
 
-        if limit == 0:
-            query = {"first": offset}
-        else:
-            query = {"first": offset, "max": limit}
+    query = {"first": offset} if limit == 0 else {"first": offset, "max": limit}
 
-        users = KEYCLOAK_ADMIN_CLIENT().get_users(query=query)
+    users = KEYCLOAK_ADMIN_CLIENT().get_users(query=query)
 
-        result = []
-        for user in users:
-            creation_date = convert_iat_to_date(user["createdTimestamp"])
-            filtered_roles = get_user_roles(user["id"])
+    result = []
+    for user in users:
+        creation_date = convert_iat_to_date(user["createdTimestamp"])
+        filtered_roles = get_user_roles(user["id"])
+        active_status = user.get("enabled", False)
 
-            active_status = user.get("enabled", False)
-            user_info = {
-                "username": user.get("username"),
-                "email": user.get("email"),
-                "fullname": f"{user.get('firstName', '')} {user.get('lastName', '')}".strip(),
-                "first_name": user.get("firstName"),
-                "last_name": user.get("lastName"),
-                "joined_date": creation_date,
-                "id": user.get("id"),
-                "roles": filtered_roles,
-                "active": active_status,
-            }
-            result.append(user_info)
+        user_info = {
+            "username": user.get("username"),
+            "email": user.get("email"),
+            "fullname": f"{user.get('firstName', '')} {user.get('lastName', '')}".strip(),
+            "first_name": user.get("firstName"),
+            "last_name": user.get("lastName"),
+            "joined_date": creation_date,
+            "id": user.get("id"),
+            "roles": filtered_roles,
+            "active": active_status,
+        }
+        result.append(user_info)
 
-        return result
-
-    except ValueError as ve:
-        raise ValueError(f"Invalid parameter: {str(ve)}")
-    except RuntimeError as re:
-        raise RuntimeError(f"Failed to fetch users from Keycloak: {str(re)}")
+    return result
 
 
 def fetch_user_creation_date(user_id):
@@ -930,6 +937,7 @@ def fetch_user_creation_date(user_id):
         return None
 
 
+@raise_keycloak_error
 def assign_role_to_user(user_id, role_id):
     """
     Assigns realm role to user.
@@ -941,33 +949,28 @@ def assign_role_to_user(user_id, role_id):
     Returns:
     - dict(): The updated user represantation containing the new role
     """
+    # Fetch the user representation
+    user_rep = get_user(user_id)
+    user_roles = get_user_roles(user_rep.get("id"))
+    # Fetch the role representation
+    role_rep = get_role(role_id)
 
-    try:
-        # Fetch the user representation
-        user_rep = get_user(user_id)
+    # Assign the role to the user if it is not already assigned
+    if role_rep["name"] not in user_roles:
+        KEYCLOAK_ADMIN_CLIENT().assign_realm_roles(user_rep["id"], [role_rep])
 
-        if not user_rep:
-            raise NotFoundError(f"User with ID: {user_id} was not found.")
-
-        user_roles = get_user_roles(user_rep.get("id"))
-
-        role_rep = get_role(role_id)
-        if not role_rep:
-            raise NotFoundError(f"Role with ID: {role_id} was not found")
-
-        # Assign the role to the user if it is not already assigned
-        if role_rep["name"] not in user_roles:
-            KEYCLOAK_ADMIN_CLIENT().assign_realm_roles(user_rep["id"], [role_rep])
-
-        return get_user(user_id)
-    except ValueError as ve:
-        raise ValueError(str(ve))
-    except AttributeError as ae:
-        raise AttributeError(str(ae))
-    except Exception as e:
-        pass
+    user_rep = get_user(user_id)
+    # We need to trigger the permissions sync for the registry.
+    sync_registry_user(
+        user_rep.get("username"),
+        user_rep.get("id"),
+        user_rep.get("email"),
+        user_rep.get("roles"),
+    )
+    return user_rep
 
 
+@raise_keycloak_error
 def assign_roles_to_user(user_id, role_ids):
     """
     Assign multiple realm roles to a user.
@@ -984,45 +987,36 @@ def assign_roles_to_user(user_id, role_ids):
     - AttributeError: If any role is already assigned to the user.
     """
     if not isinstance(role_ids, list):
-        raise ValueError("role_ids must be a list of role UUIDs or names.")
+        raise InvalidError("role_ids must be a list of role UUIDs or names.")
 
-    try:
+    # Fetch the user representation
+    user_rep = get_user(user_id)
+    user_roles = get_user_roles(user_rep.get("id"))
 
-        # Fetch the user representation
-        user_rep = get_user(user_id)
-        if not user_rep:
-            raise ValueError(f"User with ID: {user_id} was not found.")
+    # Fetch all roles representations
+    roles_to_assign = []
+    for role_id in role_ids:
+        role_rep = get_role(role_id)
+        # Check if the role is already assigned
+        if role_rep["name"] not in user_roles:
+            roles_to_assign.append(role_rep)
 
-        user_roles = get_user_roles(user_rep.get("id"))
+    # Assign roles to the user if there are new roles to assign
+    if roles_to_assign:
+        KEYCLOAK_ADMIN_CLIENT().assign_realm_roles(user_rep["id"], roles_to_assign)
 
-        # Fetch all roles representations
-        roles_to_assign = []
-        already_assigned_roles = []
-        for role_id in role_ids:
-            role_rep = get_role(role_id)
-            if not role_rep:
-                raise ValueError(f"Role with ID: {role_id} was not found.")
-
-            # Check if the role is already assigned
-            if role_rep["name"] not in user_roles:
-                roles_to_assign.append(role_rep)
-            else:
-                already_assigned_roles.append(role_rep["name"])
-
-        # Assign roles to the user if there are new roles to assign
-        if roles_to_assign:
-            KEYCLOAK_ADMIN_CLIENT().assign_realm_roles(user_rep["id"], roles_to_assign)
-
-        return get_user(user_id)
-
-    except ValueError as ve:
-        raise
-    except AttributeError as ae:
-        raise
-    except Exception as e:
-        raise
+    user_rep = get_user(user_id)
+    # We need to trigger the permissions sync for the registry.
+    sync_registry_user(
+        user_rep.get("username"),
+        user_rep.get("id"),
+        user_rep.get("email"),
+        user_rep.get("roles"),
+    )
+    return user_rep
 
 
+@raise_keycloak_error
 def patch_user_roles(user_id, role_ids):
     """
     Patch the roles of the user with new roles. Any roles not specified in the list will be removed.
@@ -1039,81 +1033,75 @@ def patch_user_roles(user_id, role_ids):
     - AttributeError: If any role is already assigned to the user.
     """
     if not isinstance(role_ids, list):
-        raise ValueError("role_ids must be a list of role UUIDs or names.")
+        raise InvalidError("role_ids must be a list of role UUIDs or names.")
 
-    try:
-        # Initialize Keycloak admin client
-        keycloak_admin = KEYCLOAK_ADMIN_CLIENT()
+    # Initialize Keycloak admin client
+    keycloak_admin = KEYCLOAK_ADMIN_CLIENT()
 
-        # Fetch the user representation
-        user_rep = get_user(user_id)
-        if not user_rep:
-            raise ValueError(f"User with ID: {user_id} was not found.")
+    # Fetch the user representation
+    user_rep = get_user(user_id)
 
-        # Fetch and validate roles
-        roles = []
-        for role in role_ids:
-            rep = get_role(role)
-            if rep is None:
-                raise ValueError(f"The following role was not found: {role}")
-            else:
-                roles.append(rep.get("name"))
+    # Fetch and validate roles
+    roles = []
+    for role in role_ids:
+        rep = get_role(role)
+        roles.append(rep.get("name"))
 
-        current_roles = keycloak_admin.get_realm_roles_of_user(user_rep.get("id"))
-        current_role_names = get_user_roles(user_rep.get("id"))
+    current_roles = keycloak_admin.get_realm_roles_of_user(user_rep.get("id"))
+    current_role_names = get_user_roles(user_rep.get("id"))
 
-        if roles is not None:
-            if not roles:
-                # No roles specified: Unassign all non-default roles
-                roles_to_remove = [
-                    role
-                    for role in current_roles
-                    if role["name"] != "default-roles-master"
-                ]
-                if roles_to_remove:
-                    keycloak_admin.delete_realm_roles_of_user(
-                        user_rep.get("id"), roles_to_remove
+    if roles is not None:
+        if not roles:
+            # No roles specified: Unassign all non-default roles
+            roles_to_remove = [
+                role for role in current_roles if role["name"] != "default-roles-master"
+            ]
+            if roles_to_remove:
+                keycloak_admin.delete_realm_roles_of_user(
+                    user_rep.get("id"), roles_to_remove
+                )
+                keycloak_admin.role
+        else:
+            # Unassign roles not in the request
+            roles_to_remove = [
+                role
+                for role in current_roles
+                if role["name"] not in roles and role["name"] != "default-roles-master"
+            ]
+            if roles_to_remove:
+                keycloak_admin.delete_realm_roles_of_user(
+                    user_rep.get("id"), roles_to_remove
+                )
+
+            # Assign new roles that are not already assigned
+            available_realm_roles = keycloak_admin.get_realm_roles()
+            roles_to_add = []
+            for role in roles:
+                if role not in current_role_names:
+                    role_info = next(
+                        (r for r in available_realm_roles if r["name"] == role),
+                        None,
                     )
-            else:
-                # Unassign roles not in the request
-                roles_to_remove = [
-                    role
-                    for role in current_roles
-                    if role["name"] not in roles
-                    and role["name"] != "default-roles-master"
-                ]
-                if roles_to_remove:
-                    keycloak_admin.delete_realm_roles_of_user(
-                        user_rep.get("id"), roles_to_remove
-                    )
+                    if role_info:
+                        roles_to_add.append(role_info)
+                    else:
+                        raise NotFoundError(f"Role '{role}' not found in realm roles")
 
-                # Assign new roles that are not already assigned
-                available_realm_roles = keycloak_admin.get_realm_roles()
-                roles_to_add = []
-                for role in roles:
-                    if role not in current_role_names:
-                        role_info = next(
-                            (r for r in available_realm_roles if r["name"] == role),
-                            None,
-                        )
-                        if role_info:
-                            roles_to_add.append(role_info)
-                        else:
-                            raise ValueError(f"Role '{role}' not found in realm roles")
+            if roles_to_add:
+                keycloak_admin.assign_realm_roles(user_rep.get("id"), roles_to_add)
 
-                if roles_to_add:
-                    keycloak_admin.assign_realm_roles(user_rep.get("id"), roles_to_add)
-
-        return get_user(user_id)
-
-    except ValueError as ve:
-        raise
-    except AttributeError as ae:
-        raise
-    except Exception as e:
-        raise
+    user_rep = get_user(user_id)
+    # We need to trigger the permissions sync for the registry.
+    sync_registry_user(
+        user_rep.get("username"),
+        user_rep.get("id"),
+        user_rep.get("email"),
+        user_rep.get("roles"),
+    )
+    return user_rep
 
 
+@raise_keycloak_error
 def unassign_role_from_user(user_id, role_id):
     """
     Unassigns a realm role from a user.
@@ -1125,44 +1113,35 @@ def unassign_role_from_user(user_id, role_id):
     Returns:
     - dict(): The updated user representation without the removed role.
     """
-    try:
-        # Fetch the user representation
-        user_rep = get_user(user_id)
-        if not user_rep:
-            raise ValueError(f"User with ID: {user_id} was not found.")
 
-        user_roles = get_user_roles(user_rep.get("id"))
+    # Fetch the user representation
+    user_rep = get_user(user_id)
+    user_roles = get_user_roles(user_rep.get("id"))
 
-        role_rep = get_role(role_id)
-        if not role_rep:
-            raise ValueError(f"Role with ID: {role_id} was not found.")
+    role_rep = get_role(role_id)
 
-        # Unassign the role if it is currently assigned to the user
-        if role_rep["name"] in user_roles:
-            KEYCLOAK_ADMIN_CLIENT().delete_realm_roles_of_user(
-                user_rep["id"], [role_rep]
-            )
-            return get_user(user_id)
-        else:
-            raise AttributeError(
-                f"Role with ID: {role_id} is not assigned to user with ID: {user_id}"
-            )
+    # Unassign the role if it is currently assigned to the user
+    if role_rep["name"] in user_roles:
+        KEYCLOAK_ADMIN_CLIENT().delete_realm_roles_of_user(user_rep["id"], [role_rep])
 
-    except ValueError as ve:
-        raise ValueError(str(ve))
-    except AttributeError as ae:
-        raise AttributeError(str(ae))
-    except Exception as e:
-        pass
+    user_rep = get_user(user_id)
+    # We need to trigger the permissions sync for the registry.
+    sync_registry_user(
+        user_rep.get("username"),
+        user_rep.get("id"),
+        user_rep.get("email"),
+        user_rep.get("roles"),
+    )
+    return user_rep
 
 
+@raise_keycloak_error
 def create_client_role(keycloak_admin, client_name, client_id, role_name):
-    print(client_id)
     keycloak_admin.create_client_role(client_id, {"name": role_name}, skip_exists=True)
-    print(f'Role "{role_name}" created successfully for client "{client_name}".')
     return role_name
 
 
+@raise_keycloak_error
 def create_realm_role(keycloak_admin, role_name):
     config = current_app.config["settings"]
     realm_role = {
@@ -1176,14 +1155,15 @@ def create_realm_role(keycloak_admin, role_name):
     return role_name
 
 
+@raise_keycloak_error
 def delete_realm_roles(keycloak_admin, roles_to_delete):
     # Delete the roles that are no longer needed
     for role in roles_to_delete:
-        print("realm role to delete: ", role)
         role_id = keycloak_admin.get_realm_role(role)["id"]
         keycloak_admin.delete_role_by_id(role_id)
 
 
+@raise_keycloak_error
 def delete_client_roles(keycloak_admin, client_roles_to_delete):
     for client_role in client_roles_to_delete:
         keycloak_admin.delete_client_role(

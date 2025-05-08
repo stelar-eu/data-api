@@ -316,6 +316,7 @@ CREATE TABLE IF NOT EXISTS klms.task_output
 ( task_uuid varchar(64) NOT NULL,
   order_num smallint,
   dataset_id text NOT NULL, 
+  output_name text NOT NULL,
   PRIMARY KEY (task_uuid, dataset_id),
   CONSTRAINT fk_task_output_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
   CONSTRAINT fk_task_output_dataset FOREIGN KEY(dataset_id) REFERENCES public.resource(id) ON UPDATE CASCADE ON DELETE CASCADE
