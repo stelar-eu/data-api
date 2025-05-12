@@ -16,7 +16,7 @@ import mutils
 
 from apiflask import APIBlueprint
 
-from exceptions import InvalidError
+from exceptions import ConflictError
 from flask import (
     current_app,
     flash,
@@ -334,6 +334,28 @@ def dataset_annotate(dataset_id):
         return render_template_with_s3(
             "annotator.html",
             dataset=metadata_data,
+            PARTNER_IMAGE_SRC=get_partner_logo(),
+        )
+    else:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+
+@dashboard_bp.route("/catalog/<dataset_id>/relationships")
+@session_required
+def dataset_relationships(dataset_id):
+
+    metadata_data = None
+    try:
+        metadata_data = cutils.get_package(id=dataset_id)
+    except ValueError as e:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+    except Exception as e:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+    if metadata_data:
+        return render_template_with_s3(
+            "relationships.html",
+            package=metadata_data,
             PARTNER_IMAGE_SRC=get_partner_logo(),
         )
     else:
@@ -672,7 +694,7 @@ def signup():
             )
 
         # We need to decide the user's new username based on what usernames are already present in the system.
-        username_base = re.sub(r"\d", "", email.split("@")[0])
+        username_base = re.sub(r"[\s\-\_\.]", "", email.split("@")[0])
         username = username_base
         counter = 0
         while True:
@@ -683,7 +705,7 @@ def signup():
                 # Check if the username is unique.
                 kutils.username_unique(username)
                 break
-            except InvalidError:
+            except ConflictError:
                 # If not unique, append a counter to the base username.
                 counter += 1
                 username = f"{username_base}{counter}"
