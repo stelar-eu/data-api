@@ -115,11 +115,13 @@
                 <div>
                   <div class="mb-1">
                     <label for="start-datetime" class="form-label">Start Time</label>
-                    <input type="datetime-local" id="start-datetime" class="form-control query-param" onchange="updateChart()">
+                    <input type="datetime-local" id="start-datetime" class="form-control query-param"
+                      onchange="updateChart()">
                   </div>
                   <div>
                     <label for="end-datetime" class="form-label">End Time</label>
-                    <input type="datetime-local" id="end-datetime" class="form-control query-param" onchange="updateChart()">
+                    <input type="datetime-local" id="end-datetime" class="form-control query-param"
+                      onchange="updateChart()">
                   </div>
                   <div class="mt-2" id="temporal-chart"></div>
                 </div>
@@ -183,10 +185,14 @@
               <ul class="pagination d-flex justify-content-end mb-5">
                 <span class="m-1 ms-auto me-2 h3">Sort By:</span>
                 <select name="result-sort" class="form-select w-25 h-25 query-param" id="result-sort">
-                  <option value="metadata_modified desc" {% if search_q.get('sort', 'metadata_modified desc') == 'metadata_modified desc' %}selected="selected"{% endif %}>Latest</option>
-                  <option value="metadata_modified asc" {% if search_q.get('sort') == 'metadata_modified asc' %}selected="selected"{% endif %}>Oldest</option>
-                  <option value="score desc" {% if search_q.get('sort') == 'score desc' %}selected="selected"{% endif %}>Most Relevant</option>
-                  <option value="name asc" {% if search_q.get('sort') == 'name asc' %}selected="selected"{% endif %}>Name A-Z</option>
+                  <option value="metadata_modified desc" {% if search_q.get('sort', 'metadata_modified desc'
+                    )=='metadata_modified desc' %}selected="selected" {% endif %}>Latest</option>
+                  <option value="metadata_modified asc" {% if search_q.get('sort')=='metadata_modified asc'
+                    %}selected="selected" {% endif %}>Oldest</option>
+                  <option value="score desc" {% if search_q.get('sort')=='score desc' %}selected="selected" {% endif %}>
+                    Most Relevant</option>
+                  <option value="name asc" {% if search_q.get('sort')=='name asc' %}selected="selected" {% endif %}>Name
+                    A-Z</option>
                 </select>
               </ul>
 
@@ -257,6 +263,13 @@
                 </div>
                 {% endfor %}
               </div>
+              <ul class="pagination d-flex justify-content-end mb-5">
+                <div class="text-secondary" id="pagination-info">
+                </div>
+                <div class="ms-auto" id="pagination-control">
+
+                </div>
+              </ul>
             </div>
           </div>
         </div>
@@ -368,54 +381,54 @@
                 </div>
                 <div class="modal-body">
                   <div class="row">
-                      <div class="mb-0">
-                        <label class="form-label">Title</label>
-                        <div class="row g-2">
-                          <div class="col">
-                            <input type="text" class="form-control" name="package-name-input"
-                              placeholder="Dataset Title" required>
-                          </div>
-                          <small class="form-hint">
-                            <p>
-                                A name in the format <code>the-new-dataset</code> (hyphens
-                                instead of spaces) will be generated for the dataset. The name of 
-                                the dataset is one the identifiers of it, therefore it must be unique.
-                            </p>
-                          </small>
+                    <div class="mb-0">
+                      <label class="form-label">Title</label>
+                      <div class="row g-2">
+                        <div class="col">
+                          <input type="text" class="form-control" name="package-name-input" placeholder="Dataset Title"
+                            required>
                         </div>
-                      </div>
-                      <div class="d-flex">
-                        <div class="text-secondary ms-auto justify-content-right" id="availability-div">
-                          <a onclick="checkNameAvailability()" class="text-sm p-2 cursor-pointer link-secondary"
-                            title="Check Title Availability" data-bs-toggle="tooltip" tabindex="-1">
-                            Check title availability
-                          </a>
-                        </div>
-                      </div>
-                      <div>
-                        <label class="form-label"><svg xmlns="http://www.w3.org/2000/svg" width="24"
-                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
-                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                <path d="M3 21l18 0" />
-                                <path d="M3 10l18 0" />
-                                <path d="M5 6l7 -3l7 3" />
-                                <path d="M4 10l0 11" />
-                                <path d="M20 10l0 11" />
-                                <path d="M8 14l0 3" />
-                                <path d="M12 14l0 3" />
-                                <path d="M16 14l0 3" />
-                            </svg>Owner Organization</label>
-                        <select class="form-select" id="owner-org" name="owner_org">
-
-                        </select>
                         <small class="form-hint">
-                            <p>
-                                Creating a new dataset in an organization requires you to have
-                                the permission to do so assigned by an administrator.
-                            </p>
+                          <p>
+                            A name in the format <code>the-new-dataset</code> (hyphens
+                            instead of spaces) will be generated for the dataset. The name of
+                            the dataset is one the identifiers of it, therefore it must be unique.
+                          </p>
                         </small>
+                      </div>
+                    </div>
+                    <div class="d-flex">
+                      <div class="text-secondary ms-auto justify-content-right" id="availability-div">
+                        <a onclick="checkNameAvailability()" class="text-sm p-2 cursor-pointer link-secondary"
+                          title="Check Title Availability" data-bs-toggle="tooltip" tabindex="-1">
+                          Check title availability
+                        </a>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="form-label"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
+                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                          <path d="M3 21l18 0" />
+                          <path d="M3 10l18 0" />
+                          <path d="M5 6l7 -3l7 3" />
+                          <path d="M4 10l0 11" />
+                          <path d="M20 10l0 11" />
+                          <path d="M8 14l0 3" />
+                          <path d="M12 14l0 3" />
+                          <path d="M16 14l0 3" />
+                        </svg>Owner Organization</label>
+                      <select class="form-select" id="owner-org" name="owner_org">
+
+                      </select>
+                      <small class="form-hint">
+                        <p>
+                          Creating a new dataset in an organization requires you to have
+                          the permission to do so assigned by an administrator.
+                        </p>
+                      </small>
                     </div>
                   </div>
                 </div>
@@ -618,8 +631,17 @@
     query = {
       "q": "",
       "sort": "{{ search_q.sort }}",
+      "fl": [
+        "id",
+        "title",
+        "notes",
+        "author",
+        "organization",
+        "tags",
+        "metadata_modified",
+      ],
       "fq": [],
-      "limit": 100,
+      "limit": 10,
       "offset": 0,
       "facet": {
         "fields": [
@@ -630,7 +652,6 @@
         ]
       }
     };
-
 
     function performSearch(query, rebuildFacets = true) {
       lockQueryParams();
@@ -650,9 +671,12 @@
                 $('#facet-format').empty();
                 buildFacets(response.result.facets);
               }
-              buildPackageCards(response.result.results);
+              buildPackageCards(response.result.results); // pass orgData if needed
               attachComparatorButtonListeners();
               renderSelectedComparators();
+            }
+            if (response.result.count !== undefined) {
+              buildPagination(response.result.count);
             }
           } else {
             console.error("Search failed:", response.message);
@@ -663,14 +687,58 @@
           console.error("AJAX request failed:", error);
         }
       });
-
     }
 
-    function lockQueryParams(){
+    function buildPagination(total) {
+      var currentPage = Math.floor(query.offset / query.limit) + 1;
+      var totalPages = Math.ceil(total / query.limit);
+      var paginationHtml = '';
+
+      // Previous button
+      if (currentPage > 1) {
+        paginationHtml += '<li class="page-item"><a class="page-link pagination-link" href="#" data-page="' + (currentPage - 1) + '"> prev </a></li>';
+      } else {
+        paginationHtml += '<li class="page-item disabled"><span class="page-link"> prev </span></li>';
+      }
+
+      // Page numbers
+      for (var i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+          paginationHtml += '<li class="page-item active"><span class="page-link">' + i + '</span></li>';
+        } else {
+          paginationHtml += '<li class="page-item"><a class="page-link pagination-link" href="#" data-page="' + i + '">' + i + '</a></li>';
+        }
+      }
+
+      // Next button
+      if (currentPage < totalPages) {
+        paginationHtml += '<li class="page-item"><a class="page-link pagination-link" href="#" data-page="' + (currentPage + 1) + '"> next </a></li>';
+      } else {
+        paginationHtml += '<li class="page-item disabled"><span class="page-link"> next </span></li>';
+      }
+
+      $('#pagination-control').html('<ul class="pagination mb-0">' + paginationHtml + '</ul>');
+
+      // Update pagination info e.g., "Showing 1 to 10 of 53 results"
+      var startResult = query.offset + 1;
+      var endResult = Math.min(query.offset + query.limit, total);
+      $('#pagination-info').html('<span class="h3">Showing ' + startResult + ' to ' + endResult + ' of ' + total + ' results</span>');
+
+      // Add click listeners for pagination links
+      $('.pagination-link').off('click').on('click', function (e) {
+        
+        var page = parseInt($(this).data('page'));
+        query.offset = (page - 1) * query.limit;
+        maskWithPlaceholders();
+        performSearch(query, false);
+      });
+    }
+
+    function lockQueryParams() {
       $('.query-param').prop('disabled', true);
     }
 
-    function unlockQueryParams(){
+    function unlockQueryParams() {
       $('.query-param').prop('disabled', false);
     }
 
@@ -767,22 +835,22 @@
           <div class="col-auto">
             <div class="card-body">
               <div class="avatar avatar-md bg-white mt-1">
-                ${pkg.organization && pkg.organization.image_url && pkg.organization.image_url !== ''
-          ? `<img src="${pkg.organization.image_url}" />`
+                ${orgs[pkg.organization] && orgs[pkg.organization].image_url && orgs[pkg.organization].image_url !== ''
+          ? `<img src="${orgs[pkg.organization].image_url}" />`
           : `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                              stroke-linejoin="round"
-                              class="text-secondary icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
-                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                              <path d="M3 21l18 0" />
-                              <path d="M3 10l18 0" />
-                              <path d="M5 6l7 -3l7 3" />
-                              <path d="M4 10l0 11" />
-                              <path d="M20 10l0 11" />
-                              <path d="M8 14l0 3" />
-                              <path d="M12 14l0 3" />
-                              <path d="M16 14l0 3" />
-                           </svg>`}
+                           fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                           stroke-linejoin="round"
+                           class="text-secondary icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
+                           <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                           <path d="M3 21l18 0" />
+                           <path d="M3 10l18 0" />
+                           <path d="M5 6l7 -3l7 3" />
+                           <path d="M4 10l0 11" />
+                           <path d="M20 10l0 11" />
+                           <path d="M8 14l0 3" />
+                           <path d="M12 14l0 3" />
+                           <path d="M16 14l0 3" />
+                         </svg>`}
               </div>
             </div>
           </div>
@@ -838,7 +906,7 @@
                         <path d="M12 14l0 3" />
                         <path d="M16 14l0 3" />
                       </svg>
-                      ${pkg.organization ? pkg.organization.title : ''}
+                      ${orgs[pkg.organization] ? orgs[pkg.organization].title : ''}
                     </div>
                     <div class="list-inline-item">
                       <svg xmlns="http://www.w3.org/2000/svg"
@@ -991,9 +1059,11 @@
         }
       }
     }
-
     $(document).ready(function () {
-      performSearch(query);
+      // Call fetchOrganizations and run performSearch only after its completion.
+      fetchOrganizations(function () {
+        performSearch(query);
+      });
     });
 
   </script>
@@ -1290,7 +1360,7 @@
       appendClearAllOption();
     }
 
-    function attachComparatorButtonListeners(){
+    function attachComparatorButtonListeners() {
       $('.comparator-btn').off('click');
       $('.comparator-btn').on('click', function () {
         var datasetId = $(this).data('dataset-id');
@@ -1327,7 +1397,7 @@
       });
     }
 
-    function renderSelectedComparators(){
+    function renderSelectedComparators() {
       var cookieValue = getCookie('compare_datasets');
       var selectedIds = cookieValue ? cookieValue.split(',') : [];
 
@@ -1358,8 +1428,6 @@
 
   <script>
     $(document).ready(function () {
-      fetchOrganizations();
-      
       const titleInput = $('input[name="package-name-input"]');
 
       titleInput.on('input', function () {
@@ -1418,29 +1486,35 @@
 
     });
 
-    function fetchOrganizations() {
+    function fetchOrganizations(callback) {
       $.ajax({
-          url: '{{ url_for("catalog_blueprint.api_fetch_organizations") }}',
-          method: 'GET',
-          dataType: 'json',
-          success: function (data) {
-              if (data.result.length > 0) {
-                  // Clear the placeholder cards
-                  $('#owner-org').empty();
-
-                  for (var i = 0; i < data.result.length; i++) {
-                      var org = data.result[i];
-                      $('#owner-org').append(`<option value="${org.name}">${org.title}  |  ${org.name}</option>`);
-                  }
-              }
-          },
-          error: function (xhr, status, error) {
-              if (xhr.status === 401) {
-                  window.location.href = '/';
-              }
+        url: '{{ url_for("catalog_blueprint.api_fetch_organizations") }}',
+        method: 'GET',
+        dataType: 'json',
+        success: function (data) {
+          // Clear the owner organization dropdown
+          $('#owner-org').empty();
+          window.orgs = window.orgs || {};
+          if (data.result.length > 0) {
+            for (var i = 0; i < data.result.length; i++) {
+              var org = data.result[i];
+              // Append the option element
+              $('#owner-org').append(`<option value="${org.name}">${org.title}  |  ${org.name}</option>`);
+              // Set organization keyed by its name
+              window.orgs[org.name] = org;
+            }
           }
-      })
-  }
+          if (callback && typeof callback === 'function') {
+            callback();
+          }
+        },
+        error: function (xhr, status, error) {
+          if (xhr.status === 401) {
+            window.location.href = '/';
+          }
+        }
+      });
+    }
 
     function slugifyTitle(title) {
       return title
