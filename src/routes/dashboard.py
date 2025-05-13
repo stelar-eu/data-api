@@ -259,28 +259,22 @@ def task(process_id, task_id):
 # -------------------------------------
 
 
-@dashboard_bp.route("/catalog", methods=["GET", "POST"])
-@dashboard_bp.route("/catalog/page/<page_number>", methods=["GET", "POST"])
+@dashboard_bp.route("/catalog", methods=["GET"])
 @dashboard_bp.doc(False)
 @session_required
-def catalog(page_number=None):
-    limit = 10
-    page_number = int(page_number) if page_number and page_number.isdigit() else 1
-    offset = limit * (page_number - 1) if page_number > 0 else 0
+def catalog():
+
+    # -------------- Handle search query ---------------
+    sort = request.args.get("sort")
+    search_q = {}
+    # Sort the results according to the user's latest option
+    search_q["sort"] = sort if sort else "metadata_modified desc"
 
     # Handle default GET request
-    packages = cutils.DATASET.fetch_entities(limit=limit, offset=offset)
-
-    count_pkg = cutils.count_packages("dataset")
-
-    total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
-
     return render_template_with_s3(
         "catalog.html",
+        search_q=search_q,
         tags=TAG.list_entities(limit=200, offset=0),
-        datasets=packages,
-        page_number=page_number,
-        total_pages=total_pages,
         PARTNER_IMAGE_SRC=get_partner_logo(),
     )
 
