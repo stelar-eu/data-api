@@ -368,30 +368,54 @@
                 </div>
                 <div class="modal-body">
                   <div class="row">
-                    <div class="col-lg-12">
-
-                      <div class="mb-3">
+                      <div class="mb-0">
                         <label class="form-label">Title</label>
                         <div class="row g-2">
                           <div class="col">
                             <input type="text" class="form-control" name="package-name-input"
                               placeholder="Dataset Title" required>
                           </div>
-                          <div class="col-auto align-self-center">
-                            <span class="form-help" data-bs-toggle="popover" data-bs-placement="top"
-                              data-bs-content="The dataset title <strong>must be unique</strong>. It serves as one of the unique identifiers of the dataset."
-                              data-bs-html="true">?</span>
-                          </div>
+                          <small class="form-hint">
+                            <p>
+                                A name in the format <code>the-new-dataset</code> (hyphens
+                                instead of spaces) will be generated for the dataset. The name of 
+                                the dataset is one the identifiers of it, therefore it must be unique.
+                            </p>
+                          </small>
                         </div>
                       </div>
                       <div class="d-flex">
-                        <div class="text-secondary text-start justify-content-left" id="availability-div">
+                        <div class="text-secondary ms-auto justify-content-right" id="availability-div">
                           <a onclick="checkNameAvailability()" class="text-sm p-2 cursor-pointer link-secondary"
                             title="Check Title Availability" data-bs-toggle="tooltip" tabindex="-1">
                             Check title availability
                           </a>
                         </div>
                       </div>
+                      <div>
+                        <label class="form-label"><svg xmlns="http://www.w3.org/2000/svg" width="24"
+                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M3 21l18 0" />
+                                <path d="M3 10l18 0" />
+                                <path d="M5 6l7 -3l7 3" />
+                                <path d="M4 10l0 11" />
+                                <path d="M20 10l0 11" />
+                                <path d="M8 14l0 3" />
+                                <path d="M12 14l0 3" />
+                                <path d="M16 14l0 3" />
+                            </svg>Owner Organization</label>
+                        <select class="form-select" id="owner-org" name="owner_org">
+
+                        </select>
+                        <small class="form-hint">
+                            <p>
+                                Creating a new dataset in an organization requires you to have
+                                the permission to do so assigned by an administrator.
+                            </p>
+                        </small>
                     </div>
                   </div>
                 </div>
@@ -418,7 +442,7 @@
                   </div>
                 </div>
                 <div class="modal-footer" id="new-dataset-modal-footer">
-                  <a class="cursor-pointer btn btn-primary ms-auto" id="publish-dataset-btn">
+                  <a class="cursor-pointer btn btn-primary ms-auto" id="publish-dataset-btn" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24"
                       stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -1269,7 +1293,6 @@
     function attachComparatorButtonListeners(){
       $('.comparator-btn').off('click');
       $('.comparator-btn').on('click', function () {
-        console.log("Comparator button clicked");
         var datasetId = $(this).data('dataset-id');
         if (!datasetId) {
           console.error("Dataset ID not found!");
@@ -1335,6 +1358,8 @@
 
   <script>
     $(document).ready(function () {
+      fetchOrganizations();
+      
       const titleInput = $('input[name="package-name-input"]');
 
       titleInput.on('input', function () {
@@ -1347,9 +1372,10 @@
         const title = $('input[name="package-name-input"]').val().trim();
         const notes = $('textarea[name="packageDescription"]').val().trim();
         const tags = $('#hiddenTagsInput').val().split(',').filter(tag => tag.trim() !== '');
+        const ownerOrg = $('#owner-org').val();
 
         if (!title || !notes || tags.length === 0) {
-          $('#new-dataset-modal-footer').prepend('<div class="alert alert-danger p-2 me-auto">Please fill in all fields</div>');
+          $('#new-dataset-modal-footer').prepend(createAlertElement('danger', 'Please fill in all fields.'));
           return;
         }
 
@@ -1358,12 +1384,11 @@
           title: title,
           notes: notes,
           tags: tags,
-          'owner_org': 'stelar-klms',
+          'owner_org': ownerOrg,
         };
 
-        $('#new-dataset-modal-footer .alert').remove()
-        const loader = '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
-        $("#new-dataset-modal-footer").prepend(loader)
+        $('#new-dataset-modal-footer .alert .stelar-loader').remove();
+        $("#new-dataset-modal-footer").prepend(createLoaderElement(false, false));
 
         $.ajax({
           url: `{{ url_for('catalog_blueprint.api_create_dataset') }} `,
@@ -1371,8 +1396,8 @@
           contentType: 'application/json',
           data: JSON.stringify(payload),
           success: function (response) {
-            $('#new-dataset-modal-footer .spinner-border').remove()
-            $('#new-dataset-modal-footer').prepend('<div class="alert alert-success p-2 me-auto">Dataset Published</div>');
+            $('#new-dataset-modal-footer .stelar-loader').remove();
+            $('#new-dataset-modal-footer').prepend(createAlertElement('success', 'Dataset Published Successfully'));
             setTimeout(function () {
               $('#new-dataset-modal-footer .alert').fadeOut(500, function () {
                 $(this).remove();
@@ -1380,8 +1405,8 @@
             }, 3000);
           },
           error: function (xhr) {
-            $('#new-dataset-modal-footer .spinner-border').remove()
-            $('#new-dataset-modal-footer').prepend('<div class="alert alert-danger p-2 me-auto">Dataset Failed to Publish</div>');
+            $('#new-dataset-modal-footer .stelar-loader').remove();
+            $('#new-dataset-modal-footer').prepend(createAlertElement('danger', 'Error publishing dataset.'));
             setTimeout(function () {
               $('#new-dataset-modal-footer .alert').fadeOut(500, function () {
                 $(this).remove();
@@ -1392,6 +1417,30 @@
       });
 
     });
+
+    function fetchOrganizations() {
+      $.ajax({
+          url: '{{ url_for("catalog_blueprint.api_fetch_organizations") }}',
+          method: 'GET',
+          dataType: 'json',
+          success: function (data) {
+              if (data.result.length > 0) {
+                  // Clear the placeholder cards
+                  $('#owner-org').empty();
+
+                  for (var i = 0; i < data.result.length; i++) {
+                      var org = data.result[i];
+                      $('#owner-org').append(`<option value="${org.name}">${org.title}  |  ${org.name}</option>`);
+                  }
+              }
+          },
+          error: function (xhr, status, error) {
+              if (xhr.status === 401) {
+                  window.location.href = '/';
+              }
+          }
+      })
+  }
 
     function slugifyTitle(title) {
       return title
