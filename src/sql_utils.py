@@ -73,9 +73,58 @@ def cast_dict(d):
 """
 
 
-##########################################################
+# ---------------------------------------------------------
+# Image Management
+# ---------------------------------------------------------
+def get_image_blob(image_id):
+    """
+    Returns the image blob stored in the database.
+    Args:
+        image_id: UUID of the image.
+    Returns:
+        A binary stream with the image blob.
+    """
+    sql = """SELECT image_data FROM klms.entity_images WHERE id = %s"""
+    resp = pgsql.execSql(sql, (image_id,))
+    if resp and len(resp) > 0:
+        # List should contain specification of a single image (unique UUID)
+        image_blob = resp[0]["image_data"]
+        return image_blob
+    else:
+        return None
+
+
+def insert_image_blob(image_id, image_blob, image_name=None):
+    """Inserts a new image blob into the database.
+
+    Args:
+        image_id: UUID of the image.
+        image_name: Name of the image.
+        image_blob: Binary data of the image.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+
+    # Execute the SQL command in the database
+    sql = """INSERT INTO klms.entity_images (id, name, image_data)
+             VALUES (%s, %s, %s)
+             ON CONFLICT (id)
+             DO UPDATE SET name = EXCLUDED.name, image_data = EXCLUDED.image_data"""
+
+    resp = pgsql.execSql(sql, (image_id, image_name, image_blob))
+    if "status" in resp:
+        if not resp.get("status"):
+            return False
+    else:
+        return False
+
+    return True
+
+
+# ---------------------------------------------------------
 ## Policy Management
-##########################################################
+# ---------------------------------------------------------
 def policy_version_create(
     policy_uuid, policy_familiar_name, active, yaml_content, user_id
 ) -> str:

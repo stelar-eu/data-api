@@ -200,55 +200,23 @@
                                         {{organization.title}}</a>
                                 </div>
                             </div>
-                            <div class="row row-deck row-cards">
+
+                            <div class="row row-deck row-cards" id="org-recent-datasets">
+                                {% for i in range(0,4) %}
                                 <div class="col-sm-6 col-lg-6">
-                                    <div class="card card-link" href="#">
+                                    <div class="card">
                                         <div class="card-body">
-
                                             <div>
-                                                <h3 class="m-0">Dataset 1</h3>
-                                                <small class="text-secondary">Description of dataset 1</small>
+                                                <h3 class="m-0 placeholder col-9">Dataset</h3>
+                                                <span class="text-secondary placeholder placeholder-xs col-12"></span>
+                                                <span
+                                                    class="text-secondary placeholder placeholder-xs col-12"></span><span
+                                                    class="text-secondary placeholder placeholder-xs col-12"></span>
                                             </div>
-
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-sm-6 col-lg-6">
-                                    <div class="card card-link" href="#">
-                                        <div class="card-body">
-
-                                            <div>
-                                                <h3 class="m-0">Dataset 1</h3>
-                                                <small class="text-secondary">Description of dataset 1</small>
-                                            </div>
-
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-sm-6 col-lg-6">
-                                    <div class="card card-link" href="#">
-                                        <div class="card-body">
-
-                                            <div>
-                                                <h3 class="m-0">Dataset 1</h3>
-                                                <small class="text-secondary">Description of dataset 1</small>
-                                            </div>
-
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-sm-6 col-lg-6">
-                                    <div class="card card-link" href="#">
-                                        <div class="card-body">
-
-                                            <div>
-                                                <h3 class="m-0">Dataset 1</h3>
-                                                <small class="text-secondary">Description of dataset 1</small>
-                                            </div>
-
-                                        </div>
-                                    </div>
-                                </div>
+                                {% endfor %}
                             </div>
 
                         </div>
@@ -370,5 +338,82 @@
         </div>
         {% include 'footer.html'%}
     </div>
-    </div>
+    <script>
+
+        function renderDatasetCard(dataset){
+            return `
+            <div class="col-sm-6 col-lg-6">
+                <a class="card card-link" href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}${dataset.id}" target="_blank">
+                    <div class="card-body">
+                        <div>
+                            <h3 class="m-0">${dataset.title}</h3>
+                            <div class="d-flex">
+                                <small class="text-secondary">${dataset.author}</small>
+                                <div class="ms-auto mt-3 badges">
+                                    ${dataset.tags && dataset.tags.length ? dataset.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>`;
+        }
+
+        function fetchOrganizationDatasets(){
+
+            q = {
+                "fl": [
+                    "id",
+                    "name",
+                    "title",
+                    "organization",
+                    "author",
+                    "tags"
+                ],
+                "limit": 4,
+                "sort": "metadata_modified desc",
+                "fq": [ 
+                    "owner_org:{{ organization.id }}",
+                ],
+                "facet":{
+                    "fields":[]
+                }
+            }
+
+            org_name = "{{ organization.name }}";
+
+            $.ajax({
+                url: "{{url_for('catalog_blueprint.api_search_datasets')}}",
+                type: "POST",
+                data: JSON.stringify(q),
+                contentType: "application/json",
+                success: function(response) {
+                    if(response.success){
+                        $('#org-recent-datasets').empty();
+
+                        if (response.result.count > 0) {
+                            const datasets = response.result.results;
+                            datasets.forEach(function(dataset) {
+                                if(dataset.organization != org_name){
+                                    return;
+                                }
+                                $('#org-recent-datasets').append(renderDatasetCard(dataset));
+                            });
+                        } else {
+                            $('#org-recent-datasets').append(`<p class="text-secondary">No recent datasets found for this organization</p>`);
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
+                }
+            });
+            
+
+        }
+
+        $(document).ready(function() {
+            fetchOrganizationDatasets();
+        });
+    </script>
 </body>

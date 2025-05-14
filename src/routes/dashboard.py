@@ -16,7 +16,7 @@ import mutils
 
 from apiflask import APIBlueprint
 
-from exceptions import InvalidError
+from exceptions import ConflictError
 from flask import (
     current_app,
     flash,
@@ -259,28 +259,22 @@ def task(process_id, task_id):
 # -------------------------------------
 
 
-@dashboard_bp.route("/catalog", methods=["GET", "POST"])
-@dashboard_bp.route("/catalog/page/<page_number>", methods=["GET", "POST"])
+@dashboard_bp.route("/catalog", methods=["GET"])
 @dashboard_bp.doc(False)
 @session_required
-def catalog(page_number=None):
-    limit = 10
-    page_number = int(page_number) if page_number and page_number.isdigit() else 1
-    offset = limit * (page_number - 1) if page_number > 0 else 0
+def catalog():
+
+    # -------------- Handle search query ---------------
+    sort = request.args.get("sort")
+    search_q = {}
+    # Sort the results according to the user's latest option
+    search_q["sort"] = sort if sort else "metadata_modified desc"
 
     # Handle default GET request
-    packages = cutils.DATASET.fetch_entities(limit=limit, offset=offset)
-
-    count_pkg = cutils.count_packages("dataset")
-
-    total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
-
     return render_template_with_s3(
         "catalog.html",
+        search_q=search_q,
         tags=TAG.list_entities(limit=200, offset=0),
-        datasets=packages,
-        page_number=page_number,
-        total_pages=total_pages,
         PARTNER_IMAGE_SRC=get_partner_logo(),
     )
 
@@ -334,6 +328,28 @@ def dataset_annotate(dataset_id):
         return render_template_with_s3(
             "annotator.html",
             dataset=metadata_data,
+            PARTNER_IMAGE_SRC=get_partner_logo(),
+        )
+    else:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+
+@dashboard_bp.route("/catalog/<dataset_id>/relationships")
+@session_required
+def dataset_relationships(dataset_id):
+
+    metadata_data = None
+    try:
+        metadata_data = cutils.get_package(id=dataset_id)
+    except ValueError as e:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+    except Exception as e:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+    if metadata_data:
+        return render_template_with_s3(
+            "relationships.html",
+            package=metadata_data,
             PARTNER_IMAGE_SRC=get_partner_logo(),
         )
     else:
@@ -481,15 +497,8 @@ def tool(tool_id):
 @dashboard_bp.route("/organizations")
 @session_required
 def organizations():
-    orgs = ORGANIZATION.fetch_entities(limit=100, offset=0)
-    for org in orgs:
-        org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
-        for member in org["members"][:5]:
-            user = kutils.get_user(member[0])
-            member.append(user.get("fullname", "STELAR User"))
-
     return render_template_with_s3(
-        "organizations.html", PARTNER_IMAGE_SRC=get_partner_logo(), organizations=orgs
+        "organizations.html", PARTNER_IMAGE_SRC=get_partner_logo()
     )
 
 
@@ -672,7 +681,7 @@ def signup():
             )
 
         # We need to decide the user's new username based on what usernames are already present in the system.
-        username_base = re.sub(r"\d", "", email.split("@")[0])
+        username_base = re.sub(r"[\s\-\_\.]", "", email.split("@")[0])
         username = username_base
         counter = 0
         while True:
@@ -683,7 +692,7 @@ def signup():
                 # Check if the username is unique.
                 kutils.username_unique(username)
                 break
-            except InvalidError:
+            except ConflictError:
                 # If not unique, append a counter to the base username.
                 counter += 1
                 username = f"{username_base}{counter}"

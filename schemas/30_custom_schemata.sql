@@ -84,6 +84,15 @@ END
 $$;
 
 
+----------------------------------------------
+--               ENTITY IMAGES 
+----------------------------------------------
+CREATE TABLE IF NOT EXISTS klms.entity_images (
+    id VARCHAR(64) PRIMARY KEY,
+    name TEXT,
+    image_data BYTEA
+);
+
 ---------------------------------------------
 --            2FA AUTHENTICATION
 ---------------------------------------------
@@ -116,6 +125,88 @@ BEGIN
     END IF;
 END;
 $$;
+
+---------------------------------------------
+--           AUTHORIZATION HELPERS
+---------------------------------------------
+
+
+CREATE OR REPLACE FUNCTION get_group_id(group_id TEXT) RETURNS text AS
+$$
+DECLARE
+    result text;
+BEGIN
+    SELECT "group".id INTO result
+    FROM "group"
+    WHERE (name = group_id OR "group".id = group_id)
+        AND state = 'active'
+    LIMIT 1;
+
+    RETURN result;
+END;
+$$
+LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION get_user_id(user_id TEXT) RETURNS text AS
+$$
+DECLARE
+    result text;
+BEGIN
+    SELECT id INTO result
+    FROM "user"
+    WHERE (name = user_id OR id = user_id)
+        AND state = 'active'
+    LIMIT 1;
+
+    RETURN result;
+END;
+$$
+LANGUAGE plpgsql;
+    
+
+CREATE OR REPLACE FUNCTION is_package_member(
+    id TEXT,
+    group_name TEXT,
+    capacity TEXT,
+    package_type TEXT
+) RETURNS BOOLEAN AS
+$$
+DECLARE
+    result BOOLEAN;
+BEGIN
+    SELECT TRUE INTO result
+    FROM member
+    INNER JOIN package ON package.id=member.table_id
+    WHERE get_group_id(group_name)=member.group_id
+        AND member.table_id = is_package_member.id
+        AND member.capacity = is_package_member.capacity
+        AND package.type = package_type;
+        
+    RETURN COALESCE(result, FALSE);
+END;
+$$
+LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION is_user_member(
+    id TEXT,
+    group_name TEXT,
+    capacity TEXT
+) RETURNS BOOLEAN AS
+$$
+DECLARE
+    result BOOLEAN;
+BEGIN
+    SELECT TRUE INTO result
+    FROM member
+    WHERE get_group_id(group_name) = member.group_id
+      AND get_user_id(is_user_member.id) = member.table_id
+      AND member.capacity = is_user_member.capacity;
+
+    RETURN COALESCE(result, FALSE);
+END;
+$$
+LANGUAGE plpgsql;
 
 
 ---------------------------------------------
