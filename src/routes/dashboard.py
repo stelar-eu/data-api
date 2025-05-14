@@ -497,15 +497,8 @@ def tool(tool_id):
 @dashboard_bp.route("/organizations")
 @session_required
 def organizations():
-    orgs = ORGANIZATION.fetch_entities(limit=100, offset=0)
-    for org in orgs:
-        org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
-        for member in org["members"][:5]:
-            user = kutils.get_user(member[0])
-            member.append(user.get("fullname", "STELAR User"))
-
     return render_template_with_s3(
-        "organizations.html", PARTNER_IMAGE_SRC=get_partner_logo(), organizations=orgs
+        "organizations.html", PARTNER_IMAGE_SRC=get_partner_logo()
     )
 
 

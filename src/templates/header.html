@@ -222,28 +222,29 @@
                             <span class="nav-link-title">Toolkit</span>
                         </a>
                     </li>
-                    {% if 'admin' in session.get('USER_ROLES', []) %}
                     <li
                         class="nav-item {% if url_for('dashboard_blueprint.organizations').endswith(request.path) %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.organizations') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    class="icon icon-tabler icons-tabler-outline icon-tabler-users-group">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="icon icon-tabler icon-tabler-building-bank" width="44" height="44"
+                                    viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"
+                                    stroke-linecap="round" stroke-linejoin="round">
                                     <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path d="M10 13a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
-                                    <path d="M8 21v-1a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v1" />
-                                    <path d="M15 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
-                                    <path d="M17 10h2a2 2 0 0 1 2 2v1" />
-                                    <path d="M5 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
-                                    <path d="M3 13v-1a2 2 0 0 1 2 -2h2" />
+                                    <path d="M3 21l18 0" />
+                                    <path d="M3 10l18 0" />
+                                    <path d="M5 6l7 -3l7 3" />
+                                    <path d="M4 10l0 11" />
+                                    <path d="M20 10l0 11" />
+                                    <path d="M8 14l0 3" />
+                                    <path d="M12 14l0 3" />
+                                    <path d="M16 14l0 3" />
                                 </svg>
                             </span>
-                            <span class="nav-link-title">Organizations & Groups</span>
+                            <span class="nav-link-title">Organizations</span>
                         </a>
                     </li>
-
+                    {% if 'admin' in session.get('USER_ROLES', []) %}
                     <li
                         class="nav-item {% if url_for('dashboard_blueprint.adminSettings').endswith(request.path) %}active{% endif %}">
                         <a class="nav-link" href="{{url_for('dashboard_blueprint.adminSettings')}}">
