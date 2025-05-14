@@ -1533,9 +1533,7 @@
       }
 
       titleInput.removeClass('is-valid is-invalid');
-
-      const loader = '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
-      $("#availability-div").append(loader)
+      $("#availability-div").prepend(createLoaderElement(true,true));
 
       $.ajax({
         url: `{{ url_for('catalog_blueprint.api_get_dataset', entity_id = '') }}${slugifyTitle(title)}`,

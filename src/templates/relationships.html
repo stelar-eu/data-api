@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>STELAR | Explore Relationships </title>
+    <!-- CSS files -->
+    {% include 'tabler.html' %}
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+    <script type="text/javascript" src="{{ url_for('static', filename='utils.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/graphology/0.25.4/graphology.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.32.0/cytoscape.min.js"></script>
+
+
+</head>
+
+<body>
+    <div class="page">
+        <!-- Navbar -->
+        {% include 'header.html' %}
+        <div class="page-wrapper">
+            <!-- Page header -->
+            <div class="page-header d-print-none">
+                <div class="container-xl">
+                    <div class="row g-2 align-items-center">
+                        <div class="col">
+                            <div class="page-pretitle">
+                                DATA CATALOG
+                            </div>
+                            <h3 class="page-title">
+                                <ol class="breadcrumb breadcrumb-arrows">
+                                    <li class="breadcrumb-item"><a class="text-secondary"
+                                            href="{{ url_for('dashboard_blueprint.catalog')}}">Data Catalog</a></li>
+                                    <li class="breadcrumb-item"><a class="text-secondary"
+                                            href="{{ url_for('dashboard_blueprint.dataset_detail', dataset_id=package.id) }}">
+                                            {{ package.title }}
+                                        </a></li>
+                                    <li class="breadcrumb-item active"><span class="text-strong">Explore
+                                            Relationships</span>
+                                    </li>
+                                </ol>
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="page-body">
+                <div class="container-xl">
+                    <div class="card" style="height: 100vh;">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-lg-4">
+                                    <h4 class="card-title">Manage Relationships</h4>
+                                    <p class="card-subtitle"> The relationships where the package participates as a
+                                        subject
+                                        or as object can be managed below.</p>
+                                    <div style="max-height: 60vh; overflow-y: auto;">
+                                        <table class="table" style="overflow: auto;">
+                                            <tbody id="relationships-as-subject">
+                                                <tr class="text-center">
+                                                    <td colspan="4" class="border-bottom-0">
+                                                        <div class="spinner-border spinner-border-sm m-6 text-secondary"
+                                                            style="width: 4rem; height: 4rem;"></div>
+                                                        <div class="text-muted">Please wait while we retrieve
+                                                            relationships</div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div style="max-height: 60vh; overflow-y: auto;">
+                                        <table class="table" style="overflow: auto;">
+                                            <tbody id="relationships-as-object">
+                                                <tr class="text-center">
+                                                    <td colspan="4" class="border-bottom-0">
+                                                        <div class="spinner-border spinner-border-sm m-6 text-secondary"
+                                                            style="width: 4rem; height: 4rem;"></div>
+                                                        <div class="text-muted">Please wait while we retrieve
+                                                            relationships</div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="col-lg-8">
+                                    <h4 class="card-title">Relationship Graph</h4>
+                                    <p class="card-subtitle">
+                                        The graph below illustrates the relationships between the package and other
+                                        packages.
+                                    </p>
+
+                                    <div id="cy-container" style="
+                                            width: 100%; 
+                                            height: 85vh; 
+                                            overflow: hidden;
+                                            background-color: #ffffff;
+                                            background-image: 
+                                                linear-gradient(to right, #f1f1f1 1px, transparent 1px),
+                                                linear-gradient(to bottom, #f1f1f1 1px, transparent 1px);
+                                            background-size: 10px 10px;
+                                            "></div>
+
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% include 'footer.html' %}
+    </div>
+    </div>
+
+    <script>
+
+        function fetchRelationships() {
+            $.ajax({
+                url: "{{ url_for('catalog_blueprint.api_get_relationships', subid=package.id) }}",
+                type: "GET",
+                dataType: "json",
+                success: function (data) {
+                    if (data.result.length > 0) {
+                        buildRelationshipTable(data.result);
+                        buildRelationshipGraph(data.result);
+                    } else {
+                        $('#minio-file-list').html('<tr><td colspan="4" class="text-center">No relationships found.</td></tr>');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("Error fetching relationships:", error);
+                    $('#minio-file-list').html('<tr><td colspan="4" class="text-center">Error fetching relationships.</td></tr>');
+                }
+            });
+
+        }
+
+        function buildRelationshipTable(relationships) {
+
+        }
+
+        function buildRelationshipGraph(relationships) {
+            const currentId = "{{ package.name }}";
+    
+            const typeColors = {
+                dataset: "#066fd3",
+                process: "#F59F00",
+                workflow: "#3e1e4b",
+                tool: "#780606"
+            };
+
+            const backgroundColors = {
+                dataset: "#E6F1FA",
+                process: "#FEF5E6",
+                workflow: "#F7ECFA",
+                tool: "#FBEBEB"
+            };
+    
+            const nodesMap = new Map();
+            const edges = [];
+    
+            relationships.forEach(rel => {
+                if (!nodesMap.has(rel.subject)) {
+                    nodesMap.set(rel.subject, {
+                        data: {
+                            id: rel.subject,
+                            label: rel.subject_name
+                        },
+                        style: {
+                            color: typeColors[rel.object_type] || 'blue',
+                            backgroundColor: backgroundColors[rel.subject_type] || 'blue',
+                            width: Math.max(100, rel.subject_name.length * 10),
+                            height: 20,
+                        }
+                    });
+                }
+    
+                if (!nodesMap.has(rel.object)) {
+                    nodesMap.set(rel.object, {
+                        data: {
+                            id: rel.object,
+                            label: rel.object_name
+                        },
+                        style: {
+                            color: typeColors[rel.object_type] || 'blue',
+                            backgroundColor: backgroundColors[rel.object_type] || 'blue',
+                            width: Math.max(100, rel.subject_name.length * 10),
+                            height: 20,
+                        }
+                    });
+                }
+    
+                const edge = {
+                    data: {
+                        id: `${rel.subject}_${rel.relationship}_${rel.object}`,
+                        source: rel.relationship === "has_derivation" ? rel.object : rel.subject,
+                        target: rel.relationship === "has_derivation" ? rel.subject : rel.object,
+                        label: rel.relationship
+                    }
+                };
+                edges.push(edge);
+            });
+    
+            const cy = cytoscape({
+                container: document.getElementById('cy-container'),
+                elements: [
+                    ...Array.from(nodesMap.values()),
+                    ...edges
+                ],
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'shape': 'round-rectangle',
+                            'label': 'data(label)',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'font-size': 15,
+                            'padding-left': '5px',
+                            'padding-right': '5px',
+                            'padding-top': '3px',
+                            'padding-bottom': '3px',
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'shape': 'round-rectangle',
+                            'width': 3,
+                            'line-color': '#ccc',
+                            'target-arrow-color': '#ccc',
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier',
+                            'label': 'data(label)',
+                            'text-background-shape': 'round-rectangle',
+                            'text-background-color': '#575757',
+                            'color': '#fff',
+                            'text-background-opacity': 0.7,
+                            'text-background-padding': 3,
+                            'font-size': 12,
+                        }
+                    }
+                ],
+                layout: {
+                    name: 'circle',
+                    animate: true,
+                    animationDuration: 1000,
+                    nodeDimensionsIncludeLabels: true,
+                    spacingFactor: 0.7,
+                }
+            });
+    
+            cy.on('tap', 'node', function(evt) {
+                const nodeId = evt.target.id();
+                const label = evt.target.data('label');
+                const urlTemplate = "{{ url_for('dashboard_blueprint.dataset_detail', dataset_id='__id__') }}";
+                const targetUrl = urlTemplate.replace('__id__', label);
+                window.open(targetUrl, '_blank');
+            });
+        }
+    
+        $(document).ready(function () {
+            fetchRelationships();
+        });
+
+    </script>
+
+</body>
+
+</html>
