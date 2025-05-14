@@ -1,17 +1,26 @@
 import logging
 import os
-
+import io
 from apiflask import APIBlueprint
-from flask import current_app, jsonify, make_response, request, session
+from flask import (
+    current_app,
+    jsonify,
+    make_response,
+    request,
+    session,
+    url_for,
+    send_file,
+)
 from routes.generic import render_api_output
 from backend.ckan import ckan_request
-import schema
 from minio import Minio
 from minio.error import S3Error
-
+from exceptions import NotFoundError
 import kutils
+import sql_utils
 import mutils as mu
 from auth import token_active
+from flask import Response
 
 """
     This .py file contains the endpoints attached to the blueprint
@@ -166,6 +175,84 @@ def autocomplete_datasets(limit, query):
     return ckan_request(
         "package_autocomplete", method="POST", json={"q": query, "limit": limit}
     )
+
+
+@publisher_bp.route("/image/<image_id>", methods=["GET", "POST"])
+@token_active
+def transact_image(image_id):
+    """
+    Endpoint to handle image transactions. Images are specific to entities
+    and are stored in PostgreSQL as BLOBs. The image_id is the UUID of the image.
+    If the request method is GET, the image is returned as a binary stream if it exists.
+    If the request method is POST, the image is updated with the provided binary data.
+    If the image already exists, it is replaced.
+    """
+    # Check if the request method is GET or POST
+    if request.method == "GET":
+        # Fetch the image from the database using the image_id
+        image_data = sql_utils.get_image_blob(image_id)
+        if image_data:
+            return send_file(
+                io.BytesIO(image_data), mimetype="image/png", as_attachment=False
+            )
+        else:
+            return make_response(
+                {
+                    "error": {
+                        "__type": "NotFoundError",
+                        "detail": {
+                            "entity": "image",
+                        },
+                        "message": "Not found",
+                        "status_code": 404,
+                    },
+                    "help": request.url,
+                    "success": False,
+                },
+                404,
+            )
+
+    elif request.method == "POST":
+
+        file = request.files.get("file")
+        if file.mimetype not in ["image/jpeg", "image/png"] or not file:
+            return make_response(
+                {
+                    "error": {
+                        "__type": "InvalidError",
+                        "detail": {
+                            "entity": "image",
+                        },
+                        "message": "Invalid or missing file type. Only JPEG and PNG are allowed.",
+                        "status_code": 400,
+                    },
+                    "help": request.url,
+                    "success": False,
+                },
+                400,
+            )
+
+        file.seek(0, os.SEEK_END)
+        file_length = file.tell()
+        file.seek(0)  # reset pointer
+        if file_length > 2 * 1024 * 1024:
+            return jsonify({"error": "File size exceeds 2MB limit."}), 400
+
+        image_data = file.read()
+
+        sql_utils.insert_image_blob(image_id, image_data)
+
+        return make_response(
+            {
+                "success": True,
+                "result": {
+                    "id": image_id,
+                    "url": f"{current_app.config['settings']['MAIN_EXT_URL']}{url_for('pub_blueprint.transact_image', image_id=image_id)}",
+                },
+                "message": "Image updated successfully.",
+            },
+            200,
+        )
 
 
 @publisher_bp.route("/upload_file", methods=["POST"])
