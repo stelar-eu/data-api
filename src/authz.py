@@ -97,7 +97,7 @@ def authorize(resource, entity, action):
         AuthorizationError if authorization fails.
     """
 
-    from authz_module import Resource, authorization
+    from authz_module import Resource, authorization, check_read_access_for_packages
 
     if not flask.has_request_context():
         return
@@ -116,8 +116,15 @@ def authorize(resource, entity, action):
             action = gaction
     else:
         raise InternalException(f"Illegal action passed: {action}")
+    
+    #grant access without authorization check for the following actions
+    if action in ["read_group", "read_organization", "read_vocabulary", "read_tag"]:
+        return
+    
+    if action in ["read_dataset", "read_workflow", "read_process", "read_tool"]:
+        return check_read_access_for_packages(resource,cu)
 
-    if not authorization(Resource(resource, entity), action):
+    if not authorization(Resource(resource["id"], entity), action):
         detail = {
             "entity": entity,
             "resource": resource,

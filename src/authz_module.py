@@ -31,7 +31,7 @@ import yaml
 from flask import g
 
 from data_module import DataModule
-from exceptions import APIException
+from exceptions import APIException, AuthorizationError
 import kutils as ku
 from backend.kc import KEYCLOAK_ADMIN_CLIENT
 import monitor_module as mon
@@ -832,6 +832,37 @@ def fetch_resource(resource) -> dict:
         return fetched
     else:
         return resource.payload
+    
+def check_read_access_for_packages(package,current_user) -> list:
+    """
+    Retrieve the list of accessible packages for the current user.
+
+    Args:
+        package (str): The package identifier.
+
+    Returns:
+        list: List of accessible packages.
+    """
+    if package is None:
+        return None
+
+    if package.get("private"):
+        logger.info("Package is private, checking access")
+        organization = package.get("owner_org")
+        
+        user_members = fetch_user_group_members(organization, True)
+        logger.info("User members: %s", user_members)
+        logger.info("Current user: %s", current_user["sub"])
+        for member in user_members:
+            if current_user["sub"] in member:
+                return True
+            
+        raise AuthorizationError(
+            message="Error: You do not have access to this package",
+        )
+    else:
+        logger.info("Package is public, access granted")
+        return True
 
 
 def check_access(user_roles, action, resource):

@@ -244,6 +244,14 @@ class EntitySearchQuery(PaginationParameters):
     )
     sort = String(required=False, example="title asc")
     facet = Nested(FacetSearchSpec, required=False)
+    include_private = Boolean(
+        required=False,
+        load_default=False,
+        example="false",
+        metadata={
+            "description": "Include private datasets in the search results.",
+        },
+    )
 
 
 class ResourceSearchQuery(PaginationParameters):

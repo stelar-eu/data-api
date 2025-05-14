@@ -51,6 +51,7 @@ def entity_search(
     facet: dict[str, Any] | None = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
+    include_private: bool = False,
 ) -> dict:
     """Search for entities of a given type.
 
@@ -128,6 +129,9 @@ def entity_search(
 
     if offset:
         params["start"] = offset
+    
+    if include_private:
+        params["include_private"] = include_private
 
     # Perform the search.
     result = ckan_request("package_search", json=params)
