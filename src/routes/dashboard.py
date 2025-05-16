@@ -13,7 +13,7 @@ import execution
 from urllib.parse import quote
 
 import mutils
-
+import time
 from apiflask import APIBlueprint
 
 from exceptions import ConflictError
@@ -106,13 +106,44 @@ def session_required(f):
         # Retrieve token from session
         access_token = session.get("access_token")
 
-        # If token doesn't exist or is invalid, clear session and redirect to login with a message
-        if not access_token or not kutils.is_token_active(access_token):
-            # Revoke refresh token to log out
+        current_time = int(time.time())
+        token_expired = (
+            session.get("token_expires", 0) < current_time - 120
+            or session.get("refresh_expires", 0) < current_time - 120
+        )
+        access_token = session.get("access_token")
+
+        # If token expired or inactive, attempt to refresh it atomically
+        if (
+            token_expired
+            or not access_token
+            or not kutils.is_token_active(access_token)
+        ):
             try:
-                kutils.KEYCLOAK_OPENID_CLIENT().logout(session["refresh_token"])
+                try:
+                    token = kutils.refresh_access_token(session.get("refresh_token"))
+                except Exception:
+                    if session.get("REMEMBER_ME") and "USER_PASSWORD" in session:
+                        # If refresh token is invalid, try to get a new access token using username and password
+                        # since the has requested to remember him during login
+                        token = kutils.get_token(
+                            session.get("USER_EMAIL"), session.get("USER_PASSWORD")
+                        )
+                session["access_token"] = token["access_token"]
+                session["refresh_token"] = token["refresh_token"]
+                session["token_expires"] = current_time + token["expires_in"]
+                session["refresh_expires"] = current_time + token["refresh_expires_in"]
+                logger.debug("Token refreshed successfully")
+                # Token refreshed, continue with the original request
+                return f(*args, **kwargs)
             except Exception as e:
-                logger.error(f"Error during logout: {e}")
+                logger.error(f"Error refreshing token: {e}")
+
+            try:
+                kutils.KEYCLOAK_OPENID_CLIENT().logout(session.get("refresh_token"))
+            except Exception as logout_e:
+                logger.error(f"Error during logout: {logout_e}")
+
             session.clear()
             flash("Session Expired, Please Login Again", "warning")
             return redirect(url_for("dashboard_blueprint.login", next=request.url))
@@ -798,6 +829,11 @@ def login():
     if request.method == "POST":
         email = request.form.get("email")
         password = request.form.get("password")
+        remember = (
+            request.form.get("remember") == "on"
+            if "remember" in request.form
+            else False
+        )
 
         # Basic validation
         if not email:
@@ -812,6 +848,10 @@ def login():
                 token = kutils.get_token(email, password)
                 session["access_token"] = token["access_token"]
                 session["refresh_token"] = token["refresh_token"]
+                session["token_expires"] = int(time.time()) + token["expires_in"]
+                session["refresh_expires"] = (
+                    int(time.time()) + token["refresh_expires_in"]
+                )
 
                 # Introspect the token to get user details
                 userinfo = kutils.get_user_by_token(token["access_token"])
@@ -823,6 +863,10 @@ def login():
                         "email_verified", False
                     )
                     session["USER_USERNAME"] = userinfo.get("preferred_username")
+
+                    if remember:
+                        session["USER_PASSWORD"] = password
+                    session["REMEMBER_ME"] = remember
                     session["AVATAR"] = get_avatar()
                     session["USER_ROLES"] = userinfo.get("realm_access", {}).get(
                         "roles", []
