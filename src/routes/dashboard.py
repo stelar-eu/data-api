@@ -8,8 +8,6 @@ import smtplib
 import ssl
 from datetime import datetime, timedelta
 from functools import wraps
-from math import ceil
-import execution
 from urllib.parse import quote
 
 import mutils
@@ -34,7 +32,6 @@ from tasks import TASK
 from tools import TOOL
 from cutils import TAG, ORGANIZATION, DATASET, RESOURCE
 from auth import admin_required
-import re
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
 
@@ -124,8 +121,8 @@ def session_required(f):
                     token = kutils.refresh_access_token(session.get("refresh_token"))
                 except Exception:
                     if session.get("REMEMBER_ME") and "USER_PASSWORD" in session:
-                        # If refresh token is invalid, try to get a new access token using username and password
-                        # since the has requested to remember him during login
+                        # If refresh token is invalid, try to get a new access token using username and
+                        # password since the has requested to remember him during login
                         token = kutils.get_token(
                             session.get("USER_EMAIL"), session.get("USER_PASSWORD")
                         )
