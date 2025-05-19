@@ -639,6 +639,7 @@
         "organization",
         "tags",
         "metadata_modified",
+        "capacity"
       ],
       "fq": [],
       "limit": 10,
@@ -726,7 +727,7 @@
 
       // Add click listeners for pagination links
       $('.pagination-link').off('click').on('click', function (e) {
-        
+
         var page = parseInt($(this).data('page'));
         query.offset = (page - 1) * query.limit;
         maskWithPlaceholders();
@@ -1533,7 +1534,7 @@
       }
 
       titleInput.removeClass('is-valid is-invalid');
-      $("#availability-div").prepend(createLoaderElement(true,true));
+      $("#availability-div").prepend(createLoaderElement(true, true));
 
       $.ajax({
         url: `{{ url_for('catalog_blueprint.api_get_dataset', entity_id = '') }}${slugifyTitle(title)}`,

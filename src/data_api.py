@@ -3,7 +3,6 @@
 # We need to configure logging as the first thing to do...
 #
 import logging
-
 import authz_module
 import logsys
 

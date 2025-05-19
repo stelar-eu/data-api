@@ -1086,47 +1086,19 @@ class PackageEntity(EntityWithExtras):
         if bbox is not None:
             if len(bbox) != 4:
                 raise DataError("bbox must have 4 numeric elements")
+            
+        fq = query_spec.get("fq", [])
+
+        # checks the accessible packages and returns the fq with the appropriate
+        # permission labels
+        fq = authz_module.check_accessible_packages(fq)
         
-        ##########################################################################
-        # logger.info("User is logged in")
-        # user_info = ku.current_user()
-        # fq = []
-        # fq_org_parts = []
-        # include_private = False
-        # logger.info("fq: %s", fq)
-        # organizations_of_user = ckan_request(
-        #     "organization_list")
-        # logger.info("Organizations of user: %s", organizations_of_user)
-        # logger.info("User info: %s", user_info["sub"])
-        # for org in organizations_of_user:
-        #     user_members = authz_module.fetch_user_group_members(org,True)
-        #     logger.info("User members: %s", user_members)
-        #     for member in user_members:
-        #         if user_info["sub"] in member:
-        #             # If the user is logged in, we can use the 'fq' parameter to filter
-        #             # the results by the user's organization.
-        #             fq_org_parts.append(f"organization:{org}")
-        #         else:
-        #             logger.info("User is not a member of the organization")
-        #             # fq = query_spec.get("fq", [])
-        ##########################################################################
-        # logger.info("fq: %s", fq)
-
-        # # Construct Solr `fq` string with ORs only between entries
-        # if fq_org_parts:
-        #     fq_query = "(" + " OR ".join(fq_org_parts) + ")"
-        #     fq.append(fq_query)
-        #     include_private = True
         
-
-        # logger.info("Final fq: %s", fq)
-
         result = entity_search(
             self.package_type,
             q=query_spec.get("q", None),
             bbox=bbox,
-            fq=query_spec.get("fq", []),
-            # fq=fq,
+            fq=fq,
             fl=fl,
             facet=query_spec.get("facet", None),
             sort=query_spec.get("sort", None),
@@ -1134,35 +1106,10 @@ class PackageEntity(EntityWithExtras):
             offset=offset,
             include_private=True,
         )
-        results_new = []
-        user_info = ku.current_user()
-        count = 0
-        for obj in result["results"]:
-            count = count + 1
-            is_private = obj.get("private", False)
-            if is_private is False:
-                results_new.append(self.load_from_ckan(obj))
-                # results_new.append(obj)
-                logger.info("PUBLIC PACKAGE")
-            else:
-                logger.info("PRIVATE PACKAGE")
-                org = obj.get("owner_org",None)
-                user_members = authz_module.fetch_user_group_members(org,True)
-                logger.info("User members: %s", user_members)
-                for member in user_members:
-                    if user_info["sub"] in member:
 
-                        results_new.append(self.load_from_ckan(obj))
-                        # results_new.append(obj)
-                    else:
-                        logger.info("User is not a member of the organization")
-                        # fq = query_spec.get("fq", [])
-        result["results"] = results_new
-        logger.info("COUNT: %s", count)
-        # If fl is None, return proper entity objects
-        # if fl is None:
-        #     new_results = [self.load_from_ckan(obj) for obj in result["results"]]
-        #     result["results"] = new_results
+        if fl is None:
+            new_results = [self.load_from_ckan(obj) for obj in result["results"]]
+            result["results"] = new_results
 
         return result
 
@@ -1261,7 +1208,7 @@ class PackageCKANSchema(EntityWithExtrasCKANSchema):
     notes = fields.String(allow_none=True)
     url = fields.String(allow_none=True)
     version = fields.String(allow_none=True)
-    organization = fields.Dict(allow_none=True)
+    organization = fields.Raw(allow_none=True)
 
     # ---- Licence stuff...
     # isopen = None
