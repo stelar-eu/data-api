@@ -1631,7 +1631,8 @@ def prepareZenodoMetadata(dataset, creator, creator_org, doi: None):
     # * open: Open Access
     # * embargoed: Embargoed Access
     # * restricted: Restricted Access
-    # * closed: Closed Access
+    # * closed: Closed Access\
+    license = None
     if not private:
         access_right = "open"
         license = license_title if license_title else None
