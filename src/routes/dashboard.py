@@ -294,11 +294,50 @@ def catalog():
 
     # -------------- Handle search query ---------------
     sort = request.args.get("sort")
+    tags = request.args.get("tags")
+    keyword = request.args.get("keywords")
+    res_format = request.args.get("res_format")
+    org = request.args.get("org")
+    author = request.args.get("author")
+    spatial = request.args.get("spatial")
+    temporal_end = request.args.get("temporal_end")
+    temporal_start = request.args.get("temporal_start")
+
     search_q = {}
     # Sort the results according to the user's latest option
     search_q["sort"] = sort if sort else "metadata_modified desc"
 
-    # Handle default GET request
+    # Search for datasets according to the user's search query
+    search_q["tags"] = tags if tags else None
+    search_q["keywords"] = keyword if keyword else None
+    search_q["res_format"] = res_format if res_format else None
+    search_q["org"] = org if org else None
+    search_q["author"] = author if author else None
+    search_q["spatial"] = spatial if spatial else None
+    search_q["temporal_end"] = (
+        datetime.strptime(temporal_end, "%Y-%m-%d") if temporal_end else None
+    )
+    search_q["temporal_start"] = (
+        datetime.strptime(temporal_start, "%Y-%m-%d") if temporal_start else None
+    )
+
+    fq_filters = []
+    # For fields except spatial, temporal_start, and temporal_end
+    for field in ["tags", "res_format", "org", "author"]:
+        value = search_q.get(field)
+        if value:
+            values = (
+                [v.strip() for v in value.split(",")]
+                if "," in value
+                else [value.strip()]
+            )
+            # Add a space after colon for "tags" to match frontend expectations if needed
+            if field == "tags":
+                fq_filters.append(f"{field}: (" + " OR ".join(values) + ")")
+            else:
+                fq_filters.append(f"{field}:(" + " OR ".join(values) + ")")
+
+    search_q["fq"] = fq_filters
     return render_template_with_s3(
         "catalog.html",
         search_q=search_q,

@@ -98,8 +98,10 @@
               style="position:absolute; top:100%; left:0; z-index:1001; display:none; width:100%;">
             </ul>
           </div>
-          <div class="badges-list mt-3 mb-0">
-            <span class="badge badge-lg badge-outline text-default">Default</span>
+          <div class="badges-list mt-3 mb-0" id="filter-list">
+          
+
+
           </div>
 
           <div class="row g-6 mt-3">
@@ -172,10 +174,10 @@
                 </div>
               </div>
               <div class="mt-5">
-                <button class="btn btn-primary w-100 query-param">
-                  Apply filters
+                <button class="btn btn-primary w-100 query-param" onclick="window.location.reload()">
+                Apply filters
                 </button>
-                <a href="#" class="btn btn-link w-100 query-param">
+                <a class="btn btn-link w-100 query-param" onclick="resetCheckedFilters()">
                   Reset to defaults
                 </a>
               </div>
@@ -627,7 +629,6 @@
 
   <!-- Search Script -->
   <script>
-
     query = {
       "q": "",
       "sort": "{{ search_q.sort }}",
@@ -640,7 +641,7 @@
         "tags",
         "metadata_modified",
       ],
-      "fq": [],
+      "fq": [{% for filter in search_q.fq %}"{{ filter }}"{% if not loop.last %}, {% endif %}{% endfor %}],
       "limit": 10,
       "offset": 0,
       "facet": {
@@ -669,7 +670,9 @@
                 $('#facet-author').empty();
                 $('#facet-organization').empty();
                 $('#facet-format').empty();
-                buildFacets(response.result.facets);
+                if (!window.facets || window.facets.length === 0) {
+                    buildFacets(response.result.facets);               
+                }
               }
               buildPackageCards(response.result.results); // pass orgData if needed
               attachComparatorButtonListeners();
@@ -726,7 +729,7 @@
 
       // Add click listeners for pagination links
       $('.pagination-link').off('click').on('click', function (e) {
-        
+
         var page = parseInt($(this).data('page'));
         query.offset = (page - 1) * query.limit;
         maskWithPlaceholders();
@@ -805,6 +808,89 @@
                     </div>
                   </div>
                 </div>`;
+    }
+
+
+    function removeFilterFromLocation(type, filter) {
+      var url = new URL(window.location);
+      var param;
+      if (type === "tags") {
+        param = "tags";
+      } else if (type === "res_format") {
+        param = "res_format";
+      } else if (type === "organization") {
+        param = "org";
+      } else if (type === "author") {
+        param = "author";
+      } else {
+        param = type;
+      }
+
+      var current = url.searchParams.get(param);
+      if (current) {
+        var filters = current.split(",");
+        var index = filters.indexOf(filter);
+        if (index !== -1) {
+          filters.splice(index, 1);
+          if (filters.length) {
+            url.searchParams.set(param, filters.join(","));
+          } else {
+            url.searchParams.delete(param);
+          }
+        }
+      }
+      window.history.pushState({}, "", url.toString());
+    }
+
+    function removeAllFiltersFromLocation() {
+      var url = new URL(window.location);
+      // Remove all related filters
+      url.searchParams.delete("tags");
+      url.searchParams.delete("res_format");
+      url.searchParams.delete("org"); // organization
+      url.searchParams.delete("author");
+      window.history.pushState({}, "", url.toString());
+      $('#filter-list').empty();
+    }
+
+    function appendFilterToLocation(type, filter) {
+      var url = new URL(window.location);
+      var param;
+      if (type === "tags") {
+        param = "tags";
+      } else if (type === "res_format") {
+        param = "res_format";
+      } else if (type === "organization") {
+        param = "org";
+      } else if (type === "author") {
+        param = "author";
+      } else {
+        param = type;
+      }
+      var current = url.searchParams.get(param);
+      if (current) {
+        var filters = current.split(",");
+        if (filters.indexOf(filter) === -1) {
+          filters.push(filter);
+          url.searchParams.set(param, filters.join(","));
+        }
+      } else {
+        url.searchParams.set(param, filter);
+      }
+      window.history.pushState({}, "", url.toString());
+    }
+
+    function appendFilterBadge(type, filter) {
+
+      var filterHtml = `<span class="badge bg-secondary text-white me-1" id="filter-${type}-${filter}">
+        ${filter}
+        <button type="button" class="btn-close btn-close-white btn-close-sm" aria-label="Close"></button>
+      </span>`;
+      $('#filter-list').append(filterHtml);
+    }
+
+    function removeFilterBadge(type, filter) {
+      $(`#filter-${type}-${filter}`).remove();
     }
 
     function maskWithPlaceholders() {
@@ -961,7 +1047,7 @@
       }
     }
 
-    function buildFacet(facet, count, field, display) {
+    function buildFacet(facet, count, value, display) {
       if (facet) {
         if (display) {
           return `<label class="form-check tag-item">
@@ -1008,15 +1094,40 @@
         </a>`;
     }
 
+    function resetCheckedFilters() {
+      $('#facet-tags input[type="checkbox"]').prop('checked', false);
+      $('#facet-author input[type="checkbox"]').prop('checked', false);
+      $('#facet-organization input[type="checkbox"]').prop('checked', false);
+      $('#facet-format input[type="checkbox"]').prop('checked', false);
+      removeAllFiltersFromLocation();
+    }
+
     function buildFacets(facets) {
       if (facets) {
+        // The facets are stored in the global variable
+        // so that way even if the query limits the number of results
+        // the entirety of facets are still available for the user to filter
+        window.facets = facets;
         for (const [key, value] of Object.entries(facets)) {
           if (key == "tags") {
             const entries = Object.entries(value);
             $("#facet-tags").html("");
             let i = 0;
             for (const [tag, count] of entries) {
-              $("#facet-tags").append(buildFacet(tag, count, key, i < 8));
+              var facetElement = $(buildFacet(tag, count, key, i < 8));
+              facetElement.find('input').on('change', function () {
+                var val = $(this).val();
+                if ($(this).is(':checked')) {
+                  console.log("tick: " + val);
+                  appendFilterBadge(key, val);
+                  appendFilterToLocation(key, val);
+                } else {
+                  console.log("untick: " + val);
+                  removeFilterBadge(key, val);
+                  removeFilterFromLocation(key, val);
+                }
+              });
+              $("#facet-tags").append(facetElement);
               i++;
             }
             if (entries.length > 8) {
@@ -1027,7 +1138,20 @@
             $("#facet-author").html("");
             let i = 0;
             for (const [author, count] of entries) {
-              $("#facet-author").append(buildFacet(author, count, key, i < 8));
+              var facetElement = $(buildFacet(author, count, key, i < 8));
+              facetElement.find('input').on('change', function () {
+                var val = $(this).val();
+                if ($(this).is(':checked')) {
+                  console.log("tick: " + val);
+                  appendFilterBadge(key, val);
+                  appendFilterToLocation(key, val);
+                } else {
+                  console.log("untick: " + val);
+                  removeFilterBadge(key, val);
+                  removeFilterFromLocation(key, val);
+                }
+              });
+              $("#facet-author").append(facetElement);
               i++;
             }
             if (entries.length > 8) {
@@ -1038,7 +1162,20 @@
             $("#facet-organization").html("");
             let i = 0;
             for (const [organization, count] of entries) {
-              $("#facet-organization").append(buildFacet(organization, count, key, i < 8));
+              var facetElement = $(buildFacet(organization, count, key, i < 8));
+              facetElement.find('input').on('change', function () {
+                var val = $(this).val();
+                if ($(this).is(':checked')) {
+                  console.log("tick: " + val);
+                  appendFilterBadge(key, val);
+                  appendFilterToLocation(key, val);
+                } else {
+                  console.log("untick: " + val);
+                  removeFilterBadge(key, val);
+                  removeFilterFromLocation(key, val);
+                }
+              });
+              $("#facet-organization").append(facetElement);
               i++;
             }
             if (entries.length > 8) {
@@ -1048,8 +1185,21 @@
             const entries = Object.entries(value);
             $("#facet-format").html("");
             let i = 0;
-            for (const [organization, count] of entries) {
-              $("#facet-format").append(buildFacet(organization, count, key, i < 8));
+            for (const [format, count] of entries) {
+              var facetElement = $(buildFacet(format, count, key, i < 8));
+              facetElement.find('input').on('change', function () {
+                var val = $(this).val();
+                if ($(this).is(':checked')) {
+                  console.log("tick: " + val);
+                  appendFilterBadge(key, val);
+                  appendFilterToLocation(key, val);
+                } else {
+                  console.log("untick: " + val);
+                  removeFilterBadge(key, val);
+                  removeFilterFromLocation(key, val);
+                }
+              });
+              $("#facet-format").append(facetElement);
               i++;
             }
             if (entries.length > 8) {
@@ -1533,7 +1683,7 @@
       }
 
       titleInput.removeClass('is-valid is-invalid');
-      $("#availability-div").prepend(createLoaderElement(true,true));
+      $("#availability-div").prepend(createLoaderElement(true, true));
 
       $.ajax({
         url: `{{ url_for('catalog_blueprint.api_get_dataset', entity_id = '') }}${slugifyTitle(title)}`,

@@ -47,6 +47,29 @@
                     {% elif dataset.get('type') == 'process' %}
                     <span class="badge bg-yellow-lt ms-2">PROCESS</span>
                     {% endif %}
+                    <span class="ms-2">
+                      {% if dataset.get('private') %}
+                      <span class="badge bg-danger-lt" title="Private to organization users"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                          stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-lock">
+                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                          <path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z" />
+                          <path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" />
+                          <path d="M8 11v-4a4 4 0 1 1 8 0v4" />
+                        </svg></span>
+                      {% else %}
+                        <span class="badge bg-success-lt" title="Public to all users">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                          stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-lock-open-2">
+                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                          <path d="M3 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z" />
+                          <path d="M9 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" />
+                          <path d="M13 11v-4a4 4 0 1 1 8 0v4" />
+                        </svg>
+                        </span>
+                      {% endif %}
+                    </span>
                   </li>
                 </ol>
               </h3>
@@ -65,23 +88,55 @@
                   </svg>
                   Explore Relationships
                 </a>
-                <form action="" method="POST" class="ms-auto">
-                  <input type="hidden" name="dataset_delete" value="{{ dataset.get('id') }}">
-                  <button type="submit" class="btn btn-danger ms-auto ">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                <div class="dropdown">
+                  <button class="btn" data-bs-toggle="dropdown"
+                    aria-label="Open Resource Menu">
+                    Actions
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                      fill="currentColor"
+                      class="m-0 icon icon-tabler icons-tabler-filled icon-tabler-caret-down">
                       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                      <path d="M4 7l16 0" />
-                      <path d="M10 11l0 6" />
-                      <path d="M14 11l0 6" />
-                      <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
-                      <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                      <path
+                        d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z" />
                     </svg>
-                    Delete
                   </button>
-                </form>
+                  <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow ">
+                    <a class="dropdown-item view-dataset-btn cursor-pointer" data-bs-toggle="modal"
+                      data-bs-target="#modal-edit-dataset">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-settings">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path
+                          d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" />
+                        <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+                      </svg>
+                      Manage</a>
+                    <div class="dropdown-divider"></div>
+                    <a del-dataset-id="{{ dataset.id }}"
+                      class="text-danger cursor-pointer dropdown-item del-dataset-btn">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M4 7l16 0" />
+                        <path d="M10 11l0 6" />
+                        <path d="M14 11l0 6" />
+                        <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+                        <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                      </svg>
+                      Delete</a>
+                  </div>
+                </div>
               </div>
+            </div>
+            <div class="col-lg-12">
+              <div class="text-secondary text-sm h5 m-0">
+                Created by: admin
+              </div>
+              
             </div>
 
           </div>
@@ -277,23 +332,6 @@
                       <path d="M10.01 17h.005" />
                     </svg>
                     Date Modified: <strong>{{ dataset.get('metadata_modified') | datetimeformat }}</strong>
-                  </div>
-                  <div class="mb-2">
-
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="44" height="44"
-                      viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
-                      stroke-linejoin="round">
-                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
-                      <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
-                    </svg>
-                    Visibility: <strong>
-                      {% if dataset.get('private') %}
-                      Private
-                      {% else %}
-                      Public
-                      {% endif %}
-                    </strong>
                   </div>
                 </div>
               </div>
@@ -683,6 +721,85 @@
           </div>
 
 
+          <div class="modal modal-blur fade" id="modal-edit-dataset" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Manage Package</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-control" name="view-resource-name" placeholder="Resource Name">
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <input type="text" class="form-control" name="view-resource-description"
+                      placeholder="Resource Description">
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">URL</label>
+                    <input type="text" class="form-control" name="view-resource-url" placeholder="Resource URL">
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Latest Action At</label>
+                    <input type="text" class="form-control" name="view-metadata-modified" disabled
+                      placeholder="Resource Latest Modified Time">
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Format
+                      <a id="update-format-reset" class="btn btn-sm b-0 m-1">Reset</a>
+                    </label>
+                    <div class="form-selectgroup" id="update-format-group">
+                      <label class="form-selectgroup-item">
+                        <input type="radio" name="format-sel" value="JSON" class="form-selectgroup-input">
+                        <span class="form-selectgroup-label">JSON</span>
+                      </label>
+                      <label class="form-selectgroup-item">
+                        <input type="radio" name="format-sel" value="CSV" class="form-selectgroup-input">
+                        <span class="form-selectgroup-label">CSV</span>
+                      </label>
+                      <label class="form-selectgroup-item">
+                        <input type="radio" name="format-sel" value="TXT" class="form-selectgroup-input">
+                        <span class="form-selectgroup-label">TXT</span>
+                      </label>
+                      <label class="form-selectgroup-item">
+                        <input type="radio" name="format-sel" value="PDF" class="form-selectgroup-input">
+                        <span class="form-selectgroup-label">PDF</span>
+                      </label>
+                      <label class="form-selectgroup-item">
+                        <input type="radio" name="format-sel" value="HTML" class="form-selectgroup-input">
+                        <span class="form-selectgroup-label">HTML</span>
+                      </label>
+                      <div class="form-group ms-1">
+                        <input type="text" id="update-custom-format" class="form-control" placeholder="Custom Format">
+                      </div>
+                    </div>
+                  </div>
+                  <label class="form-label">Copy this ID and use it to tool executions as input</label>
+                  <input type="text" class="form-control" id="resource-id-input" name="example-disabled-input"
+                    placeholder="Resource-ID" readonly>
+                </div>
+                <div class="modal-footer" id="update-modal-footer">
+                  <button type="button" class="btn btn-primary" onclick="copyText()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copy" width="44"
+                      height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#ffffff" fill="none"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path
+                        d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" />
+                      <path
+                        d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
+                    </svg>
+                    Copy ID</button>
+                  <button class="btn btn-success" id="update-resource-btn">Update Resource</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
         </div>
       </div>
       {% include 'footer.html'%}
@@ -771,12 +888,12 @@
       // Get the resource ID
       const resourceId = $('#resource-id-input').val();
       const resourceData = {
-          url: $('input[name="view-resource-url"]').val(),
-          name: $('input[name="view-resource-name"]').val(),
-          format: $('input[name="format-sel"]:checked').val() || $('#update-custom-format').val(),
-          description: $('input[name="view-resource-description"]').val()
+        url: $('input[name="view-resource-url"]').val(),
+        name: $('input[name="view-resource-name"]').val(),
+        format: $('input[name="format-sel"]:checked').val() || $('#update-custom-format').val(),
+        description: $('input[name="view-resource-description"]').val()
       };
-    
+
       $('#update-modal-footer').remove('.stelar-loader');
       $('#update-modal-footer').remove('.alert');
       $('#update-modal-footer').prepend(createLoaderElement());
@@ -791,7 +908,7 @@
           if (response.success) {
             const updatedResource = response.result;
             const tableRow = $(`#${updatedResource.id}`);
-            
+
             tableRow.find('td:nth-child(2) small').text(updatedResource.name);
             tableRow.find('td:nth-child(3) small').text(updatedResource.url);
             tableRow.find('td:nth-child(4)').text(updatedResource.format);
