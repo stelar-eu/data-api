@@ -46,6 +46,7 @@ from apiflask import Schema, fields, validators
 from marshmallow import EXCLUDE, SchemaOpts, missing, post_dump, pre_load
 from psycopg2 import sql
 
+import authz_module
 import schema
 from authz import authorize, generic_action
 from backend.ckan import ckan_request, filter_list_by_type
@@ -54,6 +55,7 @@ from context import entity_cache
 from exceptions import BackendLogicError, DataError, InternalException, NotFoundError
 from search import entity_search
 from tags import tag_object_to_string, tag_string_to_object
+import kutils as ku
 
 logger = logging.getLogger(__name__)
 
@@ -175,10 +177,10 @@ class Entity:
         """
 
         # TODO: This will change to harmonize with search and list/fetch
-        # obj = self.get_cached(eid)
-        # authorize(obj["id"], self.name, "read")
-        # return obj
-        return self.get(eid)
+        obj = self.get_cached(eid)
+        authorize(obj, self.name, "read")
+        return obj
+        # return self.get(eid)
 
     def get_cached(self, eid):
         """Get an entity by ID from the entity cache.
@@ -1084,20 +1086,27 @@ class PackageEntity(EntityWithExtras):
         if bbox is not None:
             if len(bbox) != 4:
                 raise DataError("bbox must have 4 numeric elements")
+            
+        fq = query_spec.get("fq", [])
 
+        # checks the accessible packages and returns the fq with the appropriate
+        # permission labels
+        fq = authz_module.check_accessible_packages(fq)
+        
+        
         result = entity_search(
             self.package_type,
             q=query_spec.get("q", None),
             bbox=bbox,
-            fq=query_spec.get("fq", []),
+            fq=fq,
             fl=fl,
             facet=query_spec.get("facet", None),
             sort=query_spec.get("sort", None),
             limit=limit,
             offset=offset,
+            include_private=True,
         )
 
-        # If fl is None, return proper entity objects
         if fl is None:
             new_results = [self.load_from_ckan(obj) for obj in result["results"]]
             result["results"] = new_results
@@ -1199,7 +1208,7 @@ class PackageCKANSchema(EntityWithExtrasCKANSchema):
     notes = fields.String(allow_none=True)
     url = fields.String(allow_none=True)
     version = fields.String(allow_none=True)
-    organization = fields.Dict(allow_none=True)
+    organization = fields.Raw(allow_none=True)
 
     # ---- Licence stuff...
     # isopen = None

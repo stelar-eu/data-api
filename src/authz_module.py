@@ -30,8 +30,9 @@ import uuid
 import yaml
 from flask import g
 
+
 from data_module import DataModule
-from exceptions import APIException
+from exceptions import APIException, AuthorizationError
 import kutils as ku
 from backend.kc import KEYCLOAK_ADMIN_CLIENT
 import monitor_module as mon
@@ -204,8 +205,9 @@ class ResourceSpecPermissionsType(AuthorizationModule):
     """
 
     def __init__(self):
+        self.keycloak_admin = KEYCLOAK_ADMIN_CLIENT()
         # No initialization parameters required.
-        pass
+
 
     def parse_resource_spec(self, spec):
         """
@@ -254,6 +256,11 @@ class ResourceSpecPermissionsType(AuthorizationModule):
         """
         global new_permissions
         logger.info("Creating resource_spec permissions")
+
+        # create a realm role in Keycloak if not already exists
+        ku.create_realm_role(
+            self.keycloak_admin, role_name
+        )
 
         # Normalize the action field to a list if it is not already.
         actions = perm["action"]
@@ -832,6 +839,83 @@ def fetch_resource(resource) -> dict:
         return fetched
     else:
         return resource.payload
+    
+def check_read_access_for_packages(package,current_user) -> list:
+    """
+    Checks if the requested package is accessible to the current user.
+    if the package is private, it checks if the user is a member of the organization.
+    if the package is public, it returns True.
+    Args:
+        package (str): The package identifier.
+
+    Returns:
+        bool: True if the package is accessible, otherwise False.
+    """
+    if package is None:
+        return None
+
+    if package.get("private"):
+        logger.info("Package is private, checking access")
+        organization = package.get("owner_org")
+        
+        user_members = fetch_user_group_members(organization, True)
+        logger.info("User members: %s", user_members)
+        logger.info("Current user: %s", current_user["sub"])
+        for member in user_members:
+            if current_user["sub"] in member:
+                return True
+            
+        raise AuthorizationError(
+            message="Error: You do not have access to this package",
+        )
+    else:
+        logger.info("Package is public, access granted")
+        return True
+    
+
+def check_accessible_packages(fq):
+    """
+    Checks the accessible packages from the user.
+    This function is used to filter the packages in the search.
+    Args:
+        fq (str): The filter query string.
+    Returns:
+        fq: The updated filter query string including the permission labels that solr should use to filter the packages.
+
+    """ 
+    from backend.ckan import ckan_request
+
+    logger.info("fq before: %s", fq)
+    fq = [f for f in fq if 'permission_labels' not in f]
+    logger.info("fq after: %s", fq)
+
+    fq_org_parts = []
+    user_info = ku.current_user()
+    organizations_of_user = ckan_request(
+        "organization_list",params="all_fields=true")
+    logger.info("Organizations of user: %s", organizations_of_user)
+    logger.info("User info: %s", user_info["sub"])
+    for org in organizations_of_user:
+        user_members = fetch_user_group_members(org["id"],True)
+        logger.info("User members: %s", user_members)
+        for member in user_members:
+            if user_info["sub"] in member:
+                # If the user is logged in, we can use the 'fq' parameter to filter
+                # the results by the user's organization.
+                fq_org_parts.append(f" member-{org['id']}")
+    
+    logger.info("fq_org_parts: %s", fq_org_parts)
+
+    # Construct Solr `fq` string with ORs only between entries
+    if fq_org_parts:
+        fq_query = "permission_labels:(capacity:public OR" + " OR ".join(fq_org_parts) + ")"
+        fq.append(fq_query)
+    else:
+        fq_query = "permission_labels:(capacity:public)"
+        fq.append(fq_query)
+    
+    return fq
+
 
 
 def check_access(user_roles, action, resource):
