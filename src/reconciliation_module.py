@@ -23,7 +23,7 @@ default_client_roles = {"consoleAdmin"}
 def update_roles_from_yaml(roles_list, existing_realm_roles):
 
     # Get the list of roles from the updated YAML file
-    updated_roles = {role["name"] for role in roles_list}
+    updated_roles = {role for role in roles_list}
     # print(updated_roles)
 
     # print(existing_roles_set)
