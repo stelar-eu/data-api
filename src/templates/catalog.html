@@ -640,7 +640,8 @@
         "organization",
         "tags",
         "metadata_modified",
-        "capacity"
+        "capacity",
+        "type"
       ],
       "fq": [{% for filter in search_q.fq %}"{{ filter }}"{% if not loop.last %}, {% endif %}{% endfor %}],
       "limit": 10,
@@ -917,7 +918,7 @@
     });
 
     function buildPackageCard(pkg) {
-      return `<div class="card card-link m-0 cursor-pointer disabled mb-3">
+      return `<div class="card card-link m-0 disabled mb-3">
         <div class="row g-0">
           <div class="col-auto">
             <div class="card-body">
@@ -954,6 +955,9 @@
             : pkg.type === 'process'
               ? '<span class="badge bg-yellow-lt ms-2">PROCESS</span>'
               : ''}
+                    <span class = "text-secondary h4 ms-2">
+                       ${pkg.capacity ? pkg.capacity.charAt(0).toUpperCase() + pkg.capacity.slice(1) : ''}
+                    </span>
                   </h3>
                   <p class="text-secondary mt-1">${pkg.notes || 'No description specified'}</p>
                 </div>
@@ -993,7 +997,9 @@
                         <path d="M12 14l0 3" />
                         <path d="M16 14l0 3" />
                       </svg>
-                      ${orgs[pkg.organization] ? orgs[pkg.organization].title : ''}
+                      <a class="text-secondary" target="_blank" href="{{ url_for('dashboard_blueprint.organization', organization_id='') }}${orgs[pkg.organization] ? orgs[pkg.organization].id : ''}">
+                        ${orgs[pkg.organization] ? orgs[pkg.organization].title : ''}
+                      </a>
                     </div>
                     <div class="list-inline-item">
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -1023,7 +1029,7 @@
                 </div>
                 <div class="col-md-auto">
                   <div class="mt-3 badges">
-                    ${pkg.tags && pkg.tags.length ? pkg.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') : ''}
+                    ${pkg.tags && pkg.tags.length ? pkg.tags.map(tag => `<a class="card-link text-black tag m-1 mb-0" href="{{ url_for('dashboard_blueprint.catalog') }}?sort=metadata_modified+desc&tags=${encodeURIComponent(tag)}">${tag}</a>`).join('') : ''}
                   </div>
                 </div>
               </div>
