@@ -15,14 +15,10 @@
   <div class="page page-center">
     <div class="py-3"></div>
     <div class="container container-tight py-6 mt-6">
-      <div class="text-center mb-4">
+      <div class="text-center mb-4 mt-6">
         <a href="{{ url_for('dashboard_blueprint.dashboard_index') }}" class="navbar-brand navbar-brand-autodark">
           <div class="d-flex align-items-center justify-content-center">
             <img src="{{ url_for('static', filename='logo.png') }}" width="200" alt="STELAR" class="me-3">
-            {% if PARTNER_IMAGE_SRC %}
-            <div class="vr" style="height: 150px; margin: 20px;"></div>
-            <img src="{{ PARTNER_IMAGE_SRC }}" width="110" alt="Partner Logo">
-            {% endif %}
           </div>
         </a>
       </div>

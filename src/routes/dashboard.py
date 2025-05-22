@@ -193,7 +193,6 @@ def processes():
 
     # Retrieve list of WFs from DB
     processes = PROCESS.fetch_entities(limit=50, offset=0)
-    logger.debug(processes)
 
     if processes is not None and processes != []:
         status_counts = {}
@@ -311,7 +310,7 @@ def catalog():
     search_q["tags"] = tags if tags else None
     search_q["keywords"] = keyword if keyword else None
     search_q["res_format"] = res_format if res_format else None
-    search_q["org"] = org if org else None
+    search_q["organization"] = org if org else None
     search_q["author"] = author if author else None
     search_q["spatial"] = spatial if spatial else None
     search_q["temporal_end"] = (
@@ -323,7 +322,7 @@ def catalog():
 
     fq_filters = []
     # For fields except spatial, temporal_start, and temporal_end
-    for field in ["tags", "res_format", "org", "author"]:
+    for field in ["tags", "res_format", "organization", "author"]:
         value = search_q.get(field)
         if value:
             values = (
