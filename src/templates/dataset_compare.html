@@ -39,7 +39,11 @@
                 different datasets based on various features and attributes.
                 This comparison helps in identifying the strengths and
                 weaknesses of each dataset, making it easier to choose the
-                most suitable one for your specific needs.
+                most suitable one for your specific needs. <strong>Comparative</strong> view
+                allows you to see the differences and similarities between
+                datasets side by side. <strong>Collective</strong> view allows you to see the
+                datasets as a whole, providing an overview of their spatial 
+                and temporal coverage.
               </p>
             </div>
           </div>
@@ -48,271 +52,492 @@
       <!-- Page body -->
       <div class="page-body">
         <div class="container-xl">
-          <div class="card">
-            <div class="table-responsive">
-              <table class="table table-vcenter table-bordered table-nowrap card-table">
-                <thead>
-                  <tr>
-                    <td class="w-1"></td>
-                    {% if datasets %} {% for dataset in datasets %}
-                    <td class="text-center">
-                      <div class="h2 text-wrap fw-bold mt-1 mb-0">
-                        <a href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id=dataset.get('id'))}}"
-                          target="_blank">{{dataset.get('title','Not specified')}}</a>
-                      </div>
-                      {% if 'Workflow' in dataset.get('tags') %}
-                      <span class="badge my-3 bg-purple-lt">WORKFLOW</span>
-                      {% else %}
-                      <span class="badge my-3 bg-blue-lt">DATASET</span>
-                      {% endif %}
-                      <br />
-                      <a href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id=dataset.get('id'))}}"
-                        target="_blank" class="btn w-100">Open Dataset</a>
-                    </td>
-                    {% endfor %} {% endif %}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr class="bg-light">
-                    <th colspan="{% if datasets %}{{ datasets|length + 1 }}{% endif %}" class="subheader">
-                      General Information
-                    </th>
-                  </tr>
 
-                  <tr>
-                    <td>ID</td>
-                    {% if datasets %} {% for dataset in datasets %}
-                    <td class="text-center">
-                      <div class="p text-wrap">
-                        {{dataset.get('id','Not specified')}}
-                        <button class="btn px-2 py-1 btn-secondary-outline btn-pill btn-sm"
-                          onclick="copyToClipboard(`{{dataset.get('id','Not specified')}}`)">
-                          Copy
-                        </button>
+            <div class="card">
+              <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs" role="tablist">
+                  <li class="nav-item" role="presentation">
+                    <a href="#tabs-comparative-1" class="nav-link h3 active" data-bs-toggle="tab" aria-selected="true"
+                      role="tab">Comparative View</a>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <a href="#tabs-collective-1" class="nav-link h3" data-bs-toggle="tab" aria-selected="false" role="tab"
+                      tabindex="-1">Collective View</a>
+                  </li>
+                </ul>
+              </div>
+              <div class="card-body p-0">
+                <div class="tab-content">
+                  <div class="tab-pane fade" id="tabs-collective-1" role="tabpanel">
+                    <div class="card-body">
+                      <div class="row">
+                        <div class="col-lg-2 col">
+                          <span class="h3">Spatial Coverage</span>
+                          <p class="text-secondary mt-4">
+                            The spatial coverage of a dataset refers to the geographic
+                            area that the dataset encompasses. It indicates the extent
+                            of the data in terms of location, which can be represented
+                            by coordinates, boundaries, or regions. 
+                          </p>
+                        </div>
+                        <div class="col-lg-10 col">
+                            <div id="collective-map" style="height: 25rem;">
+
+
+                            </div>
+                            <button onclick="toggleFullscreen('collective-map')" class="btn btn-secondary btn-sm mt-2">
+                              Fullscreen
+                            </button>
+        
+                        </div>
                       </div>
-                    </td>
-                    {% endfor %} {% endif %}
-                  </tr>
+                      
+                      <hr>
+                      <div class="row">
+                        <div class="col-lg-2 col">
+                          <span class="h3">Temporal Coverage</span>
+                          <p class="text-secondary mt-4">
+                            The temporal coverage of a dataset refers to the time period
+                            that the dataset spans. It indicates the start and end dates
+                            which can be important for understanding trends, changes, and patterns over time.
+                          </p>
+                        </div>
+                        <div class="col-lg-10 col">
+                            <div id="temporal-chart" style="height: 390px;"></div>
+                            <script>
+                              var seriesTemporal = [
+                              {% for dataset in datasets %}
+                                {% if dataset.extras.get('temporal_start') and dataset.extras.get('temporal_end') %}
+                                {
+                                  name: "{{ dataset.get('title','Not specified') }}",
+                                  data: [{
+                                  x: "{{ dataset.get('title','Not specified') }}",
+                                  y: [
+                                    new Date({{ dataset.extras.get('temporal_start') | safe }}).getTime(),
+                                    new Date({{ dataset.extras.get('temporal_end') | safe }}).getTime()
+                                  ]
+                                  }]
+                                },
+                                {% endif %}
+                              {% endfor %}
+                              ];
+                              
+                              var optionsTemporal = {
+                              series: seriesTemporal,
+                              chart: {
+                                height: 390,
+                                type: 'rangeBar',
+                                zoom: {
+                                enabled: true
+                                },
+                                toolbar: {
+                                show: true,
+                                tools: {
+                                  zoom: true,
+                                  zoomin: true,
+                                  zoomout: true,
+                                  pan: true,
+                                  reset: true
+                                },
+                                autoSelected: 'zoom'
+                                }
+                              },
+                              colors: ['#924699', '#6c9c56'],
+                              plotOptions: {
+                                bar: {
+                                horizontal: true,
+                                barHeight: '5%',
+                                isDumbbell: true,
+                                dumbbellColors: [['#924699', '#6c9c56']]
+                                }
+                              },
+                              legend: {
+                                show: true,
+                                position: 'top',
+                                horizontalAlign: 'left'
+                              },
+                              tooltip: {
+                                x: {
+                                  format: 'MMM yyyy'
+                                }
+                              },
+                              fill: {
+                                type: 'gradient',
+                                gradient: {
+                                gradientToColors: ['#6c9c56'],
+                                inverseColors: false,
+                                stops: [0, 100]
+                                }
+                              },
+                              grid: {
+                                xaxis: {
+                                lines: {
+                                  show: true
+                                }
+                                },
+                                yaxis: {
+                                lines: {
+                                  show: false
+                                }
+                                }
+                              },
+                              xaxis: {
+                                type: 'datetime'
+                              }
+                              };
+                    
+                              var chartTemporal = new ApexCharts(document.querySelector("#temporal-chart"), optionsTemporal);
+                              chartTemporal.render();
+                            </script>
+      
+                        </div>
+                      </div>  
+                    </div>
+
                   <script>
-                    function copyToClipboard(text) {
-                      navigator.clipboard.writeText(text).then(
-                        function () { },
-                        function (err) {
-                          console.error("Could not copy text: ", err);
+                    var map = L.map('collective-map').setView([39.0742, 21.8243], 5);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    }).addTo(map);
+                  
+                      {% if datasets %}
+                      {% for dataset in datasets %}
+                      {% if dataset.extras.get('spatial') %}
+                      var spatialCoverage = JSON.parse(`{{ dataset.extras.get('spatial') | safe }}`);
+                      const coordinates_{{ loop.index }} = spatialCoverage.coordinates[0].map(coord => [coord[1], coord[0]]);
+                        var colorChannels = [];
+                        for (var i = 0; i < 3; i++) {
+                        // Generate values between 0 and 155 to avoid very light colors
+                        var channel = Math.floor(Math.random() * 156);
+                        colorChannels.push(channel.toString(16).padStart(2, '0'));
                         }
-                      );
+                        var randomColor = '#' + colorChannels.join('');
+                      let drawnPolygon_{{ loop.index }} = L.polygon(coordinates_{{ loop.index }}, { color: randomColor, weight: 1 }).addTo(map);
+                      drawnPolygon_{{ loop.index }}.bindTooltip("{{ dataset.get('title','Not specified') }}", {direction: 'right'});
+                      {% endif %}
+                      {% endfor %}
+                      {% endif %}
+
+                    document.addEventListener('shown.bs.tab', (e) => {
+                    if (e.target.getAttribute('href') === '#tabs-collective-1') {
+                      map.invalidateSize();
+                    }
+                    });
+
+                    // Fullscreen functionality for the map
+                    function toggleFullscreen(mapId) {
+                    var elem = document.getElementById(mapId);
+                    if (!document.fullscreenElement) {
+                      if (elem.requestFullscreen) {
+                      elem.requestFullscreen();
+                      } else if (elem.mozRequestFullScreen) {
+                      elem.mozRequestFullScreen();
+                      } else if (elem.webkitRequestFullscreen) {
+                      elem.webkitRequestFullscreen();
+                      } else if (elem.msRequestFullscreen) {
+                      elem.msRequestFullscreen();
+                      }
+                    } else {
+                      if (document.exitFullscreen) {
+                      document.exitFullscreen();
+                      } else if (document.mozCancelFullScreen) {
+                      document.mozCancelFullScreen();
+                      } else if (document.webkitExitFullscreen) {
+                      document.webkitExitFullscreen();
+                      } else if (document.msExitFullscreen) {
+                      document.msExitFullscreen();
+                      }
+                    }
                     }
                   </script>
-                  <tr>
-                    <td>Title</td>
-                    {% if datasets %} {% for dataset in datasets %}
-                    <td class="text-center">
-                      <div class="p text-wrap">
-                        {{dataset.get('title','Not specified')}}
-                      </div>
-                    </td>
-                    {% endfor %} {% endif %}
-                  </tr>
-                  <tr>
-                    <td>Organization</td>
-                    {% if datasets %} {% for dataset in datasets %}
-                    <td class="text-center fw-bold">
-                      <div class="p text-wrap">
-                        {{dataset.organization.title}}
-                      </div>
-                    </td>
-                    {% endfor %} {% endif %}
-                  </tr>
+                  </div>
+                  
 
-                  <tr>
-                    <td>Creator</td>
-                    {% if datasets %} {% for dataset in datasets %}
-                    <td class="text-center fw-bold">
-                      <div class="p text-wrap">
-                        {{dataset.get('author','Not specified')}}
+                  <div class="tab-pane fade active show" id="tabs-comparative-1" role="tabpanel">
+                    <div>
+                      <div class="table-responsive">
+                        <table class="table table-vcenter table-bordered table-nowrap card-table">
+                          <thead>
+                            <tr>
+                              <td class="w-1"></td>
+                              {% if datasets %} {% for dataset in datasets %}
+                              <td class="text-center">
+                                <div class="h2 text-wrap fw-bold mt-1 mb-0">
+                                  <a href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id=dataset.get('id'))}}"
+                                    target="_blank">{{dataset.get('title','Not specified')}}</a>
+                                </div>
+                                {% if 'Workflow' in dataset.get('tags') %}
+                                <span class="badge my-3 bg-purple-lt">WORKFLOW</span>
+                                {% else %}
+                                <span class="badge my-3 bg-blue-lt">DATASET</span>
+                                {% endif %}
+                                <br />
+                                <a href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id=dataset.get('id'))}}"
+                                  target="_blank" class="btn w-100">Open Dataset</a>
+                              </td>
+                              {% endfor %} {% endif %}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr class="bg-light">
+                              <th colspan="{% if datasets %}{{ datasets|length + 1 }}{% endif %}" class="subheader">
+                                General Information
+                              </th>
+                            </tr>
+
+                            <tr>
+                              <td>ID</td>
+                              {% if datasets %}
+                              {% for dataset in datasets %}
+                                {% set ds_id = dataset.get('id') %}
+                                <td class="text-center">
+                                  <div class="p text-wrap">
+                                    <span id="dataset-id-{{ ds_id }}"><code>{{ ds_id or 'Not specified' }}</code></span>
+                                    <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
+                                      navigator.clipboard.writeText(document.getElementById('dataset-id-{{ ds_id }}').innerText);
+                                      var el = document.getElementById('dataset-id-{{ ds_id }}');
+                                      el.classList.remove('glowing-text');
+                                      void el.offsetWidth; // trigger reflow to restart animation
+                                      el.classList.add('glowing-text');">
+                                      COPY
+                                    </button>
+                                  </div>
+                                </td>
+                              {% endfor %}
+                              {% endif %}
+                            </tr>
+                            <tr>
+                              <td>Name</td>
+                              {% if datasets %}
+                              {% for dataset in datasets %}
+                                {% set ds_title = dataset.get('name', 'Not specified') %}
+                                <td class="text-center">
+                                  <div class="p text-wrap">
+                                    <span id="dataset-title-{{ dataset.get('id') }}"><code>{{ ds_title }}</code></span>
+                                    <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
+                                      navigator.clipboard.writeText(document.getElementById('dataset-title-{{ dataset.get('id') }}').innerText);
+                                      var el = document.getElementById('dataset-title-{{ dataset.get('id') }}');
+                                      el.classList.remove('glowing-text');
+                                      void el.offsetWidth; // trigger reflow to restart animation
+                                      el.classList.add('glowing-text');">
+                                      COPY
+                                    </button>
+                                  </div>
+                                </td>
+                              {% endfor %}
+                              {% endif %}
+                            </tr>
+                            <tr>
+                              <td>Organization</td>
+                              {% if datasets %} {% for dataset in datasets %}
+                              <td class="text-center fw-bold">
+                                <div class="p text-wrap">
+                                  <a href="{{ url_for('dashboard_blueprint.organization', organization_id=dataset.organization.id) }}" target="_blank">
+                                    {{ dataset.organization.title }}
+                                  </a>
+                                </div>
+                              </td>
+                              {% endfor %} {% endif %}
+                            </tr>
+
+                            <tr>
+                              <td>Creator</td>
+                              {% if datasets %} {% for dataset in datasets %}
+                              <td class="text-center fw-bold">
+                                <div class="p text-wrap">
+                                  {{dataset.get('author','Not specified')}}
+                                </div>
+                              </td>
+                              {% endfor %} {% endif %}
+                            </tr>
+                            <tr>
+                              <td>Visibility</td>
+                              {% if datasets %} {% for dataset in datasets %}
+                              <td class="text-center">
+                                {% if dataset.get('private') %}
+                                <span class="badge my-3 bg-success-lt">PUBLIC</span>
+                                {% else %}
+                                <span class="badge my-3 bg-danger-lt">PRIVATE</span>
+                                {% endif %}
+                              </td>
+                              {% endfor %} {% endif %}
+                            </tr>
+                            <tr>
+                              <td>Description</td>
+                              {% if datasets %} {% for dataset in datasets %}
+                              <td class="text-left w-25">
+                                <div class="p text-wrap small">
+                                  <em>{{dataset.get('notes','Not specified')}}</em>
+                                </div>
+                              </td>
+                              {% endfor %} {% endif %}
+                            </tr>
+                            <tr>
+                              <td>Tags</td>
+                              {% if datasets %} {% set tag_counts = {} %} {% for dataset
+                              in datasets %} {% for tag in dataset.get('tags') %} {% set
+                              tag_name = tag.get('display_name') %} {% set tag_counts =
+                              tag_counts.update({tag_name: tag_counts.get(tag_name, 0) +
+                              1}) or tag_counts %} {% endfor %} {% endfor %} {% set
+                              colors = ['text-blue', 'text-green', 'text-danger',
+                              'text-yellow', 'text-primary', 'text-pink', 'text-orange']
+                              %} {% set all_tags = {} %} {% for tag, count in
+                              tag_counts.items() %} {% if count > 1 %} {% set all_tags =
+                              all_tags.update({tag: colors[loop.index0 %
+                              colors|length]}) or all_tags %} {% endif %} {% endfor %}
+                              {% for dataset in datasets %}
+                              <td class="text-center">
+                                {% for tag in dataset.get('tags') %} {% set tag_name =
+                                tag.get('display_name') %}
+                                <span class="tag m-1 mb-0 {{ all_tags.get(tag_name, '') }}">{{ tag_name }}</span><br />
+                                {% endfor %}
+                              </td>
+                              {% endfor %} {% endif %}
+                            </tr>
+                            <tr class="bg-light">
+                              <th colspan="{% if datasets %}{{ datasets|length + 1 }}{% endif %}" class="subheader">
+                                Resources
+                              </th>
+                            </tr>
+                            <tr>
+                              <td>Formats</td>
+                              {% if datasets %} {% for dataset in datasets %}
+                              <td></td>
+                              {% endfor %} {% endif %}
+                            </tr>
+                            <tr>
+                              <td>Relations</td>
+                              {% if datasets %} {% for dataset in datasets %}
+                              <td></td>
+                              {% endfor %} {% endif %}
+                            </tr>
+                            <tr class="bg-light">
+                              <th colspan="{% if datasets %}{{ datasets|length + 1 }}{% endif %}" class="subheader">
+                                Spatial, Temporal & Profiles
+                              </th>
+                            </tr>
+                            <tr>
+                              <td>Spatial Coverage</td>
+                              {% if datasets %} {% for dataset in datasets %}
+                              <td>
+                                <div id="map{{ loop.index }}" style="height: 200px"></div>
+                                <button onclick="toggleFullscreen('map{{ loop.index }}')" class="btn btn-secondary btn-sm mt-2">
+                                  Fullscreen
+                                </button>
+                                <script>
+                                  var map{{ loop.index }} = L.map('map{{ loop.index }}').setView([39.0742, 21.8243], 5);
+                                  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                    maxZoom: 19,
+                                  }).addTo(map{{ loop.index }});
+                                  {% if dataset.extras.get('spatial') %} 
+                                    var spatialCoverage = JSON.parse(`{{ dataset.extras.get('spatial') | safe }}`);
+                                    const coordinates{{ loop.index }} = spatialCoverage.coordinates[0].map(coord => [coord[1], coord[0]]);
+                                    let drawnPolygon{{ loop.index }} = L.polygon(coordinates{{ loop.index }}, { color: "purple", weight: 1 }).addTo(map{{ loop.index }});
+                                      drawnPolygon{{ loop.index }}.bindTooltip("{{ dataset.get('title','Not specified') }}", {direction: 'right'});
+                                    map{{ loop.index }}.fitBounds(drawnPolygon{{ loop.index }}.getBounds());
+                                  {% endif %} 
+                                  function toggleFullscreen(mapId) {
+                                    var elem = document.getElementById(mapId);
+                                    if (!document.fullscreenElement) {
+                                      if (elem.requestFullscreen) {
+                                        elem.requestFullscreen();
+                                      } else if (elem.mozRequestFullScreen) { // Firefox
+                                        elem.mozRequestFullScreen();
+                                      } else if (elem.webkitRequestFullscreen) { // Chrome, Safari and Opera
+                                        elem.webkitRequestFullscreen();
+                                      } else if (elem.msRequestFullscreen) { // IE/Edge
+                                        elem.msRequestFullscreen();
+                                      }
+                                    } else {
+                                      if (document.exitFullscreen) {
+                                        document.exitFullscreen();
+                                      } else if (document.mozCancelFullScreen) { // Firefox
+                                        document.mozCancelFullScreen();
+                                      } else if (document.webkitExitFullscreen) { // Chrome, Safari and Opera
+                                        document.webkitExitFullscreen();
+                                      } else if (document.msExitFullscreen) { // IE/Edge
+                                        document.msExitFullscreen();
+                                      }
+                                    }
+                                  }
+                                </script>
+                              </td>
+                              {% endfor %} {% endif %}
+                            </tr>
+                            <tr>
+                              <td>Temporal Coverage</td>
+                              {% if datasets %} {% for dataset in datasets %}
+                              <td>
+                                <div id="chart{{ loop.index }}" style="height: 100px"></div>
+                                <script>
+                                  var options{{ loop.index }} = {
+                                    series: [{
+                                      data: [{
+                                        x: '',
+                                        y: [new Date('2024-06-01').getTime(), new Date('2025-01-01').getTime()]
+                                      }]
+                                    }],
+                                      chart: {
+                                      height: 100,
+                                        type: 'rangeBar',
+                                          zoom: {
+                                        enabled: true
+                                      }
+                                    },
+                                    colors: ['#3f1757'],
+                                      plotOptions: {
+                                      bar: {
+                                        horizontal: true
+                                      }
+                                    },
+                                    xaxis: {
+                                      type: 'datetime'
+                                    },
+
+                                    grid: {
+                                      xaxis: {
+                                        lines: {
+                                          show: true
+                                        }
+                                      },
+                                      yaxis: {
+                                        lines: {
+                                          show: false
+                                        }
+                                      }
+                                    }
+                                  };
+
+                                  var chart{{ loop.index }} = new ApexCharts(document.querySelector("#chart{{ loop.index }}"), options{{ loop.index }});
+                                    chart{{ loop.index }}.render();
+                                </script>
+                              </td>
+                              {% endfor %} {% endif %}
+                            </tr>
+                          </tbody>
+                          <tfoot>
+                            <tr>
+                              <td>Profiling</td>
+                              {% if datasets %} {% for dataset in datasets %}
+                              <td>
+                                <a class="btn w-100">Open Available Profiles</a>
+                              </td>
+                              {% endfor %} {% endif %}
+                            </tr>
+                          </tfoot>
+                        </table>
                       </div>
-                    </td>
-                    {% endfor %} {% endif %}
-                  </tr>
-                  <tr>
-                    <td>Type</td>
-                    {% if datasets %} {% for dataset in datasets %}
-                    <td class="text-center">
-                      {% if dataset.get('type') == 'dataset' %}
-                      <span class="badge my-3 bg-blue-lt">DATASET</span>
-                      {% else %}
-                      <span class="badge my-3 bg-purple-lt">WORKFLOW</span>
-                      {% endif %}
-                    </td>
-                    {% endfor %} {% endif %}
-                  </tr>
-                  <tr>
-                    <td>Description</td>
-                    {% if datasets %} {% for dataset in datasets %}
-                    <td class="text-left w-25">
-                      <div class="p text-wrap small">
-                        <em>{{dataset.get('notes','Not specified')}}</em>
-                      </div>
-                    </td>
-                    {% endfor %} {% endif %}
-                  </tr>
-                  <tr>
-                    <td>Tags</td>
-                    {% if datasets %} {% set tag_counts = {} %} {% for dataset
-                    in datasets %} {% for tag in dataset.get('tags') %} {% set
-                    tag_name = tag.get('display_name') %} {% set tag_counts =
-                    tag_counts.update({tag_name: tag_counts.get(tag_name, 0) +
-                    1}) or tag_counts %} {% endfor %} {% endfor %} {% set
-                    colors = ['text-blue', 'text-green', 'text-danger',
-                    'text-yellow', 'text-primary', 'text-pink', 'text-orange']
-                    %} {% set all_tags = {} %} {% for tag, count in
-                    tag_counts.items() %} {% if count > 1 %} {% set all_tags =
-                    all_tags.update({tag: colors[loop.index0 %
-                    colors|length]}) or all_tags %} {% endif %} {% endfor %}
-                    {% for dataset in datasets %}
-                    <td class="text-center">
-                      {% for tag in dataset.get('tags') %} {% set tag_name =
-                      tag.get('display_name') %}
-                      <span class="tag m-1 mb-0 {{ all_tags.get(tag_name, '') }}">{{ tag_name }}</span><br />
-                      {% endfor %}
-                    </td>
-                    {% endfor %} {% endif %}
-                  </tr>
-                  <tr class="bg-light">
-                    <th colspan="{% if datasets %}{{ datasets|length + 1 }}{% endif %}" class="subheader">
-                      Resources
-                    </th>
-                  </tr>
-                  <tr>
-                    <td>Formats</td>
-                    {% if datasets %} {% for dataset in datasets %}
-                    <td></td>
-                    {% endfor %} {% endif %}
-                  </tr>
-                  <tr>
-                    <td>Relations</td>
-                    {% if datasets %} {% for dataset in datasets %}
-                    <td></td>
-                    {% endfor %} {% endif %}
-                  </tr>
-                  <tr class="bg-light">
-                    <th colspan="{% if datasets %}{{ datasets|length + 1 }}{% endif %}" class="subheader">
-                      Spatial, Temporal & Profiles
-                    </th>
-                  </tr>
-                  <tr>
-                    <td>Spatial Coverage</td>
-                    {% if datasets %} {% for dataset in datasets %}
-                    <td>
-                      <div id="map{{ loop.index }}" style="height: 200px"></div>
-                      <button onclick="toggleFullscreen('map{{ loop.index }}')" class="btn btn-secondary btn-sm mt-2">
-                        Fullscreen
-                      </button>
-                      <script>
-                        var map{{ loop.index }} = L.map('map{{ loop.index }}').setView([39.0742, 21.8243], 5);
-                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                          maxZoom: 19,
-                        }).addTo(map{{ loop.index }});
-                        var bounds = [[35.0, 19.0], [42.0, 25.0]];
-                        L.rectangle(bounds, { color: "#3f1757", weight: 1 }).addTo(map{{ loop.index }});
-
-                        function toggleFullscreen(mapId) {
-                          var elem = document.getElementById(mapId);
-                          if (!document.fullscreenElement) {
-                            if (elem.requestFullscreen) {
-                              elem.requestFullscreen();
-                            } else if (elem.mozRequestFullScreen) { // Firefox
-                              elem.mozRequestFullScreen();
-                            } else if (elem.webkitRequestFullscreen) { // Chrome, Safari and Opera
-                              elem.webkitRequestFullscreen();
-                            } else if (elem.msRequestFullscreen) { // IE/Edge
-                              elem.msRequestFullscreen();
-                            }
-                          } else {
-                            if (document.exitFullscreen) {
-                              document.exitFullscreen();
-                            } else if (document.mozCancelFullScreen) { // Firefox
-                              document.mozCancelFullScreen();
-                            } else if (document.webkitExitFullscreen) { // Chrome, Safari and Opera
-                              document.webkitExitFullscreen();
-                            } else if (document.msExitFullscreen) { // IE/Edge
-                              document.msExitFullscreen();
-                            }
-                          }
-                        }
-                      </script>
-                    </td>
-                    {% endfor %} {% endif %}
-                  </tr>
-                  <tr>
-                    <td>Temporal Coverage</td>
-                    {% if datasets %} {% for dataset in datasets %}
-                    <td>
-                      <div id="chart{{ loop.index }}" style="height: 100px"></div>
-                      <script>
-                        var options{{ loop.index }} = {
-                          series: [{
-                            data: [{
-                              x: '',
-                              y: [new Date('2024-06-01').getTime(), new Date('2025-01-01').getTime()]
-                            }]
-                          }],
-                            chart: {
-                            height: 100,
-                              type: 'rangeBar',
-                                zoom: {
-                              enabled: true
-                            }
-                          },
-                          colors: ['#3f1757'],
-                            plotOptions: {
-                            bar: {
-                              horizontal: true
-                            }
-                          },
-                          xaxis: {
-                            type: 'datetime'
-                          },
-
-                          grid: {
-                            xaxis: {
-                              lines: {
-                                show: true
-                              }
-                            },
-                            yaxis: {
-                              lines: {
-                                show: false
-                              }
-                            }
-                          }
-                        };
-
-                        var chart{{ loop.index }} = new ApexCharts(document.querySelector("#chart{{ loop.index }}"), options{{ loop.index }});
-                          chart{{ loop.index }}.render();
-                      </script>
-                    </td>
-                    {% endfor %} {% endif %}
-                  </tr>
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td>Profiling</td>
-                    {% if datasets %} {% for dataset in datasets %}
-                    <td>
-                      <a class="btn w-100">Open Available Profiles</a>
-                    </td>
-                    {% endfor %} {% endif %}
-                  </tr>
-                </tfoot>
-              </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+
+
         </div>
       </div>
       {% include 'footer.html'%}
     </div>
   </div>
 </body>
-
 </html>

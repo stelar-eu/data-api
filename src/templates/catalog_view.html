@@ -354,7 +354,7 @@
                               <tr>
                                 <th class="text-center" style="width: 10%;">Relation</th>
                                 <th style="width: 40%;">Resource Name</th>
-                                <th style="width: 40%;">Path</th>
+                                <th style="width: 40%;">URL</th>
                                 <th class="text-center" style="width: 10%">Format</th>
                                 <th class="w-1"></th>
                               </tr>
@@ -368,11 +368,21 @@
                                   {% elif resource.get('relation') == 'profile' %}
                                   <span class="badge bg-orange text-orange-fg">PROFILE</span>
                                   {% else %}
-                                  <span class="badge bg-secondary text-secondary-fg">NONE</span>
+                                    <span class="badge bg-secondary text-secondary-fg">{{ resource.get('relation') | upper }}</span>
                                   {% endif %}
                                 </td>
                                 <td class="text-sm">{{ resource['name'] }}</td>
-                                <td class="text-sm"><small>{{ resource['url'] }}</small></td>
+                                <td class="text-sm">
+                                  {% if resource['url'].startswith('s3://') %}
+                                    <a href="{{ S3_CONSOLE_URL.replace('/login', '/browser/') }}{{ resource['url'][5:] }}" target="_blank">
+                                      <small>{{ resource['url'] }}</small>
+                                    </a>
+                                  {% else %}
+                                    <a href="{{ resource['url'] }}" target="_blank">
+                                      <small>{{ resource['url'] }}</small>
+                                    </a>
+                                  {% endif %}
+                                </td>
                                 <td class="text-sm text-center">{{ resource['format'] }}</td>
                                 <td>
                                   <div class="dropdown">

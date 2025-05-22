@@ -726,7 +726,31 @@
         });
     }
 
-    updateGraph();
+    $(document).ready(function() {
+        if (window.Worker) {
+            // Create a worker using a Blob since we only need it to trigger updateGraph
+            const blobCode = `
+                self.onmessage = function(e) {
+                    // Notify the main thread to invoke updateGraph.
+                    self.postMessage('invoke_updateGraph');
+                };
+            `;
+            const blob = new Blob([blobCode], { type: 'application/javascript' });
+            const worker = new Worker(URL.createObjectURL(blob));
+
+            worker.onmessage = function(e) {
+                if (e.data === 'invoke_updateGraph') {
+                    updateGraph();
+                }
+            };
+
+            // Start the worker
+            worker.postMessage('start');
+        } else {
+            // Fallback to direct invocation if Web Workers aren't supported
+            updateGraph();
+        }
+    });
 </script>
 
 </html>
