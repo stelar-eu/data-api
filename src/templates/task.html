@@ -35,7 +35,7 @@
                                             </a>
                                         </li>
                                         <li class="breadcrumb-item active"><a href="#"><span
-                                                    class="text-strong">{{task.name}}</span></a></li>
+                                                    class="text-strong">{{ task.name or task.id }}</span></a></li>
                                     </ol>
                                 </h3>
                                 <div class="m-0 ms-auto h2 d-flex align-items-center justify-content-end">
@@ -522,7 +522,11 @@
                                     aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
-                                <p>{{ task['tags'].get('log','No Messages Available') }}</p>
+                                {% if task.get('tags') %}
+                                    <p>{{ task['tags'].get('log', 'No Messages Available') }}</p>
+                                {% else %}
+                                    <p>No Messages Available</p>
+                                {% endif %}
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn me-auto" data-bs-dismiss="modal">Close</button>
