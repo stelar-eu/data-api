@@ -331,8 +331,8 @@ def get_package(
                 if compressed and "tags" in dataset:
                     dataset["tags"] = [tag.get("name") for tag in dataset["tags"]]
 
-                # Compress extras if compressed flag is True
-                if compressed and "extras" in dataset:
+                # Compress extras
+                if "extras" in dataset:
                     dataset["extras"] = {
                         extra.get("key"): extra.get("value")
                         for extra in dataset["extras"]

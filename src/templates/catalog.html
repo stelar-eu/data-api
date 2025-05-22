@@ -15,6 +15,7 @@
   <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <script src="{{ url_for('static', filename='images.js') }}"></script>
+  <script src="{{ url_for('static', filename='utils.js') }}"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.13/dayjs.min.js"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
@@ -80,9 +81,9 @@
                 </svg>
               </span>
               <div class="input-group">
-                <input type="text" value="" class="form-control mb-0 h3" placeholder="Search for a keyword"
+                <input type="text" value="" class="form-control query-param mb-0 h3" placeholder="Search for a keyword"
                   id="catalog-search-box" aria-label="Catalog Search" style="height:3.5rem;" autocomplete="off">
-                <button class="btn" type="button">
+                <button class="btn query-param" type="button">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                     class="me-1 icon icon-tabler icons-tabler-outline icon-tabler-search">
@@ -97,11 +98,13 @@
               style="position:absolute; top:100%; left:0; z-index:1001; display:none; width:100%;">
             </ul>
           </div>
-          <div class="badges-list mt-3 mb-0">
-            <span class="badge badge-lg badge-outline text-default">Default</span>
+          <div class="badges-list mt-3 mb-0" id="filter-list">
+          
+
+
           </div>
 
-          <div class="row g-4 mt-3">
+          <div class="row g-6 mt-3">
             <div class="col-md-3">
 
               <div class="form-label h3">Spatial Coverage</div>
@@ -112,15 +115,17 @@
               <div class="form-label h3">Temporal Coverage</div>
               <div class="mb-0 p-1" style="max-height: 16.5rem; overflow: auto;" id="facet-temporal">
                 <div>
-                    <div class="mb-1">
-                      <label for="start-datetime" class="form-label">Start Time</label>
-                      <input type="datetime-local" id="start-datetime" class="form-control"  onchange="updateChart()">
-                    </div>
-                    <div>
-                      <label for="end-datetime" class="form-label">End Time</label>
-                      <input type="datetime-local" id="end-datetime" class="form-control"  onchange="updateChart()">
-                    </div>
-                   <div class="mt-2" id="temporal-chart"></div>
+                  <div class="mb-1">
+                    <label for="start-datetime" class="form-label">Start Time</label>
+                    <input type="datetime-local" id="start-datetime" class="form-control query-param"
+                      onchange="updateChart()">
+                  </div>
+                  <div>
+                    <label for="end-datetime" class="form-label">End Time</label>
+                    <input type="datetime-local" id="end-datetime" class="form-control query-param"
+                      onchange="updateChart()">
+                  </div>
+                  <div class="mt-2" id="temporal-chart"></div>
                 </div>
               </div>
               <hr class="mt-0">
@@ -130,7 +135,7 @@
                 <div class="placeholder-glow">
                   {% for i in range(0, 7) %}
                   <label class="form-check tag-item">
-                    <div class="placeholder col-3 mb-3"></div>
+                    <div class="placeholder placeholder-xs col-3 m-0"></div>
                   </label>
                   {% endfor %}
                 </div>
@@ -141,7 +146,7 @@
                 <div class="placeholder-glow">
                   {% for i in range(0, 7) %}
                   <label class="form-check tag-item">
-                    <div class="placeholder col-3 mb-3"></div>
+                    <div class="placeholder placeholder-xs col-3 m-0"></div>
                   </label>
                   {% endfor %}
                 </div>
@@ -152,7 +157,7 @@
                 <div class="placeholder-glow">
                   {% for i in range(0, 7) %}
                   <label class="form-check tag-item">
-                    <div class="placeholder col-3 mb-3"></div>
+                    <div class="placeholder placeholder-xs col-3 m-0"></div>
                   </label>
                   {% endfor %}
                 </div>
@@ -163,303 +168,109 @@
                 <div class="placeholder-glow">
                   {% for i in range(0, 7) %}
                   <label class="form-check tag-item">
-                    <div class="placeholder col-3 mb-3"></div>
+                    <div class="placeholder placeholder-xs col-3 m-0"></div>
                   </label>
                   {% endfor %}
                 </div>
               </div>
               <div class="mt-5">
-                <button class="btn btn-primary w-100">
-                  Apply filters
+                <button class="btn btn-primary w-100 query-param" onclick="window.location.reload()">
+                Apply filters
                 </button>
-                <a href="#" class="btn btn-link w-100">
+                <a class="btn btn-link w-100 query-param" onclick="resetCheckedFilters()">
                   Reset to defaults
                 </a>
               </div>
             </div>
-            <div class="col-md-9">
-              <ul class="pagination d-flex justify-content-end">
-                {% if page_number > 1 %}
-                <!-- Previous Button -->
-                <li class="page-item">
-                  <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=page_number - 1) }}"
-                    aria-label="Previous">
-                    <span aria-hidden="true">&laquo; prev</span>
-                  </a>
-                </li>
-                {% endif %}
+            <div class="col-md-9 mt-3">
 
-                <!-- First Page Button -->
-                {% if total_pages > 1 %}
-                <li class="page-item {% if page_number == 1 %}active{% endif %}">
-                  <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=1) }}">1</a>
-                </li>
-                {% endif %}
-
-                <!-- Handle Middle Pages -->
-                {% if total_pages > 8 %}
-                {% if page_number > 4 %}
-                <li class="page-item disabled"><span class="page-link">...</span></li>
-                {% endif %}
-
-                {% for page in range(page_number - 2, page_number + 3) %}
-                {% if page > 1 and page < total_pages %} <li
-                  class="page-item {% if page == page_number %}active{% endif %}">
-                  <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=page) }}">{{ page
-                    }}</a>
-                  </li>
-                  {% endif %}
-                  {% endfor %}
-
-                  {% if page_number < total_pages - 3 %} <li class="page-item disabled"><span
-                      class="page-link">...</span></li>
-                    {% endif %}
-                    {% else %}
-                    {% for page in range(2, total_pages) %}
-                    <li class="page-item {% if page == page_number %}active{% endif %}">
-                      <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=page) }}">{{
-                        page }}</a>
-                    </li>
-                    {% endfor %}
-                    {% endif %}
-
-                    <!-- Last Page Button -->
-                    {% if total_pages > 1 %}
-                    <li class="page-item {% if page_number == total_pages %}active{% endif %}">
-                      <a class="page-link"
-                        href="{{ url_for('dashboard_blueprint.catalog', page_number=total_pages) }}">{{
-                        total_pages
-                        }}</a>
-                    </li>
-                    {% endif %}
-
-                    {% if page_number < total_pages %} <!-- Next Button -->
-                      <li class="page-item">
-                        <a class="page-link"
-                          href="{{ url_for('dashboard_blueprint.catalog', page_number=page_number + 1) }}"
-                          aria-label="Next">
-                          <span aria-hidden="true">next &raquo;</span>
-                        </a>
-                      </li>
-                      {% endif %}
+              <ul class="pagination d-flex justify-content-end mb-5">
+                <span class="m-1 ms-auto me-2 h3">Sort By:</span>
+                <select name="result-sort" class="form-select w-25 h-25 query-param" id="result-sort">
+                  <option value="metadata_modified desc" {% if search_q.get('sort', 'metadata_modified desc'
+                    )=='metadata_modified desc' %}selected="selected" {% endif %}>Latest</option>
+                  <option value="metadata_modified asc" {% if search_q.get('sort')=='metadata_modified asc'
+                    %}selected="selected" {% endif %}>Oldest</option>
+                  <option value="score desc" {% if search_q.get('sort')=='score desc' %}selected="selected" {% endif %}>
+                    Most Relevant</option>
+                  <option value="name asc" {% if search_q.get('sort')=='name asc' %}selected="selected" {% endif %}>Name
+                    A-Z</option>
+                </select>
               </ul>
 
-              <div class="row row-cards">
-                <div class="space-y" id='dataset-container'>
-                  {% if datasets %}
-                  <!-- An example placeholder to avoid destruction of the first element -->
-                  <div class="card card-link cursor-pointer disabled mb-3" style="display:none;">
-                  </div>
-                  {% for dataset in datasets %}
-                  <div class="card card-link cursor-pointer disabled mb-3">
-                    <div class="row g-0">
-                      <div class="col-auto">
-                        <div class="card-body">
-                          <div class="avatar avatar-md bg-white">
-                            {% if dataset.organization.image_url and dataset.organization.image_url != '' %}
-                            <img src="{{dataset.organization.image_url}}" />
-                            {% else %}
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                              stroke-linejoin="round"
-                              class="text-secondary icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
-                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                              <path d="M3 21l18 0" />
-                              <path d="M3 10l18 0" />
-                              <path d="M5 6l7 -3l7 3" />
-                              <path d="M4 10l0 11" />
-                              <path d="M20 10l0 11" />
-                              <path d="M8 14l0 3" />
-                              <path d="M12 14l0 3" />
-                              <path d="M16 14l0 3" />
-                            </svg>
-                            {% endif %}
-                          </div>
+              <div class="row row-cards" id="package-list">
+
+                {% for i in range(0, 9) %}
+                <div class="card card-link m-0 placeholder-glow cursor-pointer disabled mb-3">
+                  <div class="row g-0">
+                    <div class="col-auto">
+                      <div class="card-body">
+                        <div class="placeholder avatar avatar-md">
+
                         </div>
                       </div>
-                      <div class="col">
-                        <div class="card-body ps-0">
-                          <div class="row">
-                            <div class="col-md-11">
-                              <h3 class="mb-0">
-                                <a
-                                  href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id=dataset.get('id'))}}">{{
-                                  dataset.get('title', 'Untitled Dataset') }}</a>
-                                {% if dataset.get('type') == 'workflow' %}
-                                <span class="badge bg-purple-lt ms-2">WORKFLOW</span>
-                                {% elif dataset.get('type') == 'dataset' %}
-                                <span class="badge bg-blue-lt ms-2">DATASET</span>
-                                {% elif dataset.get('type') == 'process' %}
-                                <span class="badge bg-yellow-lt ms-2">PROCESS</span>
-                                {% endif %}
-                              </h3>
-                              <p class="text-secondary mt-1">{{ dataset.get('notes', 'No description specified') }}
-                              </p>
-                            </div>
-                            <div class="col-md-1 d-flex justify-content-end">
-                              <button
-                                class="btn btn-pill btn-outline-success m-3 me-1 p-1 text-center comparator-btn align-self-center"
-                                data-dataset-id="{{ dataset.get('id') }}" title="Add to comparison">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  class="m-0 icon icon-tabler icons-tabler-outline icon-tabler-git-compare">
-                                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                  <path d="M6 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-                                  <path d="M18 18m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-                                  <path d="M11 6h5a2 2 0 0 1 2 2v8" />
-                                  <path d="M14 9l-3 -3l3 -3" />
-                                  <path d="M13 18h-5a2 2 0 0 1 -2 -2v-8" />
-                                  <path d="M10 15l3 3l-3 3" />
-                                </svg>
-                              </button>
-                              <!-- <button class="btn btn-pill btn-outline-yellow m-3 me-1 p-1 text-center"><svg
-                                  xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  class="m-0 icon icon-tabler icons-tabler-outline icon-tabler-star">
-                                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                  <path
-                                    d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z" />
-                                </svg></button> -->
+                    </div>
+                    <div class="col">
+                      <div class="card-body ps-0">
+                        <div class="row">
+                          <div class="col-md-11">
+                            <h3 class="mb-0">
+                              <div class="placeholder col-4"></div>
+                              <span class="placeholder col-2 ms-2"></span>
+                            </h3>
+                            <p class="text-secondary placeholder placeholder-xs col-9 mt-3"></p>
+                          </div>
+                          <div class="col-md-1 d-flex justify-content-end">
+                            <button
+                              class="btn placeholder btn-pill btn-outline-success m-3 me-1 p-1 text-center comparator-btn align-self-center"
+                              data-dataset-id="" title="Add to comparison">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round"
+                                class="m-0 icon icon-tabler icons-tabler-outline icon-tabler-git-compare">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                <path d="M6 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                <path d="M18 18m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                <path d="M11 6h5a2 2 0 0 1 2 2v8"></path>
+                                <path d="M14 9l-3 -3l3 -3"></path>
+                                <path d="M13 18h-5a2 2 0 0 1 -2 -2v-8"></path>
+                                <path d="M10 15l3 3l-3 3"></path>
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        <div class="row">
+                          <div class="col-md">
+                            <div class="mt-3 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
+                              <div class="list-inline-item placeholder col-2">
+
+                              </div>
+                              <div class="list-inline-item placeholder col-3">
+                              </div>
+                              <div class="list-inline-item placeholder col-2">
+                              </div>
                             </div>
                           </div>
-                          <div class="row">
-                            <div class="col-md">
-                              <div class="mt-3 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
-                                <div class="list-inline-item">
-                                  <svg xmlns="http://www.w3.org/2000/svg"
-                                    class="icon icon-tabler icon-tabler-building-bank" width="44" height="44"
-                                    viewBox="0 0 24 24" stroke-width="1.5" stroke="#2c3e50" fill="none"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path d="M3 21l18 0" />
-                                    <path d="M3 10l18 0" />
-                                    <path d="M5 6l7 -3l7 3" />
-                                    <path d="M4 10l0 11" />
-                                    <path d="M20 10l0 11" />
-                                    <path d="M8 14l0 3" />
-                                    <path d="M12 14l0 3" />
-                                    <path d="M16 14l0 3" />
-                                  </svg>
-                                  {{ dataset.organization.title }}
-                                </div>
-                                <div class="list-inline-item">
-                                  <svg xmlns="http://www.w3.org/2000/svg"
-                                    class="icon icon-tabler icon-tabler-calendar-month" width="44" height="44"
-                                    viewBox="0 0 24 24" stroke-width="1.5" stroke="#2c3e50" fill="none"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path
-                                      d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
-                                    <path d="M16 3v4" />
-                                    <path d="M8 3v4" />
-                                    <path d="M4 11h16" />
-                                    <path d="M7 14h.013" />
-                                    <path d="M10.01 14h.005" />
-                                    <path d="M13.01 14h.005" />
-                                    <path d="M16.015 14h.005" />
-                                    <path d="M13.015 17h.005" />
-                                    <path d="M7.01 17h.005" />
-                                    <path d="M10.01 17h.005" />
-                                  </svg>
-                                  {{ dataset.get('metadata_modified').strftime('%d-%m-%Y %H:%M') or
-                                  dataset.get('metadata_created').strftime('%d-%m-%Y %H:%M') }}
-                                </div>
-                                <div class="list-inline-item">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                    fill="none" stroke="#2c3e50" stroke-width="1.5" stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    class="icon icon-tabler icons-tabler-outline icon-tabler-user">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
-                                    <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
-                                  </svg>
-                                  {{ dataset.get('author', 'Not specified')}}
-                                </div>
-                              </div>
-                            </div>
-                            <div class="col-md-auto">
-                              <div class="mt-3 badges">
-                                {% for tag in dataset.get('tags') %}
-                                <span class="tag m-1 mb-0">{{ tag }}</span>
-                                {% endfor %}
-                              </div>
+                          <div class="col-md-auto">
+                            <div class="mt-3 badges">
+                              <span class="tag m-1 mb-0 placeholder">
+                                STELAR
+                              </span>
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                  {% endfor %}
-                  {% else %}
-                  <h3>No Datasets Found</h3>
-                  {% endif %}
                 </div>
+                {% endfor %}
               </div>
-              <ul class="pagination d-flex justify-content-end">
-                {% if page_number > 1 %}
-                <!-- Previous Button -->
-                <li class="page-item">
-                  <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=page_number - 1) }}"
-                    aria-label="Previous">
-                    <span aria-hidden="true">&laquo; prev</span>
-                  </a>
-                </li>
-                {% endif %}
+              <ul class="pagination d-flex justify-content-end mb-5">
+                <div class="text-secondary" id="pagination-info">
+                </div>
+                <div class="ms-auto" id="pagination-control">
 
-                <!-- First Page Button -->
-                {% if total_pages > 1 %}
-                <li class="page-item {% if page_number == 1 %}active{% endif %}">
-                  <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=1) }}">1</a>
-                </li>
-                {% endif %}
-
-                <!-- Handle Middle Pages -->
-                {% if total_pages > 8 %}
-                {% if page_number > 4 %}
-                <li class="page-item disabled"><span class="page-link">...</span></li>
-                {% endif %}
-
-                {% for page in range(page_number - 2, page_number + 3) %}
-                {% if page > 1 and page < total_pages %} <li
-                  class="page-item {% if page == page_number %}active{% endif %}">
-                  <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=page) }}">{{ page
-                    }}</a>
-                  </li>
-                  {% endif %}
-                  {% endfor %}
-
-                  {% if page_number < total_pages - 3 %} <li class="page-item disabled"><span
-                      class="page-link">...</span></li>
-                    {% endif %}
-                    {% else %}
-                    {% for page in range(2, total_pages) %}
-                    <li class="page-item {% if page == page_number %}active{% endif %}">
-                      <a class="page-link" href="{{ url_for('dashboard_blueprint.catalog', page_number=page) }}">{{
-                        page }}</a>
-                    </li>
-                    {% endfor %}
-                    {% endif %}
-
-                    <!-- Last Page Button -->
-                    {% if total_pages > 1 %}
-                    <li class="page-item {% if page_number == total_pages %}active{% endif %}">
-                      <a class="page-link"
-                        href="{{ url_for('dashboard_blueprint.catalog', page_number=total_pages) }}">{{ total_pages
-                        }}</a>
-                    </li>
-                    {% endif %}
-
-                    {% if page_number < total_pages %} <!-- Next Button -->
-                      <li class="page-item">
-                        <a class="page-link"
-                          href="{{ url_for('dashboard_blueprint.catalog', page_number=page_number + 1) }}"
-                          aria-label="Next">
-                          <span aria-hidden="true"> next &raquo;</span>
-                        </a>
-                      </li>
-                      {% endif %}
+                </div>
               </ul>
             </div>
           </div>
@@ -572,30 +383,54 @@
                 </div>
                 <div class="modal-body">
                   <div class="row">
-                    <div class="col-lg-12">
+                    <div class="mb-0">
+                      <label class="form-label">Title</label>
+                      <div class="row g-2">
+                        <div class="col">
+                          <input type="text" class="form-control" name="package-name-input" placeholder="Dataset Title"
+                            required>
+                        </div>
+                        <small class="form-hint">
+                          <p>
+                            A name in the format <code>the-new-dataset</code> (hyphens
+                            instead of spaces) will be generated for the dataset. The name of
+                            the dataset is one the identifiers of it, therefore it must be unique.
+                          </p>
+                        </small>
+                      </div>
+                    </div>
+                    <div class="d-flex">
+                      <div class="text-secondary ms-auto justify-content-right" id="availability-div">
+                        <a onclick="checkNameAvailability()" class="text-sm p-2 cursor-pointer link-secondary"
+                          title="Check Title Availability" data-bs-toggle="tooltip" tabindex="-1">
+                          Check title availability
+                        </a>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="form-label"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                          stroke-linejoin="round"
+                          class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
+                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                          <path d="M3 21l18 0" />
+                          <path d="M3 10l18 0" />
+                          <path d="M5 6l7 -3l7 3" />
+                          <path d="M4 10l0 11" />
+                          <path d="M20 10l0 11" />
+                          <path d="M8 14l0 3" />
+                          <path d="M12 14l0 3" />
+                          <path d="M16 14l0 3" />
+                        </svg>Owner Organization</label>
+                      <select class="form-select" id="owner-org" name="owner_org">
 
-                      <div class="mb-3">
-                        <label class="form-label">Title</label>
-                        <div class="row g-2">
-                          <div class="col">
-                            <input type="text" class="form-control" name="package-name-input"
-                              placeholder="Dataset Title" required>
-                          </div>
-                          <div class="col-auto align-self-center">
-                            <span class="form-help" data-bs-toggle="popover" data-bs-placement="top"
-                              data-bs-content="The dataset title <strong>must be unique</strong>. It serves as one of the unique identifiers of the dataset."
-                              data-bs-html="true">?</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="d-flex">
-                        <div class="text-secondary text-start justify-content-left" id="availability-div">
-                          <a onclick="checkNameAvailability()" class="text-sm p-2 cursor-pointer link-secondary"
-                            title="Check Title Availability" data-bs-toggle="tooltip" tabindex="-1">
-                            Check title availability
-                          </a>
-                        </div>
-                      </div>
+                      </select>
+                      <small class="form-hint">
+                        <p>
+                          Creating a new dataset in an organization requires you to have
+                          the permission to do so assigned by an administrator.
+                        </p>
+                      </small>
                     </div>
                   </div>
                 </div>
@@ -622,7 +457,7 @@
                   </div>
                 </div>
                 <div class="modal-footer" id="new-dataset-modal-footer">
-                  <a class="cursor-pointer btn btn-primary ms-auto" id="publish-dataset-btn">
+                  <a class="cursor-pointer btn btn-primary ms-auto" id="publish-dataset-btn" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24"
                       stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -738,7 +573,7 @@
   <script>
     var startDate = new Date(document.getElementById('start-datetime').value).getTime();
     var endDate = new Date(document.getElementById('end-datetime').value).getTime();
-    
+
     var options = {
       series: [{
         data: [{
@@ -794,22 +629,23 @@
 
   <!-- Search Script -->
   <script>
-
     query = {
       "q": "",
+      "sort": "{{ search_q.sort }}",
       "fl": [
         "id",
         "title",
-        "tags",
         "notes",
-        "score",
         "author",
         "organization",
-        "metadata_modified"
+        "tags",
+        "metadata_modified",
+        "capacity",
+        "type"
       ],
-      "sort": "metadata_modified desc",
-      "fq": [],
-      "fq": [],
+      "fq": [{% for filter in search_q.fq %}"{{ filter }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+      "limit": 10,
+      "offset": 0,
       "facet": {
         "fields": [
           "tags",
@@ -820,50 +656,409 @@
       }
     };
 
-    function performSearch(query) {
-
+    function performSearch(query, rebuildFacets = true) {
+      lockQueryParams();
       $.ajax({
         url: "{{url_for('catalog_blueprint.api_search_datasets')}}",
         type: "POST",
         data: JSON.stringify(query),
         contentType: "application/json",
         success: function (response) {
+          unlockQueryParams();
           if (response.success) {
             if (response.result.facets) {
-              buildFacets(response.result.facets);
-              buildPackageCards(response.result.results);
+              if (rebuildFacets) {
+                $('#facet-tags').empty();
+                $('#facet-author').empty();
+                $('#facet-organization').empty();
+                $('#facet-format').empty();
+                if (!window.facets || window.facets.length === 0) {
+                    buildFacets(response.result.facets);               
+                }
+              }
+              buildPackageCards(response.result.results); // pass orgData if needed
+              attachComparatorButtonListeners();
+              renderSelectedComparators();
+            }
+            if (response.result.count !== undefined) {
+              buildPagination(response.result.count);
             }
           } else {
             console.error("Search failed:", response.message);
           }
         },
         error: function (xhr, status, error) {
+          unlockQueryParams();
           console.error("AJAX request failed:", error);
         }
       });
-
     }
 
-    function buildPackageCard(package) {
+    function buildPagination(total) {
+      var currentPage = Math.floor(query.offset / query.limit) + 1;
+      var totalPages = Math.ceil(total / query.limit);
+      var paginationHtml = '';
 
+      // Previous button
+      if (currentPage > 1) {
+        paginationHtml += '<li class="page-item"><a class="page-link pagination-link" href="#" data-page="' + (currentPage - 1) + '"> prev </a></li>';
+      } else {
+        paginationHtml += '<li class="page-item disabled"><span class="page-link"> prev </span></li>';
+      }
+
+      // Page numbers
+      for (var i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+          paginationHtml += '<li class="page-item active"><span class="page-link">' + i + '</span></li>';
+        } else {
+          paginationHtml += '<li class="page-item"><a class="page-link pagination-link" href="#" data-page="' + i + '">' + i + '</a></li>';
+        }
+      }
+
+      // Next button
+      if (currentPage < totalPages) {
+        paginationHtml += '<li class="page-item"><a class="page-link pagination-link" href="#" data-page="' + (currentPage + 1) + '"> next </a></li>';
+      } else {
+        paginationHtml += '<li class="page-item disabled"><span class="page-link"> next </span></li>';
+      }
+
+      $('#pagination-control').html('<ul class="pagination mb-0">' + paginationHtml + '</ul>');
+
+      // Update pagination info e.g., "Showing 1 to 10 of 53 results"
+      var startResult = query.offset + 1;
+      var endResult = Math.min(query.offset + query.limit, total);
+      $('#pagination-info').html('<span class="h3">Showing ' + startResult + ' to ' + endResult + ' of ' + total + ' results</span>');
+
+      // Add click listeners for pagination links
+      $('.pagination-link').off('click').on('click', function (e) {
+
+        var page = parseInt($(this).data('page'));
+        query.offset = (page - 1) * query.limit;
+        maskWithPlaceholders();
+        performSearch(query, false);
+      });
+    }
+
+    function lockQueryParams() {
+      $('.query-param').prop('disabled', true);
+    }
+
+    function unlockQueryParams() {
+      $('.query-param').prop('disabled', false);
+    }
+
+    function buildPlaceholder() {
+      return `<div class="card card-link m-0 placeholder-glow cursor-pointer disabled mb-3">
+                  <div class="row g-0">
+                    <div class="col-auto">
+                      <div class="card-body">
+                        <div class="placeholder avatar avatar-md">
+
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col">
+                      <div class="card-body ps-0">
+                        <div class="row">
+                          <div class="col-md-11">
+                            <h3 class="mb-0">
+                              <div class="placeholder col-4"></div>
+                              <span class="placeholder col-2 ms-2"></span>
+                            </h3>
+                            <p class="text-secondary placeholder placeholder-xs col-9 mt-3"></p>
+                          </div>
+                          <div class="col-md-1 d-flex justify-content-end">
+                            <button
+                              class="btn placeholder btn-pill btn-outline-success m-3 me-1 p-1 text-center align-self-center"
+                              data-dataset-id="" title="Add to comparison">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round"
+                                class="m-0 icon icon-tabler icons-tabler-outline icon-tabler-git-compare">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                <path d="M6 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                <path d="M18 18m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                <path d="M11 6h5a2 2 0 0 1 2 2v8"></path>
+                                <path d="M14 9l-3 -3l3 -3"></path>
+                                <path d="M13 18h-5a2 2 0 0 1 -2 -2v-8"></path>
+                                <path d="M10 15l3 3l-3 3"></path>
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        <div class="row">
+                          <div class="col-md">
+                            <div class="mt-3 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
+                              <div class="list-inline-item placeholder col-2">
+
+                              </div>
+                              <div class="list-inline-item placeholder col-3">
+                              </div>
+                              <div class="list-inline-item placeholder col-2">
+                              </div>
+                            </div>
+                          </div>
+                          <div class="col-md-auto">
+                            <div class="mt-3 badges">
+                              <span class="tag m-1 mb-0 placeholder">
+                                STELAR
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>`;
+    }
+
+
+    function removeFilterFromLocation(type, filter) {
+      var url = new URL(window.location);
+      var param;
+      if (type === "tags") {
+        param = "tags";
+      } else if (type === "res_format") {
+        param = "res_format";
+      } else if (type === "organization") {
+        param = "org";
+      } else if (type === "author") {
+        param = "author";
+      } else {
+        param = type;
+      }
+
+      var current = url.searchParams.get(param);
+      if (current) {
+        var filters = current.split(",");
+        var index = filters.indexOf(filter);
+        if (index !== -1) {
+          filters.splice(index, 1);
+          if (filters.length) {
+            url.searchParams.set(param, filters.join(","));
+          } else {
+            url.searchParams.delete(param);
+          }
+        }
+      }
+      window.history.pushState({}, "", url.toString());
+    }
+
+    function removeAllFiltersFromLocation() {
+      var url = new URL(window.location);
+      // Remove all related filters
+      url.searchParams.delete("tags");
+      url.searchParams.delete("res_format");
+      url.searchParams.delete("org"); // organization
+      url.searchParams.delete("author");
+      window.history.pushState({}, "", url.toString());
+      $('#filter-list').empty();
+    }
+
+    function appendFilterToLocation(type, filter) {
+      var url = new URL(window.location);
+      var param;
+      if (type === "tags") {
+        param = "tags";
+      } else if (type === "res_format") {
+        param = "res_format";
+      } else if (type === "organization") {
+        param = "org";
+      } else if (type === "author") {
+        param = "author";
+      } else {
+        param = type;
+      }
+      var current = url.searchParams.get(param);
+      if (current) {
+        var filters = current.split(",");
+        if (filters.indexOf(filter) === -1) {
+          filters.push(filter);
+          url.searchParams.set(param, filters.join(","));
+        }
+      } else {
+        url.searchParams.set(param, filter);
+      }
+      window.history.pushState({}, "", url.toString());
+    }
+
+    function appendFilterBadge(type, filter) {
+
+      var filterHtml = `<span class="badge bg-secondary text-white me-1" id="filter-${type}-${filter}">
+        ${filter}
+        <button type="button" class="btn-close btn-close-white btn-close-sm" aria-label="Close"></button>
+      </span>`;
+      $('#filter-list').append(filterHtml);
+    }
+
+    function removeFilterBadge(type, filter) {
+      $(`#filter-${type}-${filter}`).remove();
+    }
+
+    function maskWithPlaceholders() {
+      var packageList = $('#package-list');
+      packageList.empty();
+      for (var i = 0; i < 9; i++) {
+        packageList.append(buildPlaceholder());
+      }
+    }
+
+    function resortResults() {
+      var sortValue = $('#result-sort').val();
+      var url = new URL(window.location);
+      url.searchParams.set("sort", sortValue);
+      window.history.pushState({}, '', url.toString());
+      maskWithPlaceholders();
+      query.sort = sortValue;
+      performSearch(query, false);
+    }
+
+    $('#result-sort').on('change', function () {
+      resortResults();
+    });
+
+    function buildPackageCard(pkg) {
+      return `<div class="card card-link m-0 disabled mb-3">
+        <div class="row g-0">
+          <div class="col-auto">
+            <div class="card-body">
+              <div class="avatar avatar-md bg-white mt-1">
+                ${orgs[pkg.organization] && orgs[pkg.organization].image_url && orgs[pkg.organization].image_url !== ''
+          ? `<img src="${orgs[pkg.organization].image_url}" />`
+          : `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                           fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                           stroke-linejoin="round"
+                           class="text-secondary icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
+                           <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                           <path d="M3 21l18 0" />
+                           <path d="M3 10l18 0" />
+                           <path d="M5 6l7 -3l7 3" />
+                           <path d="M4 10l0 11" />
+                           <path d="M20 10l0 11" />
+                           <path d="M8 14l0 3" />
+                           <path d="M12 14l0 3" />
+                           <path d="M16 14l0 3" />
+                         </svg>`}
+              </div>
+            </div>
+          </div>
+          <div class="col">
+            <div class="card-body ps-0">
+              <div class="row">
+                <div class="col-md-11">
+                  <h3 class="mb-0">
+                    <a href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}${pkg.id}">${pkg.title || 'Untitled Package'}</a>
+                    ${pkg.type === 'workflow'
+          ? '<span class="badge bg-purple-lt ms-2">WORKFLOW</span>'
+          : pkg.type === 'dataset'
+            ? '<span class="badge bg-blue-lt ms-2">DATASET</span>'
+            : pkg.type === 'process'
+              ? '<span class="badge bg-yellow-lt ms-2">PROCESS</span>'
+              : ''}
+                    <span class = "text-secondary h4 ms-2">
+                       ${pkg.capacity ? pkg.capacity.charAt(0).toUpperCase() + pkg.capacity.slice(1) : ''}
+                    </span>
+                  </h3>
+                  <p class="text-secondary mt-1">${pkg.notes || 'No description specified'}</p>
+                </div>
+                <div class="col-md-1 d-flex justify-content-end">
+                  <button class="btn btn-pill btn-outline-success m-3 me-1 p-1 text-center comparator-btn align-self-center"
+                          data-dataset-id="${pkg.id}" title="Add to comparison">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round"
+                         class="m-0 icon icon-tabler icons-tabler-outline icon-tabler-git-compare">
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path d="M6 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                      <path d="M18 18m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                      <path d="M11 6h5a2 2 0 0 1 2 2v8" />
+                      <path d="M14 9l-3 -3l3 -3" />
+                      <path d="M13 18h-5a2 2 0 0 1 -2 -2v-8" />
+                      <path d="M10 15l3 3l-3 3" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md">
+                  <div class="mt-3 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
+                    <div class="list-inline-item">
+                      <svg xmlns="http://www.w3.org/2000/svg"
+                           class="icon icon-tabler icon-tabler-building-bank" width="44" height="44"
+                           viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                           stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M3 21l18 0" />
+                        <path d="M3 10l18 0" />
+                        <path d="M5 6l7 -3l7 3" />
+                        <path d="M4 10l0 11" />
+                        <path d="M20 10l0 11" />
+                        <path d="M8 14l0 3" />
+                        <path d="M12 14l0 3" />
+                        <path d="M16 14l0 3" />
+                      </svg>
+                      <a class="text-secondary" target="_blank" href="{{ url_for('dashboard_blueprint.organization', organization_id='') }}${orgs[pkg.organization] ? orgs[pkg.organization].id : ''}">
+                        ${orgs[pkg.organization] ? orgs[pkg.organization].title : ''}
+                      </a>
+                    </div>
+                    <div class="list-inline-item">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="icon icon-tabler icons-tabler-outline icon-tabler-calendar-bolt">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M13.5 21h-7.5a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v5" />
+                        <path d="M16 3v4" />
+                        <path d="M8 3v4" />
+                        <path d="M4 11h16" />
+                        <path d="M19 16l-2 3h4l-2 3" />
+                      </svg>
+                      ${formatIsoDate(pkg.metadata_modified)}
+                    </div>
+                    <div class="list-inline-item">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                           fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                           stroke-linejoin="round"
+                           class="icon icon-tabler icons-tabler-outline icon-tabler-user">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                        <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                      </svg>
+                      ${pkg.author || 'Not specified'}
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-auto">
+                  <div class="mt-3 badges">
+                    ${pkg.tags && pkg.tags.length ? pkg.tags.map(tag => `<a class="card-link text-black tag m-1 mb-0" href="{{ url_for('dashboard_blueprint.catalog') }}?sort=metadata_modified+desc&tags=${encodeURIComponent(tag)}">${tag}</a>`).join('') : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>`;
     }
 
     function buildPackageCards(packages) {
-
+      if (packages) {
+        $("#package-list").html("");
+        packages.forEach(pkg => {
+          $("#package-list").append(buildPackageCard(pkg));
+        });
+      }
     }
 
-    function buildFacet(facet, count, field, display) {
+    function buildFacet(facet, count, value, display) {
       if (facet) {
         if (display) {
           return `<label class="form-check tag-item">
-              <input type="checkbox" class="form-check-input" name="form-type[]" value="${facet}">
+              <input type="checkbox" class="form-check-input query-param" name="form-type[]" value="${facet}">
               <div class="d-flex">
                 <span class="form-check-label">${facet}</span>
                 <span class="badge ms-auto text-light-fg ms-2">${count}</span>
               </div>
             </label>`;
         } else {
-          return `<label class="form-check tag-item more-tag" style="display: none;">
+          return `<label class="form-check tag-item more-tag query-param" style="display: none;">
               <input type="checkbox" class="form-check-input" name="form-type[]" value="${facet}">
               <div class="d-flex">
                 <span class="form-check-label">${facet}</span>
@@ -899,15 +1094,40 @@
         </a>`;
     }
 
+    function resetCheckedFilters() {
+      $('#facet-tags input[type="checkbox"]').prop('checked', false);
+      $('#facet-author input[type="checkbox"]').prop('checked', false);
+      $('#facet-organization input[type="checkbox"]').prop('checked', false);
+      $('#facet-format input[type="checkbox"]').prop('checked', false);
+      removeAllFiltersFromLocation();
+    }
+
     function buildFacets(facets) {
       if (facets) {
+        // The facets are stored in the global variable
+        // so that way even if the query limits the number of results
+        // the entirety of facets are still available for the user to filter
+        window.facets = facets;
         for (const [key, value] of Object.entries(facets)) {
           if (key == "tags") {
             const entries = Object.entries(value);
             $("#facet-tags").html("");
             let i = 0;
             for (const [tag, count] of entries) {
-              $("#facet-tags").append(buildFacet(tag, count, key, i < 8));
+              var facetElement = $(buildFacet(tag, count, key, i < 8));
+              facetElement.find('input').on('change', function () {
+                var val = $(this).val();
+                if ($(this).is(':checked')) {
+                  console.log("tick: " + val);
+                  appendFilterBadge(key, val);
+                  appendFilterToLocation(key, val);
+                } else {
+                  console.log("untick: " + val);
+                  removeFilterBadge(key, val);
+                  removeFilterFromLocation(key, val);
+                }
+              });
+              $("#facet-tags").append(facetElement);
               i++;
             }
             if (entries.length > 8) {
@@ -918,7 +1138,20 @@
             $("#facet-author").html("");
             let i = 0;
             for (const [author, count] of entries) {
-              $("#facet-author").append(buildFacet(author, count, key, i < 8));
+              var facetElement = $(buildFacet(author, count, key, i < 8));
+              facetElement.find('input').on('change', function () {
+                var val = $(this).val();
+                if ($(this).is(':checked')) {
+                  console.log("tick: " + val);
+                  appendFilterBadge(key, val);
+                  appendFilterToLocation(key, val);
+                } else {
+                  console.log("untick: " + val);
+                  removeFilterBadge(key, val);
+                  removeFilterFromLocation(key, val);
+                }
+              });
+              $("#facet-author").append(facetElement);
               i++;
             }
             if (entries.length > 8) {
@@ -929,7 +1162,20 @@
             $("#facet-organization").html("");
             let i = 0;
             for (const [organization, count] of entries) {
-              $("#facet-organization").append(buildFacet(organization, count, key, i < 8));
+              var facetElement = $(buildFacet(organization, count, key, i < 8));
+              facetElement.find('input').on('change', function () {
+                var val = $(this).val();
+                if ($(this).is(':checked')) {
+                  console.log("tick: " + val);
+                  appendFilterBadge(key, val);
+                  appendFilterToLocation(key, val);
+                } else {
+                  console.log("untick: " + val);
+                  removeFilterBadge(key, val);
+                  removeFilterFromLocation(key, val);
+                }
+              });
+              $("#facet-organization").append(facetElement);
               i++;
             }
             if (entries.length > 8) {
@@ -939,8 +1185,21 @@
             const entries = Object.entries(value);
             $("#facet-format").html("");
             let i = 0;
-            for (const [organization, count] of entries) {
-              $("#facet-format").append(buildFacet(organization, count, key, i < 8));
+            for (const [format, count] of entries) {
+              var facetElement = $(buildFacet(format, count, key, i < 8));
+              facetElement.find('input').on('change', function () {
+                var val = $(this).val();
+                if ($(this).is(':checked')) {
+                  console.log("tick: " + val);
+                  appendFilterBadge(key, val);
+                  appendFilterToLocation(key, val);
+                } else {
+                  console.log("untick: " + val);
+                  removeFilterBadge(key, val);
+                  removeFilterFromLocation(key, val);
+                }
+              });
+              $("#facet-format").append(facetElement);
               i++;
             }
             if (entries.length > 8) {
@@ -950,9 +1209,11 @@
         }
       }
     }
-
     $(document).ready(function () {
-      performSearch(query);
+      // Call fetchOrganizations and run performSearch only after its completion.
+      fetchOrganizations(function () {
+        performSearch(query);
+      });
     });
 
   </script>
@@ -1231,7 +1492,7 @@
       // Add options for selectedIds
       selectedIds.forEach(function (id) {
         if ($(`#compare-dataset-option-${id}`).length === 0) {
-          $.get(`/stelar/api/v2/dataset/${id}`, function (data) {
+          $.get(`{{url_for('catalog_blueprint.api_get_dataset', entity_id='')}}${id}`, function (data) {
             appendDatasetCompareOption(data.result.title, id);
           });
         }
@@ -1249,32 +1510,8 @@
       appendClearAllOption();
     }
 
-
-    $(document).ready(function () {
-      // Mark buttons that are currently in the cookie
-      var cookieValue = getCookie('compare_datasets');
-      var selectedIds = cookieValue ? cookieValue.split(',') : [];
-      selectedIds.forEach(function (id) {
-        $('.comparator-btn[data-dataset-id="' + id + '"]').removeClass('btn-outline-success').addClass('btn-success');
-      });
-
-      refreshDatasetCompareOption(selectedIds);
-
-      // Handle removal of datasets from the dropdown and cookie
-      $(document).on('click', '.remove-dataset', function () {
-        var datasetId = $(this).data('dataset-id');
-        var cookieValue = getCookie('compare_datasets');
-        var selectedIds = cookieValue ? cookieValue.split(',') : [];
-
-        // Remove the dataset ID from the selected IDs
-        selectedIds = selectedIds.filter(id => id !== datasetId.toString());
-        setCookie('compare_datasets', selectedIds.join(','), 30);
-        refreshDatasetCompareOption(selectedIds);
-        $(`#compare-dataset-option-${datasetId}`).remove();
-        $(`.comparator-btn[data-dataset-id="${datasetId}"]`).removeClass('btn-success').addClass('btn-outline-success');
-      });
-
-
+    function attachComparatorButtonListeners() {
+      $('.comparator-btn').off('click');
       $('.comparator-btn').on('click', function () {
         var datasetId = $(this).data('dataset-id');
         if (!datasetId) {
@@ -1308,7 +1545,33 @@
           }
         }
       });
-    });
+    }
+
+    function renderSelectedComparators() {
+      var cookieValue = getCookie('compare_datasets');
+      var selectedIds = cookieValue ? cookieValue.split(',') : [];
+
+      selectedIds.forEach(function (id) {
+        $('.comparator-btn[data-dataset-id="' + id + '"]').removeClass('btn-outline-success').addClass('btn-success');
+      });
+
+      refreshDatasetCompareOption(selectedIds);
+
+      // Handle removal of datasets from the dropdown and cookie
+      $(document).on('click', '.remove-dataset', function () {
+        var datasetId = $(this).data('dataset-id');
+        var cookieValue = getCookie('compare_datasets');
+        var selectedIds = cookieValue ? cookieValue.split(',') : [];
+
+        // Remove the dataset ID from the selected IDs
+        selectedIds = selectedIds.filter(id => id !== datasetId.toString());
+        setCookie('compare_datasets', selectedIds.join(','), 30);
+        refreshDatasetCompareOption(selectedIds);
+        $(`#compare-dataset-option-${datasetId}`).remove();
+        $(`.comparator-btn[data-dataset-id="${datasetId}"]`).removeClass('btn-success').addClass('btn-outline-success');
+      });
+    }
+
   </script>
 
 
@@ -1327,9 +1590,10 @@
         const title = $('input[name="package-name-input"]').val().trim();
         const notes = $('textarea[name="packageDescription"]').val().trim();
         const tags = $('#hiddenTagsInput').val().split(',').filter(tag => tag.trim() !== '');
+        const ownerOrg = $('#owner-org').val();
 
         if (!title || !notes || tags.length === 0) {
-          $('#new-dataset-modal-footer').prepend('<div class="alert alert-danger p-2 me-auto">Please fill in all fields</div>');
+          $('#new-dataset-modal-footer').prepend(createAlertElement('danger', 'Please fill in all fields.'));
           return;
         }
 
@@ -1338,12 +1602,11 @@
           title: title,
           notes: notes,
           tags: tags,
-          'owner_org': 'stelar-klms',
+          'owner_org': ownerOrg,
         };
 
-        $('#new-dataset-modal-footer .alert').remove()
-        const loader = '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
-        $("#new-dataset-modal-footer").prepend(loader)
+        $('#new-dataset-modal-footer .alert .stelar-loader').remove();
+        $("#new-dataset-modal-footer").prepend(createLoaderElement(false, false));
 
         $.ajax({
           url: `{{ url_for('catalog_blueprint.api_create_dataset') }} `,
@@ -1351,8 +1614,8 @@
           contentType: 'application/json',
           data: JSON.stringify(payload),
           success: function (response) {
-            $('#new-dataset-modal-footer .spinner-border').remove()
-            $('#new-dataset-modal-footer').prepend('<div class="alert alert-success p-2 me-auto">Dataset Published</div>');
+            $('#new-dataset-modal-footer .stelar-loader').remove();
+            $('#new-dataset-modal-footer').prepend(createAlertElement('success', 'Dataset Published Successfully'));
             setTimeout(function () {
               $('#new-dataset-modal-footer .alert').fadeOut(500, function () {
                 $(this).remove();
@@ -1360,8 +1623,8 @@
             }, 3000);
           },
           error: function (xhr) {
-            $('#new-dataset-modal-footer .spinner-border').remove()
-            $('#new-dataset-modal-footer').prepend('<div class="alert alert-danger p-2 me-auto">Dataset Failed to Publish</div>');
+            $('#new-dataset-modal-footer .stelar-loader').remove();
+            $('#new-dataset-modal-footer').prepend(createAlertElement('danger', 'Error publishing dataset.'));
             setTimeout(function () {
               $('#new-dataset-modal-footer .alert').fadeOut(500, function () {
                 $(this).remove();
@@ -1373,12 +1636,42 @@
 
     });
 
+    function fetchOrganizations(callback) {
+      $.ajax({
+        url: '{{ url_for("catalog_blueprint.api_fetch_organizations") }}',
+        method: 'GET',
+        dataType: 'json',
+        success: function (data) {
+          // Clear the owner organization dropdown
+          $('#owner-org').empty();
+          window.orgs = window.orgs || {};
+          if (data.result.length > 0) {
+            for (var i = 0; i < data.result.length; i++) {
+              var org = data.result[i];
+              // Append the option element
+              $('#owner-org').append(`<option value="${org.name}">${org.title}  |  ${org.name}</option>`);
+              // Set organization keyed by its name
+              window.orgs[org.name] = org;
+            }
+          }
+          if (callback && typeof callback === 'function') {
+            callback();
+          }
+        },
+        error: function (xhr, status, error) {
+          if (xhr.status === 401) {
+            window.location.href = '/';
+          }
+        }
+      });
+    }
+
     function slugifyTitle(title) {
       return title
         .toLowerCase()
         .trim()
         .replace(/[^a-z0-9\s]/g, '') // Remove any character that is not a letter, number, or space
-        .replace(/\s+/g, '_'); // Replace spaces with underscores
+        .replace(/\s+/g, '-'); // Replace spaces with underscores
     }
 
     function checkNameAvailability() {
@@ -1390,9 +1683,7 @@
       }
 
       titleInput.removeClass('is-valid is-invalid');
-
-      const loader = '<div class="spinner-border me-auto p-2 spinner-border-sm text-secondary" role="status"></div>'
-      $("#availability-div").append(loader)
+      $("#availability-div").prepend(createLoaderElement(true, true));
 
       $.ajax({
         url: `{{ url_for('catalog_blueprint.api_get_dataset', entity_id = '') }}${slugifyTitle(title)}`,

@@ -116,7 +116,7 @@
 
                                     <div class="row g-3 mt-1">
                                         <div class="col-md">
-                                            <div class="form-label">Organization Roles</div>
+                                            <div class="form-label">KLMS Roles</div>
                                             {% set excluded_roles = ['default-roles-master', 'offline_access',
                                             'uma_authorization', 'create-realm'] %}
                                             {% set displayed_roles = session.get('USER_ROLES', [])
@@ -130,7 +130,7 @@
                                                 disabled="disabled">
                                         </div>
                                         <div class="col-md">
-                                            <div class="form-label">Joined Organization</div>
+                                            <div class="form-label">Joined the KLMS</div>
                                             <input type="text" class="form-control"
                                                 value="{{ session['USER_CREATION_DATE']|datetimeformat('%d-%m-%Y %H:%M') if 'USER_CREATION_DATE' in session else '' }}"
                                                 disabled="disabled">
@@ -610,9 +610,9 @@
                                     <h3 class="card-title mt-4">Delete Account</h3>
                                     <p class="card-subtitle">This action is irreversible! Your datasets and
                                         workflows
-                                        will remain available to the members of your organization after your account
+                                        will remain available to the members of your KLMS after your account
                                         deletion. Your personal information will not available anymore except your
-                                        username.</p>
+                                        username and latest email.</p>
                                     <form method="POST">
                                         <div class="row g-3">
                                             <div class="col-md">

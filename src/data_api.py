@@ -3,7 +3,6 @@
 # We need to configure logging as the first thing to do...
 #
 import logging
-
 import authz_module
 import logsys
 
@@ -13,7 +12,7 @@ import json
 import os
 import re
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from datetime import datetime as datetime
 from urllib.parse import urljoin, urlparse, urlunparse
 
@@ -1798,7 +1797,8 @@ def main(app):
 
     # Configure Flask to use Redis for session management
     app.config["SESSION_TYPE"] = "redis"
-    app.config["SESSION_PERMANENT"] = False
+    app.config["SESSION_PERMANENT"] = True
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=60)
     app.config["SESSION_USE_SIGNER"] = True
     app.config["SESSION_KEY_PREFIX"] = "stelar_session:"
     app.config["SESSION_REDIS"] = redis.StrictRedis(

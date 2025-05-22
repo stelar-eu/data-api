@@ -8,15 +8,13 @@ import smtplib
 import ssl
 from datetime import datetime, timedelta
 from functools import wraps
-from math import ceil
-import execution
 from urllib.parse import quote
 
 import mutils
-
+import time
 from apiflask import APIBlueprint
 
-from exceptions import InvalidError
+from exceptions import ConflictError
 from flask import (
     current_app,
     flash,
@@ -34,7 +32,6 @@ from tasks import TASK
 from tools import TOOL
 from cutils import TAG, ORGANIZATION, DATASET, RESOURCE
 from auth import admin_required
-import re
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
 
@@ -106,13 +103,44 @@ def session_required(f):
         # Retrieve token from session
         access_token = session.get("access_token")
 
-        # If token doesn't exist or is invalid, clear session and redirect to login with a message
-        if not access_token or not kutils.is_token_active(access_token):
-            # Revoke refresh token to log out
+        current_time = int(time.time())
+        token_expired = (
+            session.get("token_expires", 0) < current_time - 120
+            or session.get("refresh_expires", 0) < current_time - 120
+        )
+        access_token = session.get("access_token")
+
+        # If token expired or inactive, attempt to refresh it atomically
+        if (
+            token_expired
+            or not access_token
+            or not kutils.is_token_active(access_token)
+        ):
             try:
-                kutils.KEYCLOAK_OPENID_CLIENT().logout(session["refresh_token"])
+                try:
+                    token = kutils.refresh_access_token(session.get("refresh_token"))
+                except Exception:
+                    if session.get("REMEMBER_ME") and "USER_PASSWORD" in session:
+                        # If refresh token is invalid, try to get a new access token using username and
+                        # password since the has requested to remember him during login
+                        token = kutils.get_token(
+                            session.get("USER_EMAIL"), session.get("USER_PASSWORD")
+                        )
+                session["access_token"] = token["access_token"]
+                session["refresh_token"] = token["refresh_token"]
+                session["token_expires"] = current_time + token["expires_in"]
+                session["refresh_expires"] = current_time + token["refresh_expires_in"]
+                logger.debug("Token refreshed successfully")
+                # Token refreshed, continue with the original request
+                return f(*args, **kwargs)
             except Exception as e:
-                logger.error(f"Error during logout: {e}")
+                logger.error(f"Error refreshing token: {e}")
+
+            try:
+                kutils.KEYCLOAK_OPENID_CLIENT().logout(session.get("refresh_token"))
+            except Exception as logout_e:
+                logger.error(f"Error during logout: {logout_e}")
+
             session.clear()
             flash("Session Expired, Please Login Again", "warning")
             return redirect(url_for("dashboard_blueprint.login", next=request.url))
@@ -165,7 +193,6 @@ def processes():
 
     # Retrieve list of WFs from DB
     processes = PROCESS.fetch_entities(limit=50, offset=0)
-    logger.debug(processes)
 
     if processes is not None and processes != []:
         status_counts = {}
@@ -259,28 +286,61 @@ def task(process_id, task_id):
 # -------------------------------------
 
 
-@dashboard_bp.route("/catalog", methods=["GET", "POST"])
-@dashboard_bp.route("/catalog/page/<page_number>", methods=["GET", "POST"])
+@dashboard_bp.route("/catalog", methods=["GET"])
 @dashboard_bp.doc(False)
 @session_required
-def catalog(page_number=None):
-    limit = 10
-    page_number = int(page_number) if page_number and page_number.isdigit() else 1
-    offset = limit * (page_number - 1) if page_number > 0 else 0
+def catalog():
 
-    # Handle default GET request
-    packages = cutils.DATASET.fetch_entities(limit=limit, offset=offset)
+    # -------------- Handle search query ---------------
+    sort = request.args.get("sort")
+    tags = request.args.get("tags")
+    keyword = request.args.get("keywords")
+    res_format = request.args.get("res_format")
+    org = request.args.get("org")
+    author = request.args.get("author")
+    spatial = request.args.get("spatial")
+    temporal_end = request.args.get("temporal_end")
+    temporal_start = request.args.get("temporal_start")
 
-    count_pkg = cutils.count_packages("dataset")
+    search_q = {}
+    # Sort the results according to the user's latest option
+    search_q["sort"] = sort if sort else "metadata_modified desc"
 
-    total_pages = ceil(count_pkg / limit) if count_pkg > 0 else 1
+    # Search for datasets according to the user's search query
+    search_q["tags"] = tags if tags else None
+    search_q["keywords"] = keyword if keyword else None
+    search_q["res_format"] = res_format if res_format else None
+    search_q["organization"] = org if org else None
+    search_q["author"] = author if author else None
+    search_q["spatial"] = spatial if spatial else None
+    search_q["temporal_end"] = (
+        datetime.strptime(temporal_end, "%Y-%m-%d") if temporal_end else None
+    )
+    search_q["temporal_start"] = (
+        datetime.strptime(temporal_start, "%Y-%m-%d") if temporal_start else None
+    )
 
+    fq_filters = []
+    # For fields except spatial, temporal_start, and temporal_end
+    for field in ["tags", "res_format", "organization", "author"]:
+        value = search_q.get(field)
+        if value:
+            values = (
+                [v.strip() for v in value.split(",")]
+                if "," in value
+                else [value.strip()]
+            )
+            # Add a space after colon for "tags" to match frontend expectations if needed
+            if field == "tags":
+                fq_filters.append(f"{field}: (" + " OR ".join(values) + ")")
+            else:
+                fq_filters.append(f"{field}:(" + " OR ".join(values) + ")")
+
+    search_q["fq"] = fq_filters
     return render_template_with_s3(
         "catalog.html",
+        search_q=search_q,
         tags=TAG.list_entities(limit=200, offset=0),
-        datasets=packages,
-        page_number=page_number,
-        total_pages=total_pages,
         PARTNER_IMAGE_SRC=get_partner_logo(),
     )
 
@@ -334,6 +394,28 @@ def dataset_annotate(dataset_id):
         return render_template_with_s3(
             "annotator.html",
             dataset=metadata_data,
+            PARTNER_IMAGE_SRC=get_partner_logo(),
+        )
+    else:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+
+@dashboard_bp.route("/catalog/<dataset_id>/relationships")
+@session_required
+def dataset_relationships(dataset_id):
+
+    metadata_data = None
+    try:
+        metadata_data = cutils.get_package(id=dataset_id)
+    except ValueError as e:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+    except Exception as e:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+    if metadata_data:
+        return render_template_with_s3(
+            "relationships.html",
+            package=metadata_data,
             PARTNER_IMAGE_SRC=get_partner_logo(),
         )
     else:
@@ -481,15 +563,8 @@ def tool(tool_id):
 @dashboard_bp.route("/organizations")
 @session_required
 def organizations():
-    orgs = ORGANIZATION.fetch_entities(limit=100, offset=0)
-    for org in orgs:
-        org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
-        for member in org["members"][:5]:
-            user = kutils.get_user(member[0])
-            member.append(user.get("fullname", "STELAR User"))
-
     return render_template_with_s3(
-        "organizations.html", PARTNER_IMAGE_SRC=get_partner_logo(), organizations=orgs
+        "organizations.html", PARTNER_IMAGE_SRC=get_partner_logo()
     )
 
 
@@ -672,7 +747,7 @@ def signup():
             )
 
         # We need to decide the user's new username based on what usernames are already present in the system.
-        username_base = re.sub(r"\d", "", email.split("@")[0])
+        username_base = re.sub(r"[\s\-\_\.]", "", email.split("@")[0])
         username = username_base
         counter = 0
         while True:
@@ -683,7 +758,7 @@ def signup():
                 # Check if the username is unique.
                 kutils.username_unique(username)
                 break
-            except InvalidError:
+            except ConflictError:
                 # If not unique, append a counter to the base username.
                 counter += 1
                 username = f"{username_base}{counter}"
@@ -789,6 +864,11 @@ def login():
     if request.method == "POST":
         email = request.form.get("email")
         password = request.form.get("password")
+        remember = (
+            request.form.get("remember") == "on"
+            if "remember" in request.form
+            else False
+        )
 
         # Basic validation
         if not email:
@@ -803,6 +883,10 @@ def login():
                 token = kutils.get_token(email, password)
                 session["access_token"] = token["access_token"]
                 session["refresh_token"] = token["refresh_token"]
+                session["token_expires"] = int(time.time()) + token["expires_in"]
+                session["refresh_expires"] = (
+                    int(time.time()) + token["refresh_expires_in"]
+                )
 
                 # Introspect the token to get user details
                 userinfo = kutils.get_user_by_token(token["access_token"])
@@ -814,6 +898,10 @@ def login():
                         "email_verified", False
                     )
                     session["USER_USERNAME"] = userinfo.get("preferred_username")
+
+                    if remember:
+                        session["USER_PASSWORD"] = password
+                    session["REMEMBER_ME"] = remember
                     session["AVATAR"] = get_avatar()
                     session["USER_ROLES"] = userinfo.get("realm_access", {}).get(
                         "roles", []

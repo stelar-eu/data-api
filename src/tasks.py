@@ -389,10 +389,11 @@ class Task(Entity):
             if task["tags"].get("__name__"):
                 task["name"] = task["tags"]["__name__"]
 
-        # Pop system reserved tags from the final dict.
-        task["tags"].pop("__image__", None)
-        task["tags"].pop("__name__", None)
-        task["tags"].pop("__tool__", None)
+            # Pop system reserved tags from the final dict.
+            task["tags"].pop("__image__", None)
+            task["tags"].pop("__name__", None)
+            task["tags"].pop("__tool__", None)
+
         task["inputs"] = sql_utils.task_execution_input_read_sql(id)
         task["parameters"] = sql_utils.task_execution_parameters_read_sql(id)
 
@@ -1195,6 +1196,10 @@ class Task(Entity):
 
 
         """
+
+        # Validate the task existence
+        self.validate_task(id)
+
         # The only measure of verification used to ensure the validity of the request
         # is the signature. The signature is generated on task creation time and is
         # used by the Task runtime to publish the output of the execution.
@@ -1207,9 +1212,6 @@ class Task(Entity):
             raise ConflictError(
                 f"Task '{id}' is terminated and no further updates are allowed."
             )
-
-        # Validate the task existence
-        self.validate_task(id)
 
         # Since the signature is verified, we fictionally mimic the presence of the user in
         # the flask's g. This will allow the ckan_request to find the current_user
