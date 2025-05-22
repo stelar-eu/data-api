@@ -389,10 +389,11 @@ class Task(Entity):
             if task["tags"].get("__name__"):
                 task["name"] = task["tags"]["__name__"]
 
-        # Pop system reserved tags from the final dict.
-        task["tags"].pop("__image__", None)
-        task["tags"].pop("__name__", None)
-        task["tags"].pop("__tool__", None)
+            # Pop system reserved tags from the final dict.
+            task["tags"].pop("__image__", None)
+            task["tags"].pop("__name__", None)
+            task["tags"].pop("__tool__", None)
+
         task["inputs"] = sql_utils.task_execution_input_read_sql(id)
         task["parameters"] = sql_utils.task_execution_parameters_read_sql(id)
 

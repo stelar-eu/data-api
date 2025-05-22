@@ -1193,7 +1193,11 @@ def task_execution_input_read_sql(task_exec_id):
             )
             if resp and len(resp) > 0:
                 for input in resp:
-                    list_of_inputs.append(input["resource_id"] or input["input_path"])
+                    list_of_inputs.append(
+                        input["resource_id"]
+                        or input["input_path"]
+                        or input["resource_url"]
+                    )
                 inputs[group["input_group_name"]] = list_of_inputs
 
     return inputs
