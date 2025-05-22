@@ -117,10 +117,6 @@ def transaction():
             conn.rollback()
         raise
 
-    finally:
-        # Always close the connection to return it to the pool
-        conn.close()
-
 
 def execSql(sql, vars=None):
     """Opens a connection to a PostgreSQL database and executes the given SQL command.
