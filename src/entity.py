@@ -178,6 +178,7 @@ class Entity:
 
         # TODO: This will change to harmonize with search and list/fetch
         obj = self.get_cached(eid)
+        logger.debug("Got entity %s", obj)
         authorize(obj, self.name, "read")
         return obj
         # return self.get(eid)
