@@ -1196,6 +1196,10 @@ class Task(Entity):
 
 
         """
+
+        # Validate the task existence
+        self.validate_task(id)
+
         # The only measure of verification used to ensure the validity of the request
         # is the signature. The signature is generated on task creation time and is
         # used by the Task runtime to publish the output of the execution.
@@ -1208,9 +1212,6 @@ class Task(Entity):
             raise ConflictError(
                 f"Task '{id}' is terminated and no further updates are allowed."
             )
-
-        # Validate the task existence
-        self.validate_task(id)
 
         # Since the signature is verified, we fictionally mimic the presence of the user in
         # the flask's g. This will allow the ckan_request to find the current_user
