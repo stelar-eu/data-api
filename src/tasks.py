@@ -450,7 +450,7 @@ class Task(Entity):
         if task["exec_state"] in ["created", "running"]:
             raise ConflictError("Cannot delete a non terminated task.")
         sql_utils.task_execution_delete(id)
-        return id
+        return {"id": id}
 
     def extract_resources(self, package, filter):
         """
