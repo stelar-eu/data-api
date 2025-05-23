@@ -447,11 +447,10 @@ class Task(Entity):
             NotFoundError: If a Task with the given ID is not found.
         """
         task = self.get_entity(id)
-        if task["exec_state"] == "running":
-            raise ConflictError("Cannot delete a running task.")
-        with transaction():
-            sql_utils.task_execution_delete(id)
-            return id
+        if task["exec_state"] in ["created", "running"]:
+            raise ConflictError("Cannot delete a non terminated task.")
+        sql_utils.task_execution_delete(id)
+        return id
 
     def extract_resources(self, package, filter):
         """
