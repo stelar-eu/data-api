@@ -3,6 +3,7 @@
 # We need to configure logging as the first thing to do...
 #
 import logging
+
 import authz_module
 import logsys
 
@@ -12,27 +13,27 @@ import json
 import os
 import re
 import uuid
-from datetime import date, timedelta
+from datetime import date
 from datetime import datetime as datetime
+from datetime import timedelta
 from urllib.parse import urljoin, urlparse, urlunparse
 
 import pandas as pd
 import psycopg2
+import redis
 import requests
 import yaml
 from apiflask import APIFlask
 from flask import current_app, g, jsonify, redirect, request, url_for
 from flask.json.provider import DefaultJSONProvider
 
+# Import Redis Session support
+from flask_session import Session
+
 # for keycloak integration with the api
 from psycopg2.extras import RealDictCursor
 
 import execution
-
-
-# Import Redis Session support
-from flask_session import Session
-import redis
 
 # Input schemata for validating several API requests
 import schema
@@ -42,12 +43,11 @@ import sql_utils
 import utils
 from auth import security_doc, token_active
 from backend.ckan import initialize_ckan_client
-from backend.registry import initialize_registry_client
 from backend.pgsql import get_mdb_pool, initialize_mdb_pool
+from backend.registry import initialize_registry_client
 
 # Import demo token creator
 from demo_t import get_demo_ckan_token
-from routes.admin import admin_bp
 from routes.auth_tool import auth_tool_bp
 from routes.catalog import catalog_bp
 from routes.dashboard import dashboard_bp
@@ -1298,9 +1298,9 @@ def api_dataset_publish(json_data):
     if specs.get("extra_metadata") is not None:
         # Convert this metadata to a JSON array with {"key":"...", "value":"..."} pairs as required to be stored as extras in CKAN
         extra_metadata = {}
-        extra_metadata["id"] = (
-            package_id  # Must specify the id of the newly created package
-        )
+        extra_metadata[
+            "id"
+        ] = package_id  # Must specify the id of the newly created package
         extra_metadata["extras"] = utils.handle_extras(specs["extra_metadata"])
         # Make a POST request to the CKAN API to patch the newly created package with the extra metadata
         resp_extras = requests.post(
@@ -1326,9 +1326,9 @@ def api_dataset_publish(json_data):
     # TODO: Replace with the respective API function?
     if specs.get("profile_metadata") is not None:
         resource_metadata = specs["profile_metadata"]
-        resource_metadata["package_id"] = (
-            package_id  # Must specify the id of the newly created package
-        )
+        resource_metadata[
+            "package_id"
+        ] = package_id  # Must specify the id of the newly created package
         if resource_metadata.get("file") is not None:
             # Make a POST request to the CKAN API to upload the file from the specified path
             with open(resource_metadata["file"], "rb") as f:
