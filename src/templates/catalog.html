@@ -432,6 +432,44 @@
                         </p>
                       </small>
                     </div>
+                    <div class="mt-1">
+                      <label class="form-label">Visibility</label>
+                      <div class="form-selectgroup-boxes row mb-1">
+                          <div class="col-lg-6 text-success">
+                              <label class="form-selectgroup-item">
+                                  <input type="radio" name="package-visibility" value="public"
+                                      class="form-selectgroup-input" checked="">
+                                  <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                      <span class="me-3">
+                                          <span class="form-selectgroup-check"></span>
+                                      </span>
+                                      <span class="form-selectgroup-label-content">
+                                          <span class="form-selectgroup-title strong mb-1">Public</span>
+                                          <span class="d-block text-secondary">Accessible to all users
+                                              registered in the KLMS</span>
+                                      </span>
+                                  </span>
+                              </label>
+                          </div>
+                          <div class="col-lg-6 text-danger">
+                              <label class="form-selectgroup-item">
+                                  <input type="radio" name="package-visibility" value="private"
+                                      class="form-selectgroup-input">
+                                  <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                      <span class="me-3">
+                                          <span class="form-selectgroup-check"></span>
+                                      </span>
+                                      <span class="form-selectgroup-label-content">
+                                          <span class="form-selectgroup-title strong mb-1">Private</span>
+                                          <span class="d-block text-secondary">Accessible only to members
+                                              of the organization that
+                                              owns the package</span>
+                                      </span>
+                                  </span>
+                              </label>
+                          </div>
+                      </div>
+                  </div>
                   </div>
                 </div>
                 <div class="modal-body">
@@ -443,6 +481,12 @@
                           placeholder="A nice informative description"></textarea>
                       </div>
                     </div>
+                    <small class="form-hint">
+                      <p>
+                        After the dataset is published, you will be able to add resources and 
+                        manage every additional attribute of it (Spatial Coverage, Temporal Coverage, Extra Metadata, etc.)
+                      </p>
+                    </small>
                     <input type="hidden" name="packageTags" id="hiddenTagsInput" name="tags" />
                     <div class="col-lg-12">
                       <div class="mb-3">
@@ -457,7 +501,7 @@
                   </div>
                 </div>
                 <div class="modal-footer" id="new-dataset-modal-footer">
-                  <a class="cursor-pointer btn btn-primary ms-auto" id="publish-dataset-btn" disabled>
+                  <a class="cursor-pointer btn btn-primary ms-auto" id="publish-dataset-btn" onclick="publishDataset()" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24"
                       stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -1577,63 +1621,66 @@
 
 
   <script>
+
+    function publishDataset() {
+
+      const title = $('input[name="package-name-input"]').val().trim();
+      const notes = $('textarea[name="packageDescription"]').val().trim();
+      const tags = $('#hiddenTagsInput').val().split(',').filter(tag => tag.trim() !== '');
+      const ownerOrg = $('#owner-org').val();
+      const private = $('input[name="package-visibility"]:checked').val() === 'private'
+
+      $('#new-dataset-modal-footer .stelar-loader').remove();
+      $('#new-dataset-modal-footer .alert').remove();
+
+      if (!title || !notes || tags.length === 0) {
+        $('#new-dataset-modal-footer').prepend(createAlertElement('danger', 'Please fill in all fields.'));
+        return;
+      }
+
+      const payload = {
+        name: slugifyTitle(title),
+        title: title,
+        notes: notes,
+        tags: tags,
+        'owner_org': ownerOrg,
+        private: private
+      };
+
+      $("#new-dataset-modal-footer").prepend(createLoaderElement(false, false));
+
+      $.ajax({
+        url: `{{ url_for('catalog_blueprint.api_create_dataset') }} `,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        success: function (response) {
+          $('#new-dataset-modal-footer .stelar-loader').remove();
+          $('#new-dataset-modal-footer').prepend(createAlertElement('success', 'Dataset Published Successfully'));
+          setTimeout(function () {
+            $('#new-dataset-modal-footer .alert').fadeOut(500, function () {
+              $(this).remove();
+            });
+          }, 3000);
+        },
+        error: function (xhr) {
+          $('#new-dataset-modal-footer .stelar-loader').remove();
+          $('#new-dataset-modal-footer').prepend(createAlertElement('danger', 'Error publishing dataset.'));
+          setTimeout(function () {
+            $('#new-dataset-modal-footer .alert').fadeOut(500, function () {
+              $(this).remove();
+            });
+          }, 3000);
+        }
+      });
+      
+    }
+
     $(document).ready(function () {
       const titleInput = $('input[name="package-name-input"]');
-
-      titleInput.on('input', function () {
+        titleInput.on('input', function () {
         titleInput.removeClass('is-valid is-invalid');
       });
-
-      $('#publish-dataset-btn').on('click', function (event) {
-        event.preventDefault();
-
-        const title = $('input[name="package-name-input"]').val().trim();
-        const notes = $('textarea[name="packageDescription"]').val().trim();
-        const tags = $('#hiddenTagsInput').val().split(',').filter(tag => tag.trim() !== '');
-        const ownerOrg = $('#owner-org').val();
-
-        if (!title || !notes || tags.length === 0) {
-          $('#new-dataset-modal-footer').prepend(createAlertElement('danger', 'Please fill in all fields.'));
-          return;
-        }
-
-        const payload = {
-          name: slugifyTitle(title),
-          title: title,
-          notes: notes,
-          tags: tags,
-          'owner_org': ownerOrg,
-        };
-
-        $('#new-dataset-modal-footer .alert .stelar-loader').remove();
-        $("#new-dataset-modal-footer").prepend(createLoaderElement(false, false));
-
-        $.ajax({
-          url: `{{ url_for('catalog_blueprint.api_create_dataset') }} `,
-          method: 'POST',
-          contentType: 'application/json',
-          data: JSON.stringify(payload),
-          success: function (response) {
-            $('#new-dataset-modal-footer .stelar-loader').remove();
-            $('#new-dataset-modal-footer').prepend(createAlertElement('success', 'Dataset Published Successfully'));
-            setTimeout(function () {
-              $('#new-dataset-modal-footer .alert').fadeOut(500, function () {
-                $(this).remove();
-              });
-            }, 3000);
-          },
-          error: function (xhr) {
-            $('#new-dataset-modal-footer .stelar-loader').remove();
-            $('#new-dataset-modal-footer').prepend(createAlertElement('danger', 'Error publishing dataset.'));
-            setTimeout(function () {
-              $('#new-dataset-modal-footer .alert').fadeOut(500, function () {
-                $(this).remove();
-              });
-            }, 3000);
-          }
-        });
-      });
-
     });
 
     function fetchOrganizations(callback) {

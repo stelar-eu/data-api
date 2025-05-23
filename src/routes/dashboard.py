@@ -198,10 +198,25 @@ def processes():
         status_counts = {}
         monthly_counts = {}
 
+        organization_counts = {}  # Dictionary to count processes per organization
         for proc in processes:
             # Count process status for pie chart
             status = proc["exec_state"]
             status_counts[status] = status_counts.get(status, 0) + 1
+
+            # Count processes per organization
+            org_obj = proc.get("organization")
+            if org_obj and isinstance(org_obj, dict):
+                # Use organization.name as unique key and organization.title for display
+                org_key = org_obj.get("name", "Unknown")
+                org_display = org_obj.get("title", "Unknown")
+            else:
+                org_key = "Unknown"
+                org_display = "Unknown"
+            if org_key not in organization_counts:
+                organization_counts[org_key] = {"title": org_display, "count": 0}
+
+            organization_counts[org_key]["count"] += 1
 
             # Count process per month for bar chart
             start_date = proc["start_date"]
@@ -224,6 +239,7 @@ def processes():
             processes=processes,
             status_counts=status_counts,
             monthly_counts=monthly_counts,
+            organization_counts=organization_counts,
             PARTNER_IMAGE_SRC=get_partner_logo(),
         )
 
