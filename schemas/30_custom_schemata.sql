@@ -310,7 +310,7 @@ CREATE TABLE IF NOT EXISTS klms.task_output_spec
     resource_label text,
     resource_action tskx_action_enum, 
     PRIMARY KEY (task_uuid, output_name),
-    CONSTRAINT fk_task_output_spec_task_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE,
+    CONSTRAINT fk_task_output_spec_task_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE,
     CONSTRAINT fk_task_input_resource FOREIGN KEY (resource_id) REFERENCES public.resource(id) ON UPDATE CASCADE, 
     CONSTRAINT chk_existing_dataset_reference_or_existing_resource_or_nothing CHECK (
         (resource_id IS NOT NULL) OR (resource_name IS NOT NULL AND dataset_friendly_name IS NOT NULL) OR (resource_name IS NULL AND dataset_friendly_name IS NULL AND resource_id IS NULL)
