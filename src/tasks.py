@@ -1208,7 +1208,7 @@ class Task(Entity):
 
         task = sql_utils.task_execution_read(id)
 
-        if task["exec_state"] != "running":
+        if task["exec_state"] != "running" or task["exec_state"] != "created":
             raise ConflictError(
                 f"Task '{id}' is terminated and no further updates are allowed."
             )
