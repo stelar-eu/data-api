@@ -47,7 +47,6 @@ from backend.pgsql import get_mdb_pool, initialize_mdb_pool
 
 # Import demo token creator
 from demo_t import get_demo_ckan_token
-from routes.admin import admin_bp
 from routes.auth_tool import auth_tool_bp
 from routes.catalog import catalog_bp
 from routes.dashboard import dashboard_bp

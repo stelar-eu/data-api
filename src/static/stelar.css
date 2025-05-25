@@ -32,6 +32,32 @@
       0 0 50px var(--tblr-primary);
   }
   100% {
-    text-shadow: none; /* This resets the text-shadow back to its original state */
+    text-shadow: none; /* Resets the text-shadow */
+  }
+}
+
+.glowing-row {
+  animation: rowGlowAnimation 1s ease-in-out;
+}
+
+@keyframes rowGlowAnimation {
+  0% {
+    box-shadow:
+      0 0 5px rgba(255, 255, 255, 0.5),
+      0 0 10px rgba(255, 255, 255, 0.5),
+      0 0 15px var(--tblr-primary),
+      0 0 20px var(--tblr-primary),
+      0 0 25px var(--tblr-primary);
+  }
+  50% {
+    box-shadow:
+      0 0 10px rgba(255, 255, 255, 0.5),
+      0 0 20px rgba(255, 255, 255, 0.5),
+      0 0 30px var(--tblr-primary),
+      0 0 40px var(--tblr-primary),
+      0 0 50px var(--tblr-primary);
+  }
+  100% {
+    box-shadow: none; /* Resets the box-shadow */
   }
 }
