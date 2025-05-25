@@ -127,8 +127,10 @@ class RelationshipComment(Schema):
     """Schema for the relationship comment."""
 
     comment: str = schema.String(
-        description="Comment or description of the relationship",
-        example="This is a comment",
+        metadata={
+            "description": "Comment or description of the relationship",
+            "example": "This is a comment",
+        },
         required=False,
         load_default=None,
     )

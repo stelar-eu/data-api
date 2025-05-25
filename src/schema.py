@@ -85,8 +85,8 @@ class EntityListResponse(Schema):
 
 
 class PaginationParameters(Schema):
-    limit = Integer(required=False, example="100", validates=Range(min=1))
-    offset = Integer(required=False, example="0", validates=Range(min=0))
+    limit = Integer(required=False, validate=Range(min=1))
+    offset = Integer(required=False, validate=Range(min=0))
 
 
 class NameID(String):
@@ -220,34 +220,31 @@ class TagCreationRequest(EntityCreationRequest):
 
 
 class FacetSearchSpec(Schema):
-    fields = List(String, example=["author"], required=True)
-    mincount = Integer(required=False, example=5)
-    limit = Integer(required=False, example=50)
+    fields = List(String, required=True)
+    mincount = Integer(required=False)
+    limit = Integer(required=False)
 
 
 class EntitySearchQuery(PaginationParameters):
-    q = String(required=False, example="title_ngram:water")
+    q = String(required=False)
     bbox = List(
         Float,
         required=False,
-        example=[20, 35, 30, 42],
         validate=[Length(4)],
         allow_none=True,
     )
-    fq = List(String, required=False, example=["+organization:athenarc"])
+    fq = List(String, required=False)
     fl = List(
         String,
         required=False,
-        example=["name", "title"],
         allow_none=True,
         load_default=None,
     )
-    sort = String(required=False, example="title asc")
+    sort = String(required=False)
     facet = Nested(FacetSearchSpec, required=False)
     include_private = Boolean(
         required=False,
         load_default=False,
-        example="false",
         metadata={
             "description": "Include private datasets in the search results.",
         },
@@ -255,8 +252,8 @@ class EntitySearchQuery(PaginationParameters):
 
 
 class ResourceSearchQuery(PaginationParameters):
-    query = List(String, example=["format:JSON"])
-    order_by = String(required=False, example="name")
+    query = List(String)
+    order_by = String(required=False)
 
 
 class RegistryCredentials(Schema):
@@ -329,7 +326,7 @@ class Identifier(Schema):
 
 
 class RolesInput(Schema):
-    roles = List(String, required=True, example='["intern","finance_manager"]')
+    roles = List(String, required=True)
 
 
 class NewUser(Schema):
