@@ -314,7 +314,7 @@ def catalog():
     res_format = request.args.get("res_format")
     org = request.args.get("org")
     author = request.args.get("author")
-    spatial = request.args.get("spatial")
+    spatial = request.args.get("bbox")
     temporal_end = request.args.get("temporal_end")
     temporal_start = request.args.get("temporal_start")
 
@@ -328,7 +328,7 @@ def catalog():
     search_q["res_format"] = res_format if res_format else None
     search_q["organization"] = org if org else None
     search_q["author"] = author if author else None
-    search_q["spatial"] = spatial if spatial else None
+    search_q["bbox"] = [float(num) for num in spatial.split(",")] if spatial else None
     search_q["temporal_end"] = (
         datetime.strptime(temporal_end, "%Y-%m-%d") if temporal_end else None
     )
@@ -353,6 +353,7 @@ def catalog():
                 fq_filters.append(f"{field}:(" + " OR ".join(values) + ")")
 
     search_q["fq"] = fq_filters
+
     return render_template_with_s3(
         "catalog.html",
         search_q=search_q,
