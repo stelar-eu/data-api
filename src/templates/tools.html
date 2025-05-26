@@ -202,15 +202,37 @@
                                     aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
-                                <div class="mb-3">
-                                    <label class="form-label">Name</label>
-                                    <input type="text" class="form-control" name="name" placeholder="the-new-tool"
-                                        id="tool-name-input">
+                                <div class="row">
+                                    <div class="col-lg-8">
+                                        <div class="mb-3">
+                                            <label class="form-label">Name</label>
+                                            <input type="text" class="form-control" name="name" placeholder="the-new-tool"
+                                                id="tool-name-input">
+                                            <small class="form-hint">
+                                                <p>
+                                                    Please use a name in the format <code>the-new-tool</code> (use hyphens
+                                                    instead of spaces). This name will be used to generate both the tool's URL
+                                                    and its image repository name.
+                                                </p>
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">Tool Category</label>
+                                            <select class="form-select" id="tool-category"
+                                                name="tool-category">
+                                                <option value="discovery">Discovery</option>
+                                                <option value="interlinking">Interlinking</option>
+                                                <option value="annotation">Annotation</option>
+                                                <option value="annotation">Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                     <small class="form-hint">
                                         <p>
-                                            Please use a name in the format <code>the-new-tool</code> (use hyphens
-                                            instead of spaces). This name will be used to generate both the tool's URL
-                                            and its image repository name.
+                                            After creating the tool, the documentation and other metadata may be updated
+                                            in the tool's page.
                                         </p>
                                     </small>
                                 </div>
@@ -228,7 +250,7 @@
                                     </small>
                                 </div>
 
-                                <div class="mb-4">
+                                <div class="mb-3">
                                     <label class="form-label"><svg xmlns="http://www.w3.org/2000/svg" width="24"
                                             height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -252,6 +274,45 @@
                                             the permission to do so assigned by an administrator.
                                         </p>
                                     </small>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label">Visibility</label>
+                                    <div class="form-selectgroup-boxes row mb-1">
+                                      <div class="col-lg-6 text-success">
+                                        <label class="form-selectgroup-item">
+                                          <input type="radio" name="package-visibility" value="public" class="form-selectgroup-input"
+                                            checked="">
+                                          <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                            <span class="me-3">
+                                              <span class="form-selectgroup-check"></span>
+                                            </span>
+                                            <span class="form-selectgroup-label-content">
+                                              <span class="form-selectgroup-title strong mb-1">Public</span>
+                                              <span class="d-block text-secondary">Accessible to all users
+                                                registered in the KLMS</span>
+                                            </span>
+                                          </span>
+                                        </label>
+                                      </div>
+                                      <div class="col-lg-6 text-danger">
+                                        <label class="form-selectgroup-item">
+                                          <input type="radio" name="package-visibility" value="private"
+                                            class="form-selectgroup-input">
+                                          <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                            <span class="me-3">
+                                              <span class="form-selectgroup-check"></span>
+                                            </span>
+                                            <span class="form-selectgroup-label-content">
+                                              <span class="form-selectgroup-title strong mb-1">Private</span>
+                                              <span class="d-block text-secondary">Accessible only to members
+                                                of the organization that
+                                                owns the package</span>
+                                            </span>
+                                          </span>
+                                        </label>
+                                      </div>
+                                    </div>
                                 </div>
                                 <div class="row">
                                     <div class="col-lg-8">
@@ -317,6 +378,10 @@
 
 
         function createToolCards(tools) {
+            iconInterlinking = "{{ url_for('static', filename='logos/tools/linking.png') }}";
+            iconDiscovery = "{{ url_for('static', filename='logos/tools/discovery.png') }}";
+            iconAnnotation = "{{ url_for('static', filename='logos/tools/annotation.png') }}";
+
             // Loop through the tools and create cards
             for (var i = 0; i < tools.length; i++) {
                 var tool = tools[i];
@@ -324,13 +389,22 @@
                     <div class="col-lg-3">
                         <a class="card card-link cursor-pointer" href="{{ url_for('dashboard_blueprint.tool', tool_id='')}}${tool.id}">
                             <div class="card-body p-4 py-5 text-center">
-                                <span class="avatar avatar-xl mb-4 rounded">
+                                <span class="avatar avatar-xl mb-2 rounded">
                                     ${(() => {
-                        const parts = tool.name.split(/[-_]/);
-                        return (parts[0].charAt(0) + (parts[1] ? parts[1].charAt(0) : '')).toUpperCase();
-                    })()}
+                                        if (tool.category === 'interlinking') {
+                                            return `<img src="${iconInterlinking}" alt="Interlinking Icon" class="rounded">`;
+                                        } else if (tool.category === 'discovery') {
+                                            return `<img src="${iconDiscovery}" alt="Discovery Icon" class="rounded">`;
+                                        } else if (tool.category === 'annotation') {
+                                            return `<img src="${iconAnnotation}" alt="Annotation Icon" class="rounded">`;
+                                        } else {
+                                            const parts = tool.name.split(/[-_]/);
+                                            return (parts[0].charAt(0) + (parts[1] ? parts[1].charAt(0) : '')).toUpperCase();
+                                        }
+                                    })()}
                                 </span>
                                 <h3 class="mb-0">${tool.name}</h3>
+                                <span class="text-secondary mb-0">${tool.category ? tool.category.charAt(0).toUpperCase() + tool.category.slice(1) : 'Not Specified'}</span>
                                 <div class="mt-2">${tool.programming_language ? getProgrammingLanguageBadge(tool.programming_language) : ''}</div>
                                 <div class="mt-2 text-truncate">
                                     ${tool.git_repository ? `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1 icon icon-tabler icons-tabler-outline icon-tabler-brand-github"><path stroke="none" d="M0 0h24v24H0z" fill="none" /><path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" /></svg>
@@ -438,6 +512,8 @@
             var ownerOrg = $('#owner-org').val();
             var gitRepository = 'https://github.com/' + $('#git-repo').val();
             var programmingLanguage = $('#programming-language').val();
+            var private = $('input[name="package-visibility"]:checked').val() === 'private';
+            var category = $('#tool-category').val();
 
             $('#create-tool-btn').addClass('disabled');
             $('#new-tool-modal-footer').prepend(createLoaderElement(true, true))
@@ -449,7 +525,9 @@
                     name: toolName,
                     owner_org: ownerOrg,
                     git_repository: gitRepository,
-                    programming_language: programmingLanguage
+                    programming_language: programmingLanguage,
+                    private: private,
+                    category: category,
                 }),
                 success: function (data) {
                     fetchTools();
