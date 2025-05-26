@@ -42,13 +42,55 @@
                                         </a>
                                     </li>
                                     <li class="breadcrumb-item active"><a href="#"><span class="text-strong">{{
-                                                tool.name }}</span></a></li>
+                                                tool.name }}</span></a> <span id="programming-language" class="ms-1 h2">
+
+                                                </span></li>
                                 </ol>
                             </h3>
                         </div>
                         <div class="col-auto ms-auto d-print-none">
-                            <div id="programming-language" class="h2">
-
+                            <div class="d-flex align-items-center">
+                                <a class="btn btn-primary ms-auto me-2"
+                                href="{{ url_for('dashboard_blueprint.dataset_relationships', dataset_id=tool.id) }}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="icon icon-tabler icons-tabler-outline icon-tabler-chart-bubble">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M6 16m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                                    <path d="M16 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                                    <path d="M14.5 7.5m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0 -9 0" />
+                                </svg>
+                                Explore Relationships
+                                </a>
+                                <div class="dropdown">
+                                    <button class="btn" data-bs-toggle="dropdown" aria-label="Open Resource Menu">
+                                    Actions
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="m-0 icon icon-tabler icons-tabler-filled icon-tabler-caret-down">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                        <path d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z"></path>
+                                    </svg>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow ">
+                                    <a class="dropdown-item view-dataset-btn cursor-pointer" data-bs-toggle="modal" data-bs-target="#modal-edit-tool">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-settings">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                        <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"></path>
+                                        <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"></path>
+                                        </svg>
+                                        Manage</a>
+                                    <div class="dropdown-divider"></div>
+                                    <a del-dataset-id="b10a37e0-277c-4bf8-b087-007cf9d20112" class="text-danger cursor-pointer dropdown-item del-dataset-btn">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                        <path d="M4 7l16 0"></path>
+                                        <path d="M10 11l0 6"></path>
+                                        <path d="M14 11l0 6"></path>
+                                        <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path>
+                                        <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path>
+                                        </svg>
+                                        Delete</a>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -365,6 +407,123 @@
                     </div>
                 </div>
             </div>
+            <div class="modal modal-blur fade" id="modal-edit-tool" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h5 class="modal-title">Manage Tool</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      
+                       <div class="row">
+                        <div class="col-lg-8">
+                            <div class="mb-3">
+                                <label class="form-label">Name</label>
+                                <input type="text" class="form-control" name="example-disabled-input" id="package-name-input"
+                                    placeholder="Tool Name" readonly value="{{ tool.get('name') }}" disabled>
+                                <small class="form-hint">
+                                    <p>
+                                        The Package ID is a unique identifier for the tool.
+                                    </p>
+                                </small>
+                           </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="mb-3">
+                                <label class="form-label">Tool Category</label>
+                                <select class="form-select" id="tool-category" name="tool-category">
+                                    <option value="discovery" {% if tool.get('category') == 'discovery' %}selected{% endif %}>Discovery</option>
+                                    <option value="interlinking" {% if tool.get('category') == 'interlinking' %}selected{% endif %}>Interlinking</option>
+                                    <option value="annotation" {% if tool.get('category') == 'annotation' %}selected{% endif %}>Annotation</option>
+                                    <option value="other" {% if not tool.get('category') or tool.get('category') not in ['discovery', 'interlinking', 'annotation'] %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <small class="form-hint">
+                            <p>
+                                After creating the tool, the documentation and other metadata may be updated
+                                in the tool's page.
+                            </p>
+                        </small>
+                    </div>
+                      <div class="mb-3">
+                        <label class="form-label">GitHub Repository URL</label>
+                        <div class="input-group input-group-flat">
+                            <span class="input-group-text"> https://github.com/</span>
+                            <input type="text" class="form-control ps-0" value="{{ tool.get('git_repository').replace('https://github.com/','').replace('http://github.com/','') }}" autocomplete="off" id="git-repo" name="git-repo">
+                        </div>
+                        <small class="form-hint">
+                          <p>
+                            The URL of the GitHub repository where the source code is stored. It is used to fetch the
+                            documentation and latest commits.
+                          </p>
+                        </small>
+                      </div>
+    
+                      <div class="mb-3">
+                        <label class="form-label">Visibility</label>
+                        <div class="form-selectgroup-boxes row mb-1">
+                          <div class="col-lg-6 text-success mb-2">
+                            <label class="form-selectgroup-item">
+                              <input type="radio" name="package-visibility" value="public" class="form-selectgroup-input" {%
+                                if not tool.get('private') %}checked{% endif %}>
+                              <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                <span class="me-3">
+                                  <span class="form-selectgroup-check"></span>
+                                </span>
+                                <span class="form-selectgroup-label-content">
+                                  <span class="form-selectgroup-title strong mb-1">Public</span>
+                                  <span class="d-block text-secondary">Accessible to all users registered in the KLMS</span>
+                                </span>
+                              </span>
+                            </label>
+                          </div>
+                          <div class="col-lg-6 text-danger mb-2">
+                            <label class="form-selectgroup-item">
+                              <input type="radio" name="package-visibility" value="private" class="form-selectgroup-input"
+                                {% if tool.get('private') %}checked{% endif %}>
+                              <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                <span class="me-3">
+                                  <span class="form-selectgroup-check"></span>
+                                </span>
+                                <span class="form-selectgroup-label-content">
+                                  <span class="form-selectgroup-title strong mb-1">Private</span>
+                                  <span class="d-block text-secondary">Accessible only to members of the organization that
+                                    owns the package</span>
+                                </span>
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      <label class="form-label">Package ID</label>
+                      <input type="text" class="form-control" name="example-disabled-input" id="package-id-input"
+                        placeholder="Package-ID" readonly value="{{ tool.get('id') }}" disabled>
+                      <small class="form-hint">
+                        <p>
+                          The Package ID is a unique identifier for the tool.
+                        </p>
+                      </small>
+                    </div>
+                    <div class="modal-footer" id="manage-package-footer">
+                      <button type="button" class="btn btn-outline-primary"
+                        onclick="copyText('package-id-input', 'manage-package-footer')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copy" width="44"
+                          height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"
+                          stroke-linecap="round" stroke-linejoin="round">
+                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                          <path
+                            d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" />
+                          <path
+                            d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
+                        </svg>
+                        Copy ID</button>
+                      <button class="btn btn-primary" id="update-package-btn" onclick="updateTool()">Update</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
         </div>
         {% include 'footer.html' %}
     </div>
@@ -448,7 +607,97 @@
             });
         }
     </script>
+    
+    <script>
+        var toolGitRepo = "{{ tool.git_repo }}";
+        var toolGitUser = "{{ tool.git_user }}";
+        var githubAPI = "{{ GITHUB_API }}";
+        var githubRAW = "{{ GITHUB_RAW }}";
 
+        function copyText(inputId, alertContainerSelector, alertMessage = 'Copied!') {
+            const inputField = document.getElementById(inputId);
+            if (!inputField) return;
+      
+            navigator.clipboard.writeText(inputField.value);
+      
+            // Try to get the container with the provided selector.
+            let container = $(alertContainerSelector);
+            // If not found and selector doesn't start with '#', try with '#' prepended.
+            if (container.length === 0 && alertContainerSelector[0] !== '#') {
+              container = $('#' + alertContainerSelector);
+            }
+      
+            // Remove any existing alert elements from the container.
+            container.find('.alert').remove();
+      
+            const alertHtml = createAlertElement('success', alertMessage);
+            container.prepend(alertHtml);
+      
+            setTimeout(function () {
+              container.find('.alert').fadeOut(500, function () {
+                $(this).remove();
+              });
+            }, 2000);
+        }
+
+        function updateTool(){
+
+            const gitRepo = "https://github.com/"+document.getElementById("git-repo").value.trim();
+            const visibility = document.querySelector('input[name="package-visibility"]:checked').value;
+            const payload = {
+                git_repository: gitRepo,
+                private: visibility === 'private',
+                category: document.getElementById("tool-category").value,
+            };
+
+
+            if(gitRepo){
+                // Validate the GitHub repository URL
+                const gitRepoRegex = /^(https?:\/\/)?(www\.)?github\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/;
+                if (!gitRepoRegex.test(gitRepo)) {
+                    alert("Please enter a valid GitHub repository URL.");
+                    return;
+                }
+            }
+            $('#manage-package-footer .stelar-loader').remove();
+            $('#manage-package-footer .alert').remove();
+            $('#manage-package-footer').prepend(createLoaderElement(false, true));
+            $.ajax({
+                url: "{{ url_for('rest_workflows_blueprint.api_patch_tool', entity_id=tool.id) }}",
+                type: "PATCH",
+                contentType: "application/json;",
+                data: JSON.stringify(payload),
+                success: function (response) {
+                    toolGitRepo = document.getElementById("git-repo").value.trim().replace(toolGitUser + '/', '');
+                    refreshCommitList();
+                    $('#manage-package-footer .alert').remove();
+                    $('#manage-package-footer .stelar-loader').remove();
+                    $('#manage-package-footer').prepend(createAlertElement('success', 'Tool updated successfully'));
+                    setTimeout(function () {
+                        $('#manage-package-footer .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                },
+                error: function (error) {
+                    $('#manage-package-footer .alert').remove();
+                    $('#update-package-btn .stelar-loader').remove();
+                    $('#manage-package-footer').prepend(createAlertElement('danger', 'Failed to update tool'));
+                    setTimeout(function () {
+                        $('#manage-package-footer .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                }
+            });
+        }
+
+
+        function deleteTool(){
+
+        }
+
+    </script>
     <script>
         const tagInput = document.getElementById('tagInput');
         const tagsContainer = document.getElementById('tagsContainer');
@@ -485,23 +734,59 @@
             renderTags();
         }
 
-        function fetchReadMeFromGithub(callback) {
-            if (!"{{GITHUB_RAW}}") {
-                console.error("GITHUB_RAW is not defined");
-                return;
-            } else if (!"{{ tool.git_repo }}" || !"{{ tool.git_user }}") {
-                return;
-            }
 
+        function fetchReadMeFromGithubMaster(callback){
             $.ajax({
-                url: "{{GITHUB_RAW}}/{{ tool.git_user }}/{{ tool.git_repo }}/main/README.md",
+                url: `${githubRAW}/${toolGitUser}/${toolGitRepo}/master/README.md`,
                 type: "GET",
                 dataType: "text",
                 success: function (data) {
                     callback(data); // Pass the markdown to the callback
                 },
                 error: function (error) {
+                    $('#documentation-actions .stelar-loader').remove();
+                    $('#documentation-actions .stelar-symbol').remove();
+                    $('#documentation-actions').prepend(createRedCross(false));
+                    setTimeout(function () {
+                        $('#documentation-actions .stelar-symbol').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
                     console.error("Error loading README:", error);
+                }
+            });
+
+        }
+        function fetchReadMeFromGithub(callback) {
+            if (!githubRAW) {
+                console.error("GITHUB_RAW is not defined");
+                return;
+            } else if (!toolGitRepo | !toolGitUser) {
+                return;
+            }
+
+            $.ajax({
+                url: `${githubRAW}/${toolGitUser}/${toolGitRepo}/main/README.md`,
+                type: "GET",
+                dataType: "text",
+                success: function (data) {
+                    callback(data); // Pass the markdown to the callback
+                },
+                error: function (error) {
+                    if (error.status === 404) {
+                        // If main branch is not found, try master branch
+                        fetchReadMeFromGithubMaster(callback);
+                    } else {
+                        $('#documentation-actions .stelar-loader').remove();
+                        $('#documentation-actions .stelar-symbol').remove();
+                        $('#documentation-actions').prepend(createRedCross(false));
+                        setTimeout(function () {
+                            $('#documentation-actions .stelar-symbol').fadeOut(500, function () {
+                                $(this).remove();
+                            });
+                        }, 3000);
+                        console.error("Error loading README:", error);
+                    }
                 }
             });
         }
@@ -628,8 +913,14 @@
 
         function renderProgrammingLanguage() {
             const programmingLanguage = "{{ tool.get('programming_language') }}";
+            const visibility = {{ 'true' if tool.get('private') else 'false' }};
             const programmingLanguageIcon = $("#programming-language");
             programmingLanguageIcon.html(getProgrammingLanguageBadge(programmingLanguage));
+            programmingLanguageIcon.append(
+                `<span class="badge bg-${visibility ? 'danger-lt' : 'success-lt'} ms-2">
+                    ${visibility ? 'Private' : 'Public'}
+                </span>`
+            );
         }
         renderProgrammingLanguage();
 
@@ -648,12 +939,11 @@
             getLatestCommits();
         }
 
-
         function getLatestCommits() {
-            if (!"{{ tool.git_repo }}" || !"{{ tool.git_user }}") {
+            if (!toolGitUser || !toolGitRepo) {
                 return;
             }
-            else if (!"{{GITHUB_API}}") {
+            else if (!githubAPI) {
                 console.error("GITHUB_API is not defined");
                 return;
             }
@@ -661,7 +951,7 @@
                 return;
             }
             $.ajax({
-                url: "{{GITHUB_API}}/repos/{{ tool.git_user }}/{{ tool.git_repo }}/commits?per_page=4",
+                url: `${githubAPI}/repos/${toolGitUser}/${toolGitRepo}/commits?per_page=4`,
                 type: "GET",
                 dataType: "json",
                 success: function (data) {
