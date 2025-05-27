@@ -563,6 +563,83 @@ def task_execution_create(
     return True
 
 
+def task_execution_read_creator(task_exec_id):
+    """Returns the creator of a Task"""
+    # Compose the SQL command using the template for reading metadata about a task execution
+    sql = utils.sql_workflow_execution_templates["task_read_creator_template"]
+
+    # Execute the SQL command in the database
+    resp = pgsql.execSql(sql, (task_exec_id,))
+
+    if resp and len(resp) > 0:
+        task_specs = resp[0]
+        return task_specs["creator_user_id"]
+    else:
+        return None
+
+
+def task_execution_read_per_state():
+    """Returns the list of tasks per state"""
+    # Compose the SQL command
+    sql = utils.sql_workflow_execution_templates["task_read_tasks_per_state"]
+
+    # Execute the SQL command in the database
+    resp = pgsql.execSql(sql)
+    if resp and len(resp) > 0:
+        tasks_per_state = {}
+        for task in resp:
+            state = task["state"]
+            task_uuid = task["id"]
+            if state not in tasks_per_state:
+                tasks_per_state[state] = []
+            tasks_per_state[state].append(task_uuid)
+        return tasks_per_state
+
+
+def task_execution_read_per_state_per_user(creator):
+    """Returns the list of tasks per state for a given user"""
+    sql = utils.sql_workflow_execution_templates["task_read_tasks_per_state_per_user"]
+
+    resp = pgsql.execSql(sql, (creator,))
+    if resp and len(resp) > 0:
+        tasks_per_state = {}
+        for task in resp:
+            state = task["state"]
+            task_uuid = task["id"]
+            if state not in tasks_per_state:
+                tasks_per_state[state] = []
+            tasks_per_state[state].append(task_uuid)
+        return tasks_per_state
+
+
+def task_execution_read_having_state(state, limit=100, offset=0):
+    """Returns the list of tasks having a given state"""
+    # Compose the SQL command using the template for reading metadata about a task execution
+    sql = utils.sql_workflow_execution_templates["task_read_tasks_of_state"]
+    # Execute the SQL command in the database
+    resp = pgsql.execSql(sql, (state, limit, offset))
+
+    if resp and len(resp) > 0:
+        tasks = [row["id"] for row in resp]
+        return {state: tasks}
+    else:
+        return None
+
+
+def task_execution_read_having_state_per_user(state, creator, limit=100, offset=0):
+    """Returns the list of tasks having a given state for a given user"""
+    # Compose the SQL command using the template for reading metadata about a task execution
+    sql = utils.sql_workflow_execution_templates["task_read_tasks_of_state_per_user"]
+    # Execute the SQL command in the database
+    resp = pgsql.execSql(sql, (state, creator, limit, offset))
+
+    if resp and len(resp) > 0:
+        tasks = [row["id"] for row in resp]
+        return {state: tasks}
+    else:
+        return None
+
+
 def task_execution_update(task_exec_id, state, end_date=None, tags=None):
     """Updates metadata regarding a task execution in the database.
 

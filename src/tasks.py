@@ -348,6 +348,58 @@ class Task(Entity):
         salted_task_id = id + secret_key
         return hashlib.sha256(salted_task_id.encode()).hexdigest()
 
+    def get_signature(self, id):
+        """Returns the signature to the creator user or the administrator"""
+        try:
+            kutils.introspect_admin_token(kutils.current_token())
+            return {"signature": self.generate_signature(id)}
+        except AuthorizationError:
+            creator = self.get_creator(id)
+            if kutils.current_user()["preferred_username"] == creator:
+                return {"signature": self.generate_signature(id)}
+            else:
+                raise AuthorizationError(
+                    "You are not authorized to access the signature of this Task."
+                )
+
+    def list_entities(
+        self,
+        state,
+        limit,
+        offset,
+    ):
+        """Returns the list of tasks optionally per state.
+        If the user is an admin, all tasks are returned.
+        If the user is not an admin, only the tasks created by the user are returned.
+        Args:
+            state: The state of the tasks to filter by (optional).
+            limit: The maximum number of tasks to return.
+            offset: The offset for pagination.
+        Returns:
+            A list of tasks matching the criteria.
+        """
+        try:
+            # If user is admin return the list of all tasks optionally per state
+            kutils.introspect_admin_token(kutils.current_token())
+            if state:
+                return sql_utils.task_execution_read_having_state(state, limit, offset)
+            else:
+                return sql_utils.task_execution_read_per_state()
+        except AuthorizationError:
+            # If user is not admin, return only the tasks created by the user
+            if state:
+                return sql_utils.task_execution_read_having_state_per_user(
+                    state, kutils.current_user()["preferred_username"], limit, offset
+                )
+            else:
+                return sql_utils.task_execution_read_per_state_per_user(
+                    kutils.current_user()["preferred_username"]
+                )
+
+    def get_creator(self, id):
+        """Returns the task creator"""
+        return sql_utils.task_execution_read_creator(id)
+
     def verify_signature(self, id, signature):
         """Verifies the signature of a given Task ID by comparing it with the
            signature generated using the secret key of the flask app.

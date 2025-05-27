@@ -562,6 +562,14 @@ class Task_Output(Schema):
     output = Dict(keys=fields.String(), values=fields.String(), required=False)
 
 
+class TaskListQuery(Schema):
+    state = String(
+        required=False, validate=OneOf(["running", "failed", "succeeded", "created"])
+    )
+    limit = Integer(required=False, validate=Range(min=0))
+    offset = Integer(required=False, validate=Range(min=0))
+
+
 class Workflow_Input(Schema):
     # workflow_id = String(required = True)
     tags = Dict()

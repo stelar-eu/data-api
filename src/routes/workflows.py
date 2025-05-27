@@ -164,6 +164,25 @@ def api_get_tool_repository(entity_id):
 # --------------------------------------------------------
 # ------------------------ TASKS -------------------------
 # --------------------------------------------------------
+@workflows_bp.route("/tasks", methods=["GET"])
+@workflows_bp.doc(tags=["Task Operations"])
+@workflows_bp.input(schema.TaskListQuery, location="json")
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@token_active
+@render_api_output(logger)
+def api_get_tasks(json_data):
+    """Return the list of all Task Executions, optionally per state.
+    The administrator can get all tasks, while other users can only get their own tasks.
+
+    Returns:
+        A JSON with the list of tasks
+    Responses:
+        - 200: Tasks successfully returned.
+        - 500: An unknown error occurred.
+    """
+    return tasks.TASK.list_entities(
+        json_data.get("state"), json_data.get("limit"), json_data.get("offset")
+    )
 
 
 @workflows_bp.route("/task/<entity_id>", methods=["GET"])
@@ -288,6 +307,30 @@ def api_post_task_output(task_id, signature, json_data):
         - 500: An unknown error occurred.
     """
     return tasks.TASK.save_output(task_id, signature, json_data)
+
+
+@workflows_bp.route("/task/<task_id>/signature", methods=["GET"])
+@workflows_bp.doc(tags=["Task Operations"])
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
+@token_active
+def api_get_task_signature(task_id):
+    """Return the signature of the specific Task Execution.
+
+    This signature is used to authenticate the task output submission.
+    The administrator can get the signature of any task. Other users
+    can only get the signature of their own tasks.
+
+    Args:
+        task_id: The unique identifier of the Task Execution.
+    Returns:
+        A JSON with the signature of the task.
+    Responses:
+        - 200: Task signature successfully returned.
+        - 404: Task is not found
+        - 500: An unknown error occurred
+    """
+    return tasks.TASK.get_signature(task_id)
 
 
 @workflows_bp.route("/task/<task_id>/logs", methods=["GET"])
