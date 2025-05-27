@@ -14,7 +14,7 @@ import mutils
 import time
 from apiflask import APIBlueprint
 
-from exceptions import ConflictError
+from exceptions import ConflictError, AuthorizationError
 from flask import (
     current_app,
     flash,
@@ -628,18 +628,18 @@ def organizations():
 @session_required
 def organization(organization_id):
     org = ORGANIZATION.get_entity(organization_id)
-    org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
-    # datasets = DATASET.search_entities()
 
-    # for dataset in datasets[:4]:
-    #     org["datasets"].append(DATASET.get_entity(dataset[0]))
-
-    for member in org["members"][:5]:
-        user = kutils.get_user(member[0])
-        member.append(user.get("fullname", "STELAR User"))
+    try:
+        kutils.introspect_admin_token(kutils.current_token())
+        is_admin = True
+    except AuthorizationError:
+        is_admin = False
 
     return render_template_with_s3(
-        "organization.html", PARTNER_IMAGE_SRC=get_partner_logo(), organization=org
+        "organization.html",
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+        organization=org,
+        admin=is_admin,
     )
 
 

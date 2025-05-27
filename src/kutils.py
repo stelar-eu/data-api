@@ -877,7 +877,7 @@ def delete_user(user_id):
 
 
 @raise_keycloak_error
-def get_users_from_keycloak(offset, limit):
+def get_users_from_keycloak(offset, limit, public=False):
     """
     Retrieves a list of users from Keycloak with pagination and additional user details.
 
@@ -898,24 +898,37 @@ def get_users_from_keycloak(offset, limit):
 
     users = KEYCLOAK_ADMIN_CLIENT().get_users(query=query)
 
-    result = []
-    for user in users:
-        creation_date = convert_iat_to_date(user["createdTimestamp"])
-        filtered_roles = get_user_roles(user["id"])
-        active_status = user.get("enabled", False)
+    if public:
+        # If public is True, return only usernames and IDs
+        result = [
+            {
+                "username": user.get("username"),
+                "id": user.get("id"),
+                "fullname": f"{user.get('firstName', '')} {user.get('lastName', '')}".strip(),
+            }
+            for user in users
+            if user.get("enabled", False)
+        ]
 
-        user_info = {
-            "username": user.get("username"),
-            "email": user.get("email"),
-            "fullname": f"{user.get('firstName', '')} {user.get('lastName', '')}".strip(),
-            "first_name": user.get("firstName"),
-            "last_name": user.get("lastName"),
-            "joined_date": creation_date,
-            "id": user.get("id"),
-            "roles": filtered_roles,
-            "active": active_status,
-        }
-        result.append(user_info)
+    else:
+        result = []
+        for user in users:
+            creation_date = convert_iat_to_date(user["createdTimestamp"])
+            filtered_roles = get_user_roles(user["id"])
+            active_status = user.get("enabled", False)
+
+            user_info = {
+                "username": user.get("username"),
+                "email": user.get("email"),
+                "fullname": f"{user.get('firstName', '')} {user.get('lastName', '')}".strip(),
+                "first_name": user.get("firstName"),
+                "last_name": user.get("lastName"),
+                "joined_date": creation_date,
+                "id": user.get("id"),
+                "roles": filtered_roles,
+                "active": active_status,
+            }
+            result.append(user_info)
 
     return result
 
