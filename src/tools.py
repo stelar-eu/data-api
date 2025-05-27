@@ -90,7 +90,7 @@ class ToolEntity(PackageEntity):
         )
         return super().create(init_data)
 
-    def delete(self, eid: str):
+    def delete(self, eid: str, purge: bool = False):
         """
         Delete a tool entity by its ID.
         This method will also delete the repository from the registry.
@@ -99,7 +99,7 @@ class ToolEntity(PackageEntity):
         if not package:
             return None
         REGISTRY.delete_repository(package["repository"])
-        return super().delete(eid)
+        return super().delete(eid, purge=purge)
 
     def _enhance_from_registry(self, package: dict):
         """

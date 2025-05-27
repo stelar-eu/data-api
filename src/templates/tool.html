@@ -79,7 +79,7 @@
                                         </svg>
                                         Manage</a>
                                     <div class="dropdown-divider"></div>
-                                    <a del-dataset-id="b10a37e0-277c-4bf8-b087-007cf9d20112" class="text-danger cursor-pointer dropdown-item del-dataset-btn">
+                                    <a data-bs-toggle="modal" data-bs-target="#modal-delete-tool" class="text-danger cursor-pointer dropdown-item del-dataset-btn">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-trash">
                                         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                         <path d="M4 7l16 0"></path>
@@ -523,6 +523,31 @@
                     </div>
                   </div>
                 </div>
+            </div>
+            <div class="modal modal-blur fade" id="modal-delete-tool" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+                  <div class="modal-content">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <div class="modal-status bg-danger"></div>
+                    <div class="modal-body text-center py-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="icon mb-2 text-danger icon-lg" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10.24 3.957l-8.422 14.06a1.989 1.989 0 0 0 1.7 2.983h16.845a1.989 1.989 0 0 0 1.7 -2.983l-8.423 -14.06a1.989 1.989 0 0 0 -3.4 0z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+                      <h3>Are you sure?</h3>
+                      <div class="text-secondary">Do you really want to remove <strong>{{tool.name}}</strong>. This action is irreversible.</div>
+                    </div>
+                    <div class="modal-footer">
+                      <div class="w-100">
+                        <div class="row">
+                          <div class="col"><a href="#" class="btn w-100" data-bs-dismiss="modal">
+                              Cancel
+                            </a></div>
+                          <div class="col"><a class="btn btn-danger w-100" data-bs-dismiss="modal" onclick="deleteTool()">
+                              Delete Tool
+                            </a></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
         </div>
         {% include 'footer.html' %}
@@ -694,7 +719,24 @@
 
 
         function deleteTool(){
-
+            $.ajax({
+                url: "{{ url_for('rest_workflows_blueprint.api_delete_tool', entity_id=tool.id) }}",
+                type: "DELETE",
+                contentType: "application/json;",
+                data: JSON.stringify({'purge':true}),
+                success: function (response) {
+                    window.location.href = "{{ url_for('dashboard_blueprint.tools') }}";
+                },
+                error: function (error) {
+                    $('#modal-delete-tool .alert').remove();
+                    $('#modal-delete-tool').append(createAlertElement('danger', 'Failed to delete tool'));
+                    setTimeout(function () {
+                        $('#modal-delete-tool .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                }
+            })
         }
 
     </script>

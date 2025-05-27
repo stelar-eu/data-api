@@ -139,8 +139,8 @@
 
                       Export to Zenodo</a>
                     <div class="dropdown-divider"></div>
-                    <a del-dataset-id="{{ dataset.id }}"
-                      class="text-danger cursor-pointer dropdown-item del-dataset-btn">
+                    <a class="text-danger cursor-pointer dropdown-item del-dataset-btn"
+                      data-bs-toggle="modal" data-bs-target="#modal-delete-dataset">
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                         class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-trash">
@@ -995,6 +995,39 @@
                   <a class="btn btn-primary ms-auto" onclick="updateSpatialCoverage()" id="update-spatial-btn">
                     Update Spatial Coverage
                   </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal modal-blur fade" id="modal-delete-dataset" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-status bg-danger"></div>
+                <div class="modal-body text-center py-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="icon mb-2 text-danger icon-lg" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10.24 3.957l-8.422 14.06a1.989 1.989 0 0 0 1.7 2.983h16.845a1.989 1.989 0 0 0 1.7 -2.983l-8.423 -14.06a1.989 1.989 0 0 0 -3.4 0z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+                  <h3>Are you sure?</h3>
+                  <div class="text-secondary">Do you really want to remove <strong>{{dataset.title}}</strong>.</div>
+                  <div class="text-start mt-2">
+                    <label class="form-check">
+                      <input class="form-check-input" type="checkbox" id="soft-delete-checkbox" checked>
+                      <span class="form-check-label"> Soft Delete </span>
+                      <span class="form-check-description"> Perform a soft delete on the dataset, ensuring it remains recoverable for a short retention period before permanent deletion.</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <div class="w-100">
+                    <div class="row">
+                      <div class="col"><a href="#" class="btn w-100" data-bs-dismiss="modal">
+                          Cancel
+                        </a></div>
+                      <div class="col"><a class="btn btn-danger w-100" data-bs-dismiss="modal" onclick="deleteDataset()">
+                          Delete
+                        </a></div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2324,6 +2357,28 @@
         });
       });
     });
+  </script>
+  <script>
+    function deleteDataset(){
+      $.ajax({
+          url: "{{ url_for('catalog_blueprint.api_delete_dataset', entity_id=dataset.id) }}",
+          type: "DELETE",
+          contentType: "application/json;",
+          data: JSON.stringify({'purge': !$('#soft-delete-checkbox').is(':checked')}),
+          success: function (response) {
+              window.location.href = "{{ url_for('dashboard_blueprint.catalog') }}";
+          },
+          error: function (error) {
+              $('#modal-delete-dataset .alert').remove();
+              $('#modal-delete-dataset').append(createAlertElement('danger', 'Failed to delete dataset'));
+              setTimeout(function () {
+                  $('#modal-delete-dataset .alert').fadeOut(500, function () {
+                      $(this).remove();
+                  });
+              }, 3000);
+          }
+      })
+  }
   </script>
 
 </body>
