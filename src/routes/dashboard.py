@@ -130,6 +130,8 @@ def session_required(f):
                 session["refresh_token"] = token["refresh_token"]
                 session["token_expires"] = current_time + token["expires_in"]
                 session["refresh_expires"] = current_time + token["refresh_expires_in"]
+                session["expires_in"] = token["expires_in"]
+                session["refresh_expires_in"] = token["refresh_expires_in"]
                 logger.debug("Token refreshed successfully")
                 # Token refreshed, continue with the original request
                 return f(*args, **kwargs)
@@ -545,8 +547,8 @@ def sde_manager():
         f"&username={quote(session.get('USER_USERNAME', ''))}"
         f"&access_token={quote(session.get('access_token', ''))}"
         f"&refresh_token={quote(session.get('refresh_token', ''))}"
-        f"&expires_in={int(session.get('token_expires', 0))}"
-        f"&refresh_expires_in={int(session.get('refresh_expires', 0))}"
+        f"&expires_in={int(session.get('expires_in', 0))}"
+        f"&refresh_expires_in={int(session.get('refresh_expires_in', 0))}"
         f"&access_key={quote(creds['AccessKeyId'])}"
         f"&secret_key={quote(creds['SecretAccessKey'])}"
         f"&session_token={quote(creds['SessionToken'])}"
