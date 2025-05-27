@@ -130,6 +130,8 @@ def session_required(f):
                 session["refresh_token"] = token["refresh_token"]
                 session["token_expires"] = current_time + token["expires_in"]
                 session["refresh_expires"] = current_time + token["refresh_expires_in"]
+                session["expires_in"] = token["expires_in"]
+                session["refresh_expires_in"] = token["refresh_expires_in"]
                 logger.debug("Token refreshed successfully")
                 # Token refreshed, continue with the original request
                 return f(*args, **kwargs)
@@ -524,6 +526,43 @@ def dataset_compare():
 
 
 # --------------------------------------
+# Utilities Routes
+# --------------------------------------
+@dashboard_bp.route("/utilities/sde", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+def sde_manager():
+
+    config = current_app.config["settings"]
+    host = config.get("MAIN_EXT_URL")
+
+    s3_endpoint = (
+        config.get("MINIO_API_SUBDOMAIN") + "." + config.get("KLMS_DOMAIN_NAME")
+    )
+    creds = mutils.get_temp_minio_credentials(kutils.current_token())
+
+    embed_uri = (
+        f"/sde/?embed=true"
+        f"&api={quote(host + '/stelar')}"
+        f"&username={quote(session.get('USER_USERNAME', ''))}"
+        f"&access_token={quote(session.get('access_token', ''))}"
+        f"&refresh_token={quote(session.get('refresh_token', ''))}"
+        f"&expires_in={int(session.get('expires_in', 0))}"
+        f"&refresh_expires_in={int(session.get('refresh_expires_in', 0))}"
+        f"&access_key={quote(creds['AccessKeyId'])}"
+        f"&secret_key={quote(creds['SecretAccessKey'])}"
+        f"&session_token={quote(creds['SessionToken'])}"
+        f"&s3_endpoint={quote(s3_endpoint)}"
+        f"&bucket=klms-bucket"
+    )
+    return render_template_with_s3(
+        "sde.html",
+        GUI_URL=host + embed_uri,
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+    )
+
+
+# --------------------------------------
 # Tools Routes
 # --------------------------------------
 
@@ -904,6 +943,10 @@ def login():
                 session["refresh_expires"] = (
                     int(time.time()) + token["refresh_expires_in"]
                 )
+
+                # Store the original expiration dates
+                session["expires_in"] = token["expires_in"]
+                session["refresh_expires_in"] = token["refresh_expires_in"]
 
                 # Introspect the token to get user details
                 userinfo = kutils.get_user_by_token(token["access_token"])

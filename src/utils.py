@@ -293,6 +293,11 @@ sql_workflow_execution_templates = {
     "task_read_secret_template": "SELECT key, value FROM klms.task_secret WHERE task_uuid = %s",
     "task_read_template": "SELECT task_uuid AS id, creator_user_id as creator, workflow_uuid AS process_id, state AS exec_state, start_date, end_date FROM klms.task_execution WHERE task_uuid = %s",
     "task_read_tags_template": "SELECT key, value FROM klms.task_tag WHERE task_uuid = %s",
+    "task_read_creator_template": "SELECT creator_user_id FROM klms.task_execution WHERE task_uuid =%s",
+    "task_read_tasks_per_state": "SELECT task_uuid as id, state FROM klms.task_execution",
+    "task_read_tasks_per_state_per_user": "SELECT task_uuid as id, state FROM klms.task_execution WHERE creator_user_id = %s",
+    "task_read_tasks_of_state": "SELECT task_uuid as id FROM klms.task_execution WHERE state = %s LIMIT %s OFFSET %s",
+    "task_read_tasks_of_state_per_user": "SELECT task_uuid as id FROM klms.task_execution WHERE state = %s AND creator_user_id = %s LIMIT %s OFFSET %s",
     "task_read_input_group_names_by": "SELECT DISTINCT input_group_name FROM klms.task_input WHERE task_uuid = %s",
     "task_read_uuid_inputs": "SELECT resource_id FROM klms.task_input WHERE task_uuid= %s AND input_path IS NULL",
     "task_read_path_inputs": "SELECT input_path FROM klms.task_input WHERE task_uuid= %s AND resource_id IS NULL",
@@ -647,7 +652,7 @@ def decode_from_base64(base64_string):
 
 
 def is_valid_package_dict(obj):
-    required_keys = {"name", "tags", "notes", "owner_org"}
+    required_keys = {"name", "owner_org"}
     return isinstance(obj, dict) and required_keys.issubset(obj.keys())
 
 
