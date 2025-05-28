@@ -7,9 +7,8 @@ from typing import Optional
 
 from apiflask import Schema, fields, validators
 from flask import current_app, g
-from mutils import get_temp_minio_credentials, expand_wildcard_path
-from processes import PROCESS
-from tools import TOOL
+from marshmallow import INCLUDE, ValidationError, pre_load, validates_schema
+
 import cutils
 import execution
 import kutils
@@ -18,15 +17,16 @@ import utils
 from backend.pgsql import transaction
 from entity import Entity
 from exceptions import (
+    AuthorizationError,
     ConflictError,
     DataError,
     NotAllowedError,
     NotFoundError,
-    AuthorizationError,
 )
+from mutils import expand_wildcard_path, get_temp_minio_credentials
+from processes import PROCESS
+from tools import TOOL
 from utils import is_valid_url, is_valid_uuid
-from marshmallow import ValidationError, pre_load, validates_schema
-from marshmallow import INCLUDE
 
 logger = logging.getLogger(__name__)
 
@@ -624,7 +624,6 @@ class Task(Entity):
                     # and the dataset exists in the Task.
                     package = sql_utils.task_read_dataset(id, artifact_uuid or val)
                     if package and package.get("package_uuid") is not None:
-
                         if (artifact_uuid or val) == "ctx":
                             # ctx is a special case that refers to the Process package
                             # the Task belongs to.
@@ -969,7 +968,7 @@ class Task(Entity):
             kutils.current_user().get("username"), kutils.current_token(), **init_data
         )
 
-    def patch(self, id: uuid, state):
+    def patch(self, eid: str | uuid, patch_state):
         """Patches the current state of an existing Task.
         Allows, for the time being, updating the state of the task to 'succeeded' or 'failed'.
         Other fields of the task are immutable or not patchable.
@@ -979,9 +978,9 @@ class Task(Entity):
         Raises:
             NotFoundError: If the task is not found.
         """
-        # Fetch the task and update its state.
-        task = self.get_entity(id)
-        self.set_exec_state(task["id"], state)
+        raise NotImplementedError("task patch")
+        # task = self.get_entity(id)
+        # self.set_exec_state(task["id"], state)
 
     def delegate_input_artifacts(
         self,
@@ -1206,7 +1205,6 @@ class Task(Entity):
                             decoded_package.get("name")
                         )["id"]
                     except Exception:
-
                         # Package does not exist, should be created
                         package_id = cutils.DATASET.create_entity(decoded_package)["id"]
 
