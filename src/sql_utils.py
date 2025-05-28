@@ -917,6 +917,7 @@ def task_execution_insert_metrics(task_exec_id, metrics):
     Args:
         task_exec_id: UUID of the task execution.
         metrics: A JSON dictionary with the task execution metrics as (key, value) pairs.
+                 The value can also be a dictionary.
 
     Returns:
         A boolean: True, if the statement executed successfully; otherwise, False.
@@ -926,6 +927,10 @@ def task_execution_insert_metrics(task_exec_id, metrics):
     if metrics:
         for key, value in metrics.items():
             sql = utils.sql_workflow_execution_templates["task_insert_metrics_template"]
+
+            # If the value is a dictionary, convert it to a JSON string
+            if isinstance(value, dict):
+                value = json.dumps(value)
 
             # Execute the SQL command in the database
             resp = pgsql.execSql(sql, (task_exec_id, key, value))
@@ -1346,7 +1351,15 @@ def task_execution_metrics_read_sql(task_exec_id):
         resp = pgsql.execSql(sql, (task_exec_id,))
 
         if resp and len(resp) > 0:
-            metrics = {tag["key"]: tag["value"] for tag in resp}
+            metrics = {}
+            for tag in resp:
+                value = tag["value"]
+                try:
+                    # Attempt to load the value as JSON
+                    value = json.loads(value)
+                except (ValueError, TypeError):
+                    pass  # If it's not JSON, keep the original value
+                metrics[tag["key"]] = value
             return metrics
         else:
             return None
