@@ -1334,9 +1334,10 @@ def task_execution_parameters_read_sql(task_exec_id):
             for param in resp:
                 value = param["value"]
                 try:
-                    value = int(value)
-                except (ValueError, TypeError, Exception):
-                    pass
+                    # Attempt to parse the value as a Python literal (e.g., int, float, bool, dict, etc.)
+                    value = ast.literal_eval(value)
+                except (ValueError, SyntaxError):
+                    pass  # If parsing fails, keep the value as is (string)
                 params[param["key"]] = value
             return params
         else:
