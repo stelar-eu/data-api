@@ -72,7 +72,7 @@ class QuayClient:
         Returns:
             dict: The tags of the repository.
         """
-        endpoint = f"/repository/stelar/{repository}/tag/"
+        endpoint = f"/repository/stelar/{repository}/tag/?onlyActiveTags=true"
         response = quay_request(endpoint=endpoint, method="GET")
         return response["tags"] if "tags" in response else []
 
