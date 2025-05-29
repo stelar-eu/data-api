@@ -61,6 +61,28 @@ def get_users(query_data):
     return kutils.get_users_from_keycloak(offset=offset, limit=limit)
 
 
+@users_bp.route("/list", methods=["GET"])
+@users_bp.doc(tags=["User Management"], security=security_doc)
+@users_bp.input(schema.PaginationParameters, location="query")
+@render_api_output(logger)
+@token_active
+def api_list_users(query_data):
+    """
+    Returns a limited view of users of the STELAR KLMS in a JSON.
+
+    Returns:
+        - dict():  The JSON containing the users
+
+    Args optionally:
+        - limit: Maximum number of users returned per request, if limit is 0 all users are returned.
+        - offset: Offset of the result by #offset user.
+    """
+    offset = query_data.get("offset", 0)
+    limit = query_data.get("limit", 0)
+
+    return kutils.get_users_from_keycloak(offset=offset, limit=limit, public=True)
+
+
 @users_bp.route("/sync", methods=["POST"])
 @users_bp.doc(tags=["User Management"], security=security_doc)
 @users_bp.output(schema.APIResponse(), status_code=200)

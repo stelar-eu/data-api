@@ -224,7 +224,6 @@ class K8sExecEngine(ExecEngine):
     def _create_job_manifest(
         self, tool_name: str, token: str, task_id: str, signature: str
     ):
-        # Create the resource for given tool
         from kubernetes.client import (
             V1Container,
             V1Job,
@@ -232,7 +231,13 @@ class K8sExecEngine(ExecEngine):
             V1ObjectMeta,
             V1PodSpec,
             V1PodTemplateSpec,
+            V1LocalObjectReference,
         )
+
+        # Determine if image requires credentials
+        image_pull_secrets = []
+        if tool_name.startswith("img.stelar.gr/stelar/"):
+            image_pull_secrets = [V1LocalObjectReference(name="stelar-registry-secret")]
 
         jm = V1Job(
             api_version="batch/v1",
@@ -265,6 +270,7 @@ class K8sExecEngine(ExecEngine):
                             ),
                         ],
                         restart_policy="Never",
+                        image_pull_secrets=image_pull_secrets,
                     ),
                 ),
                 backoff_limit=4,
@@ -272,8 +278,6 @@ class K8sExecEngine(ExecEngine):
             ),
         )
 
-        # logger.info("Job manifest for task %s tool_name %s", task_id, tool_name)
-        # logger.debug("Job: %s", jm)
         return jm
 
     def create_task(

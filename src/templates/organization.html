@@ -8,11 +8,8 @@
     <title>STELAR | {{ organization.title }}</title>
     <!-- CSS files -->
     {% include 'tabler.html' %}
-
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Leaflet PM CSS (for polygon editing) -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.css" />
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="{{ url_for('static', filename='images.js') }}"></script>
@@ -108,7 +105,9 @@
                                                                 <path
                                                                     d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
                                                             </svg>
-                                                            0 Datasets
+                                                            <span class="text-secondary placeholder placeholder-glow" id="org-dataset-count">
+                                                                0 Datasets                                                                
+                                                            </span>
                                                         </div>
                                                         <div class="list-inline-item">
                                                             <!-- Download SVG icon from http://tabler.io/icons/icon/license -->
@@ -125,7 +124,9 @@
                                                                 <path d="M5 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
                                                                 <path d="M3 13v-1a2 2 0 0 1 2 -2h2" />
                                                             </svg>
-                                                            1 Members
+                                                            <span class="text-secondary placeholder placeholder-glow" id="org-user-count">
+                                                                0 Members
+                                                            </span>
                                                         </div>
 
                                                     </div>
@@ -194,7 +195,7 @@
                                         modified</small>
                                 </div>
                                 <div class="ms-auto">
-                                    <a href="#" class="btn btn-sm py-1 btn-pill btn-outline-primary text-wrap">Browse
+                                    <a href="{{ url_for('dashboard_blueprint.catalog' )}}?org={{organization.name}}" class="btn btn-sm py-1 btn-pill btn-outline-primary text-wrap" target="_blank">Browse
                                         all datasets
                                         of
                                         {{organization.title}}</a>
@@ -240,31 +241,20 @@
                                             <small class="text-secondary">People with access to organization
                                                 resources</small>
                                         </div>
+                                        {% if admin %}
+                                        <div class="ms-auto">
+                                            <a class="cursor-pointer" data-bs-toggle="modal" data-bs-target="#org-users-modal">
+                                                Manage Members
+                                            </a>
+                                        </div>
+                                        {% endif %}
                                     </div>
-                                    <div class="avatar-list me-3 mb-3">
-                                        {% if organization.members %}
-                                        {% for user in organization.members[:5] %}
-                                        <span class="avatar avatar-sm">
-                                            {% set user_name = user[3] %}
-                                            {% if user_name and user_name.strip() %}
-                                            {{ user_name.split() | map('first') | map('upper') | join('') }}
-                                            {% else %}
-                                            U
-                                            {% endif %}
+                                    <div class="avatar-list me-3 mb-3" id="org-recent-users">
+                                        {% for i in range(0,10) %}
+                                        <span class="avatar avatar-sm placeholder placeholder-glow">
+                                            <span class="placeholder col-6"></span>
                                         </span>
                                         {% endfor %}
-                                        {% else %}
-                                        <span class="avatar avatar-sm rounded">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                viewBox="0 0 24 24" fill="currentColor"
-                                                class="p-1 icon icon-tabler icons-tabler-filled icon-tabler-user">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M12 2a5 5 0 1 1 -5 5l.005 -.217a5 5 0 0 1 4.995 -4.783z" />
-                                                <path
-                                                    d="M14 14a5 5 0 0 1 5 5v1a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-1a5 5 0 0 1 5 -5h4z" />
-                                            </svg>
-                                        </span>
-                                        {% endif %}
                                     </div>
                                     <hr>
                                     <div class="d-flex align-items-center mb-3">
@@ -335,6 +325,47 @@
                     </div>
                 </div>
             </div>
+
+            {% if admin %}
+            <div class="modal modal-blur fade" id="org-users-modal" tabindex="-1" style="display: none;" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                  <div class="modal-content">
+                    <div class="modal-header border-0">
+                      <h5 class="modal-title">Organization Members</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-0">
+                        <table class="table table-bordered m-0">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Full Name</th>
+                                    <th>Capacity</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="org-users-list">
+                                <tr id="new-org-member">
+                                    <td colspan="4" class="text-center p-2">
+                                      <a class="text-green cursor-pointer" onclick="addUserField()" title="Add New User">
+                                        <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-circle-dashed-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8.56 3.69a9 9 0 0 0 -2.92 1.95" /><path d="M3.69 8.56a9 9 0 0 0 -.69 3.44" /><path d="M3.69 15.44a9 9 0 0 0 1.95 2.92" /><path d="M8.56 20.31a9 9 0 0 0 3.44 .69" /><path d="M15.44 20.31a9 9 0 0 0 2.92 -1.95" /><path d="M20.31 15.44a9 9 0 0 0 .69 -3.44" /><path d="M20.31 8.56a9 9 0 0 0 -1.95 -2.92" /><path d="M15.44 3.69a9 9 0 0 0 -3.44 -.69" /><path d="M9 12h6" /><path d="M12 9v6" /></svg>
+                                      </a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="modal-footer border-0">
+                      <button type="button" class="btn" data-bs-dismiss="modal">Close</button>
+                    </div>
+                  </div>
+                </div>
+            </div>
+            {% endif %}
+
+
+
+
         </div>
         {% include 'footer.html'%}
     </div>
@@ -392,12 +423,15 @@
                         $('#org-recent-datasets').empty();
 
                         if (response.result.count > 0) {
+                            $('#org-dataset-count').removeClass('placeholder placeholder-glow');
+                            $('#org-dataset-count').text(response.result.count + (response.result.count === 1 ? ' Dataset' : ' Datasets'));
                             const datasets = response.result.results;
                             datasets.forEach(function(dataset) {
                                 if(dataset.organization != org_name){
                                     return;
                                 }
                                 $('#org-recent-datasets').append(renderDatasetCard(dataset));
+
                             });
                         } else {
                             $('#org-recent-datasets').append(`<p class="text-secondary">No recent datasets found for this organization</p>`);
@@ -412,8 +446,234 @@
 
         }
 
+        
+        systemUsers = [];
+        organizationUsers = [];
+
+        function fetchOrganizationUsers(usersRep){
+            $.ajax({
+                url: "{{url_for('catalog_blueprint.api_list_user_members_of_organization', entity_id=organization.id)}}",
+                type: "GET",
+                success: function(response) {
+                    if(response.success){
+                        count = response.result.length;
+                        $('#org-user-count').removeClass('placeholder placeholder-glow');
+                        $('#org-user-count').text(count + (count === 1 ? ' Member' : ' Members'));
+
+                        if(count > 0){
+                            $('#org-recent-users').empty();
+                            organizationUsers = response.result.map(user => user[0]);
+
+                            // Populate organization users
+                            response.result.forEach(function(user) {
+                                var userId = user[0];
+                                var userDetails = usersRep.find(u => u.id === userId);
+                                var userName = userDetails ? userDetails.fullname : 'Unknown';
+                                var userInitials = userName.split(' ').map(n => n[0].toUpperCase()).join('');
+                                $('#org-recent-users').append(`
+                                    <span class="avatar avatar-sm rounded" title="${userName}">
+                                        ${userInitials}
+                                    </span>
+                                `);
+                                var userRole = user[2] || 'Member';
+                                $("#org-users-list").prepend(`
+                                    <tr id="user-${userId}">
+                                        <td>${userDetails.username}</td>
+                                        <td>${userName}</td>
+                                        <td>${userRole}</td>
+                                        <td>
+                                            ${userDetails.username !== 'admin' ? `
+                                                <a class="text-link me-2 cursor-pointer" onclick="editUserMembership('${userId}')">Edit</a>
+                                                <a class="text-link text-danger cursor-pointer" onclick="removeUserFromOrg('${userId}')">Remove</a>
+                                            ` : ''}
+                                        </td>
+                                    </tr>
+                                `);
+                            });
+
+                            // Populate system users not in the organization
+                            systemUsers = usersRep.filter(user => !organizationUsers.includes(user.id));
+                        } else {
+                            $('#org-recent-users').html('<p class="text-secondary">No members found in this organization</p>');
+                        }
+                    } else {
+                        $('#org-user-count').text('0 Members');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
+                    $('#org-user-count').text('0 Members');
+                }
+            })
+        }
+
+        function fetchSystemUsers(callback) {
+            $.ajax({
+                url: "{{url_for('users_blueprint.api_list_users')}}",
+                type: "GET",
+                success: function(response) {
+                    if(response.success){
+                       if(callback && typeof callback === 'function') {
+                            callback(response.result);
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
+                }
+            })
+        }
+        
         $(document).ready(function() {
             fetchOrganizationDatasets();
+            fetchSystemUsers(function(usersRep) {
+                fetchOrganizationUsers(usersRep);
+            });
         });
+    </script>
+    <script>
+        function buildNormalUserRow(fullname, username, userId, capacity){
+            return `<tr id="user-${userId}">
+                        <td>${username}</td>
+                        <td>${fullname}</td>
+                        <td>${capacity}</td>
+                        <td>
+                            ${username !== 'admin' ? `
+                                <a class="text-link me-2 cursor-pointer" onclick="editUserMembership('${userId}')">Edit</a>
+                                <a class="text-link text-danger cursor-pointer" onclick="removeUserFromOrg('${userId}')">Remove</a>
+                            ` : ''}
+                        </td>
+                    </tr>`;
+        }
+      
+        function buildUserEditRow(fullname, username, userId, capacity){
+            return `
+                <tr id="user-row-edit">
+                <td> ${username}</td>
+                <td> ${fullname}</td>
+                <td>
+                    <select id="select-capacity" placeholder="Select a capacity..." autocomplete="off">
+                            <option value="">Select a capacity...</option>
+                            <option value="reader">Reader</option>
+                            <option value="editor">Editor</option>
+                            <option value="reviewer">Reviewer</option>
+                            <option value="Admin">Admin</option>
+                    </select>                
+                    <input type="hidden" name="user-original-capacity" value="${capacity}">
+                    <input type="hidden" name="user-original-id" value="${userId}">
+                </td>
+                <td>
+                    <a class="text-link cursor-pointer" onclick="saveMember()">Save</a>
+                    <a class="text-danger cursor-pointer ms-2" onclick="cancelEditUser()">Cancel</a>
+                </td>
+                </tr>`;
+        }
+      
+        function buildAddUserRow(){
+            return `
+                <tr id="user-row-new">
+                    <td colspan="2">
+                        <select id="select-user" placeholder="Select a user..." autocomplete="off">
+                            <option value="">Select a user...</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select id="select-capacity" placeholder="Select a capacity..." autocomplete="off">
+                            <option value="">Select a capacity...</option>
+                            <option value="reader">Reader</option>
+                            <option value="editor">Editor</option>
+                            <option value="reviewer">Reviewer</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </td>
+                    <td>
+                        <a class="text-link cursor-pointer" onclick="saveNewUser()">Save</a>
+                        <a class="text-danger cursor-pointer ms-2" onclick="cancelAddUser()">Cancel</a>
+                </td>
+            `;
+        }
+
+        function addUserField(){
+            const userRow = $('#user-row-new');
+            const editRow = $('#user-row-edit');
+            if (editRow.length > 0) {
+              cancelEditUser();
+            }
+            if (userRow.length === 0) {
+              $('#new-org-member').before(buildAddUserRow());
+              const selectUser = $('#select-user');
+              systemUsers.forEach(user => {
+                  selectUser.append(`<option value="${user.id}">${user.username} - ${user.fullname}</option>`);
+              });
+
+              new TomSelect("#select-user",{
+                sortField: {
+                    field: "text",
+                    direction: "asc"
+                }
+              });
+
+              new TomSelect("#select-capacity",{
+                create: true,
+                sortField: {
+                    field: "text",
+                    direction: "asc"
+                }
+              });
+              
+            } else if (!userRow.hasClass('glowing-row')) {
+              userRow.addClass('glowing-row');
+              setTimeout(function(){
+                userRow.removeClass('glowing-row');
+              }, 2000);
+            }
+        }
+
+        function editUserMembership(id){
+            const addRow = $('#user-row-new');
+            if (addRow.length > 0) {
+                cancelAddUser();
+            }
+            const userRow = $(`#user-${id}`);
+            if (userRow.length > 0) {
+              cancelEditUser();
+              const value = userRow.find('td:nth-child(2)').text().trim();
+              const username = userRow.find('td:first').text().trim();
+              const fullname = userRow.find('td:nth-child(2)').text().trim();
+              const originalCapacity = userRow.find('td:nth-child(3)').text().trim();
+              userRow.replaceWith(buildUserEditRow(fullname, username, id, originalCapacity));
+              const capacitySelect = new TomSelect("#select-capacity", {
+                create: true,
+                sortField: {
+                    field: "text",
+                    direction: "asc"
+                }
+              });
+              if (originalCapacity) {
+                capacitySelect.setValue(originalCapacity);
+              }
+            } else {
+              console.error(`User with key ${id} not found.`);
+            }
+        }
+
+        function cancelAddUser(){ 
+            $('#user-row-new').remove();
+        }
+        
+        function cancelEditUser(){
+            const userRow = $('#user-row-edit');
+            if (userRow.length > 0) {
+              const username = userRow.find('td:first').text().trim();
+              const fullname = userRow.find('td:nth-child(2)').text().trim();
+              const originalCapacity = userRow.find('input[name="user-original-capacity"]').val();
+              const userId = userRow.find('input[name="user-original-id"]').val();
+              userRow.replaceWith(buildNormalUserRow(fullname, username, userId, originalCapacity));
+            } else {
+              console.error("No edit row found.");
+            }
+        }
+
+
     </script>
 </body>
