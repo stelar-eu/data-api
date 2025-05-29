@@ -215,7 +215,7 @@ class TaskSchema(Schema):
     @validates_schema
     def validate_outputs(self, data, **kwargs):
         outputs = data.get("outputs", {})
-        datasets = data.get("datasets", {}).keys()
+        datasets = set(data.get("datasets", {})) | {"ctx"}
 
         def is_valid_uuid(val):
             try:
@@ -806,7 +806,7 @@ class Task(Entity):
                             task_exec_id=id,
                             output_name=output,
                             output_address=url,
-                            resource=resource,
+                            resource_id=resource,
                             resource_action=spec.get("resource_action", "REPLACE"),
                         )
                     elif isinstance(resource, dict) and spec.get("dataset"):
@@ -968,7 +968,7 @@ class Task(Entity):
             kutils.current_user().get("username"), kutils.current_token(), **init_data
         )
 
-    def patch(self, eid: str | uuid, patch_state):
+    def patch(self, eid: str | uuid.UUID, patch_state):
         """Patches the current state of an existing Task.
         Allows, for the time being, updating the state of the task to 'succeeded' or 'failed'.
         Other fields of the task are immutable or not patchable.
