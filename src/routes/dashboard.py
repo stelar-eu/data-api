@@ -745,23 +745,58 @@ def forgot_password_sent_email():
             return redirect(url_for("dashboard_blueprint.login"))
 
 
-@dashboard_bp.route("/login/reset/<rs_token>/<user_id>", methods=["GET", "POST"])
-def reset_password(rs_token, user_id):
+@dashboard_bp.route("/login/reset/<rs_token>", methods=["GET", "POST"])
+def reset_password(rs_token):
     if "ACTIVE" in session and session["ACTIVE"]:
         return redirect(url_for("dashboard_blueprint.dashboard_index"))
 
-    if request.method == "GET" and rs_token and user_id:
-        payload = kutils.verify_reset_token(rs_token, user_id)
+    if "PASSWORD_RESET_FLOW" not in session or not session["PASSWORD_RESET_FLOW"]:
+        # If the reset flow is not active, redirect to login
+        return redirect(url_for("dashboard_blueprint.login"))
 
-        if payload:
-            if payload.get("exp"):
-                expiration_time = datetime.fromtimestamp(payload.get("exp"))
-                if expiration_time < datetime.now():
-                    return redirect(url_for("dashboard_blueprint.login"))
-                else:
-                    return render_template("new_password.html")
-            else:
+    try:
+        payload = kutils.verify_reset_token(rs_token)
+    except Exception:
+        # If token is invalid or expired, redirect to login
+        session["PASSWORD_RESET_FLOW"] = False
+        return redirect(url_for("dashboard_blueprint.login"))
+
+    if request.method == "GET" and rs_token:
+
+        return render_template("new_password.html")
+
+    elif request.method == "POST" and payload:
+        new_password = request.form.get("passwordIn")
+        confirm_password = request.form.get("passwordRepeatIn")
+        if not new_password or not confirm_password:
+            return render_template(
+                "new_password.html", STATUS="ERROR", ERROR_MSG="Passwords do not match!"
+            )
+
+        if new_password != confirm_password:
+            return render_template(
+                "signup.html", STATUS="ERROR", ERROR_MSG="Passwords do not match."
+            )
+
+        if not re.match(r"^(?=.*[A-Z])(?=.*\d)(?=.*[^\w]).{8,}$", confirm_password):
+            return render_template(
+                "new_password.html",
+                STATUS="ERROR",
+                ERROR_MSG="Password does not meet minimum requirements.",
+            )
+
+        try:
+            if kutils.reset_user_password(
+                user_id=payload["user_id"], new_password=new_password
+            ):
+                session["PASSWORD_RESET_FLOW"] = False
                 return redirect(url_for("dashboard_blueprint.login"))
+            else:
+                flash("Password reset failed. Please try again.", "danger")
+                return render_template("new_password.html")
+        except Exception as e:
+            session["PASSWORD_RESET_FLOW"] = False
+            return redirect(url_for("dashboard_blueprint.login"))
 
 
 # ----------------------------------------
@@ -911,7 +946,7 @@ def login():
 
     # Check if the user is already logged in and redirect him to console home page if so
     if request.method == "GET":
-        session["PASSWORD_RESET_FLOW"] = False
+
         if "2FA_FLOW_IN_PROGRESS" in session and session["2FA_FLOW_IN_PROGRESS"]:
             return redirect(url_for("dashboard_blueprint.verify_2fa"))
         if "ACTIVE" in session and session["ACTIVE"]:
