@@ -1,35 +1,39 @@
 """ Exceptions raised by the server.
 
 """
+
 import traceback
 
 from apiflask import HTTPError
 
 
 class APIException(HTTPError):
-    """These are to be reported to the client as part of the response.
-    They come along with an appropriate status code.
-    """
-
     def __init__(
         self,
         status_code: int,
         *args,
         message: str | None = None,
-        detail: dict = {},
+        detail: dict | None = None,
         **kwargs,
     ):
+        # create a *fresh* dict each time
+        if detail is None:
+            detail = {}
+
+        # copy instead of mutating caller’s dict
+        safe_detail = dict(detail)
+
         super().__init__(
-            status_code=status_code, message="", detail=detail, extra_data=kwargs
+            status_code=status_code,
+            message="",
+            detail=safe_detail,
+            extra_data=kwargs,
         )
-        # A message can be constructed explicitly, or as a concatenation of
-        # positional arguments
-        if message is None:
-            self.message = " ".join(str(a) for a in args)
-        else:
-            self.message = message
-        if not detail:
-            self.detail |= kwargs
+
+        self.message = " ".join(map(str, args)) if message is None else message
+
+        if not safe_detail:
+            self.detail |= kwargs  # same semantics, but safe
 
     def repr_attr(self):
         return (
@@ -70,6 +74,7 @@ class AuthorizationError(APIException):
 
     def __init__(self, *args, **kwargs):
         super().__init__(403, *args, **kwargs)
+
 
 class AuthenticationError(APIException):
     """The user is not authorized to do this"""
