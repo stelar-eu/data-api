@@ -3,14 +3,14 @@ import logging
 from apiflask import APIBlueprint
 from flask import request
 
-import schema
-import tools
-from qutils import REGISTRY
-import wflow
-import processes
-import tasks
 import kutils
+import processes
+import schema
+import tasks
+import tools
+import wflow
 from auth import token_active
+from qutils import REGISTRY
 
 # Input schema for validating and structuring several API requests
 from routes.generic import generate_endpoints, render_api_output
@@ -166,11 +166,11 @@ def api_get_tool_repository(entity_id):
 # --------------------------------------------------------
 @workflows_bp.route("/tasks", methods=["GET"])
 @workflows_bp.doc(tags=["Task Operations"])
-@workflows_bp.input(schema.TaskListQuery, location="json")
+@workflows_bp.input(schema.TaskListQuery, location="query")
 @workflows_bp.output(schema.APIResponse, status_code=200)
 @token_active
 @render_api_output(logger)
-def api_get_tasks(json_data):
+def api_get_tasks(query_data):
     """Return the list of all Task Executions, optionally per state.
     The administrator can get all tasks, while other users can only get their own tasks.
 
@@ -181,7 +181,7 @@ def api_get_tasks(json_data):
         - 500: An unknown error occurred.
     """
     return tasks.TASK.list_entities(
-        json_data.get("state"), json_data.get("limit"), json_data.get("offset")
+        query_data.get("state"), query_data.get("limit"), query_data.get("offset")
     )
 
 
@@ -238,27 +238,6 @@ def api_delete_task(entity_id):
         - 500: An unknown error occurred.
     """
     return tasks.TASK.delete_entity(entity_id)
-
-
-@workflows_bp.route("/task/<entity_id>", methods=["PATCH"])
-@workflows_bp.input(schema.WorkflowState, location="json")
-@workflows_bp.doc(tags=["Task Operations"])
-@workflows_bp.output(schema.APIResponse, status_code=200)
-@token_active
-@render_api_output(logger)
-def api_update_task_state(entity_id, json_data):
-    """Update the state of a task given its unique identifier.
-    Args:
-        task_id: The unique identifier of the Task Execution.
-        The state must be one of the following: 'failed', 'succeeded', 'running'.
-    Returns:
-        A JSON response containing success status, or error
-    Responses:
-        - 200: Task successfully deleted.
-        - 404: Task not found.
-        - 500: An unknown error occurred.
-    """
-    return tasks.TASK.patch_entity(entity_id, json_data.get("state"))
 
 
 @workflows_bp.route("/task/<task_id>/input", methods=["GET"])
