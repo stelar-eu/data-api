@@ -246,7 +246,7 @@ def api_delete_task(entity_id):
 @workflows_bp.doc(tags=["Task Operations"])
 @workflows_bp.output(schema.APIResponse, status_code=200)
 @token_active
-@render_api_output(logger)
+@render_api_output(logger, lambda req: "Hidden for security reasons")
 def api_rest_get_task_input(task_id, signature=None):
     """Return the input JSON of the specific Task Execution.
 
@@ -266,7 +266,7 @@ def api_rest_get_task_input(task_id, signature=None):
 @workflows_bp.doc(tags=["Task Operations"])
 @workflows_bp.input(schema.Task_Output, location="json")
 @workflows_bp.output(schema.APIResponse, status_code=200)
-@render_api_output(logger)
+@render_api_output(logger, lambda req: "Hidden for security reasons")
 def api_post_task_output(task_id, signature, json_data):
     """
     Handles the output of a task execution. Accepts the output files created by the tool, the metrics
