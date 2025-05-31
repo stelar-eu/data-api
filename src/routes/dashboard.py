@@ -187,48 +187,41 @@ def dashboard_index():
 # -------------------------------------
 # Workflow Processes Routes
 # -------------------------------------
-
-
 @dashboard_bp.route("/processes")
 @session_required
 def processes():
 
     # Retrieve list of WFs from DB
-    processes = PROCESS.fetch_entities(limit=50, offset=0)
+    processes = PROCESS.search_entities(
+        {
+            "fl": ["metadata_created", "organization"],
+            "limit": 1000,
+        }
+    )["results"]
 
     if processes is not None and processes != []:
-        status_counts = {}
-        monthly_counts = {}
 
+        monthly_counts = {}
         organization_counts = {}  # Dictionary to count processes per organization
         for proc in processes:
-            # Count process status for pie chart
-            status = proc["exec_state"]
-            status_counts[status] = status_counts.get(status, 0) + 1
-
             # Count processes per organization
-            org_obj = proc.get("organization")
-            if org_obj and isinstance(org_obj, dict):
-                # Use organization.name as unique key and organization.title for display
-                org_key = org_obj.get("name", "Unknown")
-                org_display = org_obj.get("title", "Unknown")
-            else:
-                org_key = "Unknown"
-                org_display = "Unknown"
+            org_key = proc.get("organization", "Unknown")
             if org_key not in organization_counts:
-                organization_counts[org_key] = {"title": org_display, "count": 0}
+                organization_counts[org_key] = {"title": org_key, "count": 0}
 
             organization_counts[org_key]["count"] += 1
 
             # Count process per month for bar chart
-            start_date = proc["start_date"]
+            start_date = datetime.strptime(
+                proc["metadata_created"], "%Y-%m-%dT%H:%M:%S.%fZ"
+            )
             month_year = start_date.strftime("%Y-%m")
             monthly_counts[month_year] = monthly_counts.get(month_year, 0) + 1
 
-        # Get the last two months + current month for bar chart display
+        # Get the last three months + current month for bar chart display
         today = datetime.today()
         months_to_display = [
-            (today - timedelta(days=30 * i)).strftime("%Y-%m") for i in range(2, -1, -1)
+            (today - timedelta(days=30 * i)).strftime("%Y-%m") for i in range(3, -1, -1)
         ]
 
         # Ensure monthly_counts includes all three months (set to 0 if missing)
@@ -239,7 +232,6 @@ def processes():
         return render_template_with_s3(
             "processes.html",
             processes=processes,
-            status_counts=status_counts,
             monthly_counts=monthly_counts,
             organization_counts=organization_counts,
             PARTNER_IMAGE_SRC=get_partner_logo(),
@@ -249,7 +241,6 @@ def processes():
         return render_template_with_s3(
             "processes.html",
             processes={},
-            status_counts={},
             monthly_counts={},
             PARTNER_IMAGE_SRC=get_partner_logo(),
         )
