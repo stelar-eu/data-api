@@ -73,22 +73,23 @@ def raise_keycloak_error(func):
 
             if response_code == 409:
                 raise ConflictError(
-                    message="Conflict: Duplicate resource", detail=detail_message
+                    message="Conflict: Duplicate resource",
+                    detail={"message": detail_message},
                 ) from e
             elif response_code == 400:
                 raise InvalidError(
                     message="Bad Request: Invalid data sent to Keycloak",
-                    detail=detail_message,
+                    detail={"message": detail_message},
                 ) from e
             elif response_code == 404:
                 raise NotFoundError(
                     message="Resource not found in Keycloak",
-                    detail=detail_message,
+                    detail={"message": "Resource not found"},
                 ) from e
             elif response_code == 401:
                 raise AuthenticationError(
                     message="Authorization using the provided credentials failed",
-                    detail=detail_message,
+                    detail={"message": "Invalid user credentials"},
                 ) from e
             else:
                 raise InternalException(message=detail_message) from e
@@ -127,21 +128,6 @@ def email_unique(email):
         raise ConflictError(f"A user with the email '{email}' already exists.")
 
 
-def generate_reset_token(user_id, expiration_minutes=30):
-    """
-    Generates a JWT token with an expiration.
-    :param user_id: The unique identifier for the user.
-    :param expiration_minutes: Token validity period in minutes.
-    :return: Encoded JWT token as a string.
-    """
-    payload = {
-        "user_id": user_id,
-        "exp": datetime.datetime.now() + datetime.timedelta(minutes=expiration_minutes),
-    }
-    token = jwt.encode(payload, user_id, algorithm="HS256")
-    return token
-
-
 @raise_keycloak_error
 def reset_password_init_flow(email):
     """Sends an email with a reset link for the account linked with the
@@ -170,20 +156,59 @@ def reset_password_init_flow(email):
             return True
 
 
-def verify_reset_token(token, user_id):
+def generate_reset_token(user_id, expiration_minutes=30):
     """
-    Verifies the JWT token and extracts the payload.
+    Generates a JWT token with an expiration.
+    :param user_id: The unique identifier for the user.
+    :param expiration_minutes: Token validity period in minutes.
+    :return: Encoded JWT token as a string.
+    """
+    secret_key = current_app.config.get("SECRET_KEY", "None")
+    payload = {
+        "user_id": user_id,
+        "exp": datetime.datetime.now() + datetime.timedelta(minutes=expiration_minutes),
+    }
+    token = jwt.encode(payload, secret_key, algorithm="HS256")
+    return token
+
+
+def verify_reset_token(token):
+    """
+    Verifies the JWT token and extracts the payload using Flask's secret key.
     :param token: The JWT token to verify.
-    :param user_id: The id of the user to verify the token for.
-    :return: Decoded payload if valid, None if invalid or expired.
+    :return: Decoded payload if valid, raises an exception if invalid or expired.
     """
+    secret_key = current_app.config.get("SECRET_KEY", "None")
     try:
-        payload = jwt.decode(token, user_id, algorithms=["HS256"])
+        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
         return payload
     except jwt.ExpiredSignatureError:
-        return None
+        raise InvalidError(message="The reset token has expired.")
     except jwt.InvalidTokenError:
-        return None
+        raise InvalidError(message="The reset token is invalid.")
+
+
+def reset_user_password(user_id, new_password):
+    """
+    Resets the password for a user in Keycloak.
+
+    Args:
+        user_id (str): The UUID of the user whose password is to be reset.
+        new_password (str): The new password to set for the user.
+
+    Returns:
+        bool: True if the password was successfully reset, False otherwise.
+
+    Raises:
+        ValueError: If the user_id is not a valid UUID or if the user does not exist.
+    """
+    if not is_valid_uuid(user_id):
+        raise InvalidError(message=f"{user_id} is not a valid UUID")
+
+    KEYCLOAK_ADMIN_CLIENT().set_user_password(
+        user_id=user_id, password=new_password, temporary=False
+    )
+    return True
 
 
 @raise_keycloak_error
@@ -877,7 +902,7 @@ def delete_user(user_id):
 
 
 @raise_keycloak_error
-def get_users_from_keycloak(offset, limit):
+def get_users_from_keycloak(offset, limit, public=False):
     """
     Retrieves a list of users from Keycloak with pagination and additional user details.
 
@@ -898,24 +923,37 @@ def get_users_from_keycloak(offset, limit):
 
     users = KEYCLOAK_ADMIN_CLIENT().get_users(query=query)
 
-    result = []
-    for user in users:
-        creation_date = convert_iat_to_date(user["createdTimestamp"])
-        filtered_roles = get_user_roles(user["id"])
-        active_status = user.get("enabled", False)
+    if public:
+        # If public is True, return only usernames and IDs
+        result = [
+            {
+                "username": user.get("username"),
+                "id": user.get("id"),
+                "fullname": f"{user.get('firstName', '')} {user.get('lastName', '')}".strip(),
+            }
+            for user in users
+            if user.get("enabled", False)
+        ]
 
-        user_info = {
-            "username": user.get("username"),
-            "email": user.get("email"),
-            "fullname": f"{user.get('firstName', '')} {user.get('lastName', '')}".strip(),
-            "first_name": user.get("firstName"),
-            "last_name": user.get("lastName"),
-            "joined_date": creation_date,
-            "id": user.get("id"),
-            "roles": filtered_roles,
-            "active": active_status,
-        }
-        result.append(user_info)
+    else:
+        result = []
+        for user in users:
+            creation_date = convert_iat_to_date(user["createdTimestamp"])
+            filtered_roles = get_user_roles(user["id"])
+            active_status = user.get("enabled", False)
+
+            user_info = {
+                "username": user.get("username"),
+                "email": user.get("email"),
+                "fullname": f"{user.get('firstName', '')} {user.get('lastName', '')}".strip(),
+                "first_name": user.get("firstName"),
+                "last_name": user.get("lastName"),
+                "joined_date": creation_date,
+                "id": user.get("id"),
+                "roles": filtered_roles,
+                "active": active_status,
+            }
+            result.append(user_info)
 
     return result
 
@@ -1192,16 +1230,22 @@ def send_reset_password_email(to_email, rstoken, user_id, fullname):
     subject = "Reset your STELAR account password"
     sender_name = "STELAR KLMS"
 
-    # HTML message with headers for HTML content
-    html_message = flask.render_template(
-        "reset_password_email.html",
-        fullname=fullname,
-        rstoken=rstoken,
-        user_id=user_id,
-        main_ext_url=config["MAIN_EXT_URL"],
-    )
-    # Create the full email message with subject, MIME headers, and HTML content
-    full_message = f"Subject: {subject}\nMIME-Version: 1.0\nContent-type: text/html\nFrom: {sender_name} <{sender_email}>\nTo: {to_email}\n\n{html_message}"
+    # Plain text message
+    plain_message = f"""
+Hello {fullname},
+
+You have requested to reset your password for your STELAR account. Please use the following link to reset your password:
+
+{config["MAIN_EXT_URL"]}/stelar/console/v1/login/reset/{rstoken}
+
+If you did not request this, please ignore this email and consider securing your account by enabling two-factor authentication.
+
+Best regards,
+STELAR KLMS
+    """
+
+    # Create the full email message with subject and plain text content
+    full_message = f"Subject: {subject}\nFrom: {sender_name} <{sender_email}>\nTo: {to_email}\n\n{plain_message}"
     context = ssl.create_default_context()
 
     try:
@@ -1210,7 +1254,4 @@ def send_reset_password_email(to_email, rstoken, user_id, fullname):
             server.sendmail(sender_email, to_email, full_message)
     except Exception as e:
         # Log the error
-        raise Exception(f"Error sending verification email: {str(e)}")
-    except Exception as e:
-        # Log the error
-        raise Exception(f"Error sending verification email: {str(e)}")
+        raise Exception(f"Error sending reset password email: {str(e)}")

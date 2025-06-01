@@ -5,13 +5,17 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-  <title>STELAR | Manage Package </title>
+  <title>STELAR | {{dataset.title}} </title>
   <!-- CSS files -->
   {% include 'tabler.html' %}
   <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
   <script type="text/javascript" src="{{ url_for('static', filename='utils.js') }}"></script>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet PM CSS (for polygon editing) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.css" />
 
 </head>
 
@@ -47,6 +51,33 @@
                     {% elif dataset.get('type') == 'process' %}
                     <span class="badge bg-yellow-lt ms-2">PROCESS</span>
                     {% endif %}
+                    <span class="ms-2">
+                      {% if dataset.get('private') %}
+                      <span class="badge bg-danger-lt" title="Private to organization users"><svg
+                          xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          class="icon icon-tabler icons-tabler-outline icon-tabler-lock">
+                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                          <path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z" />
+                          <path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" />
+                          <path d="M8 11v-4a4 4 0 1 1 8 0v4" />
+                        </svg>
+                        PRIVATE
+                      </span>
+                      {% else %}
+                      <span class="badge bg-success-lt" title="Public to all users">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                          class="icon icon-tabler icons-tabler-outline icon-tabler-lock-open-2">
+                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                          <path d="M3 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z" />
+                          <path d="M9 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" />
+                          <path d="M13 11v-4a4 4 0 1 1 8 0v4" />
+                        </svg>
+                        PUBLIC
+                      </span>
+                      {% endif %}
+                    </span>
                   </li>
                 </ol>
               </h3>
@@ -65,23 +96,140 @@
                   </svg>
                   Explore Relationships
                 </a>
-                <form action="" method="POST" class="ms-auto">
-                  <input type="hidden" name="dataset_delete" value="{{ dataset.get('id') }}">
-                  <button type="submit" class="btn btn-danger ms-auto ">
+                <div class="dropdown">
+                  <button class="btn" data-bs-toggle="dropdown" aria-label="Open Resource Menu">
+                    Actions
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                      fill="currentColor" class="m-0 icon icon-tabler icons-tabler-filled icon-tabler-caret-down">
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path
+                        d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z" />
+                    </svg>
+                  </button>
+                  <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow ">
+                    <a class="dropdown-item view-dataset-btn cursor-pointer" data-bs-toggle="modal"
+                      data-bs-target="#modal-edit-dataset">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-settings">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path
+                          d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" />
+                        <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+                      </svg>
+                      Manage</a>
+                    <a class="dropdown-item view-dataset-btn cursor-pointer" data-bs-toggle="modal"
+                      data-bs-target="#modal-edit-dataset">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-share">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M6 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                        <path d="M18 6m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                        <path d="M18 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                        <path d="M8.7 10.7l6.6 -3.4" />
+                        <path d="M8.7 13.3l6.6 3.4" />
+                      </svg>
+                      Share</a>
+                    <a class="dropdown-item view-dataset-btn cursor-pointer" data-bs-toggle="offcanvas"
+                      href="#offcanvas-zenodo" role="button" aria-controls="offcanvas-zenodo"
+                      onclick="exportToZenodo()">
+                      <img src="{{ url_for('static', filename='zenodo.svg') }}" class="me-1" alt="Zenodo Icon"
+                        width="24" height="24">
+
+                      Export to Zenodo</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="text-danger cursor-pointer dropdown-item del-dataset-btn"
+                      data-bs-toggle="modal" data-bs-target="#modal-delete-dataset">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M4 7l16 0" />
+                        <path d="M10 11l0 6" />
+                        <path d="M14 11l0 6" />
+                        <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+                        <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                      </svg>
+                      Delete</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-12">
+              <div class="text-secondary text-sm h4 m-0">
+                <div class="mt-1 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
+                  <a href="{{url_for('dashboard_blueprint.organization', organization_id=dataset.organization.id)}}"
+                    target="_blank" class="text-blue card-link list-inline-item" title="Belongs to">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-building-bank"
+                      width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path d="M3 21l18 0" />
+                      <path d="M3 10l18 0" />
+                      <path d="M5 6l7 -3l7 3" />
+                      <path d="M4 10l0 11" />
+                      <path d="M20 10l0 11" />
+                      <path d="M8 14l0 3" />
+                      <path d="M12 14l0 3" />
+                      <path d="M16 14l0 3" />
+                    </svg>
+                    {{ dataset.organization.title }}
+                  </a>
+                  <div class="list-inline-item" title="Created at">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                      class="icon icon-tabler icons-tabler-outline icon-tabler-calendar-plus">
                       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                      <path d="M4 7l16 0" />
-                      <path d="M10 11l0 6" />
-                      <path d="M14 11l0 6" />
-                      <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
-                      <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                      <path d="M12.5 21h-6.5a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v5" />
+                      <path d="M16 3v4" />
+                      <path d="M8 3v4" />
+                      <path d="M4 11h16" />
+                      <path d="M16 19h6" />
+                      <path d="M19 16v6" />
                     </svg>
-                    Delete
-                  </button>
-                </form>
+                    {{ dataset.get('metadata_created') | datetimeformat }}
+                  </div>
+                  <div class="list-inline-item" title="Last modified at">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                      class="icon icon-tabler icons-tabler-outline icon-tabler-calendar-bolt">
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path d="M13.5 21h-7.5a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v5" />
+                      <path d="M16 3v4" />
+                      <path d="M8 3v4" />
+                      <path d="M4 11h16" />
+                      <path d="M19 16l-2 3h4l-2 3" />
+                    </svg>
+                    {{ dataset.get('metadata_modified') | datetimeformat }}
+                  </div>
+                  <div class="list-inline-item" title="Created by">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+                      class="icon icon-tabler icons-tabler-outline icon-tabler-user">
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                      <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                    </svg>
+                    {{ dataset.get('author') }}
+                  </div>
+                  {% if dataset.get('url') %}
+                  <div class="list-inline-item text-blue" title="Go to URL">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                      class="icon icon-tabler icons-tabler-outline icon-tabler-link">
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path d="M9 15l6 -6" />
+                      <path d="M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464" />
+                      <path d="M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463" />
+                    </svg>
+                    <a href="{{ dataset.get('url') }}" target="_blank">URL</a>
+                  </div>
+                  {% endif %}
+                </div>
+
               </div>
+
             </div>
 
           </div>
@@ -90,51 +238,329 @@
       <!-- Page body -->
       <div class="page-body">
         <div class="container-xl">
-          <div class="row row-deck row-cards">
-            <div class="col-8 col">
-              <div class="card mb-2">
-                <div class="row g-0">
-                  <div class="col-auto">
-                    <div class="card-body d-flex align-items-center">
-                      <div class="avatar avatar-lg bg-white">
-                        {% if dataset.organization.image_url and dataset.organization.image_url != '' %}
-                        <img src="{{dataset.organization.image_url}}" />
-                        {% else %}
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                          class="text-secondary icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
-                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                          <path d="M3 21l18 0" />
-                          <path d="M3 10l18 0" />
-                          <path d="M5 6l7 -3l7 3" />
-                          <path d="M4 10l0 11" />
-                          <path d="M20 10l0 11" />
-                          <path d="M8 14l0 3" />
-                          <path d="M12 14l0 3" />
-                          <path d="M16 14l0 3" />
-                        </svg>
-                        {% endif %}
-                      </div>
+          <div class="row g-3">
+            <div class="col-lg-9">
+              <div class="card">
+                <div class="card-header">
+                  <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                      <a href="#tabs-overview-1" class="nav-link active" data-bs-toggle="tab" aria-selected="true"
+                        role="tab">Overview</a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <a href="#tabs-resources-1" class="nav-link" data-bs-toggle="tab" aria-selected="false" role="tab"
+                      tabindex="-1">Resources</a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <a href="#tabs-extras-1" class="nav-link" data-bs-toggle="tab" aria-selected="false" role="tab"
+                        tabindex="-1">Attributes</a>
+                    </li>
+                    <!-- <li class="nav-item" role="presentation">
+                      <a href="#tabs-processes-1" class="nav-link" data-bs-toggle="tab" aria-selected="false" role="tab"
+                        tabindex="-1">Processes</a>
+                    </li> -->
+                  </ul>
+                </div>
+                <div class="card-body p-0">
+                  <div class="tab-content">
+                    <div class="tab-pane active show" id="tabs-overview-1" role="tabpanel">
+                      <div class="card-body">
+                        <div class="row">
+                          <div class="card-title mb-2">Identifiers</div>
+                          <div class="col-auto"> <svg xmlns="http://www.w3.org/2000/svg" class="icon me-1 text-secondary" width="24"
+                              height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                              stroke-linecap="round" stroke-linejoin="round">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
+                              <path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
+                              <path d="M3 6l0 13" />
+                              <path d="M12 6l0 13" />
+                              <path d="M21 6l0 13" />
+                            </svg>
+                            Name: <span id="dataset-name"><code>{{ dataset.get('name') }}</code></span>
+                            <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
+                              navigator.clipboard.writeText(document.getElementById('dataset-name').innerText);
+                              var el = document.getElementById('dataset-name');
+                              el.classList.remove('glowing-text');
+                              void el.offsetWidth; // trigger reflow to restart animation
+                              el.classList.add('glowing-text');
+                              setTimeout(function(){ el.classList.remove('glowing-text'); }, 1500);
+                            ">COPY</button>
+                          </div>
+                          <div class="col">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                              class="text-secondary me-1 icon icon-tabler icons-tabler-outline icon-tabler-e-passport">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
+                              <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                              <path d="M9 12h-7" />
+                              <path d="M15 12h7" />
+                            </svg>
+                            ID: <span id="dataset-id"><strong>{{ dataset.get('id') }}</strong></span>
+                            <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
+                              navigator.clipboard.writeText(document.getElementById('dataset-id').innerText);
+                              var el = document.getElementById('dataset-id');
+                              el.classList.remove('glowing-text');
+                              void el.offsetWidth; // trigger reflow to restart animation
+                              el.classList.add('glowing-text');
+                              setTimeout(function(){ el.classList.remove('glowing-text'); }, 1500);
+                            ">COPY</button>
+                          </div>
+                        </div>
+                        <hr class="my-5 mt-3">
+                        <div class="row g-4">
+                          <div class="card-title mb-0 mt-2">About</div>
+                          <div class="col-auto mt-1">
+                            <div class="d-flex align-items-center mt-1">
+                              <div class="avatar avatar-xl bg-white">
+                                {% if dataset.organization.image_url and dataset.organization.image_url != '' %}
+                                <img src="{{dataset.organization.image_url}}" />
+                                {% else %}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                  class="text-secondary icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
+                                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                  <path d="M3 21l18 0" />
+                                  <path d="M3 10l18 0" />
+                                  <path d="M5 6l7 -3l7 3" />
+                                  <path d="M4 10l0 11" />
+                                  <path d="M20 10l0 11" />
+                                  <path d="M8 14l0 3" />
+                                  <path d="M12 14l0 3" />
+                                  <path d="M16 14l0 3" />
+                                </svg>
+                                {% endif %}
+                              </div>
+                            </div>
+                          </div>
+                          <div class="col mt-1">
+                            <div class="row me-3 mt-1">
+                              <div class="col-11">
+                                <div class="text-secondary" id="package-description">{{ dataset.get('notes', 'No\ndescription
+                                  specified') |
+                                  replace('\n', '<br>') | safe }}</div>
+                              </div>
+                              <div class="col-1" id="edit-description-btn-container">
+                                <a class="btn btn-outline-primary" title="Edit Description" data-bs-toggle="tooltip"
+                                  data-bs-placement="bottom" id="edit-description-btn" onclick="editDescription()">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-pencil">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+                                    <path d="M13.5 6.5l4 4" />
+                                  </svg>
+                                  <span>Edit</span>
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>                     
                     </div>
-                  </div>
-                  <div class="col">
-                    <div class="card-body ps-0">
-                      <div class="row">
-                        <div class="col">
-                          <p class="text-secondary mt-1">{{ dataset.get('notes',
-                            'No
-                            description specified') }}
-                          </p>
+                    <div class="tab-pane" id="tabs-resources-1" role="tabpanel">
+                      <div class="card-body">
+                        <div class="card-title mb-1">Resources & Files</div>
+                        <div class="text-muted mb-3">The following resources are associated with this dataset. You can
+                          add new resources or annotate existing ones. Resources are related to the parent dataset using
+                          specific relation.</div>
+                        <div class="col-auto d-flex justify-content-end">
+                          <a href="#" class="btn btn-outline-primary" data-bs-toggle="modal"
+                            data-bs-target="#modal-new-resource">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
+                              viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                              stroke-linecap="round" stroke-linejoin="round">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M12 5l0 14" />
+                              <path d="M5 12l14 0" />
+                            </svg>
+                            New Resource
+                          </a>
+                          <a href="{{url_for('dashboard_blueprint.dataset_annotate', dataset_id=dataset.id)}}"
+                            class="btn ms-2 btn-outline-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                              stroke-linejoin="round"
+                              class="icon icon-tabler icons-tabler-outline icon-tabler-tag-plus">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M7.5 7.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                              <path
+                                d="M21.002 13c0 -.617 -.235 -1.233 -.706 -1.704l-7.71 -7.71c-.375 -.375 -.884 -.586 -1.414 -.586h-5.172c-1.657 0 -3 1.343 -3 3v5.172c0 .53 .211 1.039 .586 1.414l7.71 7.71c.471 .47 1.087 .706 1.704 .706" />
+                              <path d="M16 19h6" />
+                              <path d="M19 16v6" />
+                            </svg>
+                            Annotate Files
+                          </a>
                         </div>
                       </div>
+                      <div class="card-body p-0">
+                        <div class="table-responsive">
+                          <table class="table table-sm table-vcenter card-table">
+                            <thead>
+                              <tr>
+                                <th class="text-center" style="width: 10%;">Relation</th>
+                                <th style="width: 40%;">Resource Name</th>
+                                <th style="width: 40%;">URL</th>
+                                <th class="text-center" style="width: 10%">Format</th>
+                                <th class="w-1"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {% for resource in dataset.get('resources') %}
+                              <tr id="{{resource.get('id')}}">
+                                <td class="text-sm text-center">
+                                  {% if resource.get('relation') == 'owned' %}
+                                  <span class="badge bg-blue text-blue-fg">OWNED</span>
+                                  {% elif resource.get('relation') == 'profile' %}
+                                  <span class="badge bg-orange text-orange-fg">PROFILE</span>
+                                  {% else %}
+                                    <span class="badge bg-secondary text-secondary-fg">{{ resource.get('relation') | upper }}</span>
+                                  {% endif %}
+                                </td>
+                                <td class="text-sm">{{ resource['name'] }}</td>
+                                <td class="text-sm">
+                                  {% if resource['url'].startswith('s3://') %}
+                                    <a href="{{ S3_CONSOLE_URL.replace('/login', '/browser/') }}{{ resource['url'][5:] }}" target="_blank">
+                                      <small>{{ resource['url'] }}</small>
+                                    </a>
+                                  {% else %}
+                                    <a href="{{ resource['url'] }}" target="_blank">
+                                      <small>{{ resource['url'] }}</small>
+                                    </a>
+                                  {% endif %}
+                                </td>
+                                <td class="text-sm text-center">{{ resource['format'] }}</td>
+                                <td>
+                                  <div class="dropdown">
+                                    <button class="btn btn-sm border-0 d-flex p-2 text-reset" data-bs-toggle="dropdown"
+                                      aria-label="Open Resource Menu">
+                                      Actions
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="currentColor"
+                                        class="ms-1 icon icon-tabler icons-tabler-filled icon-tabler-caret-down">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                        <path
+                                          d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z" />
+                                      </svg>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow ">
+                                      <a class="dropdown-item view-resource-btn cursor-pointer" data-bs-toggle="modal"
+                                        data-bs-target="#modal-view-id" data-resource-id="{{ resource['id'] }}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                          stroke-linecap="round" stroke-linejoin="round"
+                                          class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-settings">
+                                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                          <path
+                                            d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" />
+                                          <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+                                        </svg>
+                                        View - Edit</a>
+
+                                      {% if resource['relation'] == 'profile' %}
+                                      <a class="dropdown-item view-resource-btn cursor-pointer"
+                                        href="{{url_for('dashboard_blueprint.visualize', profile_id=resource['id'])}}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                          stroke-linecap="round" stroke-linejoin="round"
+                                          class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-graph">
+                                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                          <path
+                                            d="M4 18v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" />
+                                          <path d="M7 14l3 -3l2 2l3 -3l2 2" />
+                                        </svg>
+                                        Visualize</a>
+                                      {% endif %}
+                                      <div class="dropdown-divider"></div>
+                                      <a del-resource-id="{{ resource['id'] }}"
+                                        class="text-danger cursor-pointer dropdown-item del-resource-btn">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                          stroke-linecap="round" stroke-linejoin="round"
+                                          class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                          <path d="M4 7l16 0" />
+                                          <path d="M10 11l0 6" />
+                                          <path d="M14 11l0 6" />
+                                          <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+                                          <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                                        </svg>
+                                        Delete</a>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                              {% endfor %}
+                            </tbody>
+                          </table>
+                          <p class="mt-2 text-secondary text-center">In order to use the above resources to
+                            tool
+                            executions please use the <strong>Resource ID</strong> as input.</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tab-pane" id="tabs-extras-1" role="tabpanel">
+                      <div class="card-body">
+                        <div class="d-flex">
+                          <div class="card-title mb-1">Additional Attributes</div>
+                          <div class="ms-auto" id="extras-status">
+                          </div>
+                        </div>
+                        <div class="text-muted mb-3">The following attributes are associated with this dataset. You can add new
+                          attributes or edit existing ones.</div>
+
+                            <table class="table table-bordered">
+                              <thead>
+                              <tr>
+                                <th class="w-25 text-sm text-muted">Key</th>
+                                <th class="text-sm">Value</th>
+                                <th class="w-25">Actions</th>
+                              </tr>
+                              </thead>
+                              <tbody id="extra-attributes">
+                                {% for extra in dataset.get('extras') %}
+                                {% if extra != 'spatial' and extra != 'temporal_start' and extra != 'temporal_end' %}
+                                  <tr id="extra-{{ extra }}">
+                                  <td>{{ extra }}</td>
+                                  <td><strong>{{ dataset.get('extras')[extra] | replace('"', '') }}</strong></td>
+                                  <td><a class="text-link cursor-pointer" onclick="editExtra('{{extra}}')">Edit</a>
+                                    <a class="text-link cursor-pointer text-danger ms-2" onclick="deleteExtra('{{extra}}')">
+                                      Delete
+                                    </a>
+                                  </td>
+                                  </tr>
+                                {% endif %}
+                                {% endfor %}
+                                <tr id="new-extra">
+                                  <td colspan="3" class="text-center p-2">
+                                    <a class="text-green cursor-pointer" onclick="addExtraField()" title="Add New Attribute">
+                                      <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-circle-dashed-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8.56 3.69a9 9 0 0 0 -2.92 1.95" /><path d="M3.69 8.56a9 9 0 0 0 -.69 3.44" /><path d="M3.69 15.44a9 9 0 0 0 1.95 2.92" /><path d="M8.56 20.31a9 9 0 0 0 3.44 .69" /><path d="M15.44 20.31a9 9 0 0 0 2.92 -1.95" /><path d="M20.31 15.44a9 9 0 0 0 .69 -3.44" /><path d="M20.31 8.56a9 9 0 0 0 -1.95 -2.92" /><path d="M15.44 3.69a9 9 0 0 0 -3.44 -.69" /><path d="M9 12h6" /><path d="M12 9v6" /></svg>
+                                    </a>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                      </div>
+                    </div>
+                    <div class="tab-pane" id="tabs-processes-1" role="tabpanel">
+                      <div class="card-body">
+                        <div class="card-title mb-1">Usage in Processes</div>
+                      </div>
+
+
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="col-4 col">
-              <div class="card mb-2">
+            <div class="col-lg-3">
+              <a data-bs-toggle="modal" data-bs-target="#spatial-modal" class="card card-link mb-3 cursor-pointer"
+                style="height: 16rem; width: 100%;" id="map-card">
+                <div id="map" style="height: 100%; width: 100%; pointer-events: none;" class="card p-0"></div>
+              </a>
+              <div class="card mb-3">
                 <div class="card-body">
                   <div class="d-flex align-items-center justify-content-between">
                     <h5 class="card-title mb-0">Tags</h5>
@@ -172,137 +598,13 @@
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-          <div class="row g-2">
-            <div class="col-md-4">
-              <div class="card">
-                <div class="card-body">
-                  <div class="card-title">Basic Information</div>
-                  <div class="mb-2"> <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="24"
-                      height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                      <path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
-                      <path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
-                      <path d="M3 6l0 13" />
-                      <path d="M12 6l0 13" />
-                      <path d="M21 6l0 13" />
-                    </svg>
-                    Name: <span id="dataset-name"><code>{{ dataset.get('name') }}</code></span>
-                    <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
-                      navigator.clipboard.writeText(document.getElementById('dataset-name').innerText);
-                      var el = document.getElementById('dataset-name');
-                      el.classList.remove('glowing-text');
-                      void el.offsetWidth; // trigger reflow to restart animation
-                      el.classList.add('glowing-text');">COPY</button>
-                  </div>
-                  <div class="mb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      class="text-secondary me-2 icon icon-tabler icons-tabler-outline icon-tabler-e-passport">
-                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                      <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
-                      <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-                      <path d="M9 12h-7" />
-                      <path d="M15 12h7" />
-                    </svg>
-                    ID: <span id="dataset-id"><strong>{{ dataset.get('id') }}</strong></span>
-                    <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
-                                          navigator.clipboard.writeText(document.getElementById('dataset-id').innerText);
-                                          var el = document.getElementById('dataset-id');
-                                          el.classList.remove('glowing-text');
-                                          void el.offsetWidth; // trigger reflow to restart animation
-                                          el.classList.add('glowing-text');">COPY</button>
-                  </div>
-                  <div class="mb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      class="text-secondary me-2 icon icon-tabler icons-tabler-outline icon-tabler-user">
-                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                      <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
-                      <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
-                    </svg> Creator: <strong>{{ dataset.get('author') }}</strong>
-                  </div>
-                  <div class="mb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="44" height="44"
-                      viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
-                      stroke-linejoin="round">
-                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                      <path d="M3 21l18 0" />
-                      <path d="M3 10l18 0" />
-                      <path d="M5 6l7 -3l7 3" />
-                      <path d="M4 10l0 11" />
-                      <path d="M20 10l0 11" />
-                      <path d="M8 14l0 3" />
-                      <path d="M12 14l0 3" />
-                      <path d="M16 14l0 3" />
-                    </svg>
-                    Owner Organization: <strong>{{ dataset.organization.title }}</strong>
-                  </div>
-                  <div class="mb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="44" height="44"
-                      viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
-                      stroke-linejoin="round">
-                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                      <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
-                      <path d="M16 3v4" />
-                      <path d="M8 3v4" />
-                      <path d="M4 11h16" />
-                      <path d="M7 14h.013" />
-                      <path d="M10.01 14h.005" />
-                      <path d="M13.01 14h.005" />
-                      <path d="M16.015 14h.005" />
-                      <path d="M13.015 17h.005" />
-                      <path d="M7.01 17h.005" />
-                      <path d="M10.01 17h.005" />
-                    </svg>
-                    Date Created: <strong>{{ dataset.get('metadata_created') | datetimeformat }}</strong>
-                  </div>
-                  <div class="mb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="44" height="44"
-                      viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
-                      stroke-linejoin="round">
-                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                      <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
-                      <path d="M16 3v4" />
-                      <path d="M8 3v4" />
-                      <path d="M4 11h16" />
-                      <path d="M7 14h.013" />
-                      <path d="M10.01 14h.005" />
-                      <path d="M13.01 14h.005" />
-                      <path d="M16.015 14h.005" />
-                      <path d="M13.015 17h.005" />
-                      <path d="M7.01 17h.005" />
-                      <path d="M10.01 17h.005" />
-                    </svg>
-                    Date Modified: <strong>{{ dataset.get('metadata_modified') | datetimeformat }}</strong>
-                  </div>
-                  <div class="mb-2">
+              <div class="card mb-3">
+                <div class="card-body" id="temporal-coverage">
 
-                    <svg xmlns="http://www.w3.org/2000/svg" class="icon me-2 text-secondary" width="44" height="44"
-                      viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
-                      stroke-linejoin="round">
-                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
-                      <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
-                    </svg>
-                    Visibility: <strong>
-                      {% if dataset.get('private') %}
-                      Private
-                      {% else %}
-                      Public
-                      {% endif %}
-                    </strong>
-                  </div>
-                </div>
-              </div>
-              <div class="card mt-2">
-                <div class="card-body">
                   <div class="d-flex align-items-center justify-content-between">
-                    <div class="card-title">Description</div>
-                    <a class="cursor-pointer" title="Update Tags" data-bs-toggle="tooltip" data-bs-placement="bottom"
-                      id="update-description-icon">
+                    <h5 class="card-title">Temporal Coverage</h5>
+                    <a class="cursor-pointer" title="Update Temporal" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                      id="update-temporal-btn" onclick="invokeUpdateTemporal()">
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                         class="text-primary ms-2 icon icon-tabler icons-tabler-outline icon-tabler-cloud-up">
@@ -315,142 +617,21 @@
                       <span class="text-primary">Update</span>
                     </a>
                   </div>
-                  <div class="mb-2">
-                    <textarea name="packageDescription" id="dataset-description" class="form-control" rows="3" required
-                      placeholder="A nice informative description">{{ dataset.get('notes') }}</textarea>
+
+                  <div>
+                    <div class="mb-1">
+                      <label for="start-datetime" class="form-label">Start Time</label>
+                      <input type="datetime-local" id="start-datetime" class="form-control">
+                    </div>
+                    <div>
+                      <label for="end-datetime" class="form-label">End Time</label>
+                      <input type="datetime-local" id="end-datetime" class="form-control">
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div class="col-md-8">
-              <div class="card">
-                <div class="card-body">
-                  <div class="card-title">Resources</div>
-                  <div class="col-auto mb-3 d-flex justify-content-end">
-                    <a href="#" class="btn btn-outline-primary" data-bs-toggle="modal"
-                      data-bs-target="#modal-new-resource">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24"
-                        stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M12 5l0 14" />
-                        <path d="M5 12l14 0" />
-                      </svg>
-                      New Resource
-                    </a>
-                    <a href="{{url_for('dashboard_blueprint.dataset_annotate', dataset_id=dataset.id)}}"
-                      class="btn ms-2 btn-outline-primary">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="icon icon-tabler icons-tabler-outline icon-tabler-tag-plus">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M7.5 7.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-                        <path
-                          d="M21.002 13c0 -.617 -.235 -1.233 -.706 -1.704l-7.71 -7.71c-.375 -.375 -.884 -.586 -1.414 -.586h-5.172c-1.657 0 -3 1.343 -3 3v5.172c0 .53 .211 1.039 .586 1.414l7.71 7.71c.471 .47 1.087 .706 1.704 .706" />
-                        <path d="M16 19h6" />
-                        <path d="M19 16v6" />
-                      </svg>
-                      Annotate Files
-                    </a>
-                  </div>
-                </div>
-                <div class="card-body p-0">
-                  <div class="table-responsive">
-                    <table class="table table-vcenter card-table">
-                      <thead>
-                        <tr>
-                          <th style="width: 15%;">Relation</th>
-                          <th style="width: 40%;">Resource Name</th>
-                          <th style="width: 40%;">Path</th>
-                          <th style="width: 10%">Format</th>
-                          <th class="w-1"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for resource in dataset.get('resources') %}
-                        <tr id="{{resource.get('id')}}">
-                          <td class="text-sm">
-                            {% if resource.get('relation') == 'owned' %}
-                            <span class="badge bg-blue text-blue-fg">OWNED</span>
-                            {% elif resource.get('relation') == 'profile' %}
-                            <span class="badge bg-orange text-orange-fg">PROFILE</span>
-                            {% else %}
-                            <span class="badge bg-secondary text-secondary-fg">NONE</span>
-                            {% endif %}
-                          </td>
-                          <td class="text-sm">{{ resource['name'] }}</td>
-                          <td class="text-sm"><small>{{ resource['url'] }}</small></td>
-                          <td class="text-sm">{{ resource['format'] }}</td>
-                          <td>
-                            <div class="dropdown">
-                              <button class="btn btn-sm d-flex p-2 text-reset" data-bs-toggle="dropdown"
-                                aria-label="Open Resource Menu">
-                                Actions
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                  fill="currentColor"
-                                  class="ms-1 icon icon-tabler icons-tabler-filled icon-tabler-caret-down">
-                                  <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                  <path
-                                    d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z" />
-                                </svg>
-                              </button>
-                              <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow ">
-                                <a class="dropdown-item view-resource-btn cursor-pointer" data-bs-toggle="modal"
-                                  data-bs-target="#modal-view-id" data-resource-id="{{ resource['id'] }}">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-settings">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path
-                                      d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" />
-                                    <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
-                                  </svg>
-                                  View - Edit</a>
-
-                                {% if resource['relation'] == 'profile' %}
-                                <a class="dropdown-item view-resource-btn cursor-pointer"
-                                  href="{{url_for('dashboard_blueprint.visualize', profile_id=resource['id'])}}">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-graph">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path
-                                      d="M4 18v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" />
-                                    <path d="M7 14l3 -3l2 2l3 -3l2 2" />
-                                  </svg>
-                                  Visualize</a>
-                                {% endif %}
-                                <div class="dropdown-divider"></div>
-                                <a del-resource-id="{{ resource['id'] }}"
-                                  class="text-danger cursor-pointer dropdown-item del-resource-btn">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-trash">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path d="M4 7l16 0" />
-                                    <path d="M10 11l0 6" />
-                                    <path d="M14 11l0 6" />
-                                    <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
-                                    <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
-                                  </svg>
-                                  Delete</a>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                    <p class="mt-2 text-secondary text-center">In order to use the above resources to
-                      tool
-                      executions please use the <strong>Resource ID</strong> as input.</p>
-                  </div>
-                </div>
-
-              </div>
+             
+              
             </div>
           </div>
 
@@ -665,7 +846,8 @@
                     placeholder="Resource-ID" readonly>
                 </div>
                 <div class="modal-footer" id="update-modal-footer">
-                  <button type="button" class="btn btn-primary" onclick="copyText()">
+                  <button type="button" class="btn btn-primary"
+                    onclick="copyText('resource-id-input', 'update-modal-footer')">
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copy" width="44"
                       height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#ffffff" fill="none"
                       stroke-linecap="round" stroke-linejoin="round">
@@ -683,12 +865,836 @@
           </div>
 
 
+          <div class="modal modal-blur fade" id="modal-edit-dataset" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Manage Package</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="mb-3">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-control" name="package-name" placeholder="Package Name"
+                      value="{{ dataset.get('title') }}">
+                    <small class="form-hint">
+                      <p>
+                        Changing the Title of the package will not affect the name of it which is the format
+                        <code>the-dataset</code>. Make sure
+                        to keep them consistent and semantically correct.
+                      </p>
+                    </small>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">URL</label>
+                    <input type="text" class="form-control" name="package-url" placeholder="Package URL"
+                      value="{{ dataset.get('url') }}">
+                    <small class="form-hint">
+                      <p>
+                        The URL of the dataset can reference the source of the dataset. It can be a URL to an external
+                        web site or to another dataset.
+                      </p>
+                    </small>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">Visibility</label>
+                    <div class="form-selectgroup-boxes row mb-1">
+                      <div class="col-lg-6 text-success mb-2">
+                        <label class="form-selectgroup-item">
+                          <input type="radio" name="package-visibility" value="public" class="form-selectgroup-input" {%
+                            if not dataset.get('private') %}checked{% endif %}>
+                          <span class="form-selectgroup-label d-flex align-items-center p-3">
+                            <span class="me-3">
+                              <span class="form-selectgroup-check"></span>
+                            </span>
+                            <span class="form-selectgroup-label-content">
+                              <span class="form-selectgroup-title strong mb-1">Public</span>
+                              <span class="d-block text-secondary">Accessible to all users registered in the KLMS</span>
+                            </span>
+                          </span>
+                        </label>
+                      </div>
+                      <div class="col-lg-6 text-danger mb-2">
+                        <label class="form-selectgroup-item">
+                          <input type="radio" name="package-visibility" value="private" class="form-selectgroup-input"
+                            {% if dataset.get('private') %}checked{% endif %}>
+                          <span class="form-selectgroup-label d-flex align-items-center p-3">
+                            <span class="me-3">
+                              <span class="form-selectgroup-check"></span>
+                            </span>
+                            <span class="form-selectgroup-label-content">
+                              <span class="form-selectgroup-title strong mb-1">Private</span>
+                              <span class="d-block text-secondary">Accessible only to members of the organization that
+                                owns the package</span>
+                            </span>
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <label class="form-label">Package ID</label>
+                  <input type="text" class="form-control" name="example-disabled-input" id="package-id-input"
+                    placeholder="Package-ID" readonly value="{{ dataset.get('id') }}" disabled>
+                  <small class="form-hint">
+                    <p>
+                      The Package ID is a unique identifier for the package. It may be used in task specifications to
+                      reference
+                      the entire package.
+                    </p>
+                  </small>
+                </div>
+                <div class="modal-footer" id="manage-package-footer">
+                  <button type="button" class="btn btn-outline-primary"
+                    onclick="copyText('package-id-input', 'manage-package-footer')">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copy" width="44"
+                      height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                      <path
+                        d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" />
+                      <path
+                        d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
+                    </svg>
+                    Copy ID</button>
+                  <button class="btn btn-primary" id="update-package-btn" onclick="updatePackage()">Update</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <div class="modal modal-blur fade" id="spatial-modal" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog mt-2 modal-lg modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Spatial Coverage</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+  
+                    <div class="h3 ms-4">Interactive Map</div>
+                    <p class="ms-4 text-sm text-secondary">Use the drawing toolbox below to define an area on the map.
+                      The area will define the spatial coverage of the dataset.
+                    </p>
+                    <div id="spatial-map" class="m-4 mb-2 card card-link m" style="height: 60vh">
+
+
+                    </div>
+
+                    <div class="d-flex justify-content-end mx-4">
+                      <span class="ms-auto">
+                        <a class="text-danger text-link cursor-pointer" onclick="resetSpatial()">Reset Spatial Coverage</a>
+                      </span>
+                    </div>
+                    <p class="ms-4 text-sm text-secondary">Only one polygon can define the spatial coverage of a dataset.</p> 
+
+                  
+                </div>
+                <div class="modal-footer" id="spatial-modal-footer">
+                  <a class="btn btn-primary ms-auto" onclick="updateSpatialCoverage()" id="update-spatial-btn">
+                    Update Spatial Coverage
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal modal-blur fade" id="modal-delete-dataset" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-status bg-danger"></div>
+                <div class="modal-body text-center py-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="icon mb-2 text-danger icon-lg" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10.24 3.957l-8.422 14.06a1.989 1.989 0 0 0 1.7 2.983h16.845a1.989 1.989 0 0 0 1.7 -2.983l-8.423 -14.06a1.989 1.989 0 0 0 -3.4 0z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+                  <h3>Are you sure?</h3>
+                  <div class="text-secondary">Do you really want to remove <strong>{{dataset.title}}</strong>.</div>
+                  <div class="text-start mt-2">
+                    <label class="form-check">
+                      <input class="form-check-input" type="checkbox" id="soft-delete-checkbox" checked>
+                      <span class="form-check-label"> Soft Delete </span>
+                      <span class="form-check-description"> Perform a soft delete on the dataset, ensuring it remains recoverable for a short retention period before permanent deletion.</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <div class="w-100">
+                    <div class="row">
+                      <div class="col"><a href="#" class="btn w-100" data-bs-dismiss="modal">
+                          Cancel
+                        </a></div>
+                      <div class="col"><a class="btn btn-danger w-100" data-bs-dismiss="modal" onclick="deleteDataset()">
+                          Delete
+                        </a></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvas-zenodo" aria-labelledby="zenodo-offcanvas">
+            <div class="offcanvas-header">
+              <h2 class="offcanvas-title" id="zenodo-offcanvas">Zenodo Export JSON</h2>
+              <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"
+                aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+              <div id="zenodo-json" class="mb-6">
+                <div class="spinner-border spinner-border-sm m-6 text-center text-secondary"
+                  style="width: 4rem; height: 4rem;"></div>
+                <div class="text-muted text-center">Please wait while we prepare the Zenodo JSON</div>
+              </div>
+              <div class="mt-3">
+                <button class="btn btn-primary" type="button" data-bs-dismiss="offcanvas">Close</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       {% include 'footer.html'%}
     </div>
   </div>
 
+  <!-- Datepickers -->
+  <script>
+
+    var startTimeStr = {{ dataset.extras.get('temporal_start') | safe }};
+    var endTimeStr = {{ dataset.extras.get('temporal_end') | safe }};
+
+    if (startTimeStr) {
+      document.getElementById('start-datetime').value = new Date(startTimeStr).toISOString().slice(0, 16);
+    }
+    if (endTimeStr) {
+      document.getElementById('end-datetime').value = new Date(endTimeStr).toISOString().slice(0, 16);
+    }
+
+    function invokeUpdateTemporal() {
+      getExtras(function(currentExtras) {
+         updateTemporal(currentExtras);
+      });
+    }
+
+    function updateTemporal(currentExtras){
+      var startValue = document.getElementById('start-datetime').value;
+      var endValue = document.getElementById('end-datetime').value;
+      
+      // Do nothing if either date is missing or start is not before end
+      if (!startValue || !endValue || new Date(startValue) >= new Date(endValue)) {
+        alert("Please ensure both start and end dates are selected, and that the start date is before the end date.");
+        return;
+      }
+      $('#update-temporal-btn .stelar-symbol').remove();
+      $('#update-temporal-btn .stelar-loader').remove();
+      $('#update-temporal-btn').prepend(createLoaderElement(true, true));
+    
+      var startTime = new Date(startValue).toISOString();
+      var endTime = new Date(endValue).toISOString();
+
+      currentExtras.temporal_start = startTime;
+      currentExtras.temporal_end = endTime;      
+
+      patchExtras(currentExtras, function(success) {
+        $('#update-temporal-btn .stelar-loader').remove();
+        if(success){
+          $('#update-temporal-btn').prepend(createGreenTick(true));
+        } else {
+          $('#update-temporal-btn').prepend(createRedCross(true));
+        }
+        setTimeout(function(){
+          $('.stelar-symbol').remove();
+        }, 2000);
+      });
+    }
+  </script>
+
+  <script>
+
+    function buildNormalExtraRow(key, value){
+      value = value.replace(/"/g, '');
+      return `
+        <tr id="extra-${key}">
+          <td>  
+              ${key}
+          </td>
+          <td>
+              <strong>${value}</strong>
+          </td>
+          <td>
+              <a class="text-link cursor-pointer" onclick="editExtra('${key}')">Edit</a>
+              <a class="text-danger cursor-pointer ms-2" onclick="deleteExtra('${key}')">Delete</a>
+          </td>
+        </tr>`;
+    }
+
+    function buildEditExtraRow(key, value){
+      return `
+        <tr id="extra-row-edit">
+          <td>  
+              ${key}
+          </td>
+          <td>
+            <input type="text" class="form-control" name="extra-value" value="${value}" placeholder="Value">
+            <input type="hidden" name="extra-original-value" value="${value}">
+          </td>
+          <td>
+              <a class="text-link cursor-pointer" onclick="saveExtra()">Save</a>
+              <a class="text-danger cursor-pointer ms-2" onclick="cancelEditExtra()">Cancel</a>
+          </td>
+        </tr>`;
+    }
+
+    function buildAddExtraRow(){
+      return `
+        <tr id="extra-row-new">
+          <td>
+            <input type="text" class="form-control" name="extra-key" placeholder="Key">
+          </td>
+          <td>
+            <input type="text" class="form-control" name="extra-value" placeholder="Value">
+          </td>
+          <td>
+              <a class="text-link cursor-pointer" onclick="saveNewExtra()">Save</a>
+              <a class="text-danger cursor-pointer ms-2" onclick="cancelAddExtraField()">Cancel</a>
+          </td>
+      `;
+    }
+
+ 
+    function addExtraField(){
+      const extraRow = $('#extra-row-new');
+      const editRow = $('#extra-row-edit');
+      if (editRow.length > 0) {
+        cancelEditExtra();
+      }
+      if (extraRow.length === 0) {
+        $('#new-extra').before(buildAddExtraRow());        
+        $('#extra-row-new input[name="extra-key"]').focus();
+        $('input[name="extra-key"]').on('input', function(){
+          const newKey = $(this).val().trim().toLowerCase();
+          // Check in a case-insensitive way if a row with id "extra-{newKey}" already exists in the table of extras
+          if ($(`#extra-attributes tr[id="extra-${newKey}"]`).length > 0) {
+        $(this).addClass('is-invalid');
+          } else {
+        $(this).removeClass('is-invalid');
+          }
+        });
+      } else if (!extraRow.hasClass('glowing-row')) {
+        extraRow.addClass('glowing-row');
+        setTimeout(function(){
+          extraRow.removeClass('glowing-row');
+        }, 2000);
+      }
+    }
+
+    function cancelAddExtraField(){ 
+      $('#extra-row-new').remove();
+    }
+
+    function editExtra(key){
+      const addRow = $('#extra-row-new');
+      if (addRow.length > 0) {
+        cancelAddExtraField();
+      }
+      const extraRow = $(`#extra-${key}`);
+      if (extraRow.length > 0) {
+        cancelEditExtra();
+        const value = extraRow.find('td:nth-child(2)').text().trim();
+        extraRow.replaceWith(buildEditExtraRow(key, value));
+      } else {
+        console.error(`Extra with key ${key} not found.`);
+      }
+    }
+
+    function cancelEditExtra(){
+      const extraRow = $('#extra-row-edit');
+      if (extraRow.length > 0) {
+        const key = extraRow.find('td:first').text().trim();
+        const value = extraRow.find('input[name="extra-original-value"]').val();
+        extraRow.replaceWith(buildNormalExtraRow(key, value));
+      } else {
+        console.error("No edit row found.");
+      }
+    }
+
+
+    function saveExtra(){
+      const extraRow = $('#extra-row-edit');
+      if (extraRow.length > 0) {
+        const key = extraRow.find('td:first').text().trim();
+        const value = extraRow.find('input[name="extra-value"]').val().trim();
+        if (!key || !value) {
+          alert("Key and value cannot be empty.");
+          return;
+        }
+        $('#extras-status').append(createLoaderElement(true, false));
+        getExtras(function(currentExtras) {
+          currentExtras[key] = value;
+          patchExtras(currentExtras, function(success){
+            $('#extras-status .stelar-loader').remove();
+            if(success){
+              $('#extra-row-edit').replaceWith(buildNormalExtraRow(key, value));
+              $('#extras-status').append(createGreenTick(true));
+            }else{
+              $('#extras-status').append(createRedCross(true));
+            }
+            setTimeout(function(){
+              $('.stelar-symbol').remove();
+            }, 2000);
+          });
+        });
+      } else {
+        console.error("No edit row found.");
+      }
+    }
+
+    function saveNewExtra(){
+      const extraRow = $('#extra-row-new');
+      if (extraRow.length > 0) {
+        const key = extraRow.find('input[name="extra-key"]').val().trim().toLowerCase();
+        const value = extraRow.find('input[name="extra-value"]').val().trim();
+        if (!key || !value) {
+          alert("Key and value cannot be empty.");
+          return;
+        }
+        $('#extras-status').append(createLoaderElement(true, false));
+        getExtras(function(currentExtras) {
+          if (currentExtras[key]) {
+            alert(`An extra with key "${key}" already exists.`);
+            return;
+          }
+          currentExtras[key] = value;
+          patchExtras(currentExtras, function(success){
+            $('#extras-status .stelar-loader').remove();
+            if(success){
+              $('#extra-row-new').replaceWith(buildNormalExtraRow(key, value));
+              $('#extras-status').append(createGreenTick(true));
+            }else{
+              $('#extras-status').append(createRedCross(true));
+            }
+            setTimeout(function(){
+              $('.stelar-symbol').remove();
+            }, 2000);
+          });
+        });
+      } else {
+        console.error("No new extra row found.");
+      }
+    }
+
+
+    function deleteExtra(extra){
+      if (!confirm(`Are you sure you want to delete the extra "${extra}"?`)) {
+        return;
+      }
+      $('#extras-status').append(createLoaderElement(true, false));
+      getExtras(function(currentExtras) {
+        if (currentExtras[extra]) {
+          delete currentExtras[extra];
+          patchExtras(currentExtras, function(success){
+            $('#extras-status .stelar-loader').remove();
+            if(success){
+              $(`#extra-${extra}`).remove();
+              $('#extras-status').append(createGreenTick(true));
+            }else{
+              $('#extras-status').append(createRedCross(true));
+            }
+            setTimeout(function(){
+              $('.stelar-symbol').remove();
+            }, 2000);
+          });
+        } else {
+          console.error(`Extra with key ${extra} not found.`);
+        }
+      });
+    }
+
+    function patchExtras(extras, callback){
+      $.ajax({
+      url: "{{url_for('catalog_blueprint.api_patch_dataset', entity_id=dataset.id)}}",
+      type: "PATCH",
+      contentType: "application/json",
+      data: JSON.stringify({extras: extras}),
+      success: function(response) {
+        if(response.success){
+          console.log("Extras updated successfully");
+        if(callback) callback(true);
+        } else {
+          console.error("Failed to update extras:", response.message);
+        if(callback) callback(false);
+        }
+      },
+      error: function(xhr, status, error) {
+        console.error("Error updating extras:", error);
+        if(callback) callback(false);
+      }
+      });
+    }
+
+    function getExtras(callback){
+      $.ajax({
+      url: "{{url_for('catalog_blueprint.api_get_dataset', entity_id=dataset.id)}}",
+      type: "GET",
+      dataType: "json",
+      success: function(response) {
+        if(response.success){
+        callback(response.result.extras);
+        }
+      },
+      error: function(xhr, status, error) {
+        console.error("Error fetching extras:", error);
+      }
+      });
+    }
+  </script>
+
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+  <!-- Preview Map -->
+  <script>
+    var map = L.map('map', {
+      center: [47.57536996623514, 8.261718750000002],
+      zoom: 3,
+      zoomControl: false,
+      maxZoom: 3,
+      minZoom: 3,
+      scrollWheelZoom: false,
+      dragging: false
+    });
+
+    var drawnPolygonPrev = null;
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+  </script>
+  
+  <!-- Spatial Map -->
+  <script>
+    // Keep the server-rendered spatial coverage here at page load
+
+    {% if dataset.extras.get('spatial') %} 
+      var spatialCoverage = JSON.parse(`{{ dataset.extras.get('spatial') | safe }}`);
+    {% else %}
+      var spatialCoverage = null;
+    {% endif %}
+    
+    var spatialMap = L.map('spatial-map', {
+      center: [38.6137, 24.6116],
+      zoom: 3,
+    });
+
+    var streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    });
+
+    var topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      maxZoom: 17,
+      attribution: '&copy; <a href="https://opentopomap.org">OpenTopoMap</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+    });
+
+    streetLayer.addTo(spatialMap);
+
+    var baseLayers = {
+      "Street Map": streetLayer,
+      "Topographical Map": topoLayer
+    };
+
+    L.control.layers(baseLayers).addTo(spatialMap);
+
+    // Feature Group to store the single drawn polygon
+    var drawnPolygon = null;
+
+    // Add drawing controls
+    var drawControl = new L.Control.Draw({
+      edit: false, // Disable bulk editing
+      delete: true,
+      draw: {
+        polygon: false,
+        polyline: false,
+        rectangle: true,
+        circle: false,
+        marker: false,
+        circlemarker: false
+      }
+    });
+
+    spatialMap.addControl(drawControl);
+
+    spatialMap.on('draw:created', function (e) {
+      var layer = e.layer;
+
+      // Remove the previous polygon, if any
+      if (drawnPolygon) {
+        spatialMap.removeLayer(drawnPolygon);
+      }
+
+      drawnPolygon = layer;
+      drawnPolygon.addTo(spatialMap);
+
+      drawnPolygon.on('click', function () {
+        new L.EditToolbar.Edit(spatialMap, {
+          featureGroup: L.featureGroup([drawnPolygon]),
+        }).enable();
+      });
+
+    });
+
+    const spatialModal = document.getElementById('spatial-modal');
+    spatialModal.addEventListener('shown.bs.modal', function () {
+      spatialMap.invalidateSize();
+      loadSpatialCoverage();
+    });
+
+    function loadSpatialCoverage() {
+      if (drawnPolygon && drawnPolygonPrev) {
+        spatialMap.removeLayer(drawnPolygon);
+        map.removeLayer(drawnPolygonPrev);
+      }
+      if (spatialCoverage) {
+        const coordinates = spatialCoverage.coordinates[0].map(coord => [coord[1], coord[0]]);
+        drawnPolygon = L.polygon(coordinates, { color: 'purple', fillOpacity: 0.3 }).addTo(spatialMap);
+        drawnPolygonPrev = L.polygon(coordinates, { color: 'purple', fillOpacity: 0.3 }).addTo(map);
+        drawnPolygon.on('click', function () {
+          new L.EditToolbar.Edit(spatialMap, {
+            featureGroup: L.featureGroup([drawnPolygon]),
+          }).enable();
+        });
+        spatialMap.fitBounds(drawnPolygon.getBounds());
+      }
+    }
+
+
+    function resetSpatial(){
+      if (drawnPolygon) {
+        spatialMap.removeLayer(drawnPolygon);
+        drawnPolygon = null;
+      }
+      if (drawnPolygonPrev) {
+        map.removeLayer(drawnPolygonPrev);
+        drawnPolygonPrev = null;
+      }
+      updateSpatialCoverage();
+    }
+
+    function updateSpatialCoverage(){
+      $('#spatial-modal-footer .alert').remove();
+      $('#spatial-modal-footer .stelar-loader').remove();
+      $('#update-spatial-btn').addClass('disabled');
+      $('#spatial-modal-footer').prepend(createLoaderElement(false, true));
+
+      $.ajax({
+        url: "{{url_for('catalog_blueprint.api_patch_dataset', entity_id=dataset.id)}}",
+        type: "PATCH",
+        contentType: "application/json",
+        data: JSON.stringify({ spatial: drawnPolygon ? drawnPolygon.toGeoJSON().geometry : null }),
+        success: function (response) {
+          spatialCoverage = response.result.spatial;
+          loadSpatialCoverage();
+          $('#spatial-modal-footer .stelar-loader').remove();
+          $('#spatial-modal-footer').prepend(createAlertElement('success', 'Spatial coverage updated'));
+          $('#update-spatial-btn').removeClass('disabled');
+          setTimeout(function () {
+            $('#spatial-modal-footer .alert').fadeOut(500, function () {
+              $(this).remove();
+            });
+          }, 3000);
+        },
+        error: function (err) {
+          $('#spatial-modal-footer .stelar-loader').remove();
+          $('#spatial-modal-footer').prepend(createAlertElement('danger', 'Failed to update spatial coverage'));
+          $('#update-spatial-btn').removeClass('disabled');
+          console.error("Error updating spatial coverage:", err);
+          setTimeout(function () {
+            $('#spatial-modal-footer .alert').fadeOut(500, function () {
+              $(this).remove();
+            });
+          }, 3000);
+        }
+      })
+    }
+
+    map.whenReady(function(){
+      loadSpatialCoverage();
+    });
+
+  </script>
+
+
+  <script>
+
+    function exportToZenodo() {
+
+      $.ajax({
+        url: "{{url_for('catalog_blueprint.api_export_zenodo_dataset_id', dataset_id=dataset.id)}}",
+        type: 'GET',
+        success: function (response) {
+          if (response.success) {
+            const zenodoJson = response.result;
+            const jsonString = JSON.stringify(zenodoJson, null, 2);
+            document.getElementById('zenodo-json').innerHTML = `<pre>${jsonString}</pre>`;
+          } else {
+            console.error("Failed to fetch Zenodo JSON");
+          }
+        },
+        error: function (err) {
+          console.error("Error fetching Zenodo JSON:", err);
+        }
+      });
+    }
+
+
+    function updatePackage() {
+
+      body = {
+        title: $('input[name="package-name"]').val(),
+        url: $('input[name="package-url"]').val(),
+        private: $('input[name="package-visibility"]:checked').val() == 'private'
+      }
+
+      if (!body['private']) {
+        if (!confirm("Warning: You are about to make the package public. Do you want to continue?")) {
+          return;
+        }
+      }
+
+      $("#manage-package-footer .alert").remove();
+      $("#manage-package-footer").prepend(createLoaderElement(false, true));
+      $.ajax({
+        url: "{{url_for('catalog_blueprint.api_patch_dataset', entity_id=dataset.id)}}",
+        type: "PATCH",
+        contentType: "application/json",
+        data: JSON.stringify(body),
+        success: function (response) {
+          $("#manage-package-footer .stelar-loader").remove();
+          $("#manage-package-footer").prepend(createAlertElement('success', 'Package updated successfully'));
+          setTimeout(function () {
+            $("#manage-package-footer .alert").fadeOut(500, function () {
+              $(this).remove();
+            });
+          }, 3000);
+        },
+        error: function (err) {
+          $("#manage-package-footer .stelar-loader").remove();
+          $("#manage-package-footer").prepend(createAlertElement('danger', 'Failed to update package'));
+          console.error("Error updating package:", err);
+          setTimeout(function () {
+            $("#manage-package-footer .alert").fadeOut(500, function () {
+              $(this).remove();
+            });
+          }, 3000);
+        }
+      })
+    }
+
+    function editDescription() {
+      const descElem = document.getElementById('package-description');
+      const currentHTML = descElem.innerHTML;
+      // Replace <br> tags with newline characters
+      const currentText = currentHTML.replace(/<br\s*\/?>/gi, '\n');
+
+      const textarea = document.createElement('textarea');
+      textarea.className = 'form-control';
+      textarea.rows = 8;
+      textarea.id = 'package-description-edit';
+      textarea.value = currentText;
+
+      descElem.parentNode.replaceChild(textarea, descElem);
+
+
+      $('#edit-description-btn-container').empty();
+      const closeButton = `<a class="btn btn-outline-primary px-4 mt-2 mb-2" title="Edit Description" data-bs-toggle="tooltip"
+                            data-bs-placement="bottom" id="edit-description-btn" onclick="closeDescriptionEditor()">
+                            <span>Close</span>
+                          </a>`;
+
+      const saveButton = `<button class="btn btn-primary" onclick="saveEditedDescription()" style=""><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1 icon icon-tabler icons-tabler-outline icon-tabler-device-floppy">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                <path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"></path>
+                                                <path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                                <path d="M14 4l0 4l-6 0l0 -4"></path>
+                                            </svg>Save</button>`;
+
+      $('#edit-description-btn-container').append(saveButton);
+      $('#edit-description-btn-container').append(closeButton);
+    }
+
+
+    function saveEditedDescription() {
+
+      const textarea = document.getElementById('package-description-edit');
+      const newText = textarea.value;
+
+      $('#edit-description-btn-container .alert').remove();
+      $('#edit-description-btn-container .stelar-loader').remove();
+      $('#edit-description-btn-container').append(createLoaderElement(true, false));
+
+      $.ajax({
+        url: "{{url_for('catalog_blueprint.api_patch_dataset', entity_id=dataset.id)}}",
+        type: "PATCH",
+        contentType: "application/json",
+        data: JSON.stringify({ notes: newText }),
+        success: function (response) {
+          if (response.success) {
+            $('#edit-description-btn-container .stelar-loader').remove();
+            closeDescriptionEditor();
+          } else {
+            $('#edit-description-btn-container .stelar-loader').remove();
+            $('#edit-description-btn-container').append(createRedCross(true));
+            console.error("Failed to update description");
+          }
+        },
+        error: function (err) {
+          console.error("Error updating description:", err);
+        }
+      })
+    }
+
+    function closeDescriptionEditor() {
+      const textarea = document.getElementById('package-description-edit');
+      const newText = textarea.value;
+
+      const descElem = document.createElement('div');
+      descElem.id = 'package-description';
+      descElem.className = 'text-secondary';
+      descElem.innerHTML = newText.replace(/\n/g, '<br>');
+      textarea.parentNode.replaceChild(descElem, textarea);
+
+      $('#edit-description-btn-container').empty();
+      const editButton = `<a class="btn btn-outline-primary" title="Edit Description" data-bs-toggle="tooltip"
+                            data-bs-placement="bottom" id="edit-description-btn" onclick="editDescription()">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                              stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-pencil">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+                              <path d="M13.5 6.5l4 4" />
+                            </svg>
+                            <span>Edit</span>
+                          </a>`;
+      $('#edit-description-btn-container').append(editButton);
+    }
+
+    // Attach the input listeners that validate the form and enable the submit button
+    $(document).ready(function () {
+      function validatePackageForm() {
+        const packageName = $.trim($('input[name="package-name"]').val());
+        const packageUrl = $.trim($('input[name="package-url"]').val());
+        $('#update-package-btn').prop('disabled', packageName === '' || packageUrl === '');
+      }
+
+      validatePackageForm();
+
+      $('input[name="package-name"], input[name="package-url"]').on('keyup change', validatePackageForm);
+    });
+
+  </script>
 
   <script>
     // When a view resource button is clicked show the modal with the resource info
@@ -771,12 +1777,12 @@
       // Get the resource ID
       const resourceId = $('#resource-id-input').val();
       const resourceData = {
-          url: $('input[name="view-resource-url"]').val(),
-          name: $('input[name="view-resource-name"]').val(),
-          format: $('input[name="format-sel"]:checked').val() || $('#update-custom-format').val(),
-          description: $('input[name="view-resource-description"]').val()
+        url: $('input[name="view-resource-url"]').val(),
+        name: $('input[name="view-resource-name"]').val(),
+        format: $('input[name="format-sel"]:checked').val() || $('#update-custom-format').val(),
+        description: $('input[name="view-resource-description"]').val()
       };
-    
+
       $('#update-modal-footer').remove('.stelar-loader');
       $('#update-modal-footer').remove('.alert');
       $('#update-modal-footer').prepend(createLoaderElement());
@@ -791,7 +1797,7 @@
           if (response.success) {
             const updatedResource = response.result;
             const tableRow = $(`#${updatedResource.id}`);
-            
+
             tableRow.find('td:nth-child(2) small').text(updatedResource.name);
             tableRow.find('td:nth-child(3) small').text(updatedResource.url);
             tableRow.find('td:nth-child(4)').text(updatedResource.format);
@@ -817,15 +1823,30 @@
       });
     });
 
-    function copyText() {
-      const inputField = document.getElementById('resource-id-input');
+    function copyText(inputId, alertContainerSelector, alertMessage = 'Copied!') {
+      const inputField = document.getElementById(inputId);
+      if (!inputField) return;
+
       navigator.clipboard.writeText(inputField.value);
-      $('#update-modal-footer').prepend('<div class="alert alert-success p-2 me-auto">Copied!</div>');
+
+      // Try to get the container with the provided selector.
+      let container = $(alertContainerSelector);
+      // If not found and selector doesn't start with '#', try with '#' prepended.
+      if (container.length === 0 && alertContainerSelector[0] !== '#') {
+        container = $('#' + alertContainerSelector);
+      }
+
+      // Remove any existing alert elements from the container.
+      container.find('.alert').remove();
+
+      const alertHtml = createAlertElement('success', alertMessage);
+      container.prepend(alertHtml);
+
       setTimeout(function () {
-        $('#update-modal-footer .alert').fadeOut(500, function () {
+        container.find('.alert').fadeOut(500, function () {
           $(this).remove();
         });
-      }, 3000);
+      }, 2000);
     }
   </script>
 
@@ -1337,47 +2358,28 @@
       });
     });
   </script>
-
   <script>
-    $(document).ready(function () {
-      const updateDescriptionIcon = $('#update-description-icon');
-      const descriptionInput = $('#dataset-description');
-
-      updateDescriptionIcon.on('click', function () {
-        const payload = {
-          notes: descriptionInput.val()
-        };
-        const loader = '<div class="spinner-border me-auto me-2 p-2 spinner-border-sm text-secondary" role="status"></div>'
-        $('#update-tags-icon .stelar-loader').remove();
-        updateDescriptionIcon.prepend(loader)
-        $.ajax({
-          url: `{{url_for('catalog_blueprint.api_patch_dataset', entity_id=dataset.get('id'))}}`,
-          type: 'PATCH',
-          contentType: 'application/json',
-          data: JSON.stringify(payload),
+    function deleteDataset(){
+      $.ajax({
+          url: "{{ url_for('catalog_blueprint.api_delete_dataset', entity_id=dataset.id) }}",
+          type: "DELETE",
+          contentType: "application/json;",
+          data: JSON.stringify({'purge': !$('#soft-delete-checkbox').is(':checked')}),
           success: function (response) {
-            $('#update-description-icon .spinner-border').remove();
-            $('#update-description-icon').prepend('<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="text-success me-2 icon stelar-loader icon-tabler icons-tabler-outline icon-tabler-check"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>')
-            setTimeout(function () {
-              $('#update-description-icon .stelar-loader').fadeOut(500, function () {
-                $(this).remove();
-              });
-            }, 3000);
+              window.location.href = "{{ url_for('dashboard_blueprint.catalog') }}";
           },
-          error: function (jqXHR, textStatus, errorThrown) {
-            $('#update-description-icon .spinner-border').remove();
-            $('#update-description-icon').prepend('<svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="text-danger me-2 icon stelar-loader icon-tabler icons-tabler-outline icon-tabler-x"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>')
-            setTimeout(function () {
-              $('#update-description-icon .stelar-loader').fadeOut(500, function () {
-                $(this).remove();
-              });
-            }, 3000);
+          error: function (error) {
+              $('#modal-delete-dataset .alert').remove();
+              $('#modal-delete-dataset').append(createAlertElement('danger', 'Failed to delete dataset'));
+              setTimeout(function () {
+                  $('#modal-delete-dataset .alert').fadeOut(500, function () {
+                      $(this).remove();
+                  });
+              }, 3000);
           }
-        });
-      });
-    });
+      })
+  }
   </script>
-
 
 </body>
 

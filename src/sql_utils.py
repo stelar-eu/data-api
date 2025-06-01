@@ -563,6 +563,83 @@ def task_execution_create(
     return True
 
 
+def task_execution_read_creator(task_exec_id):
+    """Returns the creator of a Task"""
+    # Compose the SQL command using the template for reading metadata about a task execution
+    sql = utils.sql_workflow_execution_templates["task_read_creator_template"]
+
+    # Execute the SQL command in the database
+    resp = pgsql.execSql(sql, (task_exec_id,))
+
+    if resp and len(resp) > 0:
+        task_specs = resp[0]
+        return task_specs["creator_user_id"]
+    else:
+        return None
+
+
+def task_execution_read_per_state():
+    """Returns the list of tasks per state"""
+    # Compose the SQL command
+    sql = utils.sql_workflow_execution_templates["task_read_tasks_per_state"]
+
+    # Execute the SQL command in the database
+    resp = pgsql.execSql(sql)
+    if resp and len(resp) > 0:
+        tasks_per_state = {}
+        for task in resp:
+            state = task["state"]
+            task_uuid = task["id"]
+            if state not in tasks_per_state:
+                tasks_per_state[state] = []
+            tasks_per_state[state].append(task_uuid)
+        return tasks_per_state
+
+
+def task_execution_read_per_state_per_user(creator):
+    """Returns the list of tasks per state for a given user"""
+    sql = utils.sql_workflow_execution_templates["task_read_tasks_per_state_per_user"]
+
+    resp = pgsql.execSql(sql, (creator,))
+    if resp and len(resp) > 0:
+        tasks_per_state = {}
+        for task in resp:
+            state = task["state"]
+            task_uuid = task["id"]
+            if state not in tasks_per_state:
+                tasks_per_state[state] = []
+            tasks_per_state[state].append(task_uuid)
+        return tasks_per_state
+
+
+def task_execution_read_having_state(state, limit=100, offset=0):
+    """Returns the list of tasks having a given state"""
+    # Compose the SQL command using the template for reading metadata about a task execution
+    sql = utils.sql_workflow_execution_templates["task_read_tasks_of_state"]
+    # Execute the SQL command in the database
+    resp = pgsql.execSql(sql, (state, limit, offset))
+
+    if resp and len(resp) > 0:
+        tasks = [row["id"] for row in resp]
+        return {state: tasks}
+    else:
+        return None
+
+
+def task_execution_read_having_state_per_user(state, creator, limit=100, offset=0):
+    """Returns the list of tasks having a given state for a given user"""
+    # Compose the SQL command using the template for reading metadata about a task execution
+    sql = utils.sql_workflow_execution_templates["task_read_tasks_of_state_per_user"]
+    # Execute the SQL command in the database
+    resp = pgsql.execSql(sql, (state, creator, limit, offset))
+
+    if resp and len(resp) > 0:
+        tasks = [row["id"] for row in resp]
+        return {state: tasks}
+    else:
+        return None
+
+
 def task_execution_update(task_exec_id, state, end_date=None, tags=None):
     """Updates metadata regarding a task execution in the database.
 
@@ -840,6 +917,7 @@ def task_execution_insert_metrics(task_exec_id, metrics):
     Args:
         task_exec_id: UUID of the task execution.
         metrics: A JSON dictionary with the task execution metrics as (key, value) pairs.
+                 The value can also be a dictionary.
 
     Returns:
         A boolean: True, if the statement executed successfully; otherwise, False.
@@ -849,6 +927,10 @@ def task_execution_insert_metrics(task_exec_id, metrics):
     if metrics:
         for key, value in metrics.items():
             sql = utils.sql_workflow_execution_templates["task_insert_metrics_template"]
+
+            # If the value is a dictionary, convert it to a JSON string
+            if isinstance(value, dict):
+                value = json.dumps(value)
 
             # Execute the SQL command in the database
             resp = pgsql.execSql(sql, (task_exec_id, key, value))
@@ -1193,7 +1275,11 @@ def task_execution_input_read_sql(task_exec_id):
             )
             if resp and len(resp) > 0:
                 for input in resp:
-                    list_of_inputs.append(input["resource_id"] or input["input_path"])
+                    list_of_inputs.append(
+                        input["resource_id"]
+                        or input["input_path"]
+                        or input["resource_url"]
+                    )
                 inputs[group["input_group_name"]] = list_of_inputs
 
     return inputs
@@ -1248,9 +1334,10 @@ def task_execution_parameters_read_sql(task_exec_id):
             for param in resp:
                 value = param["value"]
                 try:
-                    value = int(value)
-                except (ValueError, TypeError, Exception):
-                    pass
+                    # Attempt to parse the value as a Python literal (e.g., int, float, bool, dict, etc.)
+                    value = ast.literal_eval(value)
+                except (ValueError, SyntaxError):
+                    pass  # If parsing fails, keep the value as is (string)
                 params[param["key"]] = value
             return params
         else:
@@ -1265,7 +1352,15 @@ def task_execution_metrics_read_sql(task_exec_id):
         resp = pgsql.execSql(sql, (task_exec_id,))
 
         if resp and len(resp) > 0:
-            metrics = {tag["key"]: tag["value"] for tag in resp}
+            metrics = {}
+            for tag in resp:
+                value = tag["value"]
+                try:
+                    # Attempt to load the value as JSON
+                    value = json.loads(value)
+                except (ValueError, TypeError):
+                    pass  # If it's not JSON, keep the original value
+                metrics[tag["key"]] = value
             return metrics
         else:
             return None

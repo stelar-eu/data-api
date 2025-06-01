@@ -17,6 +17,11 @@ class ToolCKANSchema(PackageCKANSchema):
     outputs = fields.Raw(load_default={})
     parameters = fields.Raw(load_default={})
     repository = fields.String(allow_none=True, load_default=None)
+    category = fields.String(
+        allow_none=True,
+        validate=validators.OneOf(["discovery", "interlinking", "annotation", "other"]),
+        load_default=None,
+    )
 
     # Use resources to represent images
     images = fields.Raw(data_key="resources", load_only=True)
@@ -30,6 +35,7 @@ class ToolCKANSchema(PackageCKANSchema):
             "outputs",
             "parameters",
             "repository",
+            "category",
         ]
 
 
@@ -41,6 +47,11 @@ class ToolSchema(PackageSchema):
     inputs = fields.Dict(keys=fields.String, values=fields.String, dump_default={})
     outputs = fields.Dict(keys=fields.String, values=fields.String, dump_default={})
     parameters = fields.Dict(keys=fields.String, values=fields.String, dump_default={})
+    category = fields.String(
+        allow_none=True,
+        validate=validators.OneOf(["discovery", "interlinking", "annotation", "other"]),
+        load_default=None,
+    )
 
     # Use resources to represent images
     images = fields.Raw(dump_only=True)
@@ -79,6 +90,17 @@ class ToolEntity(PackageEntity):
         )
         return super().create(init_data)
 
+    def delete(self, eid: str, purge: bool = False):
+        """
+        Delete a tool entity by its ID.
+        This method will also delete the repository from the registry.
+        """
+        package = self.get(eid)
+        if not package:
+            return None
+        REGISTRY.delete_repository(package["repository"])
+        return super().delete(eid, purge=purge)
+
     def _enhance_from_registry(self, package: dict):
         """
         Enhance the tool entity with additional information from the registry.
@@ -88,6 +110,7 @@ class ToolEntity(PackageEntity):
             return package
         try:
             images = REGISTRY.get_repository_tags(package["repository"])
+            images = [tag for tag in images if "expiration" not in tag]
         except:
             return package
         package.update({"images": images})

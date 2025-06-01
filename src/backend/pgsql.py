@@ -84,36 +84,38 @@ def get_dbconn():
 
 @contextmanager
 def transaction():
-    """Yields a connection from the database pool, and commits the transaction if no exception is raised.
+    """Context manager to handle transactions.
 
-    If an exception is raised, the transaction is rolled back and the connection is returned to the pool for closing.
+    Starts a transaction if none is in progress, commits if no exception,
+    rolls back otherwise.
 
-    In a typical usage one would simply do:
-    ```
-    with transaction() as conn:
-        # Do something with the connection
-        data = execSql("SELECT * FROM table")
-
-        # update based on data
-        newdata = compute(data)
-
-        stat = execSql("UPDATE table SET col = %s", [newdata])
-    ```
-    where the two statements are executed atomically.
-
-    Contexts can be nested, and the transaction will be committed only by the outermost context.
-
+    Supports nesting by only committing/rolling back outermost transaction.
     """
     conn = get_dbconn()
-    if conn.info.transaction_status == TRANSACTION_STATUS_IDLE:
-        # We are the outermost transaction, commit as needed
-        with get_dbconn() as conn:
+
+    try:
+        # If idle, start a transaction
+        if conn.info.transaction_status == TRANSACTION_STATUS_IDLE:
             with conn.cursor() as cur:
                 cur.execute("BEGIN")
-            yield conn
-    else:
-        # In a transaction, do not commit or rollback here...
+
+            # Mark that we started the transaction and should commit/rollback
+            is_outermost = True
+        else:
+            # Already in a transaction (nested)
+            is_outermost = False
+
         yield conn
+
+        # Commit only if outermost transaction
+        if is_outermost:
+            conn.commit()
+
+    except Exception:
+        # Rollback only if outermost transaction
+        if is_outermost:
+            conn.rollback()
+        raise
 
 
 def execSql(sql, vars=None):

@@ -81,9 +81,9 @@
                 </svg>
               </span>
               <div class="input-group">
-                <input type="text" value="" class="form-control query-param mb-0 h3" placeholder="Search for a keyword"
+                <input type="text" value="{{ search_q.keywords if search_q.keywords else '' }}" class="form-control query-param mb-0 h3" placeholder="Search for a keyword"
                   id="catalog-search-box" aria-label="Catalog Search" style="height:3.5rem;" autocomplete="off">
-                <button class="btn query-param" type="button">
+                <button class="btn query-param" type="button" onclick="performKeywordSearch()">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                     class="me-1 icon icon-tabler icons-tabler-outline icon-tabler-search">
@@ -98,8 +98,10 @@
               style="position:absolute; top:100%; left:0; z-index:1001; display:none; width:100%;">
             </ul>
           </div>
-          <div class="badges-list mt-3 mb-0">
-            <span class="badge badge-lg badge-outline text-default">Default</span>
+          <div class="badges-list mt-3 mb-0" id="filter-list">
+
+
+
           </div>
 
           <div class="row g-6 mt-3">
@@ -172,10 +174,10 @@
                 </div>
               </div>
               <div class="mt-5">
-                <button class="btn btn-primary w-100 query-param">
+                <button class="btn btn-primary w-100 query-param" onclick="performFrontendSearch()">
                   Apply filters
                 </button>
-                <a href="#" class="btn btn-link w-100 query-param">
+                <a class="btn btn-link w-100 query-param" onclick="resetCheckedFilters()">
                   Reset to defaults
                 </a>
               </div>
@@ -281,18 +283,8 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
               <div class="modal-body">
-
                 <div class="row">
-                  <div class="col-lg-2">
-                    <div class="h3">Saved Polygons</div>
-                    <p class="text-secondary text-sm ">Here you may find any saved polygons in the STELAR KLMS, used
-                      in
-                      previous searches.</p>
-                    <ul id="savedPolygonList" class="list-group">
-
-                    </ul>
-                  </div>
-                  <div class="col-lg-10">
+                  <div class="col-lg-12">
                     <div class="h3 ms-4">Interactive Map</div>
                     <p class="ms-4 text-sm text-secondary">Use the drawing toolbox below to define an area on the map.
                       A
@@ -310,7 +302,17 @@
 
               </div>
               <div class="modal-footer" id="spatial-search-modal-footer">
-                <a href="#" class="btn btn-primary ms-auto" data-bs-dismiss="modal">
+                <a class="btn btn-outline-primary ms-auto" onclick="addSpatialFilter()">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="icon icon-tabler icons-tabler-outline icon-tabler-plus">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M12 5l0 14" />
+                    <path d="M5 12l14 0" />
+                  </svg>
+                  Add as Filter to Search
+                </a>
+                <a class="btn btn-primary ms-2" onclick="performSpatialSearch()">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                     class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-search">
@@ -430,6 +432,44 @@
                         </p>
                       </small>
                     </div>
+                    <div class="mt-1">
+                      <label class="form-label">Visibility</label>
+                      <div class="form-selectgroup-boxes row mb-1">
+                        <div class="col-lg-6 text-success">
+                          <label class="form-selectgroup-item">
+                            <input type="radio" name="package-visibility" value="public" class="form-selectgroup-input"
+                              checked="">
+                            <span class="form-selectgroup-label d-flex align-items-center p-3">
+                              <span class="me-3">
+                                <span class="form-selectgroup-check"></span>
+                              </span>
+                              <span class="form-selectgroup-label-content">
+                                <span class="form-selectgroup-title strong mb-1">Public</span>
+                                <span class="d-block text-secondary">Accessible to all users
+                                  registered in the KLMS</span>
+                              </span>
+                            </span>
+                          </label>
+                        </div>
+                        <div class="col-lg-6 text-danger">
+                          <label class="form-selectgroup-item">
+                            <input type="radio" name="package-visibility" value="private"
+                              class="form-selectgroup-input">
+                            <span class="form-selectgroup-label d-flex align-items-center p-3">
+                              <span class="me-3">
+                                <span class="form-selectgroup-check"></span>
+                              </span>
+                              <span class="form-selectgroup-label-content">
+                                <span class="form-selectgroup-title strong mb-1">Private</span>
+                                <span class="d-block text-secondary">Accessible only to members
+                                  of the organization that
+                                  owns the package</span>
+                              </span>
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div class="modal-body">
@@ -441,6 +481,13 @@
                           placeholder="A nice informative description"></textarea>
                       </div>
                     </div>
+                    <small class="form-hint">
+                      <p>
+                        After the dataset is published, you will be able to add resources and
+                        manage every additional attribute of it (Spatial Coverage, Temporal Coverage, Extra Metadata,
+                        etc.)
+                      </p>
+                    </small>
                     <input type="hidden" name="packageTags" id="hiddenTagsInput" name="tags" />
                     <div class="col-lg-12">
                       <div class="mb-3">
@@ -455,7 +502,8 @@
                   </div>
                 </div>
                 <div class="modal-footer" id="new-dataset-modal-footer">
-                  <a class="cursor-pointer btn btn-primary ms-auto" id="publish-dataset-btn" disabled>
+                  <a class="cursor-pointer btn btn-primary ms-auto" id="publish-dataset-btn" onclick="publishDataset()"
+                    disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24"
                       stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -478,7 +526,7 @@
   <script src="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-  <!-- Preview Map -->
+
   <script>
     var map = L.map('map', {
       center: [47.57536996623514, 8.261718750000002],
@@ -548,6 +596,9 @@
             var selectedItem = $(items[selectedIndex]);
             var name = selectedItem.data('name');
             window.location.href = `{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}` + encodeURIComponent(name);
+          } else {
+            // If no suggestion is selected, perform a search with the current input
+            performKeywordSearch();
           }
         }
       });
@@ -627,32 +678,103 @@
 
   <!-- Search Script -->
   <script>
-
     query = {
-      "q": "",
+      "q": "{{ search_q.keywords if search_q.keywords else '' }}",
       "sort": "{{ search_q.sort }}",
       "fl": [
-        "id",
-        "title",
-        "notes",
-        "author",
-        "organization",
-        "tags",
-        "metadata_modified",
-        "capacity"
+      "id",
+      "title",
+      "notes",
+      "author",
+      "organization",
+      "tags",
+      "metadata_modified",
+      "capacity",
+      "type"
       ],
-      "fq": [],
+      "fq": [{% for filter in search_q.fq %}"{{ filter }}"{% if not loop.last %}, {% endif %} {% endfor %}],
       "limit": 10,
       "offset": 0,
+      {% if search_q.bbox %}
+      "bbox": {{ search_q.bbox }},
+      {% endif %}
       "facet": {
         "fields": [
           "tags",
           "author",
           "organization",
-          "res_format",
+          "res_format"
         ]
       }
     };
+
+    // The updateQueryFilters() function replicates the backend logic.
+    // It fetches filter values from the URL and reconstructs the fq array.
+    function updateQueryFilters() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var filters = [];
+      ["tags", "res_format", "org", "author"].forEach(function(field) {
+      var param = urlParams.get(field);
+      if (param) {
+        var values = param.split(",").map(function(v) { return v.trim(); }).filter(function(v) { return v !== ""; });
+        if (values.length > 0) {
+            var actualField = (field === "org") ? "organization" : field;
+            var filterStr = (actualField === "tags")
+          ? actualField + ": (" + values.join(" OR ") + ")"
+          : actualField + ":(" + values.join(" OR ") + ")";
+            filters.push(filterStr);
+        }
+      }
+      });
+      var bboxParam = urlParams.get("bbox");
+      if (bboxParam) {
+        query.bbox = bboxParam.split(",").map(function(coord) {
+          return parseFloat(coord.trim());
+        });
+      }
+      var keywordParam = urlParams.get("keywords");
+      query.q = keywordParam ? keywordParam : "";
+      query.fq = filters;
+      maskWithPlaceholders();
+      performSearch(query, false);
+    }
+
+
+    function performFrontendSearch(){
+      maskWithPlaceholders();
+      updateQueryFilters();
+    }
+
+    function performKeywordSearch(){
+      appendFilterToLocation("keywords", $("#catalog-search-box").val());
+      updateQueryFilters(); 
+    }
+
+
+    function renderFilterBadges() {
+      // We need the backend rendered filters here to append filter badges 
+      filters = {{ search_q | tojson }};
+    
+      var filterContainer = $('#filter-badges');
+      filterContainer.empty();
+
+      ["author", "tags", "res_format", "organization", "bbox"].forEach(function (type) {
+        if (filters[type]) {
+          if (type === "bbox") {
+            // If bbox is an array, join its elements; otherwise, use the string as is.
+            var bboxValue = Array.isArray(filters[type]) ? filters[type].join(",") : filters[type];
+            appendFilterBadge(type, bboxValue);
+          } else {
+            filters[type].split(',').forEach(function (value) {
+              var trimmed = value.trim();
+              if (trimmed) {
+                appendFilterBadge(type, trimmed);
+              }
+            });
+          }
+        }
+      });
+    }
 
     function performSearch(query, rebuildFacets = true) {
       lockQueryParams();
@@ -670,7 +792,6 @@
                 $('#facet-author').empty();
                 $('#facet-organization').empty();
                 $('#facet-format').empty();
-                buildFacets(response.result.facets);
               }
               buildPackageCards(response.result.results); // pass orgData if needed
               attachComparatorButtonListeners();
@@ -683,11 +804,63 @@
             console.error("Search failed:", response.message);
           }
         },
-        error: function (xhr, status, error) {
+        error: function (xhr, status, error) {  
+          appendErrorMessage();
           unlockQueryParams();
           console.error("AJAX request failed:", error);
         }
       });
+    }
+
+
+    function fetchDefaultFacets(){
+      fquery = {
+        "q": "",
+        "sort": "{{ search_q.sort }}",
+        "fl": [
+        "id"
+        ],
+        "facet": {
+          "fields": [
+            "tags",
+            "author",
+            "organization",
+            "res_format"
+          ]
+        }
+      };
+      $.ajax({
+        url: "{{url_for('catalog_blueprint.api_search_datasets')}}",
+        type: "POST",
+        data: JSON.stringify(fquery),
+        contentType: "application/json",
+        success: function (response) {
+          if (response.success) {
+            if (response.result.facets) {
+              buildFacets(response.result.facets);
+            }
+          } else {
+            console.error("Fetching default facets failed:", response.message);
+          }
+        },
+        error: function (xhr, status, error) {
+          console.error("AJAX request for default facets failed:", error);
+        }
+      });
+    }
+
+    function appendErrorMessage(){
+      $("#package-list").html("");
+      $('#pagination-control').html("");
+      const searchError = `<div class="col-lg-12 my-6">
+          <div class="text-center h1 text-secondary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 150px;" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler h-100 icons-tabler-outline icon-tabler-bug"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M9 9v-1a3 3 0 0 1 6 0v1"></path><path d="M8 9h8a6 6 0 0 1 1 3v3a5 5 0 0 1 -10 0v-3a6 6 0 0 1 1 -3"></path><path d="M3 13l4 0"></path><path d="M17 13l4 0"></path><path d="M12 20l0 -6"></path><path d="M4 19l3.35 -2"></path><path d="M20 19l-3.35 -2"></path><path d="M4 7l3.75 2.4"></path><path d="M20 7l-3.75 2.4"></path></svg>          
+          </div>
+          <div class="h2 text-center text-secondary">
+              <span class="text-secondary h2">An error occurred while looking for results. Please try refreshing the page. </span>
+          </div>
+      </div>`;
+      $('#package-list').append(searchError);
     }
 
     function buildPagination(total) {
@@ -808,6 +981,147 @@
                 </div>`;
     }
 
+
+    function removeFilterFromLocation(type, filter) {
+      var url = new URL(window.location);
+      var param;
+      if (type === "tags") {
+        param = "tags";
+      } else if (type === "res_format") {
+        param = "res_format";
+      } else if (type === "organization") {
+        param = "org";
+      } else if (type === "author") {
+        param = "author";
+      } else if (type === "bbox") {
+        // For bbox, remove the entire param
+        url.searchParams.delete("bbox");
+        window.history.pushState({}, "", url.toString());
+        return;
+      } else {
+        param = type;
+      }
+
+      var current = url.searchParams.get(param);
+      if (current) {
+        var filters = current.split(",");
+        var index = filters.indexOf(filter);
+        if (index !== -1) {
+          filters.splice(index, 1);
+          if (filters.length) {
+            url.searchParams.set(param, filters.join(","));
+          } else {
+            url.searchParams.delete(param);
+          }
+        }
+      }
+      window.history.pushState({}, "", url.toString());
+      updateQueryFilters();
+    }
+
+    function removeAllFiltersFromLocation() {
+      var url = new URL(window.location);
+      // Remove all related filters
+      url.searchParams.delete("tags");
+      url.searchParams.delete("res_format");
+      url.searchParams.delete("org"); // organization
+      url.searchParams.delete("author");
+      url.searchParams.delete("bbox");
+      url.searchParams.delete("keywords");
+      window.history.pushState({}, "", url.toString());
+      $('#filter-list').empty();
+      updateQueryFilters();
+    }
+
+    function appendFilterToLocation(type, filter) {
+      var url = new URL(window.location);
+      var param;
+      if (type === "tags") {
+        param = "tags";
+      } else if (type === "res_format") {
+        param = "res_format";
+      } else if (type === "organization") {
+        param = "org";
+      } else if (type === "author") {
+        param = "author";
+      } else if (type === "keywords"){
+        param = "keywords";
+        url.searchParams.set(type, filter);
+        window.history.pushState({}, "", url.toString());
+        updateQueryFilters();
+        return;
+      } else {
+        param = type;
+      }
+      var current = url.searchParams.get(param);
+      if (current) {
+        var filters = current.split(",");
+        if (filters.indexOf(filter) === -1) {
+          filters.push(filter);
+          url.searchParams.set(param, filters.join(","));
+        }
+      } else {
+        url.searchParams.set(param, filter);
+      }
+      window.history.pushState({}, "", url.toString());
+      updateQueryFilters();
+    }
+
+    function appendFilterBadge(type, filter) {
+      var badgeClass;
+      var displayText;
+      if (type === "bbox") {
+        badgeClass = "bg-success-lt";
+        displayText = "Spatial Polygon";
+      } else if (type === "res_format") {
+        badgeClass = "bg-indigo-lt";
+        displayText = "Format: " + filter;
+      } else if (type === "organization") {
+        badgeClass = "bg-blue-lt";
+        displayText = "Organization: " + filter;
+      } else if (type === "author") {
+        badgeClass = "bg-orange-lt";
+        displayText = "Author: " + filter;
+      } else if (type === "tags") {
+        badgeClass = "bg-purple-lt";
+        displayText = "Tag: " + filter;
+      } else if (type === "keywords") {
+        badgeClass = "bg-yellow-lt";
+        displayText = "Keyword: " + filter;
+      } else {
+        badgeClass = "bg-secondary-lt";
+        displayText = type.charAt(0).toUpperCase() + type.slice(1) + ": " + filter;
+      }
+      var idValue = (type === "bbox") ? "filter-bbox" : "filter-" + type + "-" + filter;
+      var filterHtml = `<span class="badge badge-lg ${badgeClass} me-1" data-category=${type} data-value=${filter} id="${idValue}">
+      ${displayText}
+      <button type="button" class="btn-close btn-close-sm remove-filter" data-type="${type}" data-filter="${filter}" aria-label="Close"></button>
+      </span>`;
+      $('#filter-list').append(filterHtml);
+    }
+
+    // Event delegation for dynamically added close buttons
+    $(document).on('click', '.remove-filter', function () {
+      var type = $(this).data('type');
+      var filter = $(this).data('filter');
+      // Uncheck the corresponding checkbox if type is not 'bbox'
+      if (type !== 'bbox') {
+        $(`input[type="checkbox"][value="${filter}"]`).prop('checked', false);
+      }
+     
+      removeFilterBadge(type, filter);
+      removeFilterFromLocation(type, filter);
+      performFrontendSearch();
+    });
+
+    function removeFilterBadge(type, filter) {
+      if (type === 'bbox') {
+        $('#filter-bbox').remove();
+      } else {
+        $(`#filter-${type}-${filter}`).remove();
+      }
+    }
+
     function maskWithPlaceholders() {
       var packageList = $('#package-list');
       packageList.empty();
@@ -831,7 +1145,7 @@
     });
 
     function buildPackageCard(pkg) {
-      return `<div class="card card-link m-0 cursor-pointer disabled mb-3">
+      return `<div class="card card-link m-0 disabled mb-3">
         <div class="row g-0">
           <div class="col-auto">
             <div class="card-body">
@@ -868,6 +1182,9 @@
             : pkg.type === 'process'
               ? '<span class="badge bg-yellow-lt ms-2">PROCESS</span>'
               : ''}
+                    <span class = "text-secondary h4 ms-2">
+                       ${pkg.capacity ? pkg.capacity.charAt(0).toUpperCase() + pkg.capacity.slice(1) : ''}
+                    </span>
                   </h3>
                   <p class="text-secondary mt-1">${pkg.notes || 'No description specified'}</p>
                 </div>
@@ -895,7 +1212,7 @@
                     <div class="list-inline-item">
                       <svg xmlns="http://www.w3.org/2000/svg"
                            class="icon icon-tabler icon-tabler-building-bank" width="44" height="44"
-                           viewBox="0 0 24 24" stroke-width="1.5" stroke="#2c3e50" fill="none"
+                           viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                            stroke-linecap="round" stroke-linejoin="round">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                         <path d="M3 21l18 0" />
@@ -907,31 +1224,26 @@
                         <path d="M12 14l0 3" />
                         <path d="M16 14l0 3" />
                       </svg>
-                      ${orgs[pkg.organization] ? orgs[pkg.organization].title : ''}
+                      <a class="text-secondary" target="_blank" href="{{ url_for('dashboard_blueprint.organization', organization_id='') }}${orgs[pkg.organization] ? orgs[pkg.organization].id : ''}">
+                        ${orgs[pkg.organization] ? orgs[pkg.organization].title : ''}
+                      </a>
                     </div>
                     <div class="list-inline-item">
-                      <svg xmlns="http://www.w3.org/2000/svg"
-                           class="icon icon-tabler icon-tabler-calendar-month" width="44" height="44"
-                           viewBox="0 0 24 24" stroke-width="1.5" stroke="#2c3e50" fill="none"
-                           stroke-linecap="round" stroke-linejoin="round">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="icon icon-tabler icons-tabler-outline icon-tabler-calendar-bolt">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
+                        <path d="M13.5 21h-7.5a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v5" />
                         <path d="M16 3v4" />
                         <path d="M8 3v4" />
                         <path d="M4 11h16" />
-                        <path d="M7 14h.013" />
-                        <path d="M10.01 14h.005" />
-                        <path d="M13.01 14h.005" />
-                        <path d="M16.015 14h.005" />
-                        <path d="M13.015 17h.005" />
-                        <path d="M7.01 17h.005" />
-                        <path d="M10.01 17h.005" />
+                        <path d="M19 16l-2 3h4l-2 3" />
                       </svg>
                       ${formatIsoDate(pkg.metadata_modified)}
                     </div>
                     <div class="list-inline-item">
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                           fill="none" stroke="#2c3e50" stroke-width="1.5" stroke-linecap="round"
+                           fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                            stroke-linejoin="round"
                            class="icon icon-tabler icons-tabler-outline icon-tabler-user">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -944,7 +1256,7 @@
                 </div>
                 <div class="col-md-auto">
                   <div class="mt-3 badges">
-                    ${pkg.tags && pkg.tags.length ? pkg.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') : ''}
+                    ${pkg.tags && pkg.tags.length ? pkg.tags.map(tag => `<a class="card-link text-black tag m-1 mb-0" href="{{ url_for('dashboard_blueprint.catalog') }}?sort=metadata_modified+desc&tags=${encodeURIComponent(tag)}">${tag}</a>`).join('') : ''}
                   </div>
                 </div>
               </div>
@@ -962,24 +1274,24 @@
       }
     }
 
-    function buildFacet(facet, count, field, display) {
+    function buildFacet(facet, count, value, display, checked = false) {
       if (facet) {
         if (display) {
           return `<label class="form-check tag-item">
-              <input type="checkbox" class="form-check-input query-param" name="form-type[]" value="${facet}">
-              <div class="d-flex">
-                <span class="form-check-label">${facet}</span>
-                <span class="badge ms-auto text-light-fg ms-2">${count}</span>
-              </div>
-            </label>`;
+            <input type="checkbox" class="form-check-input query-param" name="form-type[]" value="${facet}" ${checked ? 'checked' : ''}>
+            <div class="d-flex">
+            <span class="form-check-label">${facet}</span>
+            <span class="badge ms-auto text-light-fg ms-2">${count}</span>
+            </div>
+          </label>`;
         } else {
-          return `<label class="form-check tag-item more-tag query-param" style="display: none;">
-              <input type="checkbox" class="form-check-input" name="form-type[]" value="${facet}">
-              <div class="d-flex">
-                <span class="form-check-label">${facet}</span>
-                <span class="badge ms-auto text-light-fg ms-2">${count}</span>
-              </div>
-            </label>`;
+          return `<label class="form-check tag-item more-tag" style="display: none;">
+            <input type="checkbox" class="form-check-input query-param" name="form-type[]" value="${facet}" ${checked ? 'checked' : ''}>
+            <div class="d-flex">
+            <span class="form-check-label">${facet}</span>
+            <span class="badge ms-auto text-light-fg ms-2">${count}</span>
+            </div>
+          </label>`;
         }
       }
     }
@@ -1009,15 +1321,43 @@
         </a>`;
     }
 
+    function resetCheckedFilters() {
+      $('#facet-tags input[type="checkbox"]').prop('checked', false);
+      $('#facet-author input[type="checkbox"]').prop('checked', false);
+      $('#facet-organization input[type="checkbox"]').prop('checked', false);
+      $('#facet-format input[type="checkbox"]').prop('checked', false);
+      removeAllFiltersFromLocation();
+    }
+
     function buildFacets(facets) {
       if (facets) {
+        // The facets are stored in the global variable
+        // so that way even if the query limits the number of results
+        // the entirety of facets are still available for the user to filter
         for (const [key, value] of Object.entries(facets)) {
           if (key == "tags") {
             const entries = Object.entries(value);
             $("#facet-tags").html("");
             let i = 0;
             for (const [tag, count] of entries) {
-              $("#facet-tags").append(buildFacet(tag, count, key, i < 8));
+              // If the current tag is included in badges-list then create it as checked
+              if ($('#filter-tags-' + tag).length > 0) {
+                var checked = true;
+              } else {
+                var checked = false;
+              }
+              var facetElement = $(buildFacet(tag, count, key, i < 8, checked));
+              facetElement.find('input').on('change', function () {
+                var val = $(this).val();
+                if ($(this).is(':checked')) {
+                  appendFilterBadge(key, val);
+                  appendFilterToLocation(key, val);
+                } else {
+                  removeFilterBadge(key, val);
+                  removeFilterFromLocation(key, val);
+                }
+              });
+              $("#facet-tags").append(facetElement);
               i++;
             }
             if (entries.length > 8) {
@@ -1028,7 +1368,24 @@
             $("#facet-author").html("");
             let i = 0;
             for (const [author, count] of entries) {
-              $("#facet-author").append(buildFacet(author, count, key, i < 8));
+              // If the current author is included in badges-list then create it as checked
+              if ($('#filter-author-' + author).length > 0) {
+                var checked = true;
+              } else {
+                var checked = false;
+              }
+              var facetElement = $(buildFacet(author, count, key, i < 8, checked));
+              facetElement.find('input').on('change', function () {
+                var val = $(this).val();
+                if ($(this).is(':checked')) {
+                  appendFilterBadge(key, val);
+                  appendFilterToLocation(key, val);
+                } else {
+                  removeFilterBadge(key, val);
+                  removeFilterFromLocation(key, val);
+                }
+              });
+              $("#facet-author").append(facetElement);
               i++;
             }
             if (entries.length > 8) {
@@ -1039,7 +1396,24 @@
             $("#facet-organization").html("");
             let i = 0;
             for (const [organization, count] of entries) {
-              $("#facet-organization").append(buildFacet(organization, count, key, i < 8));
+              // If the current organization is included in badges-list then create it as checked
+              if ($('#filter-organization-' + organization).length > 0) {
+                var checked = true;
+              } else {
+                var checked = false;
+              }
+              var facetElement = $(buildFacet(organization, count, key, i < 8, checked));
+              facetElement.find('input').on('change', function () {
+                var val = $(this).val();
+                if ($(this).is(':checked')) {
+                  appendFilterBadge(key, val);
+                  appendFilterToLocation(key, val);
+                } else {
+                  removeFilterBadge(key, val);
+                  removeFilterFromLocation(key, val);
+                }
+              });
+              $("#facet-organization").append(facetElement);
               i++;
             }
             if (entries.length > 8) {
@@ -1049,8 +1423,25 @@
             const entries = Object.entries(value);
             $("#facet-format").html("");
             let i = 0;
-            for (const [organization, count] of entries) {
-              $("#facet-format").append(buildFacet(organization, count, key, i < 8));
+            for (const [format, count] of entries) {
+              // If the current format is included in badges-list then create it as checked
+              if ($('#filter-res_format-' + format).length > 0) {
+                var checked = true;
+              } else {
+                var checked = false;
+              }
+              var facetElement = $(buildFacet(format, count, key, i < 8, checked));
+              facetElement.find('input').on('change', function () {
+                var val = $(this).val();
+                if ($(this).is(':checked')) {
+                  appendFilterBadge(key, val);
+                  appendFilterToLocation(key, val);
+                } else {
+                  removeFilterBadge(key, val);
+                  removeFilterFromLocation(key, val);
+                }
+              });
+              $("#facet-format").append(facetElement);
               i++;
             }
             if (entries.length > 8) {
@@ -1060,10 +1451,176 @@
         }
       }
     }
+
+
+    function addSpatialFilter() {
+      if (drawnPolygon) {
+        // Extract bounds (minX, minY, maxX, maxY) in WGS 84 (EPSG:4326)
+        var bounds = drawnPolygon.getBounds();
+        var minX = bounds.getWest();
+        var minY = bounds.getSouth();
+        var maxX = bounds.getEast();
+        var maxY = bounds.getNorth();
+        spatialCoverage = [minX, minY, maxX, maxY];
+      } else {
+        spatialCoverage = null;
+      }
+
+      // Check if the spatial filter is already included
+      if (query.bbox && query.bbox.length > 0 && spatialCoverage) {
+        query.bbox = spatialCoverage;
+      }
+      // Add the spatial filter to the URL 
+      appendFilterToLocation("bbox", spatialCoverage ? spatialCoverage.join(",") : "");
+      appendFilterBadge("bbox", spatialCoverage ? spatialCoverage.join(",") : "No spatial coverage defined");
+      $('#spatial-search-modal').modal('hide');
+    }
+
+    function showResultPolygon(dataset) {
+      var bounds = [
+        [dataset.miny, dataset.minx],
+        [dataset.miny, dataset.maxx],
+        [dataset.maxy, dataset.maxx],
+        [dataset.maxy, dataset.minx]
+      ];
+
+      var randomColor = '#' + Math.floor(Math.random() * 16777215)
+        .toString(16).padStart(6, '0');
+
+      // Annotate the polygon with isResultPolygon set to true.
+      var polygon = L.polygon(bounds, {
+        color: randomColor,
+        weight: 2,
+        fillOpacity: 0.2,
+        isResultPolygon: true
+      }).addTo(searchMap);
+
+      polygon.bindPopup(
+        `<strong>${dataset.title}</strong><br>
+        Organization: ${dataset.organization}<br>
+        Creator: ${dataset.author || 'N/A'}<br>
+        Tags: ${dataset.tags.join(', ')}<br>
+        <a href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}${encodeURIComponent(dataset.id)}" target="_blank">View Details</a>`
+      );
+
+      // Open popup on click so that links remain clickable
+      polygon.on('click', function (e) {
+        this.openPopup(e.latlng);
+      });
+
+      // Remove the polygon on right-click (contextmenu)
+      polygon.on('contextmenu', function (e) {
+        searchMap.removeLayer(polygon);
+      });
+    }
+
+    function clearAllResultPolygons() {
+      // Remove all polygons that were added as result polygons
+      for (const key in searchMap._layers) {
+        const layer = searchMap._layers[key];
+        if (layer instanceof L.Polygon && layer.options.isResultPolygon) {
+          searchMap.removeLayer(layer);
+        }
+      }
+    }
+
+    function performSpatialSearch() {
+      fl = [
+        "id",
+        "title",
+        "notes",
+        "author",
+        "organization",
+        "tags",
+        "metadata_modified",
+        "capacity",
+        "minx",
+        "miny",
+        "maxx",
+        "maxy",
+        "type"
+      ];
+
+      //Remove any result polygons from previous searches
+      clearAllResultPolygons();
+
+      if (drawnPolygon) {
+        // Extract bounds (minX, minY, maxX, maxY) in WGS 84 (EPSG:4326)
+        var bounds = drawnPolygon.getBounds();
+        var minX = bounds.getWest();
+        var minY = bounds.getSouth();
+        var maxX = bounds.getEast();
+        var maxY = bounds.getNorth();
+        spatialCoverage = [minX, minY, maxX, maxY];
+      } else {
+        spatialCoverage = null;
+      }
+
+      $('#spatial-search-modal-footer .alert').remove()
+      $('#spatial-search-modal-footer .stelar-loader').remove()
+      $('#spatial-search-modal-footer').prepend(createLoaderElement(false, true))
+
+      if (spatialCoverage) {
+        $.ajax({
+          url: "{{url_for('catalog_blueprint.api_search_datasets')}}",
+          method: "POST",
+          contentType: "application/json",
+          data: JSON.stringify({ fl: fl, bbox: spatialCoverage }),
+          success: function (response) {
+            if (response.success) {
+              $('#spatial-search-modal-footer .stelar-loader').remove();
+              $('#spatial-search-modal-footer .alert').remove();
+              $('#spatial-search-modal-footer').prepend(createAlertElement("success", "Spatial search completed successfully"));
+              // Remove the polygon used for the search from the map, if it exists
+              if (drawnPolygon) {
+                // Instead of removing the drawnPolygon, update its style to a dashed gray border with a light gray fill
+                drawnPolygon.setStyle({
+                  color: 'gray',
+                  dashArray: '5,5',
+                  fillColor: 'lightgray',
+                  fillOpacity: 0.5
+                });
+              }
+              // Remove all previously added result polygons (assuming they were marked with isResultPolygon:true)
+              for (const key in searchMap._layers) {
+                const layer = searchMap._layers[key];
+                if (layer !== drawnPolygon && layer.options && layer.options.isResultPolygon) {
+                  searchMap.removeLayer(layer);
+                }
+              }
+
+              response.result.results.forEach(function (dataset) {
+                showResultPolygon(dataset);
+              });
+
+            } else {
+              $('#spatial-search-modal-footer .stelar-loader').remove()
+              $('#spatial-search-modal-footer .alert').remove()
+              $('#spatial-search-modal-footer').prepend(createAlertElement("danger", "Spatial search failed: " + response.message));
+              console.error("Spatial search failed:", response.message);
+            }
+          },
+          error: function (xhr, status, error) {
+            console.error("AJAX spatial search request failed:", error);
+          }
+        });
+      }
+      else {
+        $('#spatial-search-modal-footer .stelar-loader').remove()
+        console.warn("No spatial coverage defined. Please draw a rectangle on the map.");
+      }
+    }
+
+    // Render the filter badges based on the current query parameters
+    // Disable the query params to prevent them from being modified by the user while the search is performed
+    renderFilterBadges();
+    lockQueryParams();
+
     $(document).ready(function () {
       // Call fetchOrganizations and run performSearch only after its completion.
       fetchOrganizations(function () {
-        performSearch(query);
+        performSearch(query, false);
+        fetchDefaultFacets();
       });
     });
 
@@ -1107,7 +1664,6 @@
     var drawControl = new L.Control.Draw({
       edit: false, // Disable bulk editing
       draw: {
-
         polygon: false,
         polyline: false,
         rectangle: true,
@@ -1116,6 +1672,31 @@
         circlemarker: false
       }
     });
+
+    const resetControl = L.Control.extend({
+      options: { position: 'topleft' },
+
+      onAdd: function (map) {
+        const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+        container.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-trash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><line x1="4" y1="7" x2="20" y2="7"></line><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path></svg>';
+        container.style.cursor = 'pointer';
+        container.style.backgroundColor = 'white';
+        container.style.padding = '5px';
+
+        container.onclick = function () {
+          if (confirm("Remove all shapes from the map?")) {
+            if (drawnPolygon) {
+              searchMap.removeLayer(drawnPolygon);
+              drawnPolygon = null;
+            }
+          }
+        };
+
+        return container;
+      }
+    });
+
+    searchMap.addControl(new resetControl());
 
     searchMap.addControl(drawControl);
 
@@ -1217,39 +1798,6 @@
       searchMap.fitBounds(drawnPolygon.getBounds());
     }
 
-    // Add a custom "Save Polygon" button
-    L.Control.SavePolygon = L.Control.extend({
-      onAdd: function () {
-        var btn = L.DomUtil.create('button', 'save-polygon-button');
-        btn.innerHTML = 'Save Polygon';
-        btn.classList.add('btn', 'btn-primary', 'p-2');
-
-        L.DomEvent.on(btn, 'click', function () {
-          if (drawnPolygon) {
-            const polygonName = prompt("Enter a name for this polygon:");
-            if (polygonName) {
-              savePolygon(polygonName, drawnPolygon);
-              alert('Polygon saved successfully!');
-            }
-          } else {
-            alert('No polygon to save! Please draw a polygon first.');
-          }
-        });
-
-        return btn;
-      },
-      onRemove: function () {
-        // No cleanup needed
-      }
-    });
-
-    L.control.savePolygon = function (opts) {
-      return new L.Control.SavePolygon(opts);
-    };
-
-    // Add the "Save Polygon" button to the map
-    L.control.savePolygon({ position: 'topleft' }).addTo(searchMap);
-
 
     // Handle the creation of new shapes
     searchMap.on('draw:created', function (e) {
@@ -1269,7 +1817,6 @@
         }).enable();
       });
 
-      console.log("Drawn polygon coordinates:", drawnPolygon.toGeoJSON());
     });
 
     const spatialModal = document.getElementById('spatial-search-modal');
@@ -1428,63 +1975,66 @@
 
 
   <script>
+
+    function publishDataset() {
+
+      const title = $('input[name="package-name-input"]').val().trim();
+      const notes = $('textarea[name="packageDescription"]').val().trim();
+      const tags = $('#hiddenTagsInput').val().split(',').filter(tag => tag.trim() !== '');
+      const ownerOrg = $('#owner-org').val();
+      const private = $('input[name="package-visibility"]:checked').val() === 'private'
+
+      $('#new-dataset-modal-footer .stelar-loader').remove();
+      $('#new-dataset-modal-footer .alert').remove();
+
+      if (!title || !notes || tags.length === 0) {
+        $('#new-dataset-modal-footer').prepend(createAlertElement('danger', 'Please fill in all fields.'));
+        return;
+      }
+
+      const payload = {
+        name: slugifyTitle(title),
+        title: title,
+        notes: notes,
+        tags: tags,
+        'owner_org': ownerOrg,
+        private: private
+      };
+
+      $("#new-dataset-modal-footer").prepend(createLoaderElement(false, false));
+
+      $.ajax({
+        url: `{{ url_for('catalog_blueprint.api_create_dataset') }} `,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        success: function (response) {
+          $('#new-dataset-modal-footer .stelar-loader').remove();
+          $('#new-dataset-modal-footer').prepend(createAlertElement('success', 'Dataset Published Successfully'));
+          setTimeout(function () {
+            $('#new-dataset-modal-footer .alert').fadeOut(500, function () {
+              $(this).remove();
+            });
+          }, 3000);
+        },
+        error: function (xhr) {
+          $('#new-dataset-modal-footer .stelar-loader').remove();
+          $('#new-dataset-modal-footer').prepend(createAlertElement('danger', 'Error publishing dataset.'));
+          setTimeout(function () {
+            $('#new-dataset-modal-footer .alert').fadeOut(500, function () {
+              $(this).remove();
+            });
+          }, 3000);
+        }
+      });
+
+    }
+
     $(document).ready(function () {
       const titleInput = $('input[name="package-name-input"]');
-
       titleInput.on('input', function () {
         titleInput.removeClass('is-valid is-invalid');
       });
-
-      $('#publish-dataset-btn').on('click', function (event) {
-        event.preventDefault();
-
-        const title = $('input[name="package-name-input"]').val().trim();
-        const notes = $('textarea[name="packageDescription"]').val().trim();
-        const tags = $('#hiddenTagsInput').val().split(',').filter(tag => tag.trim() !== '');
-        const ownerOrg = $('#owner-org').val();
-
-        if (!title || !notes || tags.length === 0) {
-          $('#new-dataset-modal-footer').prepend(createAlertElement('danger', 'Please fill in all fields.'));
-          return;
-        }
-
-        const payload = {
-          name: slugifyTitle(title),
-          title: title,
-          notes: notes,
-          tags: tags,
-          'owner_org': ownerOrg,
-        };
-
-        $('#new-dataset-modal-footer .alert .stelar-loader').remove();
-        $("#new-dataset-modal-footer").prepend(createLoaderElement(false, false));
-
-        $.ajax({
-          url: `{{ url_for('catalog_blueprint.api_create_dataset') }} `,
-          method: 'POST',
-          contentType: 'application/json',
-          data: JSON.stringify(payload),
-          success: function (response) {
-            $('#new-dataset-modal-footer .stelar-loader').remove();
-            $('#new-dataset-modal-footer').prepend(createAlertElement('success', 'Dataset Published Successfully'));
-            setTimeout(function () {
-              $('#new-dataset-modal-footer .alert').fadeOut(500, function () {
-                $(this).remove();
-              });
-            }, 3000);
-          },
-          error: function (xhr) {
-            $('#new-dataset-modal-footer .stelar-loader').remove();
-            $('#new-dataset-modal-footer').prepend(createAlertElement('danger', 'Error publishing dataset.'));
-            setTimeout(function () {
-              $('#new-dataset-modal-footer .alert').fadeOut(500, function () {
-                $(this).remove();
-              });
-            }, 3000);
-          }
-        });
-      });
-
     });
 
     function fetchOrganizations(callback) {

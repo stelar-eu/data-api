@@ -111,6 +111,7 @@ class WorkflowProcessSchema(Schema):
     name = fields.String()
     state = fields.String(validate=validators.OneOf(["active", "deleted"]))
     owner_org = fields.String(required=True)
+    organization = fields.Dict(dump_only=True)
 
     # By default, dataset metadata will be publicly available
     private = fields.Boolean(load_default=False)
@@ -169,6 +170,7 @@ class ProcessEntity(PackageEntity):
         "private",
         "state",
         "owner_org",
+        "organization",
         "title",
         "notes",
         "author",
@@ -234,7 +236,7 @@ class ProcessEntity(PackageEntity):
         package_creation_req = {
             "id": random_uuid,
             "name": package_name,
-            "type": "process",  # N.B. this will be ignored until scheming is activated
+            "type": "process",
             "owner_org": owner_org,
             "author": attributes.get("author", creator_user["username"]),
             "author_email": attributes.get("author_email", creator_user_email),

@@ -8,15 +8,13 @@ import smtplib
 import ssl
 from datetime import datetime, timedelta
 from functools import wraps
-from math import ceil
-import execution
 from urllib.parse import quote
 
 import mutils
-
+import time
 from apiflask import APIBlueprint
 
-from exceptions import ConflictError
+from exceptions import ConflictError, AuthorizationError
 from flask import (
     current_app,
     flash,
@@ -34,7 +32,6 @@ from tasks import TASK
 from tools import TOOL
 from cutils import TAG, ORGANIZATION, DATASET, RESOURCE
 from auth import admin_required
-import re
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
 
@@ -106,13 +103,46 @@ def session_required(f):
         # Retrieve token from session
         access_token = session.get("access_token")
 
-        # If token doesn't exist or is invalid, clear session and redirect to login with a message
-        if not access_token or not kutils.is_token_active(access_token):
-            # Revoke refresh token to log out
+        current_time = int(time.time())
+        token_expired = (
+            session.get("token_expires", 0) < current_time - 120
+            or session.get("refresh_expires", 0) < current_time - 120
+        )
+        access_token = session.get("access_token")
+
+        # If token expired or inactive, attempt to refresh it atomically
+        if (
+            token_expired
+            or not access_token
+            or not kutils.is_token_active(access_token)
+        ):
             try:
-                kutils.KEYCLOAK_OPENID_CLIENT().logout(session["refresh_token"])
+                try:
+                    token = kutils.refresh_access_token(session.get("refresh_token"))
+                except Exception:
+                    if session.get("REMEMBER_ME") and "USER_PASSWORD" in session:
+                        # If refresh token is invalid, try to get a new access token using username and
+                        # password since the has requested to remember him during login
+                        token = kutils.get_token(
+                            session.get("USER_EMAIL"), session.get("USER_PASSWORD")
+                        )
+                session["access_token"] = token["access_token"]
+                session["refresh_token"] = token["refresh_token"]
+                session["token_expires"] = current_time + token["expires_in"]
+                session["refresh_expires"] = current_time + token["refresh_expires_in"]
+                session["expires_in"] = token["expires_in"]
+                session["refresh_expires_in"] = token["refresh_expires_in"]
+                logger.debug("Token refreshed successfully")
+                # Token refreshed, continue with the original request
+                return f(*args, **kwargs)
             except Exception as e:
-                logger.error(f"Error during logout: {e}")
+                logger.error(f"Error refreshing token: {e}")
+
+            try:
+                kutils.KEYCLOAK_OPENID_CLIENT().logout(session.get("refresh_token"))
+            except Exception as logout_e:
+                logger.error(f"Error during logout: {logout_e}")
+
             session.clear()
             flash("Session Expired, Please Login Again", "warning")
             return redirect(url_for("dashboard_blueprint.login", next=request.url))
@@ -165,16 +195,30 @@ def processes():
 
     # Retrieve list of WFs from DB
     processes = PROCESS.fetch_entities(limit=50, offset=0)
-    logger.debug(processes)
 
     if processes is not None and processes != []:
         status_counts = {}
         monthly_counts = {}
 
+        organization_counts = {}  # Dictionary to count processes per organization
         for proc in processes:
             # Count process status for pie chart
             status = proc["exec_state"]
             status_counts[status] = status_counts.get(status, 0) + 1
+
+            # Count processes per organization
+            org_obj = proc.get("organization")
+            if org_obj and isinstance(org_obj, dict):
+                # Use organization.name as unique key and organization.title for display
+                org_key = org_obj.get("name", "Unknown")
+                org_display = org_obj.get("title", "Unknown")
+            else:
+                org_key = "Unknown"
+                org_display = "Unknown"
+            if org_key not in organization_counts:
+                organization_counts[org_key] = {"title": org_display, "count": 0}
+
+            organization_counts[org_key]["count"] += 1
 
             # Count process per month for bar chart
             start_date = proc["start_date"]
@@ -197,6 +241,7 @@ def processes():
             processes=processes,
             status_counts=status_counts,
             monthly_counts=monthly_counts,
+            organization_counts=organization_counts,
             PARTNER_IMAGE_SRC=get_partner_logo(),
         )
 
@@ -266,11 +311,51 @@ def catalog():
 
     # -------------- Handle search query ---------------
     sort = request.args.get("sort")
+    tags = request.args.get("tags")
+    keyword = request.args.get("keywords")
+    res_format = request.args.get("res_format")
+    org = request.args.get("org")
+    author = request.args.get("author")
+    spatial = request.args.get("bbox")
+    temporal_end = request.args.get("temporal_end")
+    temporal_start = request.args.get("temporal_start")
+
     search_q = {}
     # Sort the results according to the user's latest option
     search_q["sort"] = sort if sort else "metadata_modified desc"
 
-    # Handle default GET request
+    # Search for datasets according to the user's search query
+    search_q["tags"] = tags if tags else None
+    search_q["keywords"] = keyword if keyword else None
+    search_q["res_format"] = res_format if res_format else None
+    search_q["organization"] = org if org else None
+    search_q["author"] = author if author else None
+    search_q["bbox"] = [float(num) for num in spatial.split(",")] if spatial else None
+    search_q["temporal_end"] = (
+        datetime.strptime(temporal_end, "%Y-%m-%d") if temporal_end else None
+    )
+    search_q["temporal_start"] = (
+        datetime.strptime(temporal_start, "%Y-%m-%d") if temporal_start else None
+    )
+
+    fq_filters = []
+    # For fields except spatial, temporal_start, and temporal_end
+    for field in ["tags", "res_format", "organization", "author"]:
+        value = search_q.get(field)
+        if value:
+            values = (
+                [v.strip() for v in value.split(",")]
+                if "," in value
+                else [value.strip()]
+            )
+            # Add a space after colon for "tags" to match frontend expectations if needed
+            if field == "tags":
+                fq_filters.append(f"{field}: (" + " OR ".join(values) + ")")
+            else:
+                fq_filters.append(f"{field}:(" + " OR ".join(values) + ")")
+
+    search_q["fq"] = fq_filters
+
     return render_template_with_s3(
         "catalog.html",
         search_q=search_q,
@@ -441,6 +526,43 @@ def dataset_compare():
 
 
 # --------------------------------------
+# Utilities Routes
+# --------------------------------------
+@dashboard_bp.route("/utilities/sde", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+def sde_manager():
+
+    config = current_app.config["settings"]
+    host = config.get("MAIN_EXT_URL")
+
+    s3_endpoint = (
+        config.get("MINIO_API_SUBDOMAIN") + "." + config.get("KLMS_DOMAIN_NAME")
+    )
+    creds = mutils.get_temp_minio_credentials(kutils.current_token())
+
+    embed_uri = (
+        f"/sde/?embed=true"
+        f"&api={quote(host + '/stelar')}"
+        f"&username={quote(session.get('USER_USERNAME', ''))}"
+        f"&access_token={quote(session.get('access_token', ''))}"
+        f"&refresh_token={quote(session.get('refresh_token', ''))}"
+        f"&expires_in={int(session.get('expires_in', 0))}"
+        f"&refresh_expires_in={int(session.get('refresh_expires_in', 0))}"
+        f"&access_key={quote(creds['AccessKeyId'])}"
+        f"&secret_key={quote(creds['SecretAccessKey'])}"
+        f"&session_token={quote(creds['SessionToken'])}"
+        f"&s3_endpoint={quote(s3_endpoint)}"
+        f"&bucket=klms-bucket"
+    )
+    return render_template_with_s3(
+        "sde.html",
+        GUI_URL=host + embed_uri,
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+    )
+
+
+# --------------------------------------
 # Tools Routes
 # --------------------------------------
 
@@ -506,18 +628,18 @@ def organizations():
 @session_required
 def organization(organization_id):
     org = ORGANIZATION.get_entity(organization_id)
-    org["members"] = ORGANIZATION.list_members(member_kind="user", eid=org["id"])
-    # datasets = DATASET.search_entities()
 
-    # for dataset in datasets[:4]:
-    #     org["datasets"].append(DATASET.get_entity(dataset[0]))
-
-    for member in org["members"][:5]:
-        user = kutils.get_user(member[0])
-        member.append(user.get("fullname", "STELAR User"))
+    try:
+        kutils.introspect_admin_token(kutils.current_token())
+        is_admin = True
+    except AuthorizationError:
+        is_admin = False
 
     return render_template_with_s3(
-        "organization.html", PARTNER_IMAGE_SRC=get_partner_logo(), organization=org
+        "organization.html",
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+        organization=org,
+        admin=is_admin,
     )
 
 
@@ -623,23 +745,58 @@ def forgot_password_sent_email():
             return redirect(url_for("dashboard_blueprint.login"))
 
 
-@dashboard_bp.route("/login/reset/<rs_token>/<user_id>", methods=["GET", "POST"])
-def reset_password(rs_token, user_id):
+@dashboard_bp.route("/login/reset/<rs_token>", methods=["GET", "POST"])
+def reset_password(rs_token):
     if "ACTIVE" in session and session["ACTIVE"]:
         return redirect(url_for("dashboard_blueprint.dashboard_index"))
 
-    if request.method == "GET" and rs_token and user_id:
-        payload = kutils.verify_reset_token(rs_token, user_id)
+    if "PASSWORD_RESET_FLOW" not in session or not session["PASSWORD_RESET_FLOW"]:
+        # If the reset flow is not active, redirect to login
+        return redirect(url_for("dashboard_blueprint.login"))
 
-        if payload:
-            if payload.get("exp"):
-                expiration_time = datetime.fromtimestamp(payload.get("exp"))
-                if expiration_time < datetime.now():
-                    return redirect(url_for("dashboard_blueprint.login"))
-                else:
-                    return render_template("new_password.html")
-            else:
+    try:
+        payload = kutils.verify_reset_token(rs_token)
+    except Exception:
+        # If token is invalid or expired, redirect to login
+        session["PASSWORD_RESET_FLOW"] = False
+        return redirect(url_for("dashboard_blueprint.login"))
+
+    if request.method == "GET" and rs_token:
+
+        return render_template("new_password.html")
+
+    elif request.method == "POST" and payload:
+        new_password = request.form.get("passwordIn")
+        confirm_password = request.form.get("passwordRepeatIn")
+        if not new_password or not confirm_password:
+            return render_template(
+                "new_password.html", STATUS="ERROR", ERROR_MSG="Passwords do not match!"
+            )
+
+        if new_password != confirm_password:
+            return render_template(
+                "signup.html", STATUS="ERROR", ERROR_MSG="Passwords do not match."
+            )
+
+        if not re.match(r"^(?=.*[A-Z])(?=.*\d)(?=.*[^\w]).{8,}$", confirm_password):
+            return render_template(
+                "new_password.html",
+                STATUS="ERROR",
+                ERROR_MSG="Password does not meet minimum requirements.",
+            )
+
+        try:
+            if kutils.reset_user_password(
+                user_id=payload["user_id"], new_password=new_password
+            ):
+                session["PASSWORD_RESET_FLOW"] = False
                 return redirect(url_for("dashboard_blueprint.login"))
+            else:
+                flash("Password reset failed. Please try again.", "danger")
+                return render_template("new_password.html")
+        except Exception as e:
+            session["PASSWORD_RESET_FLOW"] = False
+            return redirect(url_for("dashboard_blueprint.login"))
 
 
 # ----------------------------------------
@@ -789,7 +946,7 @@ def login():
 
     # Check if the user is already logged in and redirect him to console home page if so
     if request.method == "GET":
-        session["PASSWORD_RESET_FLOW"] = False
+
         if "2FA_FLOW_IN_PROGRESS" in session and session["2FA_FLOW_IN_PROGRESS"]:
             return redirect(url_for("dashboard_blueprint.verify_2fa"))
         if "ACTIVE" in session and session["ACTIVE"]:
@@ -798,6 +955,11 @@ def login():
     if request.method == "POST":
         email = request.form.get("email")
         password = request.form.get("password")
+        remember = (
+            request.form.get("remember") == "on"
+            if "remember" in request.form
+            else False
+        )
 
         # Basic validation
         if not email:
@@ -812,6 +974,14 @@ def login():
                 token = kutils.get_token(email, password)
                 session["access_token"] = token["access_token"]
                 session["refresh_token"] = token["refresh_token"]
+                session["token_expires"] = int(time.time()) + token["expires_in"]
+                session["refresh_expires"] = (
+                    int(time.time()) + token["refresh_expires_in"]
+                )
+
+                # Store the original expiration dates
+                session["expires_in"] = token["expires_in"]
+                session["refresh_expires_in"] = token["refresh_expires_in"]
 
                 # Introspect the token to get user details
                 userinfo = kutils.get_user_by_token(token["access_token"])
@@ -823,6 +993,10 @@ def login():
                         "email_verified", False
                     )
                     session["USER_USERNAME"] = userinfo.get("preferred_username")
+
+                    if remember:
+                        session["USER_PASSWORD"] = password
+                    session["REMEMBER_ME"] = remember
                     session["AVATAR"] = get_avatar()
                     session["USER_ROLES"] = userinfo.get("realm_access", {}).get(
                         "roles", []

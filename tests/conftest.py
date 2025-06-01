@@ -54,6 +54,88 @@ def dev_cluster_config(scope="session"):
     return cc.testcluster_config()
 
 
+def is_local_port_in_use(local_port):
+    """Test if a local port is free, return true is so
+
+    This is used to decide whether to port-forward connections to inner
+    cluster services, or not.
+    """
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        # If 0 is returned, local port is in use (connection succeeded)
+        return sock.connect_ex(("localhost", local_port)) == 0
+
+
+def service_forward(svc, port, local_port, context):
+    """Return a process handle to a port-forwarding kubectl process.
+
+    Args:
+        svc: The kubernetes service to port-forward to, e.g. "db"
+        port: The port to forward to, e.g. 5432
+        local_port: The local port to forward from, e.g. 5432
+        context: The kubernetes context to use, e.g. "my-cluster"
+
+    Returns:
+        A process handle to the kubectl port-forward process.
+    """
+
+    ctxopt = ["--context", context] if context is not None else []
+    if is_local_port_in_use(local_port):
+        # Port is already in use, assume that a port-forward is already running
+        return None
+    else:
+        proc = subprocess.Popen(
+            ["kubectl", *ctxopt, "port-forward", f"svc/{svc}", f"{local_port}:{port}"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        return proc
+
+
+def close_service_forward(proc):
+    """Close a port-forwarding kubectl process.
+
+    Args:
+        proc: The process handle to the kubectl port-forward process. If None, do nothing.
+    """
+    if proc is not None:
+        proc.terminate()
+        proc.wait()
+
+
+@pytest.fixture(scope="session")
+def forwarded_services():
+    """Start port-forwarding for all services in the testcluster.
+
+    This fixture starts a kubectl port-forward to the testcluster's PostgreSQL
+    database, Solr, and Minio. This allows tests and the data_app code to
+    connect to these services.
+    """
+
+    c = cc.testcluster_config()
+    context = c["cluster"].get("context")
+    fwd = c["cluster"]["svc_forward"]["services"]
+    fwd_wait = c["cluster"]["svc_forward"].get("port_forward_wait", 5)
+
+    # Start port-forwarding for each service
+    procs = {
+        # Example:
+        # "db": service_forward("db", 5432, 5432, context),
+        svc: service_forward(svc, spec["port"], spec["local_port"], context)
+        for svc, spec in fwd.items()
+    }
+
+    # Give kubectl some time to establish the port-forward
+    if any(proc is not None for proc in procs.values()):
+        time.sleep(fwd_wait)
+
+    # Yield the process handles
+    yield procs
+
+    # Close all port-forwarding processes
+    for proc in procs.values():
+        close_service_forward(proc)
+
+
 @pytest.fixture(scope="session")
 def pg_access():
     """Start a port-forward to the testcluster's PostgreSQL database.
@@ -72,13 +154,12 @@ def pg_access():
         ctxopt = []
 
     # Test the local port for availability
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
-        if sock.connect_ex(("localhost", local_port)) == 0:
-            # Port is already in use, assume that a port-forward is already running
-            CONNECT = False
-        else:
-            # Port is not in use, start a port-forward
-            CONNECT = True
+    if is_local_port_in_use(local_port):
+        # Port is already in use, assume that a port-forward is already running
+        CONNECT = False
+    else:
+        # Port is not in use, start a port-forward
+        CONNECT = True
 
     if CONNECT:
         proc = subprocess.Popen(
@@ -109,7 +190,7 @@ def monkeysession(request):
 
 
 @pytest.fixture(scope="session")
-def app(monkeysession, pg_access):
+def app(monkeysession, forwarded_services):
     """Create a test app with the testcluster configuration.
 
     The app is configured to use the testcluster's PostgreSQL database and
@@ -143,6 +224,16 @@ def app(monkeysession, pg_access):
     monkeysession.setenv("KEYCLOAK_ISSUER_URL", f"{kc_url}realms/master")
     monkeysession.setenv("KEYCLOAK_CLIENT_SECRET", cc.kc_client_secret(k8s_context))
     monkeysession.setenv("REALM_NAME", cm["REALM_NAME"])
+
+    redis_host = "localhost"
+    redis_port = c["cluster"]["svc_forward"]["services"]["redis"]["local_port"]
+    monkeysession.setenv("REDIS_SERVICE_HOST", redis_host)
+    monkeysession.setenv("REDIS_SERVICE_PORT", str(redis_port))
+    monkeysession.setenv("REDIS_SESSION_DB", "11")
+
+    quay_host = "localhost"
+    quay_port = c["cluster"]["svc_forward"]["services"]["quay"]["local_port"]
+    monkeysession.setenv("REGISTRY_API", f"http://{quay_host}:{quay_port}")
 
     # Disable execution engine. This is a test environment
     # and it is not possible for a in-cluster job to contact us for

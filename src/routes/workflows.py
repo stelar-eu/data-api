@@ -3,14 +3,14 @@ import logging
 from apiflask import APIBlueprint
 from flask import request
 
-import schema
-import tools
-from qutils import REGISTRY
-import wflow
-import processes
-import tasks
 import kutils
+import processes
+import schema
+import tasks
+import tools
+import wflow
 from auth import token_active
+from qutils import REGISTRY
 
 # Input schema for validating and structuring several API requests
 from routes.generic import generate_endpoints, render_api_output
@@ -164,6 +164,25 @@ def api_get_tool_repository(entity_id):
 # --------------------------------------------------------
 # ------------------------ TASKS -------------------------
 # --------------------------------------------------------
+@workflows_bp.route("/tasks", methods=["GET"])
+@workflows_bp.doc(tags=["Task Operations"])
+@workflows_bp.input(schema.TaskListQuery, location="query")
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@token_active
+@render_api_output(logger)
+def api_get_tasks(query_data):
+    """Return the list of all Task Executions, optionally per state.
+    The administrator can get all tasks, while other users can only get their own tasks.
+
+    Returns:
+        A JSON with the list of tasks
+    Responses:
+        - 200: Tasks successfully returned.
+        - 500: An unknown error occurred.
+    """
+    return tasks.TASK.list_entities(
+        query_data.get("state"), query_data.get("limit"), query_data.get("offset")
+    )
 
 
 @workflows_bp.route("/task/<entity_id>", methods=["GET"])
@@ -221,34 +240,13 @@ def api_delete_task(entity_id):
     return tasks.TASK.delete_entity(entity_id)
 
 
-@workflows_bp.route("/task/<entity_id>", methods=["PATCH"])
-@workflows_bp.input(schema.WorkflowState, location="json")
-@workflows_bp.doc(tags=["Task Operations"])
-@workflows_bp.output(schema.APIResponse, status_code=200)
-@token_active
-@render_api_output(logger)
-def api_update_task_state(entity_id, json_data):
-    """Update the state of a task given its unique identifier.
-    Args:
-        task_id: The unique identifier of the Task Execution.
-        The state must be one of the following: 'failed', 'succeeded', 'running'.
-    Returns:
-        A JSON response containing success status, or error
-    Responses:
-        - 200: Task successfully deleted.
-        - 404: Task not found.
-        - 500: An unknown error occurred.
-    """
-    return tasks.TASK.patch_entity(entity_id, json_data.get("state"))
-
-
 @workflows_bp.route("/task/<task_id>/input", methods=["GET"])
 @workflows_bp.route("/task/<task_id>/<signature>/input", methods=["GET"])
 @workflows_bp.route("/tasks/<task_id>/<signature>/input", methods=["GET"])
 @workflows_bp.doc(tags=["Task Operations"])
 @workflows_bp.output(schema.APIResponse, status_code=200)
 @token_active
-@render_api_output(logger)
+@render_api_output(logger, lambda req: "Hidden for security reasons")
 def api_rest_get_task_input(task_id, signature=None):
     """Return the input JSON of the specific Task Execution.
 
@@ -268,7 +266,7 @@ def api_rest_get_task_input(task_id, signature=None):
 @workflows_bp.doc(tags=["Task Operations"])
 @workflows_bp.input(schema.Task_Output, location="json")
 @workflows_bp.output(schema.APIResponse, status_code=200)
-@render_api_output(logger)
+@render_api_output(logger, lambda req: "Hidden for security reasons")
 def api_post_task_output(task_id, signature, json_data):
     """
     Handles the output of a task execution. Accepts the output files created by the tool, the metrics
@@ -288,6 +286,30 @@ def api_post_task_output(task_id, signature, json_data):
         - 500: An unknown error occurred.
     """
     return tasks.TASK.save_output(task_id, signature, json_data)
+
+
+@workflows_bp.route("/task/<task_id>/signature", methods=["GET"])
+@workflows_bp.doc(tags=["Task Operations"])
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
+@token_active
+def api_get_task_signature(task_id):
+    """Return the signature of the specific Task Execution.
+
+    This signature is used to authenticate the task output submission.
+    The administrator can get the signature of any task. Other users
+    can only get the signature of their own tasks.
+
+    Args:
+        task_id: The unique identifier of the Task Execution.
+    Returns:
+        A JSON with the signature of the task.
+    Responses:
+        - 200: Task signature successfully returned.
+        - 404: Task is not found
+        - 500: An unknown error occurred
+    """
+    return tasks.TASK.get_signature(task_id)
 
 
 @workflows_bp.route("/task/<task_id>/logs", methods=["GET"])

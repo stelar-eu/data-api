@@ -144,7 +144,9 @@ def expand_wildcard_path(path, credentials):
 
         # Now filter objects based on wildcard pattern
         for obj in objects:
-            if fnmatch.fnmatch(obj.object_name, wildcard_path):
+            if fnmatch.fnmatch(
+                obj.object_name, wildcard_path
+            ) and not obj.object_name.endswith("/"):
                 try:
                     # Stat object if it matches the wildcard
                     stat = client.stat_object(bucket_name, obj.object_name)

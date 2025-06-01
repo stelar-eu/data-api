@@ -58,18 +58,25 @@ def generic_api_exception(exc: APIException):
     return robj, exc.status_code
 
 
-def generic_api_result(result):
-    return {"help": request.url, "success": True, "result": result}
+def generic_help(request):
+    return request.url
 
 
-def render_api_output(logger: Logger):
+def generic_api_result(result, help_func=None):
+    help = help_func(request)
+    return {"help": help, "success": True, "result": result}
+
+
+def render_api_output(logger: Logger, help_func=generic_help):
     """Decorator for generic endpoints that handles exceptions uniformly"""
 
     def my_wrapper(endp_func: callable):
         @functools.wraps(endp_func)
         def exc_handler(*args, **kwargs):
             try:
-                return generic_api_result(endp_func(*args, **kwargs))
+                return generic_api_result(
+                    endp_func(*args, **kwargs), help_func=help_func
+                )
             except APIException:
                 logger.debug("APIException in render_api_output", exc_info=True)
                 raise

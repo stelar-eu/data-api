@@ -7,9 +7,8 @@ from typing import Optional
 
 from apiflask import Schema, fields, validators
 from flask import current_app, g
-from mutils import get_temp_minio_credentials, expand_wildcard_path
-from processes import PROCESS
-from tools import TOOL
+from marshmallow import INCLUDE, ValidationError, pre_load, validates_schema
+
 import cutils
 import execution
 import kutils
@@ -18,15 +17,16 @@ import utils
 from backend.pgsql import transaction
 from entity import Entity
 from exceptions import (
+    AuthorizationError,
     ConflictError,
     DataError,
     NotAllowedError,
     NotFoundError,
-    AuthorizationError,
 )
+from mutils import expand_wildcard_path, get_temp_minio_credentials
+from processes import PROCESS
+from tools import TOOL
 from utils import is_valid_url, is_valid_uuid
-from marshmallow import ValidationError, pre_load, validates_schema
-from marshmallow import INCLUDE
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +215,7 @@ class TaskSchema(Schema):
     @validates_schema
     def validate_outputs(self, data, **kwargs):
         outputs = data.get("outputs", {})
-        datasets = data.get("datasets", {}).keys()
+        datasets = set(data.get("datasets", {})) | {"ctx"}
 
         def is_valid_uuid(val):
             try:
@@ -348,6 +348,58 @@ class Task(Entity):
         salted_task_id = id + secret_key
         return hashlib.sha256(salted_task_id.encode()).hexdigest()
 
+    def get_signature(self, id):
+        """Returns the signature to the creator user or the administrator"""
+        try:
+            kutils.introspect_admin_token(kutils.current_token())
+            return {"signature": self.generate_signature(id)}
+        except AuthorizationError:
+            creator = self.get_creator(id)
+            if kutils.current_user()["preferred_username"] == creator:
+                return {"signature": self.generate_signature(id)}
+            else:
+                raise AuthorizationError(
+                    "You are not authorized to access the signature of this Task."
+                )
+
+    def list_entities(
+        self,
+        state,
+        limit,
+        offset,
+    ):
+        """Returns the list of tasks optionally per state.
+        If the user is an admin, all tasks are returned.
+        If the user is not an admin, only the tasks created by the user are returned.
+        Args:
+            state: The state of the tasks to filter by (optional).
+            limit: The maximum number of tasks to return.
+            offset: The offset for pagination.
+        Returns:
+            A list of tasks matching the criteria.
+        """
+        try:
+            # If user is admin return the list of all tasks optionally per state
+            kutils.introspect_admin_token(kutils.current_token())
+            if state:
+                return sql_utils.task_execution_read_having_state(state, limit, offset)
+            else:
+                return sql_utils.task_execution_read_per_state()
+        except AuthorizationError:
+            # If user is not admin, return only the tasks created by the user
+            if state:
+                return sql_utils.task_execution_read_having_state_per_user(
+                    state, kutils.current_user()["preferred_username"], limit, offset
+                )
+            else:
+                return sql_utils.task_execution_read_per_state_per_user(
+                    kutils.current_user()["preferred_username"]
+                )
+
+    def get_creator(self, id):
+        """Returns the task creator"""
+        return sql_utils.task_execution_read_creator(id)
+
     def verify_signature(self, id, signature):
         """Verifies the signature of a given Task ID by comparing it with the
            signature generated using the secret key of the flask app.
@@ -389,10 +441,11 @@ class Task(Entity):
             if task["tags"].get("__name__"):
                 task["name"] = task["tags"]["__name__"]
 
-        # Pop system reserved tags from the final dict.
-        task["tags"].pop("__image__", None)
-        task["tags"].pop("__name__", None)
-        task["tags"].pop("__tool__", None)
+            # Pop system reserved tags from the final dict.
+            task["tags"].pop("__image__", None)
+            task["tags"].pop("__name__", None)
+            task["tags"].pop("__tool__", None)
+
         task["inputs"] = sql_utils.task_execution_input_read_sql(id)
         task["parameters"] = sql_utils.task_execution_parameters_read_sql(id)
 
@@ -446,11 +499,10 @@ class Task(Entity):
             NotFoundError: If a Task with the given ID is not found.
         """
         task = self.get_entity(id)
-        if task["exec_state"] == "running":
-            raise ConflictError("Cannot delete a running task.")
-        with transaction():
-            sql_utils.task_execution_delete(id)
-            return id
+        if task["exec_state"] in ["created", "running"]:
+            raise ConflictError("Cannot delete a non terminated task.")
+        sql_utils.task_execution_delete(id)
+        return {"id": id}
 
     def extract_resources(self, package, filter):
         """
@@ -572,7 +624,6 @@ class Task(Entity):
                     # and the dataset exists in the Task.
                     package = sql_utils.task_read_dataset(id, artifact_uuid or val)
                     if package and package.get("package_uuid") is not None:
-
                         if (artifact_uuid or val) == "ctx":
                             # ctx is a special case that refers to the Process package
                             # the Task belongs to.
@@ -755,7 +806,7 @@ class Task(Entity):
                             task_exec_id=id,
                             output_name=output,
                             output_address=url,
-                            resource=resource,
+                            resource_id=resource,
                             resource_action=spec.get("resource_action", "REPLACE"),
                         )
                     elif isinstance(resource, dict) and spec.get("dataset"):
@@ -917,7 +968,7 @@ class Task(Entity):
             kutils.current_user().get("username"), kutils.current_token(), **init_data
         )
 
-    def patch(self, id: uuid, state):
+    def patch(self, eid: str | uuid.UUID, patch_state):
         """Patches the current state of an existing Task.
         Allows, for the time being, updating the state of the task to 'succeeded' or 'failed'.
         Other fields of the task are immutable or not patchable.
@@ -927,9 +978,9 @@ class Task(Entity):
         Raises:
             NotFoundError: If the task is not found.
         """
-        # Fetch the task and update its state.
-        task = self.get_entity(id)
-        self.set_exec_state(task["id"], state)
+        raise NotImplementedError("task patch")
+        # task = self.get_entity(id)
+        # self.set_exec_state(task["id"], state)
 
     def delegate_input_artifacts(
         self,
@@ -1154,7 +1205,6 @@ class Task(Entity):
                             decoded_package.get("name")
                         )["id"]
                     except Exception:
-
                         # Package does not exist, should be created
                         package_id = cutils.DATASET.create_entity(decoded_package)["id"]
 
@@ -1195,6 +1245,10 @@ class Task(Entity):
 
 
         """
+
+        # Validate the task existence
+        self.validate_task(id)
+
         # The only measure of verification used to ensure the validity of the request
         # is the signature. The signature is generated on task creation time and is
         # used by the Task runtime to publish the output of the execution.
@@ -1203,13 +1257,10 @@ class Task(Entity):
 
         task = sql_utils.task_execution_read(id)
 
-        if task["exec_state"] != "running":
+        if task["exec_state"] not in ["running", "created"]:
             raise ConflictError(
                 f"Task '{id}' is terminated and no further updates are allowed."
             )
-
-        # Validate the task existence
-        self.validate_task(id)
 
         # Since the signature is verified, we fictionally mimic the presence of the user in
         # the flask's g. This will allow the ckan_request to find the current_user

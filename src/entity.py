@@ -177,11 +177,11 @@ class Entity:
         """
 
         # TODO: This will change to harmonize with search and list/fetch
-        obj = self.get_cached(eid)
-        logger.debug("Got entity %s", obj)
-        authorize(obj, self.name, "read")
-        return obj
-        # return self.get(eid)
+
+        # obj = self.get_cached(eid)
+        # authorize(obj, self.name, "read")
+        # return obj
+        return self.get(eid)
 
     def get_cached(self, eid):
         """Get an entity by ID from the entity cache.
@@ -1087,14 +1087,13 @@ class PackageEntity(EntityWithExtras):
         if bbox is not None:
             if len(bbox) != 4:
                 raise DataError("bbox must have 4 numeric elements")
-            
+
         fq = query_spec.get("fq", [])
 
         # checks the accessible packages and returns the fq with the appropriate
         # permission labels
         fq = authz_module.check_accessible_packages(fq)
-        
-        
+
         result = entity_search(
             self.package_type,
             q=query_spec.get("q", None),
