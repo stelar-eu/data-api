@@ -33,6 +33,7 @@ GENERIC_ACTION_ENTITIES = [
     "dataset",
     "workflow",
     "process",
+    "resource",
     "tool",
     "group",
     "organization",
@@ -51,7 +52,7 @@ ACTIONS = [
             "process",
             "tool",
             "group",
-            "organization",
+            "organization"
         ],
     ),
     # Membership
@@ -97,7 +98,7 @@ def authorize(resource, entity, action):
         AuthorizationError if authorization fails.
     """
 
-    from authz_module import Resource, authorization, check_read_access_for_packages
+    from authz_module import Resource, authorization, check_read_access_for_packages, check_read_access_for_resources
 
     if not flask.has_request_context():
         return
@@ -121,8 +122,13 @@ def authorize(resource, entity, action):
     if action in ["read_group", "read_organization", "read_vocabulary", "read_tag"]:
         return
     
+    # Check for read access for packages
     if action in ["read_dataset", "read_workflow", "read_process", "read_tool"]:
         return check_read_access_for_packages(resource,cu)
+    
+    # Check for read access for resources
+    if action in ["read_resource", "read_task"]:
+        return check_read_access_for_resources(resource,cu)
 
     if not authorization(Resource(resource["id"], entity), action):
         detail = {
