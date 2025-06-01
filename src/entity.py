@@ -177,6 +177,7 @@ class Entity:
         """
 
         # TODO: This will change to harmonize with search and list/fetch
+
         # obj = self.get_cached(eid)
         # authorize(obj, self.name, "read")
         # return obj

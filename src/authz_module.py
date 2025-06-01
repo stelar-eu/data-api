@@ -50,6 +50,8 @@ new_permissions = {}
 # Global list for maintaining the currently defined roles
 role_names_list = []
 
+role_names_list = []
+
 
 class AuthorizationModule:
     """
@@ -260,9 +262,11 @@ class ResourceSpecPermissionsType(AuthorizationModule):
         logger.info("Creating resource_spec permissions")
 
         # create a realm role in Keycloak if not already exists
+
         ku.create_realm_role(self.keycloak_admin, role_name)
         if role_name not in role_names_list:
             role_names_list.append(role_name)
+
         # Normalize the action field to a list if it is not already.
         actions = perm["action"]
         if isinstance(actions, str):
@@ -321,6 +325,7 @@ class ResourcePermissionsType(AuthorizationModule):
             perm (dict): Permission details.
         """
         global role_names_list
+
         logger.info("Creating role dict")
         role_dict = {
             "name": role,
@@ -328,6 +333,9 @@ class ResourcePermissionsType(AuthorizationModule):
         }
         logger.info("Appending role dict to roles_list")
         self.roles_list.append(role_dict)
+        if role not in role_names_list:
+            role_names_list.append(role)
+
         if role not in role_names_list:
             role_names_list.append(role)
 
@@ -361,6 +369,7 @@ class ResourcePermissionsType(AuthorizationModule):
           - Deleting outdated roles, policies, and client roles.
         """
         global role_names_list
+
         existing_realm_roles = mon.get_current_realm_roles(self.keycloak_admin)
         existing_policies = mon.get_current_policies()
         existing_client_roles = mon.get_current_client_roles(self.keycloak_admin)
@@ -881,6 +890,34 @@ def check_read_access_for_packages(package, current_user) -> list:
         logger.info("Package is public, access granted")
         return True
 
+      
+def check_read_access_for_resources(resource,current_user) -> list:
+    """
+    Checks if the requested resource is accessible to the current user.
+    If the resource belongs to a package that the current user has access to, it returns True.
+    Args:
+        resource (str): The resource identifier.
+        current_user (str): The current user identifier.
+    Returns:
+        bool: True if the resource is accessible, otherwise False.
+    """
+    if resource is None:
+        return None
+    logger.info("Resource: %s", resource)
+    # Check if the resource belongs to a package that the user has access to
+    for entity in ["dataset", "workflow", "process", "tool"]:
+        try:
+            package = Entity.REGISTRY[entity].get_cached(resource.get("package_id"))
+        except Exception:
+            logger.info("Error fetching package: %s", resource.get("package_id"))
+            continue
+            
+    logger.info("Package: %s", package)
+    if package is None:
+        return None
+
+    return check_read_access_for_packages(package, current_user)
+    
 
 def check_accessible_packages(fq):
     """
