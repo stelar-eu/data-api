@@ -199,6 +199,8 @@ def processes():
         }
     )["results"]
 
+    query = request.args.get("q")
+
     if processes is not None and processes != []:
 
         monthly_counts = {}
@@ -234,6 +236,7 @@ def processes():
             processes=processes,
             monthly_counts=monthly_counts,
             organization_counts=organization_counts,
+            search_query=query,
             PARTNER_IMAGE_SRC=get_partner_logo(),
         )
 
@@ -377,6 +380,10 @@ def dataset_detail(dataset_id):
             return redirect(url_for("dashboard_blueprint.catalog"))
         except Exception as e:
             return redirect(url_for("dashboard_blueprint.catalog"))
+
+        # Tool packages should redirect to the tool view
+        if metadata_data.get("type") == "tool":
+            return redirect(url_for("dashboard_blueprint.tool", tool_id=dataset_id))
 
         if metadata_data:
             return render_template_with_s3(
@@ -523,6 +530,40 @@ def dataset_compare():
 @dashboard_bp.doc(False)
 @session_required
 def sde_manager():
+
+    config = current_app.config["settings"]
+    host = config.get("MAIN_EXT_URL")
+
+    s3_endpoint = (
+        config.get("MINIO_API_SUBDOMAIN") + "." + config.get("KLMS_DOMAIN_NAME")
+    )
+    creds = mutils.get_temp_minio_credentials(kutils.current_token())
+
+    embed_uri = (
+        f"/sde/?embed=true"
+        f"&api={quote(host + '/stelar')}"
+        f"&username={quote(session.get('USER_USERNAME', ''))}"
+        f"&access_token={quote(session.get('access_token', ''))}"
+        f"&refresh_token={quote(session.get('refresh_token', ''))}"
+        f"&expires_in={int(session.get('expires_in', 0))}"
+        f"&refresh_expires_in={int(session.get('refresh_expires_in', 0))}"
+        f"&access_key={quote(creds['AccessKeyId'])}"
+        f"&secret_key={quote(creds['SecretAccessKey'])}"
+        f"&session_token={quote(creds['SessionToken'])}"
+        f"&s3_endpoint={quote(s3_endpoint)}"
+        f"&bucket=klms-bucket"
+    )
+    return render_template_with_s3(
+        "sde.html",
+        GUI_URL=host + embed_uri,
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+    )
+
+
+@dashboard_bp.route("/utilities/corr", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+def corr_gui():
 
     config = current_app.config["settings"]
     host = config.get("MAIN_EXT_URL")
