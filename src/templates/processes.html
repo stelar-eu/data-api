@@ -49,15 +49,7 @@
             <div class="page-body">
                 <div class="container-xl">
                     <div class="row row-cards">
-                        <div class="col-lg-4">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h5 class="card-title">Process Statistics</h5>
-                                    <div id="chart-status-pie"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-4">
+                        <div class="col-lg-6">
                             <div class="card">
                                 <div class="card-body">
                                     <h5 class="card-title">Processes Per Month</h5>
@@ -65,7 +57,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-lg-4">
+                        <div class="col-lg-6">
                             <div class="card">
                                 <div class="card-body">
                                     <h5 class="card-title">Processes Per Organization</h5>
@@ -426,13 +418,23 @@
 
 
 <script>
-    function fetchOrganizations() {
+
+    var organizationDict;
+    
+    function fetchOrganizations(callback) {
         $.ajax({
             url: '{{ url_for("catalog_blueprint.api_fetch_organizations") }}',
             method: 'GET',
             dataType: 'json',
             success: function (data) {
                 if (data.result.length > 0) {
+                    organizationDict = data.result.reduce(function (acc, org) {
+                        acc[org.name] = org.title;
+                        return acc;
+                    }, {});
+                    if (callback && typeof callback === 'function') {
+                        callback();
+                    }
                     // Clear the placeholder cards
                     $('#owner-org').empty();
 
@@ -517,59 +519,22 @@
     }
 
     $(document).ready(function () {
-        fetchOrganizations();
+        fetchOrganizations(function () {
+            renderCharts();
+        });
         searchProcesses();
     });
 
 </script>
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        // @formatter:off
-        // Workflow Status Pie Chart
-        window.ApexCharts && (new ApexCharts(document.getElementById('chart-status-pie'), {
-            chart: {
-                type: "donut",
-                fontFamily: 'inherit',
-                height: 200,
-                sparkline: {
-                    enabled: true
-                },
-                animations: {
-                    enabled: true
-                },
-            },
-            fill: {
-                opacity: 1,
-            },
-            series: {{ status_counts.values() | list | safe }},
-            labels: {{ status_counts.keys() | map('capitalize') | list | safe }},
-            tooltip: {
-            theme: 'dark'
-        },
-            grid: {
-            strokeDashArray: 4,
-        },
-            colors: [tabler.getColor("primary"), tabler.getColor("primary", 0.8), tabler.getColor("primary", 0.6), tabler.getColor("gray-300")],
-            legend: {
-            show: true,
-            position: 'bottom',
-            offsetY: 12,
-            markers: {
-                width: 10,
-                height: 10,
-                radius: 100,
-            },
-            itemMargin: {
-                horizontal: 8,
-                vertical: 13
-            },
-        },
-            tooltip: {
-            fillSeriesColor: false
-        },
-        })).render();
+    function renderCharts(){
+        list = {{ organization_counts | list | safe }};
 
-     
+        org_list = list.map(function (item) {
+            return organizationDict[item] || item;
+        });
+        
+        
         window.ApexCharts && (new ApexCharts(document.getElementById('chart-org-pie'), {
             chart: {
                 type: "donut",
@@ -590,7 +555,7 @@
                     {{ organization_counts[org].count }},
                 {% endfor %}
             ],
-            labels: {{ organization_counts.values() | map(attribute='title') | list | safe }},
+            labels: org_list,
             colors: [tabler.getColor("purple"), tabler.getColor("blue"), tabler.getColor("orange"), tabler.getColor("red"), tabler.getColor("green"), tabler.getColor("yellow")],
             tooltip: {
                 theme: 'dark'
@@ -671,7 +636,7 @@
             show: false,
         },
         })).render();
-    });
+    }
 </script>
 
 </html>
