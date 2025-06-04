@@ -110,7 +110,6 @@ class ToolEntity(PackageEntity):
             return package
         try:
             images = REGISTRY.get_repository_tags(package["repository"])
-            images = [tag for tag in images if "expiration" not in tag]
         except:
             return package
         package.update({"images": images})
