@@ -362,6 +362,10 @@ class NewToken(Schema):
     password = String(required=True, validate=Length(0, 50))
 
 
+class ImpersonateToken(Schema):
+    username = String(required=True, validate=Length(0, 50))
+
+
 class RefreshToken(Schema):
     refresh_token = String(required=True)
 
@@ -560,6 +564,7 @@ class Task_Output(Schema):
     error = String(required=False)
     message = String(required=False)
     output = Dict(keys=fields.String(), values=fields.String(), required=False)
+    outputs = Dict(keys=fields.String(), values=fields.String(), required=False)
 
 
 class TaskListQuery(Schema):
