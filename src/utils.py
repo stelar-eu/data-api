@@ -337,7 +337,7 @@ sql_workflow_execution_templates = {
     #
     "task_insert_tags_template": "INSERT INTO klms.task_tag VALUES (%s, %s, %s)",
     "task_insert_parameters_template": "INSERT INTO klms.parameters VALUES (%s, %s, %s::json)",
-    "task_insert_metrics_template": "INSERT INTO klms.metrics VALUES (%s, %s, %s, now())",
+    "task_insert_metrics_template": "INSERT INTO klms.metrics (task_uuid, key, value, issued) VALUES (%s, %s, %s, now())",
     "workflow_read_statistics": """SELECT te.workflow_uuid, te.task_uuid, p.key, p.value
 FROM klms.task_execution te, klms.workflow_tag wt, klms.parameters p
 WHERE te.workflow_uuid = wt.workflow_uuid AND te.task_uuid = p.task_uuid AND wt.value IN ('A3-4') AND p.key in ('k', 'model')

@@ -56,7 +56,7 @@
                     <div class="col-md-12">
                         <div class="row row-cards" id="organizations-container">
                             {% for i in range(0, 8) %}
-                            <div class="col-3">
+                            <div class="col-lg-3">
                                 <a class="card placeholder-glow cursor-pointer">
                                     <div class="card-body p-4 py-5 text-center">
                                         <span class="avatar avatar-xl mb-4 rounded placeholder">
@@ -183,7 +183,7 @@
     <script>
         function renderOrganization(organization) {
             return `
-            <div class="col-3">
+            <div class="col-lg-3">
                                 <a class="card card-link cursor-pointer"
                                     href="{{ url_for('dashboard_blueprint.organization', organization_id='')}}${organization.id}">
                                     <div class="card-body p-4 py-5 text-center">

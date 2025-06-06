@@ -199,6 +199,8 @@ def processes():
         }
     )["results"]
 
+    query = request.args.get("q")
+
     if processes is not None and processes != []:
 
         monthly_counts = {}
@@ -234,6 +236,7 @@ def processes():
             processes=processes,
             monthly_counts=monthly_counts,
             organization_counts=organization_counts,
+            search_query=query,
             PARTNER_IMAGE_SRC=get_partner_logo(),
         )
 
@@ -277,7 +280,9 @@ def task(process_id, task_id):
     if task_metadata.get("process_id") != process_id:
         return redirect(url_for("dashboard_blueprint.login"))
 
-    input_metadata = TASK.get_input(id=task_id, include_input_ids=True)
+    input_metadata = TASK.get_input(
+        id=task_id, include_input_ids=True, internal_call=True
+    )
 
     logs_metadata = TASK.get_job_info(id=task_id)
 
@@ -377,6 +382,10 @@ def dataset_detail(dataset_id):
             return redirect(url_for("dashboard_blueprint.catalog"))
         except Exception as e:
             return redirect(url_for("dashboard_blueprint.catalog"))
+
+        # Tool packages should redirect to the tool view
+        if metadata_data.get("type") == "tool":
+            return redirect(url_for("dashboard_blueprint.tool", tool_id=dataset_id))
 
         if metadata_data:
             return render_template_with_s3(

@@ -442,7 +442,7 @@
                                     <thead>
                                         <tr>
                                             <th>Metrics Key</th>
-                                            <th class="text-end">Value</th>
+                                            <th class="text-end w-75">Value</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -717,15 +717,19 @@
             metricsModalBody.empty();
 
             if (metrics) {
-                Object.keys(metrics).forEach(key => {
-                    const row = `<tr>
-                                        <td><div>${key}</div></td>
-                                        <td class="w-3 fw-bold text-end">${metrics[key]}</td>
-                                    </tr>`;
-                    metricsModalBody.append(row);
-                });
+            Object.keys(metrics).forEach(key => {
+                let value = metrics[key];
+                if (typeof value === 'object' && value !== null) {
+                value = `<pre style="text-align: left; white-space: pre-wrap;">${JSON.stringify(value, null, 2)}</pre>`;
+                }
+                const row = `<tr>
+                        <td><div>${key}</div></td>
+                        <td class="w-3 fw-bold text-end">${value}</td>
+                    </tr>`;
+                metricsModalBody.append(row);
+            });
             } else {
-                metricsModalBody.append('<tr><td colspan="2">No Metrics Available</td></tr>');
+            metricsModalBody.append('<tr><td colspan="2">No Metrics Available</td></tr>');
             }
         }
 
