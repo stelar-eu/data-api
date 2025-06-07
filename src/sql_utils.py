@@ -14,6 +14,7 @@ from backend import pgsql
 
 # Auxiliary custom functions & SQL query templates for ranking
 from exceptions import BackendLogicError
+from psycopg2.extras import Json
 
 
 def is_valid_uuid(s):
@@ -926,20 +927,16 @@ def task_execution_insert_metrics(task_exec_id, metrics):
     # Compose the SQL command using the template for recording metrics about a task execution
     if metrics:
         for key, value in metrics.items():
+            # Wrap all values using Json adapter to ensure proper serialization
+            # Convert the value to a valid JSON string
+            json_value = Json(value)
+
             sql = utils.sql_workflow_execution_templates["task_insert_metrics_template"]
-
-            # If the value is a dictionary, convert it to a JSON string
-            if isinstance(value, dict):
-                value = json.dumps(value)
-
-            # Execute the SQL command in the database
-            resp = pgsql.execSql(sql, (task_exec_id, key, value))
-            if "status" in resp:
-                if not resp.get("status"):
-                    return False
-            else:
+            resp = pgsql.execSql(sql, (task_exec_id, key, json_value))
+            if "status" in resp and not resp.get("status"):
                 return False
-
+            elif "status" not in resp:
+                return False
     return True
 
 
@@ -1355,11 +1352,11 @@ def task_execution_metrics_read_sql(task_exec_id):
             metrics = {}
             for tag in resp:
                 value = tag["value"]
+                value = tag["value"]
                 try:
-                    # Attempt to load the value as JSON
-                    value = json.loads(value)
-                except (ValueError, TypeError):
-                    pass  # If it's not JSON, keep the original value
+                    value = ast.literal_eval(value)
+                except Exception:
+                    pass
                 metrics[tag["key"]] = value
             return metrics
         else:

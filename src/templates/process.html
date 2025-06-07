@@ -28,7 +28,7 @@
             <div class="page-header d-print-none">
                 <div class="container-xl">
                     <div class="row g-2 align-items-center">
-                        <div class="col">
+                        <div class="col-lg">
                             <div class="page-pretitle">
                                 PROCESSES
                             </div>
@@ -41,6 +41,33 @@
                                     </li>
                                     <li class="breadcrumb-item active"><a href="#"><span class="text-strong">{{
                                                 process.title }}</span></a></li>
+                                    <span class="ms-2">
+                                        {% if process.get('private') %}
+                                        <span class="badge bg-danger-lt" title="Private to organization users"><svg
+                                            xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-lock">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z" />
+                                            <path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" />
+                                            <path d="M8 11v-4a4 4 0 1 1 8 0v4" />
+                                            </svg>
+                                            PRIVATE
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-success-lt" title="Public to all users">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-lock-open-2">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M3 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z" />
+                                            <path d="M9 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" />
+                                            <path d="M13 11v-4a4 4 0 1 1 8 0v4" />
+                                            </svg>
+                                            PUBLIC
+                                        </span>
+                                        {% endif %}
+                                        </span>
                                 </ol>
                             </h3>
                         </div>
@@ -69,8 +96,54 @@
                                             onclick="patchProcessState()">Update State</button>
                                     </div>
                                 </div>
+
+                                <div class="ms-2">
+                                    <a class="btn btn-outline-primary" onclick="toggleGraph()" id="job-graph-btn">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="currentColor"
+                                            class="me-2 icon icon-tabler icons-tabler-filled icon-tabler-chart-dots-3">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path
+                                                d="M18 2a4 4 0 1 1 -3.843 5.114l-6.295 .786a3 3 0 0 1 -.094 .257l6.446 4.431a3 3 0 1 1 -.695 4.099l-3.527 1.058q .008 .127 .008 .255a4 4 0 1 1 -8 0l.005 -.2a4 4 0 0 1 7.366 -1.954l3.64 -1.094l.01 -.102q .023 -.204 .074 -.4l-6.688 -4.6a3 3 0 0 1 -4.407 -2.65l.005 -.176a3 3 0 0 1 5.784 -.931l6.312 -.79a4 4 0 0 1 3.899 -3.103" />
+                                        </svg>
+                                        Show Process Graph
+                                    </a>
+                                </div>
                             </div>
                         </div>
+                        <div class="col-lg-12">
+                            <div class="text-secondary text-sm h4 m-0">
+                              <div class="mt-1 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
+                                <a href="{{url_for('dashboard_blueprint.organization', organization_id=process.organization.id)}}"
+                                  target="_blank" class="text-blue card-link list-inline-item" title="Belongs to">
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-building-bank"
+                                    width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M3 21l18 0" />
+                                    <path d="M3 10l18 0" />
+                                    <path d="M5 6l7 -3l7 3" />
+                                    <path d="M4 10l0 11" />
+                                    <path d="M20 10l0 11" />
+                                    <path d="M8 14l0 3" />
+                                    <path d="M12 14l0 3" />
+                                    <path d="M16 14l0 3" />
+                                  </svg>
+                                  {{ process.organization.title }}
+                                </a>
+                                <div class="list-inline-item" title="Created by">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+                                    class="icon icon-tabler icons-tabler-outline icon-tabler-user">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                                    <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                                  </svg>
+                                  {{ process.creator }}
+                                </div>
+                              </div>
+                            </div>
+                          </div>              
                     </div>
                 </div>
             </div>
@@ -84,8 +157,8 @@
                     </div>
                     <div class="row row-cards">
 
-                        <canvas id='lineage-canvas' style='border-radius: 8px' width='1500' height='400'
-                            class='col-lg-12 card px-0'></canvas>
+                        <canvas id='lineage-canvas' style='border-radius: 8px' width='1500' height='600' class='col-lg-12 card px-0 d-none'>
+                        </canvas>
 
                         <div class="col-lg-5">
                             <div class="card">
@@ -111,17 +184,6 @@
                                                 el.classList.remove('glowing-text');
                                                 void el.offsetWidth; // trigger reflow to restart animation
                                                 el.classList.add('glowing-text');">COPY</button>
-                                    </div>
-                                    <div class="mb-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="me-2 text-secondary icon icon-tabler icons-tabler-outline icon-tabler-user">
-                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                            <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
-                                            <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
-                                        </svg>
-                                        Creator: <strong>{{ process.creator }}</strong>
                                     </div>
                                     <div class="mb-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -648,6 +710,36 @@
     LiteGraph.registerNodeType("basic/kv", KeyValueNode);
 
 
+    function toggleGraph(){
+        const graphContainer = document.getElementById('lineage-canvas');
+        if (graphContainer.classList.contains('d-none')) {
+            graphContainer.classList.remove('d-none');
+            document.getElementById('job-graph-btn').innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                viewBox="0 0 24 24" fill="currentColor"
+                class="me-2 icon icon-tabler icons-tabler-filled icon-tabler-chart-dots-3">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path
+                d="M18 2a4 4 0 1 1 -3.843 5.114l-6.295 .786a3 3 0 0 1 -.094 .257l6.446 4.431a3 3 0 1 1 -.695 4.099l-3.527 1.058q .008 .127 .008 .255a4 4 0 1 1 -8 0l.005 -.2a4 4 0 0 1 7.366 -1.954l3.64 -1.094l.01 -.102q .023 -.204 .074 -.4l-6.688 -4.6a3 3 0 0 1 -4.407 -2.65l.005 -.176a3 3 0 0 1 5.784 -.931l6.312 -.79a4 4 0 0 1 3.899 -3.103" />
+            </svg>
+            Hide Process Graph
+            `;
+            updateGraph();
+        } else {
+            graphContainer.classList.add('d-none');
+            document.getElementById('job-graph-btn').innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                viewBox="0 0 24 24" fill="currentColor"
+                class="me-2 icon icon-tabler icons-tabler-filled icon-tabler-chart-dots-3">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path
+                d="M18 2a4 4 0 1 1 -3.843 5.114l-6.295 .786a3 3 0 0 1 -.094 .257l6.446 4.431a3 3 0 1 1 -.695 4.099l-3.527 1.058q .008 .127 .008 .255a4 4 0 1 1 -8 0l.005 -.2a4 4 0 0 1 7.366 -1.954l3.64 -1.094l.01 -.102q .023 -.204 .074 -.4l-6.688 -4.6a3 3 0 0 1 -4.407 -2.65l.005 -.176a3 3 0 0 1 5.784 -.931l6.312 -.79a4 4 0 0 1 3.899 -3.103" />
+            </svg>
+            Show Process Graph
+            `;
+        }
+    }
+
     function updateGraph() {
         $.ajax({
             url: `{{ url_for('rest_workflows_blueprint.api_get_process', entity_id=process.id) }}`,
@@ -726,31 +818,6 @@
         });
     }
 
-    $(document).ready(function() {
-        if (window.Worker) {
-            // Create a worker using a Blob since we only need it to trigger updateGraph
-            const blobCode = `
-                self.onmessage = function(e) {
-                    // Notify the main thread to invoke updateGraph.
-                    self.postMessage('invoke_updateGraph');
-                };
-            `;
-            const blob = new Blob([blobCode], { type: 'application/javascript' });
-            const worker = new Worker(URL.createObjectURL(blob));
-
-            worker.onmessage = function(e) {
-                if (e.data === 'invoke_updateGraph') {
-                    updateGraph();
-                }
-            };
-
-            // Start the worker
-            worker.postMessage('start');
-        } else {
-            // Fallback to direct invocation if Web Workers aren't supported
-            updateGraph();
-        }
-    });
 </script>
 
 </html>

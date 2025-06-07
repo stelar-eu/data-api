@@ -478,7 +478,9 @@ class Task(Entity):
 
         if task["exec_state"] == state:
             return
-        if task["exec_state"] in ["running", "created"] and state in [
+        elif task["exec_state"] == "created" and state == "running":
+            sql_utils.task_execution_update(id, state)
+        elif task["exec_state"] in ["running", "created"] and state in [
             "failed",
             "succeeded",
         ]:
@@ -954,7 +956,7 @@ class Task(Entity):
                         image, token, task_id, task_signature
                     )
 
-                sql_utils.task_execution_update(task_id, "running", tags=tags)
+            sql_utils.task_execution_update(task_id, "created", tags=tags)
 
             return {
                 "id": task_id,
@@ -1054,6 +1056,7 @@ class Task(Entity):
         token: str = None,
         signature: str = None,
         include_input_ids: bool = False,
+        internal_call: bool = False,
     ):
         """Fetches the input spec of a Task including inputs, outputs and params.
 
@@ -1109,6 +1112,11 @@ class Task(Entity):
 
         self.validate_task(id)
         id = str(id)
+
+        # If the task is in 'created' state and the call is not internal,
+        # we set the state to 'running' to indicate that the task is being executed.
+        if self.get_entity(id)["exec_state"] == "created" and not internal_call:
+            self.set_exec_state(id, "running")
 
         # Fetch the input groups and the parameters for the task execution from the database
         inputs = sql_utils.task_execution_input_read_sql(id)
@@ -1273,7 +1281,10 @@ class Task(Entity):
             g.current_user = user_rep
 
         # Parse the output JSON provided in the request
-        outputs = spec.get("output", {})
+        outputs = spec.get("output")
+
+        if outputs is None:
+            outputs = spec.get("outputs", {})
         actual_resource_output = []
 
         # Handle each output the tool produced in metadata terms i.e. publish

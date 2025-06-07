@@ -349,19 +349,20 @@ CREATE INDEX IF NOT EXISTS klms_task_tag_idx_key ON klms.task_tag(key);
 CREATE INDEX IF NOT EXISTS klms_task_tag_idx_value ON klms.task_tag(value);
 
 
-CREATE TABLE IF NOT EXISTS klms.metrics
-( task_uuid varchar(64) NOT NULL,
+CREATE TABLE IF NOT EXISTS klms.metrics (
+  task_uuid varchar(64) NOT NULL,
   "key" text NOT NULL, 
-  "value" text,
+  "value" jsonb,
   issued timestamp,
   PRIMARY KEY (task_uuid, "key", issued),
-  CONSTRAINT fk_task_metrics_uuid FOREIGN KEY(task_uuid) REFERENCES klms.task_execution(task_uuid) ON UPDATE CASCADE ON DELETE CASCADE
+  CONSTRAINT fk_task_metrics_uuid FOREIGN KEY (task_uuid)
+    REFERENCES klms.task_execution(task_uuid)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
 );
 
--- Index key value pairs for faster search:
-
 CREATE INDEX IF NOT EXISTS klms_metrics_idx_key ON klms.metrics(key);
-CREATE INDEX IF NOT EXISTS klms_metrics_idx_value ON klms.metrics(value);
+CREATE INDEX IF NOT EXISTS klms_metrics_idx_value_gin ON klms.metrics USING GIN (value);
 
 
 CREATE TABLE IF NOT EXISTS klms.parameters
