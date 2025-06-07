@@ -598,7 +598,7 @@ def tool(tool_id):
         if repo_info:
             tool["git_user"], tool["git_repo"] = repo_info
 
-    if "repository" in tool:
+    if "repository" in tool and tool["repository"] is not None:
         registry = current_app.config["settings"].get("REGISTRY_EXT_URL")
         if registry:
             registry = re.sub(r"^https?://", "", registry)
