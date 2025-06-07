@@ -278,6 +278,64 @@ sql_workflow_execution_templates = {
                            (SELECT DISTINCT workflow_uuid, value FROM klms.workflow_tag WHERE key='package_id') as tg
                            ON ex.workflow_uuid=tg.workflow_uuid LEFT JOIN public.package as pkg ON tg.value=pkg.id;""",
     "workflow_read_tags_template": "SELECT key, value FROM klms.workflow_tag WHERE workflow_uuid = %s",
+    "resource_lineage_template": """WITH RECURSIVE lineage (
+                resource_id,
+                output_task_uuid,
+                output_name,
+                input_task_uuid,
+                input_order,
+                input_resource_id,
+                input_path,
+                input_group_name
+            ) AS (
+                -- Base case
+                SELECT
+                    to_tbl.dataset_id AS resource_id,
+                    to_tbl.task_uuid AS output_task_uuid,
+                    to_tbl.output_name,
+                    ti.task_uuid AS input_task_uuid,
+                    ti.order_num AS input_order,
+                    ti.resource_id AS input_resource_id,
+                    ti.input_path,
+                    ti.input_group_name
+                FROM klms.task_output to_tbl
+                JOIN klms.task_input ti ON to_tbl.task_uuid = ti.task_uuid
+                WHERE to_tbl.dataset_id = %s
+
+                UNION ALL
+
+                -- Recursive case
+                SELECT
+                    to_tbl.dataset_id,
+                    to_tbl.task_uuid,
+                    to_tbl.output_name,
+                    ti.task_uuid,
+                    ti.order_num,
+                    ti.resource_id,
+                    ti.input_path,
+                    ti.input_group_name
+                FROM klms.task_output to_tbl
+                JOIN klms.task_input ti ON to_tbl.task_uuid = ti.task_uuid
+                JOIN lineage l ON to_tbl.dataset_id = l.input_resource_id
+            )
+
+            SELECT
+                l.*,
+                r.name AS input_resource_name,
+                r.url AS input_resource_url,
+                r.package_id AS input_resource_package_id,
+                te.state AS task_state,
+                te.start_date,
+                te.end_date,
+                te.workflow_uuid,
+                ttag.value AS task_name
+            FROM lineage l
+            LEFT JOIN public.resource r ON l.input_resource_id = r.id
+            LEFT JOIN klms.task_execution te ON l.input_task_uuid = te.task_uuid
+            LEFT JOIN klms.task_tag ttag 
+                ON l.input_task_uuid = ttag.task_uuid AND ttag.key = '__name__'
+            ORDER BY l.output_task_uuid, l.input_order
+    """,
     "task_create_template": "INSERT INTO klms.task_execution(task_uuid, workflow_uuid, creator_user_id, state, start_date) VALUES (%s, %s, %s, %s, %s)",
     "task_update_template": "UPDATE klms.task_execution SET state = %s WHERE task_uuid = %s",
     "task_commit_template": "UPDATE klms.task_execution SET state = %s, end_date = %s WHERE task_uuid = %s",
