@@ -44,88 +44,105 @@
                                     <li class="breadcrumb-item active"><a href="#"><span class="text-strong">{{
                                                 tool.name }}</span></a> <span id="programming-language" class="ms-1 h2">
 
-                                                </span></li>
+                                        </span></li>
                                 </ol>
                             </h3>
                         </div>
                         <div class="col-auto ms-auto d-print-none">
                             <div class="d-flex align-items-center">
                                 <a class="btn btn-primary ms-auto me-2"
-                                href="{{ url_for('dashboard_blueprint.dataset_relationships', dataset_id=tool.id) }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                    class="icon icon-tabler icons-tabler-outline icon-tabler-chart-bubble">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path d="M6 16m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-                                    <path d="M16 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-                                    <path d="M14.5 7.5m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0 -9 0" />
-                                </svg>
-                                Explore Relationships
+                                    href="{{ url_for('dashboard_blueprint.dataset_relationships', dataset_id=tool.id) }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        class="icon icon-tabler icons-tabler-outline icon-tabler-chart-bubble">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                        <path d="M6 16m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                                        <path d="M16 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                                        <path d="M14.5 7.5m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0 -9 0" />
+                                    </svg>
+                                    Explore Relationships
                                 </a>
                                 <div class="dropdown">
                                     <button class="btn" data-bs-toggle="dropdown" aria-label="Open Resource Menu">
-                                    Actions
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="m-0 icon icon-tabler icons-tabler-filled icon-tabler-caret-down">
-                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                        <path d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z"></path>
-                                    </svg>
+                                        Actions
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="currentColor"
+                                            class="m-0 icon icon-tabler icons-tabler-filled icon-tabler-caret-down">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                            <path
+                                                d="M18 9c.852 0 1.297 .986 .783 1.623l-.076 .084l-6 6a1 1 0 0 1 -1.32 .083l-.094 -.083l-6 -6l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057v-.118l.005 -.058l.009 -.06l.01 -.052l.032 -.108l.027 -.067l.07 -.132l.065 -.09l.073 -.081l.094 -.083l.077 -.054l.096 -.054l.036 -.017l.067 -.027l.108 -.032l.053 -.01l.06 -.01l.057 -.004l12.059 -.002z">
+                                            </path>
+                                        </svg>
                                     </button>
                                     <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow ">
-                                    <a class="dropdown-item view-dataset-btn cursor-pointer" data-bs-toggle="modal" data-bs-target="#modal-edit-tool">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-settings">
-                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                        <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"></path>
-                                        <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"></path>
-                                        </svg>
-                                        Manage</a>
-                                    <div class="dropdown-divider"></div>
-                                    <a data-bs-toggle="modal" data-bs-target="#modal-delete-tool" class="text-danger cursor-pointer dropdown-item del-dataset-btn">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-trash">
-                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                        <path d="M4 7l16 0"></path>
-                                        <path d="M10 11l0 6"></path>
-                                        <path d="M14 11l0 6"></path>
-                                        <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path>
-                                        <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path>
-                                        </svg>
-                                        Delete</a>
+                                        <a class="dropdown-item view-dataset-btn cursor-pointer" data-bs-toggle="modal"
+                                            data-bs-target="#modal-edit-tool">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-settings">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                <path
+                                                    d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z">
+                                                </path>
+                                                <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"></path>
+                                            </svg>
+                                            Manage</a>
+                                        <div class="dropdown-divider"></div>
+                                        <a data-bs-toggle="modal" data-bs-target="#modal-delete-tool"
+                                            class="text-danger cursor-pointer dropdown-item del-dataset-btn">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                <path d="M4 7l16 0"></path>
+                                                <path d="M10 11l0 6"></path>
+                                                <path d="M14 11l0 6"></path>
+                                                <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"></path>
+                                                <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path>
+                                            </svg>
+                                            Delete</a>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-lg-12">
                             <div class="text-secondary text-sm h4 m-0">
-                              <div class="mt-1 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
-                                <a href="{{url_for('dashboard_blueprint.organization', organization_id=tool.organization.id)}}"
-                                  target="_blank" class="text-blue card-link list-inline-item" title="Belongs to">
-                                  <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-building-bank"
-                                    width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path d="M3 21l18 0" />
-                                    <path d="M3 10l18 0" />
-                                    <path d="M5 6l7 -3l7 3" />
-                                    <path d="M4 10l0 11" />
-                                    <path d="M20 10l0 11" />
-                                    <path d="M8 14l0 3" />
-                                    <path d="M12 14l0 3" />
-                                    <path d="M16 14l0 3" />
-                                  </svg>
-                                  {{ tool.organization.title }}
-                                </a>
-                                <div class="list-inline-item" title="Created by">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
-                                    class="icon icon-tabler icons-tabler-outline icon-tabler-user">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
-                                    <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
-                                  </svg>
-                                  {{ tool.get("author") }}
+                                <div class="mt-1 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
+                                    <a href="{{url_for('dashboard_blueprint.organization', organization_id=tool.organization.id)}}"
+                                        target="_blank" class="text-blue card-link list-inline-item" title="Belongs to">
+                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                            class="icon icon-tabler icon-tabler-building-bank" width="44" height="44"
+                                            viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M3 21l18 0" />
+                                            <path d="M3 10l18 0" />
+                                            <path d="M5 6l7 -3l7 3" />
+                                            <path d="M4 10l0 11" />
+                                            <path d="M20 10l0 11" />
+                                            <path d="M8 14l0 3" />
+                                            <path d="M12 14l0 3" />
+                                            <path d="M16 14l0 3" />
+                                        </svg>
+                                        {{ tool.organization.title }}
+                                    </a>
+                                    <div class="list-inline-item" title="Created by">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-user">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                                            <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                                        </svg>
+                                        {{ tool.get("author") }}
+                                    </div>
                                 </div>
-                              </div>
                             </div>
-                          </div>  
+                        </div>
                     </div>
                 </div>
             </div>
@@ -134,59 +151,204 @@
                     <div class="row row-cards">
                         <div class="col-lg-8">
                             <div class="card card-lg ">
-                                <div class="d-flex p-4 card-body pb-3">
-                                    <div class=" me-3 h2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="mb-1 me-1 icon icon-tabler icons-tabler-outline icon-tabler-book">
-                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                            <path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
-                                            <path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
-                                            <path d="M3 6l0 13" />
-                                            <path d="M12 6l0 13" />
-                                            <path d="M21 6l0 13" />
-                                        </svg>
-                                        Documentation
-                                    </div>
-
-                                    <div class="ms-auto d-flex align-items-center" id="documentation-actions">
-                                        {% if tool.git_repo and tool.git_user %}
-                                        <button class="btn" onclick="syncDocumentationFromGithub()"
-                                            id="sync-markdown-btn">
-                                            <span class="icon social social-app-github"></span>
-                                            Sync from GitHub
-                                        </button>
-                                        {% endif %}
-                                        <button class="ms-2 btn" onclick="openMarkdownEditor()" id="edit-markdown-btn">
-                                            <svg xmlns=" http://www.w3.org/2000/svg" width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round" stroke-linejoin="round"
-                                                class="icon me-1 icon-tabler icons-tabler-outline icon-tabler-pencil">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
-                                                <path d="M13.5 6.5l4 4" />
-                                            </svg>
-                                            Edit
-                                        </button>
-                                        <button class="btn ms-2" onclick="saveEditedDocumentation()"
-                                            id="save-markdown-btn" style="display: none;"><svg
-                                                xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round" stroke-linejoin="round"
-                                                class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-device-floppy">
-                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                                <path
-                                                    d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" />
-                                                <path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
-                                                <path d="M14 4l0 4l-6 0l0 -4" />
-                                            </svg>Save</button>
-                                        <button class="btn ms-2" onclick="closeMarkdownEditor()" id="close-editor-btn"
-                                            style="display: none;">Close</button>
-                                    </div>
+                                <div class="card-header">
+                                    <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <a href="#tabs-docs-1" class="nav-link active h3 strong"
+                                                data-bs-toggle="tab" aria-selected="true" role="tab">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                    class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-script">
+                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                    <path
+                                                        d="M17 20h-11a3 3 0 0 1 0 -6h11a3 3 0 0 0 0 6h1a3 3 0 0 0 3 -3v-11a2 2 0 0 0 -2 -2h-10a2 2 0 0 0 -2 2v8" />
+                                                </svg>
+                                                Documentation
+                                            </a>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <a href="#tabs-io-1" class="nav-link h3 strong" data-bs-toggle="tab"
+                                                aria-selected="false" role="tab" tabindex="-1">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                    class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-arrows-diff">
+                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                    <path d="M11 16h10" />
+                                                    <path d="M11 16l4 4" />
+                                                    <path d="M11 16l4 -4" />
+                                                    <path d="M13 8h-10" />
+                                                    <path d="M13 8l-4 4" />
+                                                    <path d="M13 8l-4 -4" />
+                                                </svg>
+                                                I/O & Parameters</a>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <a href="#tabs-profiles-1" class="nav-link h3 strong" data-bs-toggle="tab"
+                                                aria-selected="false" role="tab" tabindex="-1">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                    class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-cpu">
+                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                    <path
+                                                        d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" />
+                                                    <path d="M9 9h6v6h-6z" />
+                                                    <path d="M3 10h2" />
+                                                    <path d="M3 14h2" />
+                                                    <path d="M10 3v2" />
+                                                    <path d="M14 3v2" />
+                                                    <path d="M21 10h-2" />
+                                                    <path d="M21 14h-2" />
+                                                    <path d="M14 21v-2" />
+                                                    <path d="M10 21v-2" />
+                                                </svg>
+                                                Execution Profiles</a>
+                                        </li>
+                                        <!-- <li class="nav-item" role="presentation">
+                                                <a href="#tabs-processes-1" class="nav-link" data-bs-toggle="tab" aria-selected="false" role="tab"
+                                                tabindex="-1">Processes</a>
+                                            </li> -->
+                                    </ul>
                                 </div>
-                                <div class="card-body markdown p-5" id="documentation-content">
-                                    {{ tool.readme | safe }}
+                                <div class="card-body p-0">
+                                    <div class="tab-content">
+                                        <div class="tab-pane active show" id="tabs-docs-1" role="tabpanel">
+                                            <div class="d-flex p-2 mt-3 me-4 card-body pb-2">
+                                                <div class="ms-auto d-flex align-items-center"
+                                                    id="documentation-actions">
+                                                    {% if tool.git_repo and tool.git_user %}
+                                                    <button class="btn" onclick="syncDocumentationFromGithub()"
+                                                        id="sync-markdown-btn">
+                                                        <span class="icon social social-app-github"></span>
+                                                        Sync from GitHub
+                                                    </button>
+                                                    {% endif %}
+                                                    <button class="ms-2 btn" onclick="openMarkdownEditor()"
+                                                        id="edit-markdown-btn">
+                                                        <svg xmlns=" http://www.w3.org/2000/svg" width="24" height="24"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2" stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            class="icon me-1 icon-tabler icons-tabler-outline icon-tabler-pencil">
+                                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                            <path
+                                                                d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+                                                            <path d="M13.5 6.5l4 4" />
+                                                        </svg>
+                                                        Edit
+                                                    </button>
+                                                    <button class="btn ms-2" onclick="saveEditedDocumentation()"
+                                                        id="save-markdown-btn" style="display: none;"><svg
+                                                            xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2" stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-device-floppy">
+                                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                            <path
+                                                                d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" />
+                                                            <path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+                                                            <path d="M14 4l0 4l-6 0l0 -4" />
+                                                        </svg>Save</button>
+                                                    <button class="btn ms-2" onclick="closeMarkdownEditor()"
+                                                        id="close-editor-btn" style="display: none;">Close</button>
+                                                </div>
+                                            </div>
+                                            <div class="card-body markdown p-5 pt-0 border-top-0"
+                                                id="documentation-content">
+                                                {{ tool.readme | safe }}
+                                            </div>
+                                        </div>
+                                        <div class="tab-pane" id="tabs-io-1" role="tabpanel">
+                                            <div class="card-body p-5">
+                                                <div class="d-flex align-items-center mb-4">                                                    
+                                                    <h2 class="m-0">Inputs</h2>
+                                                    <a class="ms-auto cursor-pointer btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modal-new-input">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                            <path d="M12 5l0 14"></path>
+                                                            <path d="M5 12l14 0"></path>
+                                                        </svg>
+                                                        Define Input
+                                                    </a>
+                                                </div>
+
+                                                <table class="table table-bordered m-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th class="w-25">Input Name</th>
+                                                            <th class="w-50">Description</th>
+                                                            <th class="text-center">Format</th>
+                                                            <th class="text-center w-1">Required</th>
+                                                            <th class="text-center w-1">Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="inputs-list">
+                                                       
+                                                    </tbody>
+                                                </table>
+
+                                                <div class="d-flex align-items-center mt-6 mb-4">                                                    
+                                                    <h2 class="m-0">Outputs</h2>
+                                                    <a class="ms-auto cursor-pointer btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modal-new-output">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                            <path d="M12 5l0 14"></path>
+                                                            <path d="M5 12l14 0"></path>
+                                                        </svg>
+                                                        Define Output
+                                                    </a>
+                                                </div>
+                                                <table class="table table-bordered m-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th class="w-25">Output Name</th>
+                                                            <th class="w-50">Description</th>
+                                                            <th class="text-center">Format</th>
+                                                            <th class="text-center w-1">Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="outputs-list">
+                                                       
+                                                    </tbody>
+                                                </table>
+                                                
+                                                <div class="d-flex align-items-center mt-6 mb-4">                                                    
+                                                    <h2 class="m-0">Parameters</h2>
+                                                    <a class="ms-auto cursor-pointer btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modal-new-parameter">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                            <path d="M12 5l0 14"></path>
+                                                            <path d="M5 12l14 0"></path>
+                                                        </svg>
+                                                        Define Parameter
+                                                    </a>
+                                                </div>
+                                                <table class="table table-bordered m-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th class="w-25">Name</th>
+                                                            <th class="w-50">Value</th>
+                                                            <th class="text-center w-25">Description</th>
+                                                            <th class="text-center w-1">Required</th>
+                                                            <th class="text-center w-1">Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="parameters-list">
+                                                       
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        <div class="tab-pane" id="tabs-profiles-1" role="tabpanel">
+                                            <div class="card-body p-5">
+                                                <h2>Execution Profiles</h2>
+                                                <p>🚧 Under Construction. Available Soon!</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -378,7 +540,6 @@
 
 
                 <!-- Modals -->
-                <!-- Docker Push Instructions -->
                 <div class="modal modal-blur fade" id="docker-push-modal" tabindex="-1" style="display: none;"
                     aria-hidden="true">
                     <div class="modal-dialog modal-1 modal-dialog-centered" role="document">
@@ -442,146 +603,348 @@
             </div>
             <div class="modal modal-blur fade" id="modal-edit-tool" tabindex="-1" role="dialog" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-                  <div class="modal-content">
-                    <div class="modal-header">
-                      <h5 class="modal-title">Manage Tool</h5>
-                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                      
-                       <div class="row">
-                        <div class="col-lg-8">
-                            <div class="mb-3">
-                                <label class="form-label">Name</label>
-                                <input type="text" class="form-control" name="example-disabled-input" id="package-name-input"
-                                    placeholder="Tool Name" readonly value="{{ tool.get('name') }}" disabled>
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Manage Tool</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+
+                            <div class="row">
+                                <div class="col-lg-8">
+                                    <div class="mb-3">
+                                        <label class="form-label">Name</label>
+                                        <input type="text" class="form-control" name="example-disabled-input"
+                                            id="package-name-input" placeholder="Tool Name" readonly
+                                            value="{{ tool.get('name') }}" disabled>
+                                        <small class="form-hint">
+                                            <p>
+                                                The Package ID is a unique identifier for the tool.
+                                            </p>
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tool Category</label>
+                                        <select class="form-select" id="tool-category" name="tool-category">
+                                            <option value="discovery" {% if tool.get('category')=='discovery'
+                                                %}selected{% endif %}>Discovery</option>
+                                            <option value="interlinking" {% if tool.get('category')=='interlinking'
+                                                %}selected{% endif %}>Interlinking</option>
+                                            <option value="annotation" {% if tool.get('category')=='annotation'
+                                                %}selected{% endif %}>Annotation</option>
+                                            <option value="other" {% if not tool.get('category') or tool.get('category')
+                                                not in ['discovery', 'interlinking' , 'annotation' ] %}selected{% endif
+                                                %}>Other</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <small class="form-hint">
                                     <p>
-                                        The Package ID is a unique identifier for the tool.
+                                        After creating the tool, the documentation and other metadata may be updated
+                                        in the tool's page.
                                     </p>
                                 </small>
-                           </div>
-                        </div>
-                        <div class="col-lg-4">
-                            <div class="mb-3">
-                                <label class="form-label">Tool Category</label>
-                                <select class="form-select" id="tool-category" name="tool-category">
-                                    <option value="discovery" {% if tool.get('category') == 'discovery' %}selected{% endif %}>Discovery</option>
-                                    <option value="interlinking" {% if tool.get('category') == 'interlinking' %}selected{% endif %}>Interlinking</option>
-                                    <option value="annotation" {% if tool.get('category') == 'annotation' %}selected{% endif %}>Annotation</option>
-                                    <option value="other" {% if not tool.get('category') or tool.get('category') not in ['discovery', 'interlinking', 'annotation'] %}selected{% endif %}>Other</option>
-                                </select>
                             </div>
+                            <div class="mb-3">
+                                <label class="form-label">GitHub Repository URL</label>
+                                <div class="input-group input-group-flat">
+                                    <span class="input-group-text"> https://github.com/</span>
+                                    <input type="text" class="form-control ps-0"
+                                        value="{{ tool.get('git_repository').replace('https://github.com/','').replace('http://github.com/','') }}"
+                                        autocomplete="off" id="git-repo" name="git-repo">
+                                </div>
+                                <small class="form-hint">
+                                    <p>
+                                        The URL of the GitHub repository where the source code is stored. It is used to
+                                        fetch the
+                                        documentation and latest commits.
+                                    </p>
+                                </small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Visibility</label>
+                                <div class="form-selectgroup-boxes row mb-1">
+                                    <div class="col-lg-6 text-success mb-2">
+                                        <label class="form-selectgroup-item">
+                                            <input type="radio" name="package-visibility" value="public"
+                                                class="form-selectgroup-input" {% if not tool.get('private') %}checked{%
+                                                endif %}>
+                                            <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                                <span class="me-3">
+                                                    <span class="form-selectgroup-check"></span>
+                                                </span>
+                                                <span class="form-selectgroup-label-content">
+                                                    <span class="form-selectgroup-title strong mb-1">Public</span>
+                                                    <span class="d-block text-secondary">Accessible to all users
+                                                        registered in the KLMS</span>
+                                                </span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                    <div class="col-lg-6 text-danger mb-2">
+                                        <label class="form-selectgroup-item">
+                                            <input type="radio" name="package-visibility" value="private"
+                                                class="form-selectgroup-input" {% if tool.get('private') %}checked{%
+                                                endif %}>
+                                            <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                                <span class="me-3">
+                                                    <span class="form-selectgroup-check"></span>
+                                                </span>
+                                                <span class="form-selectgroup-label-content">
+                                                    <span class="form-selectgroup-title strong mb-1">Private</span>
+                                                    <span class="d-block text-secondary">Accessible only to members of
+                                                        the organization that
+                                                        owns the package</span>
+                                                </span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <label class="form-label">Package ID</label>
+                            <input type="text" class="form-control" name="example-disabled-input" id="package-id-input"
+                                placeholder="Package-ID" readonly value="{{ tool.get('id') }}" disabled>
+                            <small class="form-hint">
+                                <p>
+                                    The Package ID is a unique identifier for the tool.
+                                </p>
+                            </small>
                         </div>
-                        <small class="form-hint">
-                            <p>
-                                After creating the tool, the documentation and other metadata may be updated
-                                in the tool's page.
-                            </p>
-                        </small>
-                    </div>
-                      <div class="mb-3">
-                        <label class="form-label">GitHub Repository URL</label>
-                        <div class="input-group input-group-flat">
-                            <span class="input-group-text"> https://github.com/</span>
-                            <input type="text" class="form-control ps-0" value="{{ tool.get('git_repository').replace('https://github.com/','').replace('http://github.com/','') }}" autocomplete="off" id="git-repo" name="git-repo">
+                        <div class="modal-footer" id="manage-package-footer">
+                            <button type="button" class="btn btn-outline-primary"
+                                onclick="copyText('package-id-input', 'manage-package-footer')">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copy"
+                                    width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+                                    fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path
+                                        d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" />
+                                    <path
+                                        d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
+                                </svg>
+                                Copy ID</button>
+                            <button class="btn btn-primary" id="update-package-btn"
+                                onclick="updateTool()">Update</button>
                         </div>
-                        <small class="form-hint">
-                          <p>
-                            The URL of the GitHub repository where the source code is stored. It is used to fetch the
-                            documentation and latest commits.
-                          </p>
-                        </small>
-                      </div>
-    
-                      <div class="mb-3">
-                        <label class="form-label">Visibility</label>
-                        <div class="form-selectgroup-boxes row mb-1">
-                          <div class="col-lg-6 text-success mb-2">
-                            <label class="form-selectgroup-item">
-                              <input type="radio" name="package-visibility" value="public" class="form-selectgroup-input" {%
-                                if not tool.get('private') %}checked{% endif %}>
-                              <span class="form-selectgroup-label d-flex align-items-center p-3">
-                                <span class="me-3">
-                                  <span class="form-selectgroup-check"></span>
-                                </span>
-                                <span class="form-selectgroup-label-content">
-                                  <span class="form-selectgroup-title strong mb-1">Public</span>
-                                  <span class="d-block text-secondary">Accessible to all users registered in the KLMS</span>
-                                </span>
-                              </span>
-                            </label>
-                          </div>
-                          <div class="col-lg-6 text-danger mb-2">
-                            <label class="form-selectgroup-item">
-                              <input type="radio" name="package-visibility" value="private" class="form-selectgroup-input"
-                                {% if tool.get('private') %}checked{% endif %}>
-                              <span class="form-selectgroup-label d-flex align-items-center p-3">
-                                <span class="me-3">
-                                  <span class="form-selectgroup-check"></span>
-                                </span>
-                                <span class="form-selectgroup-label-content">
-                                  <span class="form-selectgroup-title strong mb-1">Private</span>
-                                  <span class="d-block text-secondary">Accessible only to members of the organization that
-                                    owns the package</span>
-                                </span>
-                              </span>
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                      <label class="form-label">Package ID</label>
-                      <input type="text" class="form-control" name="example-disabled-input" id="package-id-input"
-                        placeholder="Package-ID" readonly value="{{ tool.get('id') }}" disabled>
-                      <small class="form-hint">
-                        <p>
-                          The Package ID is a unique identifier for the tool.
-                        </p>
-                      </small>
                     </div>
-                    <div class="modal-footer" id="manage-package-footer">
-                      <button type="button" class="btn btn-outline-primary"
-                        onclick="copyText('package-id-input', 'manage-package-footer')">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copy" width="44"
-                          height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"
-                          stroke-linecap="round" stroke-linejoin="round">
-                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                          <path
-                            d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" />
-                          <path
-                            d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" />
-                        </svg>
-                        Copy ID</button>
-                      <button class="btn btn-primary" id="update-package-btn" onclick="updateTool()">Update</button>
-                    </div>
-                  </div>
                 </div>
             </div>
             <div class="modal modal-blur fade" id="modal-delete-tool" tabindex="-1" role="dialog" aria-hidden="true">
                 <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
-                  <div class="modal-content">
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    <div class="modal-status bg-danger"></div>
-                    <div class="modal-body text-center py-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="icon mb-2 text-danger icon-lg" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10.24 3.957l-8.422 14.06a1.989 1.989 0 0 0 1.7 2.983h16.845a1.989 1.989 0 0 0 1.7 -2.983l-8.423 -14.06a1.989 1.989 0 0 0 -3.4 0z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
-                      <h3>Are you sure?</h3>
-                      <div class="text-secondary">Do you really want to remove <strong>{{tool.name}}</strong>. This action is irreversible.</div>
-                    </div>
-                    <div class="modal-footer">
-                      <div class="w-100">
-                        <div class="row">
-                          <div class="col"><a href="#" class="btn w-100" data-bs-dismiss="modal">
-                              Cancel
-                            </a></div>
-                          <div class="col"><a class="btn btn-danger w-100" data-bs-dismiss="modal" onclick="deleteTool()">
-                              Delete Tool
-                            </a></div>
+                    <div class="modal-content">
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <div class="modal-status bg-danger"></div>
+                        <div class="modal-body text-center py-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon mb-2 text-danger icon-lg" width="24"
+                                height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                <path
+                                    d="M10.24 3.957l-8.422 14.06a1.989 1.989 0 0 0 1.7 2.983h16.845a1.989 1.989 0 0 0 1.7 -2.983l-8.423 -14.06a1.989 1.989 0 0 0 -3.4 0z">
+                                </path>
+                                <path d="M12 9v4"></path>
+                                <path d="M12 17h.01"></path>
+                            </svg>
+                            <h3>Are you sure?</h3>
+                            <div class="text-secondary">Do you really want to remove <strong>{{tool.name}}</strong>.
+                                This action is irreversible.</div>
                         </div>
-                      </div>
+                        <div class="modal-footer">
+                            <div class="w-100">
+                                <div class="row">
+                                    <div class="col"><a href="#" class="btn w-100" data-bs-dismiss="modal">
+                                            Cancel
+                                        </a></div>
+                                    <div class="col"><a class="btn btn-danger w-100" data-bs-dismiss="modal"
+                                            onclick="deleteTool()">
+                                            Delete Tool
+                                        </a></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                  </div>
                 </div>
-              </div>
+            </div>
+
+            <div class="modal modal-blur fade" id="modal-new-input" tabindex="-1" style="display: none;" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Define New Input</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Name</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="new-input-name" name="new-input-name" placeholder="input_name">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <div class="input-group">
+                                    <textarea type="text" rows=3 class="form-control" id="new-input-description" name="new-input-description" placeholder="A descriptive explanation of the input">
+                                    </textarea>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Required to Specify</label>
+                                <label class="form-check form-switch form-switch-3">
+                                    <input class="form-check-input" type="checkbox" id="new-input-required" checked="">
+                                    <span class="form-check-label">Required</span>
+                                </label>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Format</label>
+                                <div class="input-group">
+                                    <select class="form-select" id="new-input-format" name="new-input-format">
+                                        <option value="csv">CSV</option>
+                                        <option value="tif">TIF</option>
+                                        <option value="shp">SHP</option>
+                                        <option value="ras">RAS</option>
+                                        <option value="rhd">RHD</option>
+                                        <option value="xlsx">XLSX</option>
+                                        <option value="json">JSON</option>
+                                        <option value="xml">XML</option>
+                                        <option value="yaml">YAML</option>
+                                        <option value="geojson">GeoJSON</option>
+                                        <option value="prq">PRQ</option>
+                                        <option value="avro">AVRO</option>
+                                        <option value="orc">ORC</option>
+                                        <option value="pdf">PDF</option>
+                                        <option value="txt">TXT</option>
+                                        <option value="zip">ZIP</option>
+                                        <option value="tar">TAR</option>
+                                        <option value="html">HTML</option>
+                                    </select>
+                                </div> 
+                            </div>
+                        </div>
+                        <div class="modal-footer" id="new-input-footer">
+                            <button type="button" class="btn btn-primary ms-auto disabled" onclick="createNewInput()">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" class="icon icon-2">
+                                    <path d="M12 5l0 14"></path>
+                                    <path d="M5 12l14 0"></path>
+                                </svg>
+                                Create Definition</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal modal-blur fade" id="modal-new-output" tabindex="-1" style="display: none;" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Define New Output</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Name</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="new-output-name" name="new-output-name" placeholder="output_name">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <div class="input-group">
+                                    <textarea type="text" rows=3 class="form-control" id="new-output-description" name="new-output-description" placeholder="A descriptive explanation of the input">
+                                    </textarea>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Format</label>
+                                <div class="input-group">
+                                    <select class="form-select" id="new-output-format" name="new-output-format">
+                                        <option value="csv">CSV</option>
+                                        <option value="tif">TIF</option>
+                                        <option value="shp">SHP</option>
+                                        <option value="ras">RAS</option>
+                                        <option value="rhd">RHD</option>
+                                        <option value="xlsx">XLSX</option>
+                                        <option value="json">JSON</option>
+                                        <option value="xml">XML</option>
+                                        <option value="yaml">YAML</option>
+                                        <option value="geojson">GeoJSON</option>
+                                        <option value="prq">PRQ</option>
+                                        <option value="avro">AVRO</option>
+                                        <option value="orc">ORC</option>
+                                        <option value="pdf">PDF</option>
+                                        <option value="txt">TXT</option>
+                                        <option value="zip">ZIP</option>
+                                        <option value="tar">TAR</option>
+                                        <option value="html">HTML</option>
+                                    </select>
+                                </div> 
+                            </div>
+                        </div>
+                        <div class="modal-footer" id="new-output-footer">
+                            <button type="button" class="btn btn-primary ms-auto disabled" onclick="createNewOutput()">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" class="icon icon-2">
+                                    <path d="M12 5l0 14"></path>
+                                    <path d="M5 12l14 0"></path>
+                                </svg>
+                                Create Definition</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal modal-blur fade" id="modal-new-parameter" tabindex="-1" style="display: none;" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Define New Parameter</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Name</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="new-parameter-name" name="new-parameter-name" placeholder="parameter_name">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Value</label>
+                                <div class="input-group">
+                                    <textarea type="text" rows=3 class="form-control" id="new-parameter-value" name="new-output-value">
+                                    </textarea>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <div class="input-group">
+                                    <textarea type="text" rows=3 class="form-control" id="new-parameter-description" name="new-output-description">
+                                    </textarea>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Required to Specify</label>
+                                <label class="form-check form-switch form-switch-3">
+                                    <input class="form-check-input" type="checkbox" id="new-parameter-required" checked="">
+                                    <span class="form-check-label">Required</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="modal-footer" id="new-parameter-footer">
+                            <button type="button" class="btn btn-primary ms-auto disabled" onclick="createNewParameter()">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" class="icon icon-2">
+                                    <path d="M12 5l0 14"></path>
+                                    <path d="M5 12l14 0"></path>
+                                </svg>
+                                Create Definition</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         {% include 'footer.html' %}
     </div>
@@ -665,7 +1028,7 @@
             });
         }
     </script>
-    
+
     <script>
         var toolGitRepo = "{{ tool.git_repo }}";
         var toolGitUser = "{{ tool.git_user }}";
@@ -675,32 +1038,32 @@
         function copyText(inputId, alertContainerSelector, alertMessage = 'Copied!') {
             const inputField = document.getElementById(inputId);
             if (!inputField) return;
-      
+
             navigator.clipboard.writeText(inputField.value);
-      
+
             // Try to get the container with the provided selector.
             let container = $(alertContainerSelector);
             // If not found and selector doesn't start with '#', try with '#' prepended.
             if (container.length === 0 && alertContainerSelector[0] !== '#') {
-              container = $('#' + alertContainerSelector);
+                container = $('#' + alertContainerSelector);
             }
-      
+
             // Remove any existing alert elements from the container.
             container.find('.alert').remove();
-      
+
             const alertHtml = createAlertElement('success', alertMessage);
             container.prepend(alertHtml);
-      
+
             setTimeout(function () {
-              container.find('.alert').fadeOut(500, function () {
-                $(this).remove();
-              });
+                container.find('.alert').fadeOut(500, function () {
+                    $(this).remove();
+                });
             }, 2000);
         }
 
-        function updateTool(){
+        function updateTool() {
 
-            const gitRepo = "https://github.com/"+document.getElementById("git-repo").value.trim();
+            const gitRepo = "https://github.com/" + document.getElementById("git-repo").value.trim();
             const visibility = document.querySelector('input[name="package-visibility"]:checked').value;
             const payload = {
                 git_repository: gitRepo,
@@ -709,7 +1072,7 @@
             };
 
 
-            if(gitRepo){
+            if (gitRepo) {
                 // Validate the GitHub repository URL
                 const gitRepoRegex = /^(https?:\/\/)?(www\.)?github\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/;
                 if (!gitRepoRegex.test(gitRepo)) {
@@ -751,12 +1114,12 @@
         }
 
 
-        function deleteTool(){
+        function deleteTool() {
             $.ajax({
                 url: "{{ url_for('rest_workflows_blueprint.api_delete_tool', entity_id=tool.id) }}",
                 type: "DELETE",
                 contentType: "application/json;",
-                data: JSON.stringify({'purge':true}),
+                data: JSON.stringify({ 'purge': true }),
                 success: function (response) {
                     window.location.href = "{{ url_for('dashboard_blueprint.tools') }}";
                 },
@@ -810,7 +1173,7 @@
         }
 
 
-        function fetchReadMeFromGithubMaster(callback){
+        function fetchReadMeFromGithubMaster(callback) {
             $.ajax({
                 url: `${githubRAW}/${toolGitUser}/${toolGitRepo}/master/README.md`,
                 type: "GET",
@@ -988,14 +1351,15 @@
 
         function renderProgrammingLanguage() {
             const programmingLanguage = "{{ tool.get('programming_language') }}";
-            const visibility = {{ 'true' if tool.get('private') else 'false' }};
-            const programmingLanguageIcon = $("#programming-language");
-            programmingLanguageIcon.html(getProgrammingLanguageBadge(programmingLanguage));
-            programmingLanguageIcon.append(
-                `<span class="badge bg-${visibility ? 'danger-lt' : 'success-lt'} ms-2">
+            const visibility = {{ 'true' if tool.get('private') else 'false'
+        }};
+        const programmingLanguageIcon = $("#programming-language");
+        programmingLanguageIcon.html(getProgrammingLanguageBadge(programmingLanguage));
+        programmingLanguageIcon.append(
+            `<span class="badge bg-${visibility ? 'danger-lt' : 'success-lt'} ms-2">
                     ${visibility ? 'Private' : 'Public'}
                 </span>`
-            );
+        );
         }
         renderProgrammingLanguage();
 
@@ -1151,6 +1515,489 @@
         $(document).ready(function () {
             getLatestCommits();
             fetchToolImages();
+        });
+    </script>
+    <script>
+
+        currentInput = {{ tool.get('inputs') | tojson | safe }};
+        currentOutput = {{ tool.get('outputs') | tojson | safe }};
+        currentParameters = {{ tool.get('parameters') | tojson | safe }};
+
+        function renderInputs() {
+            const inputsList = $("#inputs-list");
+            inputsList.empty(); // Clear existing content
+
+            if (Object.keys(currentInput).length === 0) {
+                inputsList.append("<tr><td colspan='5' class='text-center text-secondary'>No inputs defined for this tool.</td></tr>");
+                return;
+            }
+
+            Object.keys(currentInput).forEach(inputName => {
+            const input = currentInput[inputName];
+            const inputElement = `
+                <tr id="input-${inputName}" class="input-item">
+                <td class="text-center p-2">
+                    <code>${inputName}</code>
+                </td>
+                <td class="p-2">
+                    <span class="text-secondary">${input.description || ''}</span>
+                </td>
+                <td class="text-center p-2">
+                    <span class="text-secondary">${input.format || ''}</span>
+                </td>
+                <td class="text-center p-2">
+                    ${input.required ? '<span class="badge bg-success-lt">Yes</span>' : '<span class="badge bg-secondary-lt">No</span>'}
+                </td>
+                <td class="text-center p-2">
+                    <a class="text-link text-danger cursor-pointer" onclick="removeInput('${inputName}')">Remove</a>
+                </td>
+                </tr>
+            `;
+            inputsList.append(inputElement);
+            });
+        }
+
+        function validateNewInput() {
+            const newInputName = document.getElementById("new-input-name");
+            const newInputDescription = document.getElementById("new-input-description");
+            const newInputRequired = document.getElementById("new-input-required");
+            const newInputFormat = document.getElementById("new-input-format");
+            const footerButton = document.getElementById("new-input-footer").querySelector("button");
+
+            const inputNameValue = newInputName.value.trim();
+            const inputDescriptionValue = newInputDescription.value.trim();
+            const isValidName = /^[a-zA-Z0-9_]+$/.test(inputNameValue);
+
+            if (inputNameValue === "" || inputDescriptionValue === "") {
+                newInputName.classList.remove("is-valid", "is-invalid");
+                footerButton.classList.add("disabled");
+                return;
+            }
+
+            if (isValidName) {
+                newInputName.classList.add("is-valid");
+                newInputName.classList.remove("is-invalid");
+                footerButton.classList.remove("disabled");
+            } else {
+                newInputName.classList.add("is-invalid");
+                newInputName.classList.remove("is-valid");
+                footerButton.classList.add("disabled");
+            }
+        }
+
+        function attachNewInputValidation(){
+            const newInputName = document.getElementById("new-input-name");
+            newInputName.addEventListener("input", validateNewInput);
+            newInputName.addEventListener("blur", validateNewInput);
+            newInputName.addEventListener("keyup", validateNewInput);
+            const newInputDescription = document.getElementById("new-input-description");
+            newInputDescription.addEventListener("input", validateNewInput);
+            newInputDescription.addEventListener("blur", validateNewInput);
+            newInputDescription.addEventListener("keyup", validateNewInput);
+            const newInputRequired = document.getElementById("new-input-required");
+        }
+
+        function createNewInput(){
+            const newInputName = document.getElementById("new-input-name").value.trim();
+            const newInputDescription = document.getElementById("new-input-description").value.trim();
+            const newInputRequired = document.getElementById("new-input-required").checked;
+            const newInputFormat = document.getElementById("new-input-format").value.toUpperCase();
+
+           
+            if (newInputName === "" || newInputDescription === "") {
+                return;
+            }
+
+            $('#new-input-footer .stelar-loader').remove();
+            $('#new-input-footer .alert').remove();
+            $('#new-input-footer').prepend(createLoaderElement(false, true));
+
+            const newInput = {
+                description: newInputDescription,
+                required: newInputRequired,
+                format: newInputFormat
+            };
+
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_patch_tool', entity_id=tool.get('id')) }}`,
+                type: "PATCH",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    inputs: { ...currentInput, [newInputName]: newInput }
+                }),
+                success: function (response) {
+                    currentInput = response.result.inputs;
+                    renderInputs();
+                    document.getElementById("new-input-name").value = '';
+                    document.getElementById("new-input-name").classList.remove("is-valid", "is-invalid");
+                    document.getElementById("new-input-description").value = '';
+                    document.getElementById("new-input-required").checked = false;
+                    document.getElementById("new-input-format").value = 'csv';
+                    $('#new-input-footer .stelar-loader').remove();
+                    $('#new-input-footer').prepend(createAlertElement("success", "Input created successfully"));
+                    setTimeout(function () {
+                        $('#new-input-footer .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                },
+                error: function (error) {
+                    $('#new-input-footer .stelar-loader').remove();
+                    $('#new-input-footer').prepend(createAlertElement("danger", "Error creating input"));
+                    setTimeout(function () {
+                        $('#new-input-footer .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                    console.error("Error creating input:", error);
+                }
+            });
+        }
+
+        function removeInput(inputName){
+            confirmation = confirm("Are you sure you want to remove the input: " + inputName + "?");
+            if (!confirmation) {
+                return;
+            }
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_patch_tool', entity_id=tool.get('id')) }}`,
+                type: "PATCH",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    inputs: Object.fromEntries(Object.entries(currentInput).filter(([key]) => key !== inputName))
+                }),
+                success: function (response) {
+                    currentInput = response.result.inputs;
+                    renderInputs();
+                },
+                error: function (error) {
+                    console.error("Error removing input:", error);
+                }
+            });
+        }
+
+
+        function validateNewOutput() {
+            const newOutputName = document.getElementById("new-output-name");
+            const newOutputDescription = document.getElementById("new-output-description");
+            const newOutputFormat = document.getElementById("new-output-format");
+            const footerButton = document.getElementById("new-output-footer").querySelector("button");
+
+            const outputNameValue = newOutputName.value.trim();
+            const outputDescriptionValue = newOutputDescription.value.trim();
+            const isValidName = /^[a-zA-Z0-9_]+$/.test(outputNameValue);
+
+            if (outputNameValue === "" || outputDescriptionValue === "") {
+                newOutputName.classList.remove("is-valid", "is-invalid");
+                footerButton.classList.add("disabled");
+                return;
+            }
+
+            if (isValidName) {
+                newOutputName.classList.add("is-valid");
+                newOutputName.classList.remove("is-invalid");
+                footerButton.classList.remove("disabled");
+            } else {
+                newOutputName.classList.add("is-invalid");
+                newOutputName.classList.remove("is-valid");
+                footerButton.classList.add("disabled");
+            }
+        }
+
+        function attachNewOutputValidation() {
+            const newOutputName = document.getElementById("new-output-name");
+            newOutputName.addEventListener("input", validateNewOutput);
+            newOutputName.addEventListener("blur", validateNewOutput);
+            newOutputName.addEventListener("keyup", validateNewOutput);
+            const newOutputDescription = document.getElementById("new-output-description");
+            newOutputDescription.addEventListener("input", validateNewOutput);
+            newOutputDescription.addEventListener("blur", validateNewOutput);
+            newOutputDescription.addEventListener("keyup", validateNewOutput);
+        }
+
+        function renderOutputs() {
+            const outputsList = $("#outputs-list");
+            outputsList.empty(); // Clear existing content
+
+            if (Object.keys(currentOutput).length === 0) {
+                outputsList.append("<tr><td colspan='5' class='text-center text-secondary'>No outputs defined for this tool.</td></tr>");
+                return;
+            }
+
+            Object.keys(currentOutput).forEach(outputName => {
+                const output = currentOutput[outputName];
+                const outputElement = `
+                    <tr id="output-${outputName}" class="output-item">
+                        <td class="text-center p-2">
+                            <code>${outputName}</code>
+                        </td>
+                        <td class="p-2">
+                            <span class="text-secondary">${output.description || ''}</span>
+                        </td>
+                        <td class="text-center p-2">
+                            <span class="text-secondary">${output.format || ''}</span>
+                        </td>
+                        <td class="text-center p-2">
+                            <a class="text-link text-danger cursor-pointer" onclick="removeOutput('${outputName}')">Remove</a>
+                        </td>
+                    </tr>
+                `;
+                outputsList.append(outputElement);
+            });
+        }
+
+        function createNewOutput() {
+            const newOutputName = document.getElementById("new-output-name").value.trim();
+            const newOutputDescription = document.getElementById("new-output-description").value.trim();
+            const newOutputFormat = document.getElementById("new-output-format").value.toUpperCase();
+
+            if (newOutputName === "" || newOutputDescription === "") {
+                return;
+            }
+
+            $('#new-output-footer .stelar-loader').remove();
+            $('#new-output-footer .alert').remove();
+            $('#new-output-footer').prepend(createLoaderElement(false, true));
+
+            const newOutput = {
+                description: newOutputDescription,
+                format: newOutputFormat
+            };
+
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_patch_tool', entity_id=tool.get('id')) }}`,
+                type: "PATCH",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    outputs: { ...currentOutput, [newOutputName]: newOutput }
+                }),
+                success: function (response) {
+                    currentOutput = response.result.outputs;
+                    renderOutputs();
+                    document.getElementById("new-output-name").value = '';
+                    document.getElementById("new-output-name").classList.remove("is-valid", "is-invalid");
+                    document.getElementById("new-output-description").value = '';
+                    document.getElementById("new-output-format").value = 'csv';
+                    $('#new-output-footer .stelar-loader').remove();
+                    $('#new-output-footer').prepend(createAlertElement("success", "Output created successfully"));
+                    setTimeout(function () {
+                        $('#new-output-footer .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                },
+                error: function (error) {
+                    $('#new-output-footer .stelar-loader').remove();
+                    $('#new-output-footer').prepend(createAlertElement("danger", "Error creating output"));
+                    setTimeout(function () {
+                        $('#new-output-footer .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                    console.error("Error creating output:", error);
+                }
+            });
+        }
+
+        function removeOutput(outputName) {
+            confirmation = confirm("Are you sure you want to remove the output: " + outputName + "?");
+            if (!confirmation) {
+                return;
+            }
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_patch_tool', entity_id=tool.get('id')) }}`,
+                type: "PATCH",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    outputs: Object.fromEntries(Object.entries(currentOutput).filter(([key]) => key !== outputName))
+                }),
+                success: function (response) {
+                    currentOutput = response.result.outputs;
+                    renderOutputs();
+                },
+                error: function (error) {
+                    console.error("Error removing output:", error);
+                }
+            });
+        }
+
+
+        function validateNewParameter() {
+            const newParameterName = document.getElementById("new-parameter-name");
+            const newParameterValue = document.getElementById("new-parameter-value");
+            const newParameterDescription = document.getElementById("new-parameter-description");
+            const footerButton = document.getElementById("new-parameter-footer").querySelector("button");
+
+            const parameterNameValue = newParameterName.value.trim();
+            const parameterValueValue = newParameterValue.value.trim();
+            const parameterDescriptionValue = newParameterDescription.value.trim();
+            const isValidName = /^[a-zA-Z0-9_]+$/.test(parameterNameValue);
+
+            if (parameterNameValue === "" || parameterValueValue === "" || parameterDescriptionValue === "") {
+                newParameterName.classList.remove("is-valid", "is-invalid");
+                footerButton.classList.add("disabled");
+                return;
+            }
+
+            if (isValidName) {
+                newParameterName.classList.add("is-valid");
+                newParameterName.classList.remove("is-invalid");
+                footerButton.classList.remove("disabled");
+            } else {
+                newParameterName.classList.add("is-invalid");
+                newParameterName.classList.remove("is-valid");
+                footerButton.classList.add("disabled");
+            }
+        }
+
+        function attachNewParameterValidation() {
+            const newParameterName = document.getElementById("new-parameter-name");
+            newParameterName.addEventListener("input", validateNewParameter);
+            newParameterName.addEventListener("blur", validateNewParameter);
+            newParameterName.addEventListener("keyup", validateNewParameter);
+            const newParameterValue = document.getElementById("new-parameter-value");
+            newParameterValue.addEventListener("input", validateNewParameter);
+            newParameterValue.addEventListener("blur", validateNewParameter);
+            newParameterValue.addEventListener("keyup", validateNewParameter);
+            const newParameterDescription = document.getElementById("new-parameter-description");
+            newParameterDescription.addEventListener("input", validateNewParameter);
+            newParameterDescription.addEventListener("blur", validateNewParameter);
+            newParameterDescription.addEventListener("keyup", validateNewParameter);
+        }
+
+        function createNewParameter() {
+            const newParameterName = document.getElementById("new-parameter-name").value.trim();
+            let newParameterValue;
+            try {
+                newParameterValue = JSON.parse(document.getElementById("new-parameter-value").value.trim());
+            } catch (e) {
+                newParameterValue = document.getElementById("new-parameter-value").value.trim();
+            }
+            const newParameterDescription = document.getElementById("new-parameter-description").value.trim();
+            const newParameterRequired = document.getElementById("new-parameter-required").checked;
+
+            if (newParameterName === "" || newParameterValue === "" || newParameterDescription === "") {
+                return;
+            }
+
+            $('#new-parameter-footer .stelar-loader').remove();
+            $('#new-parameter-footer .alert').remove();
+            $('#new-parameter-footer').prepend(createLoaderElement(false, true));
+
+            const newParameter = {
+                value: newParameterValue,
+                description: newParameterDescription,
+                required: newParameterRequired
+            };
+
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_patch_tool', entity_id=tool.get('id')) }}`,
+                type: "PATCH",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    parameters: { ...currentParameters, [newParameterName]: newParameter }
+                }),
+                success: function (response) {
+                    currentParameters = response.result.parameters;
+                    renderParameters();
+                    document.getElementById("new-parameter-name").value = '';
+                    document.getElementById("new-parameter-name").classList.remove("is-valid", "is-invalid");
+                    document.getElementById("new-parameter-value").value = '';
+                    document.getElementById("new-parameter-description").value = '';
+                    document.getElementById("new-parameter-required").checked = false;
+                    $('#new-parameter-footer .stelar-loader').remove();
+                    $('#new-parameter-footer').prepend(createAlertElement("success", "Parameter created successfully"));
+                    setTimeout(function () {
+                        $('#new-parameter-footer .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                },
+                error: function (error) {
+                    $('#new-parameter-footer .stelar-loader').remove();
+                    $('#new-parameter-footer').prepend(createAlertElement("danger", "Error creating parameter"));
+                    setTimeout(function () {
+                        $('#new-parameter-footer .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                    console.error("Error creating parameter:", error);
+                }
+            });
+        }
+
+
+        function renderParameters() {
+            const parametersList = $("#parameters-list");
+            parametersList.empty(); // Clear existing content
+
+            if (Object.keys(currentParameters).length === 0) {
+                parametersList.append("<tr><td colspan='5' class='text-center text-secondary'>No parameters defined for this tool.</td></tr>");
+                return;
+            }
+
+            Object.keys(currentParameters).forEach(paramName => {
+                const param = currentParameters[paramName];
+                const paramElement = `
+                    <tr id="parameter-${paramName}" class="parameter-item">
+                        <td class="text-center p-2">
+                            <code>${paramName}</code>
+                        </td>
+                        <td class="p-2">
+                            <span class="text-secondary">
+                                ${typeof param.value === 'object' && param.value !== null 
+                                    ? `<pre style="text-align: left; white-space: pre-wrap;">${JSON.stringify(param.value, null, 2)}</pre>` 
+                                    : (param.value || '')}
+                            </span>
+                        </td>
+                        <td class="text-center p-2">
+                            <span class="text-secondary">${param.description || ''}</span>
+                        </td>
+                        <td class="text-center p-2">
+                            ${param.required ? '<span class="badge bg-success-lt">Yes</span>' : '<span class="badge bg-secondary-lt">No</span>'}
+                        </td>
+                        <td class="text-center p-2">
+                            <a class="text-link text-danger cursor-pointer" onclick="removeParameter('${paramName}')">Remove</a>
+                        </td>
+                    </tr>
+                `;
+                parametersList.append(paramElement);
+            });
+        }
+
+
+        function removeParameter(paramName) {
+            confirmation = confirm("Are you sure you want to remove the parameter: " + paramName + "?");
+            if (!confirmation) {
+                return;
+            }
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_patch_tool', entity_id=tool.get('id')) }}`,
+                type: "PATCH",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    parameters: Object.fromEntries(Object.entries(currentParameters).filter(([key]) => key !== paramName))
+                }),
+                success: function (response) {
+                    currentParameters = response.result.parameters;
+                    renderParameters();
+                },
+                error: function (error) {
+                    console.error("Error removing parameter:", error);
+                }
+            });
+        }
+
+
+
+
+        $(document).ready(function () {
+            renderInputs();
+            renderOutputs();
+            renderParameters();        
+            attachNewInputValidation();
+            attachNewOutputValidation();
+            attachNewParameterValidation();
         });
     </script>
 </body>

@@ -44,9 +44,9 @@ class ToolSchema(PackageSchema):
     git_repository = fields.String(allow_none=True)
     type = fields.String(validate=validators.Equal("tool"))
 
-    inputs = fields.Dict(keys=fields.String, values=fields.String, dump_default={})
-    outputs = fields.Dict(keys=fields.String, values=fields.String, dump_default={})
-    parameters = fields.Dict(keys=fields.String, values=fields.String, dump_default={})
+    inputs = fields.Dict(keys=fields.String, values=fields.Raw, dump_default={})
+    outputs = fields.Dict(keys=fields.String, values=fields.Raw, dump_default={})
+    parameters = fields.Dict(keys=fields.String, values=fields.Raw, dump_default={})
     category = fields.String(
         allow_none=True,
         validate=validators.OneOf(["discovery", "interlinking", "annotation", "other"]),
