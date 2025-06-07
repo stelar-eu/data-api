@@ -188,6 +188,54 @@ def api_token_refresh(json_data):
     }
 
 
+@users_bp.route("/impersonate", methods=["POST"])
+@users_bp.input(
+    schema.ImpersonateToken,
+    location="json",
+    example={"username": "user"},
+)
+@users_bp.output(
+    schema.APIResponse(),
+    example={
+        "help": "https://klms.stelar.gr/stelar/docs",
+        "result": {
+            "token": "$$$ACCESS_TOKEN$$$",
+            "refresh_token": "$$$REFRESH_TOKEN$$$",
+            "expires_in": 3600,
+            "refresh_expires_in": 18000,
+            "token_type": "Bearer",
+        },
+        "success": True,
+    },
+    status_code=200,
+)
+@users_bp.doc(tags=["User Management"])
+@admin_required
+@render_api_output(logger)
+def api_user_impersonate(json_data):
+    """
+    Generate an OAuth2.0 token for an existing user, impersonating them.
+    Requires admin role.
+
+    Args in a JSON:
+        - username: The username of the user
+        - password: The user's secret password
+    Returns:
+        - A JSON response with the OAuth2.0 token or an error message.
+    """
+
+    username = json_data.get("username")
+    token = kutils.exchange_token_for_user(kutils.current_token(), username)
+
+    return {
+        "token": token["access_token"],
+        "refresh_token": token["refresh_token"],
+        "expires_in": token["expires_in"],
+        "refresh_expires_in": token["refresh_expires_in"],
+        "token_type": token["token_type"],
+    }
+
+
 @users_bp.route("/", methods=["POST"])
 @users_bp.input(schema.NewUser, location="json")
 @users_bp.output(schema.APIResponse(), status_code=200)

@@ -23,6 +23,7 @@ from keycloak import (
 )
 
 import sql_utils
+import requests
 from backend.ckan import ckan_request
 from backend.kc import KEYCLOAK_ADMIN_CLIENT, KEYCLOAK_OPENID_CLIENT
 from backend.pgsql import execSql
@@ -1207,6 +1208,23 @@ def delete_client_roles(keycloak_admin, client_roles_to_delete):
         keycloak_admin.delete_client_role(
             keycloak_admin.get_client_id("minio"), client_role
         )
+
+
+@raise_keycloak_error
+def exchange_token_for_user(admin_token, username):
+    app = current_app._get_current_object()
+    config = app.config["settings"]
+    url = f"{config['KEYCLOAK_URL']}/realms/{config['REALM_NAME']}/protocol/openid-connect/token"
+    data = {
+        "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+        "subject_token": admin_token,
+        "requested_subject": username,
+        "client_id": config["KEYCLOAK_CLIENT_ID"],
+        "client_secret": config["KEYCLOAK_CLIENT_SECRET"],
+    }
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    response = requests.post(url, headers=headers, data=data)
+    return response.json()
 
 
 ##################################

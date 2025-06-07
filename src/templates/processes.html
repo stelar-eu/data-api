@@ -121,7 +121,7 @@
                                     </div>
                                 </div>
                                 <div class="card-footer d-flex align-items-center" id="pagination-container">
-                                    <p class="m-0 text-secondary">Showing 1 <span id="start"></span> to <span
+                                    <p class="m-0 text-secondary">Showing <span id="start"></span> to <span
                                             id="end">{{processes|length}}</span> of <span
                                             id="total">{{processes|length}}</span>
                                         entries</p>
@@ -291,10 +291,18 @@
                 ${process.exec_state == 'failed' ? '<span class="badge bg-danger"></span>' : ''}
                 ${process.exec_state == 'running' ? '<span class="badge bg-warning"></span>' : ''}
             </td>
-            <td><a href="{{url_for('dashboard_blueprint.process', process_id='')}}/${process.id}">View</a></td>
+            <td><a href="{{url_for('dashboard_blueprint.process', process_id='')}}${process.id}">View</a></td>
         </tr>`;
         return processLine;
     }
+
+    function buildFillerLine(){
+        return `<tr style="height: 45px;">
+            <td colspan="6" class="text-center text-secondary"></td>
+        </tr>`;
+    }
+
+    let currentQuery = "{{ search_query if search_query else '' }}";
 
     function buildPagination(page, totalPages) {
         const $paginationNumbers = $('#pagination-numbers');
@@ -319,14 +327,14 @@
             $('.pagination li').removeClass('active');
             $(this).parent().addClass('active');
             const selectedPage = parseInt($(this).attr('data-page'));
-            searchProcesses(selectedPage);
+            searchProcesses(selectedPage, currentQuery); // Pass the current query
         });
         $('#prev-page').off('click').on('click', function(){
             if(page > 1){
                 let newPage = page - 1;
                 $('.pagination li').removeClass('active');
                 $('a[data-page="'+newPage+'"]').parent().addClass('active');
-                searchProcesses(newPage);
+                searchProcesses(newPage, currentQuery); // Pass the current query
             }
         });
         $('#next-page').off('click').on('click', function(){
@@ -334,12 +342,13 @@
                 let newPage = page + 1;
                 $('.pagination li').removeClass('active');
                 $('a[data-page="'+newPage+'"]').parent().addClass('active');
-                searchProcesses(newPage);
+                searchProcesses(newPage, currentQuery); // Pass the current query
             }
         });
     }
 
     function searchProcesses(page = 1, query = '') {
+        currentQuery = query; // Update the global query variable
         var offset = (page - 1) * 8;
         showPlaceholderProcesses();
         $.ajax({
@@ -350,7 +359,7 @@
             data: JSON.stringify({
                 limit: 8,
                 offset: offset,
-                ...(query ? { q: query } : {})
+                ...(currentQuery ? { q: currentQuery } : {})
             }),
             success: function (response) {
                 $('#processes-body').empty();
@@ -358,6 +367,10 @@
                     response.result.results.forEach(function (process) {
                         $('#processes-body').append(buildProcessLine(process));
                     });
+                    const fillerCount = 8 - response.result.results.length;
+                    for (let i = 0; i < fillerCount; i++) {
+                        $('#processes-body').append(buildFillerLine());
+                    }
                 }
                 const total = response.result.count;
                 const totalPages = Math.ceil(total / 8);
@@ -387,13 +400,21 @@
             $('#processes-search-box').after('<div id="search-badge-container" style="margin-top:5px;"></div>');
         }
         if (query) {
-            $('#processes-search-filters').html('<span class="badge badge-lg bg-gray" style="cursor:pointer;">' + query + ' &times;</span>');
+            //Update the q in the URL 
+            const url = new URL(window.location.href);
+            url.searchParams.set('q', query);
+            window.history.pushState({}, '', url.toString());
+            $('#processes-search-filters').html('<span class="badge badge-lg bg-blue-lt" style="cursor:pointer;">' + query + ' &times;</span>');
             $('#processes-search-filters span').on('click', function() {
                 $('#processes-search-box').val('');
                 $('#processes-search-filters').empty();
                 searchProcesses(1, '');
             });
         } else {
+            // If query is empty, remove the badge and reset the URL
+            const url = new URL(window.location.href);
+            url.searchParams.delete('q');
+            window.history.pushState({}, '', url.toString());
             $('#processes-search-filters').empty();
         }
     }
@@ -522,7 +543,8 @@
         fetchOrganizations(function () {
             renderCharts();
         });
-        searchProcesses();
+        searchProcesses(1, currentQuery);
+        updateSearchBadge(currentQuery);
     });
 
 </script>
