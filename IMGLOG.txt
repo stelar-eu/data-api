@@ -1,9 +1,3 @@
-This branch (main) contains the source under which the image 
-
-    petroud/stelar-api:prod
-
-is built
-
-
-Latest Build:
-- 6/6/2025
+# Branch name   image name                           Last build         
+main            petroud/stelar-api:prod              06/06/2025 00:00:00
+k8sexecution    vsam/stelar-tuc:data-api-dev         01/06/2025 00:00:00
