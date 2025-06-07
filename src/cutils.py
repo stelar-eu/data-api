@@ -8,11 +8,13 @@ from typing import Optional
 import requests
 from apiflask import Schema, fields, validators
 from marshmallow import EXCLUDE, INCLUDE, post_dump
+from typing import List, Dict
 
 import schema
 import utils
 from backend.ckan import ckan_request, request
 from backend.pgsql import execSql
+import sql_utils
 from entity import (
     AnyCapacity,
     CKANEntity,
@@ -698,6 +700,72 @@ class ResourceEntity(CKANEntity):
         self.operations.remove("fetch")
         self.operations.append("search")
         self.search_query_schema = schema.ResourceSearchQuery()
+
+    def track_lineage(self, resource_id: str):
+        """Return the lineage of a resource. Thus meaning
+        upon which task execution with which resource this artifact
+        was created.
+        """
+        self.get_entity(resource_id)  # Ensure the resource exists and is accessible
+        records = sql_utils.track_resource_lineage(resource_id)
+        return (
+            self.build_enriched_lineage_graph(
+                lineage_records=records,
+            )
+            if records
+            else {"nodes": [], "edges": []}
+        )
+
+    def build_enriched_lineage_graph(self, lineage_records: List[Dict]) -> Dict:
+        nodes = {}
+        edge_set = set()  # to ensure unique edges
+
+        def add_node(node_id: str, label: str, node_type: str, extra: Dict = None):
+            if node_id not in nodes:
+                nodes[node_id] = {"id": node_id, "label": label, "type": node_type}
+                if extra:
+                    nodes[node_id].update(extra)
+
+        for entry in lineage_records:
+            # Add input resource node
+            input_res_id = entry["input_resource_id"]
+            input_res_label = f'{entry["input_resource_name"] or "Unnamed Resource"}'
+            add_node(
+                input_res_id,
+                input_res_label,
+                "Resource",
+                {
+                    "url": entry.get("input_resource_url"),
+                    "package_id": entry.get("input_resource_package_id"),
+                },
+            )
+
+            # Add task node
+            task_id = entry["input_task_uuid"]
+            task_name = entry.get("task_name") or "Unnamed Task"
+            task_label = f"{task_name}"
+            add_node(
+                task_id,
+                task_label,
+                "Task",
+                {
+                    "process_id": entry.get("workflow_uuid"),
+                    "state": entry.get("task_state"),
+                    "start_date": entry.get("start_date"),
+                    "end_date": entry.get("end_date"),
+                },
+            )
+
+            # Add output resource node
+            output_res_id = entry["resource_id"]
+            output_label = f'{entry["output_name"]}'
+            add_node(output_res_id, output_label, "Resource")
+
+            # Add unique edges
+            edge_set.add((input_res_id, task_id))
+            edge_set.add((task_id, output_res_id))
+
+        return {"nodes": list(nodes.values()), "edges": list(edge_set)}
 
     def search(self, query_spec):
         """Search for resources in the catalog.

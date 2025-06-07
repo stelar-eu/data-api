@@ -58,7 +58,7 @@ def api_get_search_shema():
 
 @catalog_bp.route("/export/zenodo/<dataset_id>", methods=["GET"])
 @catalog_bp.output(schema.APIResponse, status_code=200)
-@catalog_bp.doc(tags=["Search Operations"])
+@catalog_bp.doc(tags=["RESTful Publishing Operations"])
 @token_active
 @render_api_output(logger)
 def api_export_zenodo_dataset_id(dataset_id):
@@ -78,6 +78,23 @@ def api_export_zenodo_dataset_id(dataset_id):
         dset["organization"]["title"],
         None,
     )
+
+
+@catalog_bp.route("/resource/<entity_id>/lineage", methods=["GET"])
+@catalog_bp.output(schema.APIResponse, status_code=200)
+@catalog_bp.doc(tags=["Search Operations"])
+@token_active
+@render_api_output(logger)
+def api_get_resource_lineage(entity_id):
+    """Get the lineage of a resource.
+
+    Args:
+        entity_id: The unique identifier of the resource as listed in CKAN.
+
+    Returns:
+        A JSON with the lineage of the resource.
+    """
+    return RESOURCE.track_lineage(entity_id)
 
 
 #

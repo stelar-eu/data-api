@@ -16,6 +16,10 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <!-- Leaflet PM CSS (for polygon editing) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.css" />
+  <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+  <script src="https://unpkg.com/cytoscape-dagre@2.3.2/cytoscape-dagre.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.32.0/cytoscape.min.js"></script>
+  <script src="https://unpkg.com/cytoscape-node-html-label/dist/cytoscape-node-html-label.js"></script>
 
 </head>
 
@@ -472,6 +476,9 @@
                                         </svg>
                                         Visualize</a>
                                       {% endif %}
+                                      <a class="dropdown-item cursor-pointer" onclick="trackLineage('{{ resource['id'] }}')">
+                                        <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="currentColor"  class="me-2 icon icon-tabler icons-tabler-filled icon-tabler-chart-dots-3"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 2a4 4 0 1 1 -3.843 5.114l-6.295 .786a3 3 0 0 1 -.094 .257l6.446 4.431a3 3 0 1 1 -.695 4.099l-3.527 1.058q .008 .127 .008 .255a4 4 0 1 1 -8 0l.005 -.2a4 4 0 0 1 7.366 -1.954l3.64 -1.094l.01 -.102q .023 -.204 .074 -.4l-6.688 -4.6a3 3 0 0 1 -4.407 -2.65l.005 -.176a3 3 0 0 1 5.784 -.931l6.312 -.79a4 4 0 0 1 3.899 -3.103" /></svg>
+                                        Track Lineage</a>
                                       <div class="dropdown-divider"></div>
                                       <a del-resource-id="{{ resource['id'] }}"
                                         class="text-danger cursor-pointer dropdown-item del-resource-btn">
@@ -1033,6 +1040,36 @@
             </div>
           </div>
 
+          <div class="modal modal-blur fade mt-4" id="modal-track-lineage" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-full-width modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Lineage Tracker · <span id="track-lineage-id"></span></h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <button id="download-png" class="btn btn-primary mb-2">Download Graph as PNG</button>                    
+                    <div id="lineage-container" style="
+                      width: 100%; 
+                      height: 70vh; 
+                      overflow: hidden;
+                      background-color: #ffffff;
+                      background-image: 
+                          linear-gradient(to right, #f1f1f1 1px, transparent 1px),
+                          linear-gradient(to bottom, #f1f1f1 1px, transparent 1px);
+                      background-size: 10px 10px;
+                      ">
+                   </div>
+                </div>
+                <div class="modal-footer" id="modal-track-lineage-footer">
+                  <a class="btn btn-primary-outline me-auto" data-bs-dismiss="#modal-track-lineage">
+                    Close
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvas-zenodo" aria-labelledby="zenodo-offcanvas">
             <div class="offcanvas-header">
               <h2 class="offcanvas-title" id="zenodo-offcanvas">Zenodo Export JSON</h2>
@@ -1059,8 +1096,8 @@
   <!-- Datepickers -->
   <script>
 
-    var startTimeStr = {{ dataset.extras.get('temporal_start') | safe }};
-    var endTimeStr = {{ dataset.extras.get('temporal_end') | safe }};
+    var startTimeStr = {{ dataset.extras.get('temporal_start') | safe if dataset.extras.get('temporal_start') else 'null' }};
+    var endTimeStr = {{ dataset.extras.get('temporal_end') | safe if dataset.extras.get('temporal_end') else 'null' }};
 
     if (startTimeStr) {
       document.getElementById('start-datetime').value = new Date(startTimeStr).toISOString().slice(0, 16);
@@ -2212,6 +2249,108 @@
     });
 
   </script>
+  <script>
+    cytoscape.use(window.cytoscapeDagre);
+    function trackLineage(resourceId){
+      $('#modal-track-lineage').modal('show');
+      $('#track-lineage-id').text(resourceId);
+      $.ajax({
+        url:`{{url_for('catalog_blueprint.api_get_resource_lineage',entity_id='__ID__')}}`.replace('__ID__',resourceId),
+        type:'GET',
+        success:function(response){
+          const data=response.result;
+          const nodes=data.nodes.map(n=>{
+            const t=n.type.toLowerCase();
+            const isTask=t==='task';
+            let lbl=isTask?`${n.label}\n${formatIsoDate(n.end_date)||''}`:n.label;
+            if(t==='resource'&&n.url){
+              lbl+=`\n${n.url}`;
+            }
+            return{data:{
+              id:n.id,
+              label:lbl,
+              type:t,
+              package_id:n.package_id,
+              process_id:n.process_id,
+              isTrackedResource:(n.id===resourceId).toString(),
+              ...(n.final?{final:true}:{})
+            }};
+          });
+          const edges=data.edges.map(([s,t])=>({data:{source:s,target:t}}));
+          const cy=cytoscape({
+            container:document.getElementById('lineage-container'),
+            elements:[...nodes,...edges],
+            style:[
+              {selector:'node',style:{
+                'label':'data(label)',
+                'text-wrap':'wrap',
+                'text-max-width':200,
+                'text-valign':'center',
+                'text-halign':'center',
+                'font-size':'10px',
+                'shape':'rectangle',
+                'border-width':0,
+                'padding':'20px',
+                'width':'label',
+                'height':'label'}},
+              {selector:'node[type="task"]',style:{
+                'shape':'ellipse',
+                'background-color':'#d1c4e9'}},
+              {selector:'node[type="resource"][isTrackedResource="true"]',style:{
+                'shape':'rectangle',
+                'background-color':'#c8e6c9'}},
+              {selector:'node[type="resource"][isTrackedResource="false"]',style:{
+                'shape':'rectangle',
+                'background-color':'#b3e5fc'}},
+              {selector:'node[type="process"]',style:{
+                'shape':'rectangle',
+                'background-color':'#fff9c4'}},
+              {selector:'edge',style:{
+                'width':2,
+                'line-color':'#999',
+                'target-arrow-color':'#999',
+                'target-arrow-shape':'triangle',
+                'curve-style':'bezier'}}
+            ],
+            layout:{name:'dagre',rankDir:'LR',nodeSep:50,edgeSep:15,rankSep:100}
+          });
+          if(cy.nodeHtmlLabel){
+            cy.nodeHtmlLabel([{query:'node',halignBox:'center',valignBox:'bottom',halign:'center',valign:'top',tpl:d=>`(${d.id})`}]);
+          }
+          cy.on('tap','node',e=>{
+            const d=e.target.data();
+            if(d.type==='task'){
+              const u=`{{url_for('dashboard_blueprint.task',process_id='__PID__',task_id='__TID__')}}`.replace('__PID__',d.process_id).replace('__TID__',d.id);
+              window.open(u,'_blank');
+            }else if(d.type==='resource'&&d.package_id){
+              const u=`{{url_for('dashboard_blueprint.dataset_detail',dataset_id='__DID__')}}`.replace('__DID__',d.package_id);
+              window.open(u,'_blank');
+            }
+          });
+          cy.ready(() => {
+            setTimeout(() => {
+              const layout = cy.layout({ name: 'dagre', rankDir: 'LR' });
+              layout.run();
+              cy.fit(cy.elements(), { padding: 50 });
+            }, 100);
+          });
+          document.getElementById('download-png').onclick=()=>{
+            const png=cy.png({full:true,scale:2});
+            const l=document.createElement('a');
+            l.href=png;
+            l.download='lineage_graph.png';
+            document.body.appendChild(l);
+            l.click();
+            document.body.removeChild(l);
+          };
+        },
+        error:function(err){console.error('Error fetching lineage data:',err);}
+      });
+    }
+    </script>
+  
+  
+
   <script>
 
     $(document).ready(function () {
