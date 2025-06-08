@@ -445,22 +445,48 @@ def dataset_relationships(dataset_id):
 @session_required
 def viewResource(resource_id):
     config = current_app.config["settings"]
+    host = config.get("MAIN_EXT_URL")
+
     if resource_id:
         try:
             minio_console_url = config.get("S3_CONSOLE_URL").replace(
                 "login", "browser/"
             )
-            resource_mtd = cutils.get_resource(id=resource_id)
-            url = resource_mtd.get("url")
+            resource = RESOURCE.get_entity(resource_id)
+            try:
+                package = DATASET.get_entity(resource.get("package_id"))
+            except Exception:
+                try:
+                    package = PROCESS.get_entity(resource.get("package_id"))
+                except Exception:
+                    package = None
+
+            s3_link = None
+
+            url = resource.get("url")
             if url and url.startswith("s3://"):
-                url = url.replace("s3://", minio_console_url)
-                resource_mtd["url"] = url
+                s3_link = url.replace("s3://", minio_console_url)
+
+            s3_endpoint = "minio.stelar.gr"
+            creds = mutils.get_temp_minio_credentials(kutils.current_token())
+
+            embed_uri = (
+                f"/previewer/?embed=true"
+                f"&access_key={quote(creds['AccessKeyId'])}"
+                f"&secret_key={quote(creds['SecretAccessKey'])}"
+                f"&session_token={quote(creds['SessionToken'])}"
+                f"&s3_endpoint={quote(s3_endpoint)}"
+                f"&s3_path={quote(resource.get('url'))}"
+            )
             return render_template_with_s3(
                 "resource.html",
+                S3_LINK=s3_link,
+                GUI_URL=host + embed_uri,
                 PARTNER_IMAGE_SRC=get_partner_logo(),
-                resource=resource_mtd,
+                resource=resource,
+                package=package,
             )
-        except:
+        except Exception:
             return redirect(url_for("dashboard_blueprint.catalog"))
     else:
         return redirect(url_for("dashboard_blueprint.catalog"))

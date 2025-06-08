@@ -404,7 +404,7 @@
                             <thead>
                               <tr>
                                 <th class="text-center" style="width: 10%;">Relation</th>
-                                <th style="width: 40%;">Resource Name</th>
+                                <th style="width: 40%;">Resource</th>
                                 <th style="width: 40%;">URL</th>
                                 <th class="text-center" style="width: 10%">Format</th>
                                 <th class="w-1"></th>
@@ -422,7 +422,11 @@
                                     <span class="badge bg-secondary text-secondary-fg">{{ resource.get('relation') | upper }}</span>
                                   {% endif %}
                                 </td>
-                                <td class="text-sm">{{ resource['name'] }}</td>
+                                <td class="text-sm">
+                                  <a href="{{ url_for('dashboard_blueprint.viewResource', resource_id=resource['id']) }}" class="text-sm text-black">
+                                  {{ resource['name'] }}
+                                  </a>
+                                </td>
                                 <td class="text-sm">
                                   {% if resource['url'].startswith('s3://') %}
                                     <a href="{{ S3_CONSOLE_URL.replace('/login', '/browser/') }}{{ resource['url'][5:] }}" target="_blank">
