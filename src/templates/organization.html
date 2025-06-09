@@ -106,14 +106,16 @@
                                                                 <path
                                                                     d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
                                                             </svg>
-                                                            <span class="text-secondary placeholder placeholder-glow" id="org-dataset-count">
-                                                                0 Datasets                                                                
+                                                            <span class="text-secondary placeholder placeholder-glow"
+                                                                id="org-dataset-count">
+                                                                0 Datasets
                                                             </span>
                                                         </div>
                                                         <div class="list-inline-item">
                                                             <!-- Download SVG icon from http://tabler.io/icons/icon/license -->
-                                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
-                                                                viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon"
+                                                                width="24" height="24" viewBox="0 0 24 24"
+                                                                stroke-width="2" stroke="currentColor" fill="none"
                                                                 stroke-linecap="round" stroke-linejoin="round">
                                                                 <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                                                 <path d="M12 3l8 4.5v9l-8 4.5l-8 -4.5v-9l8 -4.5" />
@@ -121,7 +123,8 @@
                                                                 <path d="M12 12l0 9" />
                                                                 <path d="M12 12l-8 -4.5" />
                                                             </svg>
-                                                            <span class="text-secondary placeholder placeholder-glow" id="org-process-count">
+                                                            <span class="text-secondary placeholder placeholder-glow"
+                                                                id="org-process-count">
                                                                 0 Processes
                                                             </span>
                                                         </div>
@@ -140,7 +143,8 @@
                                                                 <path d="M5 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
                                                                 <path d="M3 13v-1a2 2 0 0 1 2 -2h2" />
                                                             </svg>
-                                                            <span class="text-secondary placeholder placeholder-glow" id="org-user-count">
+                                                            <span class="text-secondary placeholder placeholder-glow"
+                                                                id="org-user-count">
                                                                 0 Members
                                                             </span>
                                                         </div>
@@ -211,7 +215,9 @@
                                         modified</small>
                                 </div>
                                 <div class="ms-auto">
-                                    <a href="{{ url_for('dashboard_blueprint.catalog' )}}?org={{organization.name}}" class="btn btn-sm py-1 btn-pill btn-outline-primary text-wrap" target="_blank">Browse
+                                    <a href="{{ url_for('dashboard_blueprint.catalog' )}}?org={{organization.name}}"
+                                        class="btn btn-sm py-1 btn-pill btn-outline-primary text-wrap"
+                                        target="_blank">Browse
                                         all datasets
                                         of
                                         {{organization.title}}</a>
@@ -227,7 +233,7 @@
                                                 <h3 class="m-0 placeholder col-9"></h3>
                                                 <small class="placeholder col-4 mt-1"></small>
                                                 <div class="d-flex mt-4">
-                                                 
+
                                                 </div>
                                             </div>
                                         </div>
@@ -259,7 +265,8 @@
                                         </div>
                                         {% if admin %}
                                         <div class="ms-auto">
-                                            <a class="cursor-pointer" data-bs-toggle="modal" data-bs-target="#org-users-modal">
+                                            <a class="cursor-pointer" data-bs-toggle="modal"
+                                                data-bs-target="#org-users-modal">
                                                 Manage Members
                                             </a>
                                         </div>
@@ -312,14 +319,16 @@
                                             <small class="text-secondary">Workflow Processes executed within the
                                                 organization</small>
                                         </div>
-                                   
+
                                         <div class="ms-auto">
-                                            <a class="cursor-pointer text-link" href="{{ url_for('dashboard_blueprint.processes') }}?q={{ organization.title | urlencode }}" target="_blank">
+                                            <a class="cursor-pointer text-link"
+                                                href="{{ url_for('dashboard_blueprint.processes') }}?q={{ organization.title | urlencode }}"
+                                                target="_blank">
                                                 Browse All Processes
                                             </a>
                                         </div>
 
-                                        
+
                                     </div>
                                     <div class="row row-cards" id="org-processes">
                                         {% for i in range(0,4) %}
@@ -385,38 +394,55 @@
             </div>
 
             {% if admin %}
-            <div class="modal modal-blur fade" id="org-users-modal" tabindex="-1" style="display: none;" aria-hidden="true">
+            <div class="modal modal-blur fade" id="org-users-modal" tabindex="-1" style="display: none;"
+                aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-                  <div class="modal-content">
-                    <div class="modal-header border-0">
-                      <h5 class="modal-title">Organization Members</h5>
-                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <div class="modal-content">
+                        <div class="modal-header border-0">
+                            <h5 class="modal-title">Organization Members</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-0">
+                            <table class="table table-bordered m-0">
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Full Name</th>
+                                        <th>Capacity</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="org-users-list">
+                                    <tr id="new-org-member">
+                                        <td colspan="4" class="text-center p-2">
+                                            <a class="text-green cursor-pointer" onclick="addUserField()"
+                                                title="Add New User">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                    class="icon icon-tabler icons-tabler-outline icon-tabler-circle-dashed-plus">
+                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                    <path d="M8.56 3.69a9 9 0 0 0 -2.92 1.95" />
+                                                    <path d="M3.69 8.56a9 9 0 0 0 -.69 3.44" />
+                                                    <path d="M3.69 15.44a9 9 0 0 0 1.95 2.92" />
+                                                    <path d="M8.56 20.31a9 9 0 0 0 3.44 .69" />
+                                                    <path d="M15.44 20.31a9 9 0 0 0 2.92 -1.95" />
+                                                    <path d="M20.31 15.44a9 9 0 0 0 .69 -3.44" />
+                                                    <path d="M20.31 8.56a9 9 0 0 0 -1.95 -2.92" />
+                                                    <path d="M15.44 3.69a9 9 0 0 0 -3.44 -.69" />
+                                                    <path d="M9 12h6" />
+                                                    <path d="M12 9v6" />
+                                                </svg>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="modal-footer border-0" id="org-users-footer">
+                            <button type="button" class="btn" data-bs-dismiss="modal">Close</button>
+                        </div>
                     </div>
-                    <div class="modal-body p-0">
-                        <table class="table table-bordered m-0">
-                            <thead>
-                                <tr>
-                                    <th>Username</th>
-                                    <th>Full Name</th>
-                                    <th>Capacity</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="org-users-list">
-                                <tr id="new-org-member">
-                                    <td colspan="4" class="text-center p-2">
-                                      <a class="text-green cursor-pointer" onclick="addUserField()" title="Add New User">
-                                        <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-circle-dashed-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8.56 3.69a9 9 0 0 0 -2.92 1.95" /><path d="M3.69 8.56a9 9 0 0 0 -.69 3.44" /><path d="M3.69 15.44a9 9 0 0 0 1.95 2.92" /><path d="M8.56 20.31a9 9 0 0 0 3.44 .69" /><path d="M15.44 20.31a9 9 0 0 0 2.92 -1.95" /><path d="M20.31 15.44a9 9 0 0 0 .69 -3.44" /><path d="M20.31 8.56a9 9 0 0 0 -1.95 -2.92" /><path d="M15.44 3.69a9 9 0 0 0 -3.44 -.69" /><path d="M9 12h6" /><path d="M12 9v6" /></svg>
-                                      </a>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="modal-footer border-0" id="org-users-footer">
-                      <button type="button" class="btn" data-bs-dismiss="modal">Close</button>
-                    </div>
-                  </div>
                 </div>
             </div>
             {% endif %}
@@ -429,7 +455,7 @@
     </div>
     <script>
 
-        function renderDatasetCard(dataset){
+        function renderDatasetCard(dataset) {
             return `
             <div class="col-sm-6 col-lg-6">
                 <a class="card card-link" href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}${dataset.id}" target="_blank">
@@ -448,7 +474,7 @@
             </div>`;
         }
 
-        function fetchOrganizationDatasets(){
+        function fetchOrganizationDatasets() {
 
             q = {
                 "fl": [
@@ -461,11 +487,11 @@
                 ],
                 "limit": 4,
                 "sort": "metadata_modified desc",
-                "fq": [ 
+                "fq": [
                     "owner_org:{{ organization.id }}",
                 ],
-                "facet":{
-                    "fields":[]
+                "facet": {
+                    "fields": []
                 }
             }
 
@@ -476,16 +502,16 @@
                 type: "POST",
                 data: JSON.stringify(q),
                 contentType: "application/json",
-                success: function(response) {
-                    if(response.success){
+                success: function (response) {
+                    if (response.success) {
                         $('#org-recent-datasets').empty();
 
                         if (response.result.count > 0) {
                             $('#org-dataset-count').removeClass('placeholder placeholder-glow');
                             $('#org-dataset-count').text(response.result.count + (response.result.count === 1 ? ' Dataset' : ' Datasets'));
                             const datasets = response.result.results;
-                            datasets.forEach(function(dataset) {
-                                if(dataset.organization != org_name){
+                            datasets.forEach(function (dataset) {
+                                if (dataset.organization != org_name) {
                                     return;
                                 }
                                 $('#org-recent-datasets').append(renderDatasetCard(dataset));
@@ -498,15 +524,15 @@
                         }
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     console.error("AJAX Error:", status, error);
                 }
             });
-            
+
 
         }
 
-        function fetchOrganizationProcesses(){
+        function fetchOrganizationProcesses() {
             pq = {
                 "fl": [
                     "name",
@@ -519,11 +545,11 @@
                 ],
                 "limit": 4,
                 "sort": "metadata_modified desc",
-                "fq": [ 
+                "fq": [
                     "owner_org:{{ organization.id }}",
                 ],
-                "facet":{
-                    "fields":[]
+                "facet": {
+                    "fields": []
                 }
             }
 
@@ -532,12 +558,12 @@
                 type: "POST",
                 data: JSON.stringify(pq),
                 contentType: "application/json",
-                success: function(response) {
-                    if(response.success){
-                        if(response.result.count > 0){
+                success: function (response) {
+                    if (response.success) {
+                        if (response.result.count > 0) {
                             $('#org-processes').empty();
-                            response.result.results.forEach(function(process) {
-                                if(process.organization != "{{ organization.name }}"){
+                            response.result.results.forEach(function (process) {
+                                if (process.organization != "{{ organization.name }}") {
                                     return;
                                 }
                                 $('#org-process-count').removeClass('placeholder placeholder-glow');
@@ -565,49 +591,49 @@
                         }
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     console.error("AJAX Error:", status, error);
                 }
             });
         }
 
-        function fetchOrganizationTools(){
+        function fetchOrganizationTools() {
             tq = {
                 "fl": [],
-                "fq":[
+                "fq": [
                     "owner_org:{{ organization.id }}",
                 ],
-                "facet":{
-                    "fields":[]
+                "facet": {
+                    "fields": []
                 }
             }
 
             $.ajax({
-            url: "{{url_for('rest_workflows_blueprint.api_search_tools')}}",
-            type: "POST",
-            data: JSON.stringify(tq),
-            contentType: "application/json",
-            success: function(response) {
-                if(response.success){
-                    if(response.result.count > 0){
-                        $('#org-tools').empty();
-                        response.result.results.forEach(function(tool) {
-                            let toolImage;
-                            const categoryExtra = tool.extras.find(extra => extra.key === 'category');
-                            const category = categoryExtra ? categoryExtra.value.replace(/"/g, '') : null;
+                url: "{{url_for('rest_workflows_blueprint.api_search_tools')}}",
+                type: "POST",
+                data: JSON.stringify(tq),
+                contentType: "application/json",
+                success: function (response) {
+                    if (response.success) {
+                        if (response.result.count > 0) {
+                            $('#org-tools').empty();
+                            response.result.results.forEach(function (tool) {
+                                let toolImage;
+                                const categoryExtra = tool.extras.find(extra => extra.key === 'category');
+                                const category = categoryExtra ? categoryExtra.value.replace(/"/g, '') : null;
 
-                            if (category === 'discovery') {
-                                toolImage = "{{ url_for('static', filename='logos/tools/discovery.png') }}";
-                            } else if (category === 'annotation') {
-                                toolImage = "{{ url_for('static', filename='logos/tools/annotation.png') }}";
-                            } else if (category === 'interlinking') {
-                                toolImage = "{{ url_for('static', filename='logos/tools/linking.png') }}";
-                            } else {
-                                const initials = tool.title.split('-').map(word => word[0].toUpperCase()).join('');
-                                toolImage = `<div class="avatar avatar-sm rounded mt-1">${initials}</div>`;
-                            }
+                                if (category === 'discovery') {
+                                    toolImage = "{{ url_for('static', filename='logos/tools/discovery.png') }}";
+                                } else if (category === 'annotation') {
+                                    toolImage = "{{ url_for('static', filename='logos/tools/annotation.png') }}";
+                                } else if (category === 'interlinking') {
+                                    toolImage = "{{ url_for('static', filename='logos/tools/linking.png') }}";
+                                } else {
+                                    const initials = tool.title.split('-').map(word => word[0].toUpperCase()).join('');
+                                    toolImage = `<div class="avatar avatar-sm rounded mt-1">${initials}</div>`;
+                                }
 
-                            $('#org-tools').append(`
+                                $('#org-tools').append(`
                                 <div class="col-sm-6 col-lg-6">
                                 <a class="card card-link" href="{{url_for('dashboard_blueprint.tool', tool_id='')}}${tool.id}" target="_blank">
                                     <div class="card-body d-flex">
@@ -624,39 +650,39 @@
                                 </a>
                                 </div>
                             `);
-                        });
-                    } else {
-                        $('#org-tools').html('<p class="text-secondary">No tools found for this organization</p>');
+                            });
+                        } else {
+                            $('#org-tools').html('<p class="text-secondary">No tools found for this organization</p>');
+                        }
                     }
+                },
+                error: function (xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error("AJAX Error:", status, error);
-            }
             });
         }
 
-        
+
         systemUsers = [];
         organizationUsers = [];
 
-        function fetchOrganizationUsers(usersRep){
+        function fetchOrganizationUsers(usersRep) {
             $.ajax({
                 url: "{{url_for('catalog_blueprint.api_list_user_members_of_organization', entity_id=organization.id)}}",
                 type: "GET",
-                success: function(response) {
-                    if(response.success){
+                success: function (response) {
+                    if (response.success) {
                         count = response.result.length;
                         $('#org-user-count').removeClass('placeholder placeholder-glow');
                         $('#org-user-count').text(count + (count === 1 ? ' Member' : ' Members'));
 
-                        if(count > 0){
+                        if (count > 0) {
                             $('#org-recent-users').empty();
                             $('#org-users-list').find('tr:not(#new-org-member)').remove();
                             organizationUsers = response.result.map(user => user[0]);
 
                             // Populate organization users
-                            response.result.forEach(function(user) {
+                            response.result.forEach(function (user) {
                                 var userId = user[0];
                                 var userDetails = usersRep.find(u => u.id === userId);
                                 var userName = userDetails ? userDetails.fullname : 'Unknown';
@@ -691,7 +717,7 @@
                         $('#org-user-count').text('0 Members');
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     console.error("AJAX Error:", status, error);
                     $('#org-user-count').text('0 Members');
                 }
@@ -702,30 +728,30 @@
             $.ajax({
                 url: "{{url_for('users_blueprint.api_list_users')}}",
                 type: "GET",
-                success: function(response) {
-                    if(response.success){
-                       if(callback && typeof callback === 'function') {
+                success: function (response) {
+                    if (response.success) {
+                        if (callback && typeof callback === 'function') {
                             callback(response.result);
                         }
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     console.error("AJAX Error:", status, error);
                 }
             })
         }
-        
-        $(document).ready(function() {
+
+        $(document).ready(function () {
             fetchOrganizationDatasets();
             fetchOrganizationProcesses();
             fetchOrganizationTools();
-            fetchSystemUsers(function(usersRep) {
+            fetchSystemUsers(function (usersRep) {
                 fetchOrganizationUsers(usersRep);
             });
         });
     </script>
     <script>
-        function buildNormalUserRow(fullname, username, userId, capacity){
+        function buildNormalUserRow(fullname, username, userId, capacity) {
             return `<tr id="user-${userId}">
                         <td>${username}</td>
                         <td>${fullname}</td>
@@ -738,8 +764,8 @@
                         </td>
                     </tr>`;
         }
-      
-        function buildUserEditRow(fullname, username, userId, capacity){
+
+        function buildUserEditRow(fullname, username, userId, capacity) {
             return `
                 <tr id="user-row-edit">
                 <td> ${username}</td>
@@ -761,8 +787,8 @@
                 </td>
                 </tr>`;
         }
-      
-        function buildAddUserRow(){
+
+        function buildAddUserRow() {
             return `
                 <tr id="user-row-new">
                     <td colspan="2">
@@ -786,88 +812,216 @@
             `;
         }
 
-        function addUserField(){
+        function addUserField() {
             const userRow = $('#user-row-new');
             const editRow = $('#user-row-edit');
             if (editRow.length > 0) {
-              cancelEditUser();
+                cancelEditUser();
             }
             if (userRow.length === 0) {
-              $('#new-org-member').before(buildAddUserRow());
-              const selectUser = $('#select-user');
-              systemUsers.forEach(user => {
-                  selectUser.append(`<option value="${user.id}">${user.username} - ${user.fullname}</option>`);
-              });
+                $('#new-org-member').before(buildAddUserRow());
+                const selectUser = $('#select-user');
+                systemUsers.forEach(user => {
+                    selectUser.append(`<option value="${user.id}">${user.username} - ${user.fullname}</option>`);
+                });
 
-              new TomSelect("#select-user",{
-                sortField: {
-                    field: "text",
-                    direction: "asc"
-                }
-              });
+                new TomSelect("#select-user", {
+                    sortField: {
+                        field: "text",
+                        direction: "asc"
+                    }
+                });
 
-              new TomSelect("#select-capacity",{
-                create: true,
-                sortField: {
-                    field: "text",
-                    direction: "asc"
-                }
-              });
-              
+                new TomSelect("#select-capacity", {
+                    create: true,
+                    sortField: {
+                        field: "text",
+                        direction: "asc"
+                    }
+                });
+
             } else if (!userRow.hasClass('glowing-row')) {
-              userRow.addClass('glowing-row');
-              setTimeout(function(){
-                userRow.removeClass('glowing-row');
-              }, 2000);
+                userRow.addClass('glowing-row');
+                setTimeout(function () {
+                    userRow.removeClass('glowing-row');
+                }, 2000);
             }
         }
 
-        function editUserMembership(id){
+        function editUserMembership(id) {
             const addRow = $('#user-row-new');
             if (addRow.length > 0) {
                 cancelAddUser();
             }
             const userRow = $(`#user-${id}`);
             if (userRow.length > 0) {
-              cancelEditUser();
-              const value = userRow.find('td:nth-child(2)').text().trim();
-              const username = userRow.find('td:first').text().trim();
-              const fullname = userRow.find('td:nth-child(2)').text().trim();
-              const originalCapacity = userRow.find('td:nth-child(3)').text().trim();
-              userRow.replaceWith(buildUserEditRow(fullname, username, id, originalCapacity));
-              const capacitySelect = new TomSelect("#select-capacity", {
-                create: true,
-                sortField: {
-                    field: "text",
-                    direction: "asc"
+                cancelEditUser();
+                const value = userRow.find('td:nth-child(2)').text().trim();
+                const username = userRow.find('td:first').text().trim();
+                const fullname = userRow.find('td:nth-child(2)').text().trim();
+                const originalCapacity = userRow.find('td:nth-child(3)').text().trim();
+                userRow.replaceWith(buildUserEditRow(fullname, username, id, originalCapacity));
+                const capacitySelect = new TomSelect("#select-capacity", {
+                    create: true,
+                    sortField: {
+                        field: "text",
+                        direction: "asc"
+                    }
+                });
+                if (originalCapacity) {
+                    capacitySelect.setValue(originalCapacity);
                 }
-              });
-              if (originalCapacity) {
-                capacitySelect.setValue(originalCapacity);
-              }
             } else {
-              console.error(`User with key ${id} not found.`);
+                console.error(`User with key ${id} not found.`);
             }
         }
 
-        function cancelAddUser(){ 
+        function cancelAddUser() {
             $('#user-row-new').remove();
         }
-        
-        function cancelEditUser(){
+
+        function cancelEditUser() {
             const userRow = $('#user-row-edit');
             if (userRow.length > 0) {
-              const username = userRow.find('td:first').text().trim();
-              const fullname = userRow.find('td:nth-child(2)').text().trim();
-              const originalCapacity = userRow.find('input[name="user-original-capacity"]').val();
-              const userId = userRow.find('input[name="user-original-id"]').val();
-              userRow.replaceWith(buildNormalUserRow(fullname, username, userId, originalCapacity));
+                const username = userRow.find('td:first').text().trim();
+                const fullname = userRow.find('td:nth-child(2)').text().trim();
+                const originalCapacity = userRow.find('input[name="user-original-capacity"]').val();
+                const userId = userRow.find('input[name="user-original-id"]').val();
+                userRow.replaceWith(buildNormalUserRow(fullname, username, userId, originalCapacity));
             } else {
-              console.error("No edit row found.");
+                console.error("No edit row found.");
             }
         }
 
-        function saveNewMember(){
+        function saveMember() {
+            const userRow = $('#user-row-edit');
+            const selectCapacity = $('#select-capacity');
+            const userId = userRow.find('input[name="user-original-id"]').val();
+            const originalCapacity = userRow.find('input[name="user-original-capacity"]').val();
+            const newCapacity = selectCapacity.val();
+
+            if (!newCapacity) {
+                alert("Please select a capacity.");
+                return;
+            }
+
+            if (newCapacity === originalCapacity) {
+                cancelEditUser();
+                return;
+
+            } else {
+                deleteMember(userId, function () {
+                    $('#org-users-footer .stelar-loader').remove();
+                    $('#org-users-footer .alert').remove();
+                    $('#org-users-footer').prepend(createLoaderElement(false, true));
+                    $.ajax({
+                        url: "{{url_for('catalog_blueprint.api_add_user_member_to_organization', entity_id=organization.id, member_id='')}}" + userId,
+                        type: "POST",
+                        data: JSON.stringify({ capacity: newCapacity }),
+                        contentType: "application/json",
+                        success: function (response) {
+                            $('#org-users-footer .stelar-loader').remove();
+                            $('#org-users-footer .alert').remove();
+                            if (response.success) {
+                                const userDetails = systemUsers.find(user => user.id === userId);
+                                if (userDetails) {
+                                    $(`#user-${userId}`).replaceWith(buildNormalUserRow(userDetails.fullname, userDetails.username, userId, newCapacity.slice(0, 1).toUpperCase() + newCapacity.slice(1)));
+                                    organizationUsers.push(userId);
+                                    systemUsers = systemUsers.filter(user => user.id !== userId);
+                                }
+                                $('#org-users-footer').prepend(createAlertElement("success", "User updated successfully."));
+                                setTimeout(function () {
+                                    $('#org-users-footer .alert').fadeOut(500, function () {
+                                        $(this).remove();
+                                    });
+                                }, 3000);
+                                fetchSystemUsers(function (usersRep) {
+                                    fetchOrganizationUsers(usersRep);
+                                });
+                            } else {
+                                $('#org-users-footer').prepend(createAlertElement("danger", "Failed to update user: " + response.error));
+                                setTimeout(function () {
+                                    $('#org-users-footer .alert').fadeOut(500, function () {
+                                        $(this).remove();
+                                    });
+                                }, 3000);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            console.error("AJAX Error:", status, error);
+                            alert("An error occurred while updating the user.");
+                        }
+                    });
+                });
+            }
+        }
+
+
+        function deleteMember(userId, callback) {
+            $.ajax({
+                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}" + userId,
+                type: "DELETE",
+                success: function (response) {
+                    if (response.success) {
+                        if (callback && typeof callback === 'function') {
+                            callback();
+                        }
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
+                }
+            });
+        }
+
+        function removeUserFromOrg(userId) {
+            if (!userId) {
+                console.error("User ID is not defined.");
+                return;
+            }
+
+            if (!confirm("Are you sure you want to remove this user from the organization?")) {
+                return;
+            }
+
+            $('#org-users-footer .stelar-loader').remove()
+            $('#org-users-footer .alert').remove();
+            $('#org-users-footer').prepend(createLoaderElement(false, true));
+            $.ajax({
+                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}" + userId,
+                type: "DELETE",
+                success: function (response) {
+                    $('#org-users-footer .stelar-loader').remove();
+                    $('#org-users-footer .alert').remove();
+                    if (response.success) {
+                        $(`#user-${userId}`).remove();
+                        organizationUsers = organizationUsers.filter(user => user !== userId);
+                        $('#org-users-footer').prepend(createAlertElement("success", "User removed successfully."));
+                        setTimeout(function () {
+                            $('#org-users-footer .alert').fadeOut(500, function () {
+                                $(this).remove();
+                            });
+                        }, 3000);
+                        fetchSystemUsers(function (usersRep) {
+                            fetchOrganizationUsers(usersRep);
+                        });
+                    } else {
+                        $('#org-users-footer').prepend(createAlertElement("danger", "Failed to remove user: " + response.error));
+                        setTimeout(function () {
+                            $('#org-users-footer .alert').fadeOut(500, function () {
+                                $(this).remove();
+                            });
+                        }, 3000);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
+                    alert("An error occurred while removing the user.");
+                }
+            });
+        }
+
+        function saveNewMember() {
             const selectUser = $('#select-user');
             const selectCapacity = $('#select-capacity');
             const userId = selectUser.val();
@@ -886,11 +1040,11 @@
             $('#org-users-footer .alert').remove();
             $('#org-users-footer').prepend(createLoaderElement(false, true));
             $.ajax({
-                url: "{{url_for('catalog_blueprint.api_add_user_member_to_organization', entity_id=organization.id, member_id='')}}"+userId,
+                url: "{{url_for('catalog_blueprint.api_add_user_member_to_organization', entity_id=organization.id, member_id='')}}" + userId,
                 type: "POST",
                 data: JSON.stringify({ capacity: capacity }),
                 contentType: "application/json",
-                success: function(response) {
+                success: function (response) {
                     $('#org-users-footer .stelar-loader').remove();
                     $('#org-users-footer .alert').remove();
                     if (response.success) {
@@ -907,7 +1061,7 @@
                                 $(this).remove();
                             });
                         }, 3000);
-                        fetchSystemUsers(function(usersRep) {
+                        fetchSystemUsers(function (usersRep) {
                             fetchOrganizationUsers(usersRep);
                         });
 
@@ -920,7 +1074,7 @@
                         }, 3000);
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     console.error("AJAX Error:", status, error);
                     alert("An error occurred while adding the user.");
                 }
