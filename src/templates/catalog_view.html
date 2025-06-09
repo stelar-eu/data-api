@@ -2255,6 +2255,7 @@
   </script>
   <script>
     cytoscape.use(window.cytoscapeDagre);
+
     function trackLineage(resourceId){
       $('#modal-track-lineage').modal('show');
       $('#track-lineage-id').text(resourceId);
@@ -2292,35 +2293,38 @@
                 'text-valign':'center',
                 'text-halign':'center',
                 'font-size':'10px',
-                'shape':'rectangle',
+                'shape':'round-rectangle',
                 'border-width':0,
-                'padding':'20px',
+                'padding':'15px',
                 'width':'label',
                 'height':'label'}},
               {selector:'node[type="task"]',style:{
                 'shape':'ellipse',
+                'color':'#ae3ec9',
                 'background-color':'#d1c4e9'}},
               {selector:'node[type="resource"][isTrackedResource="true"]',style:{
-                'shape':'rectangle',
+                'shape':'round-rectangle',
+                'color': '#2fb344',
                 'background-color':'#c8e6c9'}},
               {selector:'node[type="resource"][isTrackedResource="false"]',style:{
-                'shape':'rectangle',
-                'background-color':'#b3e5fc'}},
+                'shape':'round-rectangle',
+                'background-color':'#E6F1FA',
+                'color': '#066fd3'}},
               {selector:'node[type="process"]',style:{
-                'shape':'rectangle',
+                'shape':'round-rectangle',
                 'background-color':'#fff9c4'}},
               {selector:'edge',style:{
                 'width':2,
-                'line-color':'#999',
-                'target-arrow-color':'#999',
-                'target-arrow-shape':'triangle',
-                'curve-style':'bezier'}}
+                'line-color': '#ccc',
+                'target-arrow-color': '#ccc',
+                'target-arrow-shape': 'triangle',
+                'curve-style':'round-taxi'}}
             ],
             layout:{name:'dagre',rankDir:'LR',nodeSep:50,edgeSep:15,rankSep:100}
           });
-          if(cy.nodeHtmlLabel){
-            cy.nodeHtmlLabel([{query:'node',halignBox:'center',valignBox:'bottom',halign:'center',valign:'top',tpl:d=>`(${d.id})`}]);
-          }
+        
+
+
           cy.on('tap','node',e=>{
             const d=e.target.data();
             if(d.type==='task'){

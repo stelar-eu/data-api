@@ -336,7 +336,7 @@ class CKANEntity(Entity):
         init_data = self.ckan_schema.dump(init_data)
         return init_data
 
-    def update_to_ckan(self, update_data, current_obj):
+    def update_to_ckan(self, update_data, current_obj, mode="update"):
         """Convert the data to the CKAN format for updating.
 
         This method is used to convert the update data to the CKAN format for updating

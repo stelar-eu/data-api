@@ -718,7 +718,16 @@ class ResourceEntity(CKANEntity):
 
     def build_enriched_lineage_graph(self, lineage_records: List[Dict]) -> Dict:
         nodes = {}
-        edge_set = set()  # to ensure unique edges
+        edge_set = set()
+
+        # Get the current (target) resource being tracked
+        if not lineage_records:
+            return {"nodes": [], "edges": []}
+
+        current_resource_id = lineage_records[0]["resource_id"]
+        current_resource_name = lineage_records[0].get(
+            "current_resource_name", "Current Resource"
+        )
 
         def add_node(node_id: str, label: str, node_type: str, extra: Dict = None):
             if node_id not in nodes:
@@ -727,9 +736,9 @@ class ResourceEntity(CKANEntity):
                     nodes[node_id].update(extra)
 
         for entry in lineage_records:
-            # Add input resource node
+            # Input resource
             input_res_id = entry["input_resource_id"]
-            input_res_label = f'{entry["input_resource_name"] or "Unnamed Resource"}'
+            input_res_label = entry.get("input_resource_name") or "Unnamed Resource"
             add_node(
                 input_res_id,
                 input_res_label,
@@ -740,32 +749,48 @@ class ResourceEntity(CKANEntity):
                 },
             )
 
-            # Add task node
+            # Task
             task_id = entry["input_task_uuid"]
             task_name = entry.get("task_name") or "Unnamed Task"
-            task_label = f"{task_name}"
             add_node(
                 task_id,
-                task_label,
+                task_name,
                 "Task",
                 {
                     "process_id": entry.get("workflow_uuid"),
                     "state": entry.get("task_state"),
                     "start_date": entry.get("start_date"),
                     "end_date": entry.get("end_date"),
+                    "image": entry.get("task_image", "remote"),
                 },
             )
 
-            # Add output resource node
+            # Output resource
             output_res_id = entry["resource_id"]
-            output_label = f'{entry["output_name"]}'
-            add_node(output_res_id, output_label, "Resource")
+            task_alias = entry.get("output_name") or "Output Resource"
+            global_name = entry.get("output_resource_name") or task_alias
+            output_label = (
+                f"{global_name} ({task_alias})"
+                if global_name != task_alias
+                else global_name
+            )
+            is_final = output_res_id == current_resource_id
 
-            # Add unique edges
+            add_node(
+                output_res_id,
+                output_label,
+                "Resource",
+                {"final": True} if is_final else {},
+            )
+            # Edges (ensure uniqueness)
             edge_set.add((input_res_id, task_id))
             edge_set.add((task_id, output_res_id))
 
-        return {"nodes": list(nodes.values()), "edges": list(edge_set)}
+        return {
+            "nodes": list(nodes.values()),
+            "edges": list(edge_set),
+            "current_resource_name": current_resource_name,
+        }
 
     def search(self, query_spec):
         """Search for resources in the catalog.
