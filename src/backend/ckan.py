@@ -10,11 +10,9 @@ from urllib.parse import urljoin
 from flask import current_app
 import requests
 import kutils
+import time
+from requests.exceptions import ConnectionError
 from psycopg2 import sql
-import jwt
-from datetime import datetime
-import random
-import string
 from exceptions import (
     BackendError,
     BackendLogicError,
@@ -24,7 +22,7 @@ from exceptions import (
     NotFoundError,
 )
 from .redis import REDIS
-from .pgsql import transaction, execSql
+from .pgsql import transaction
 
 if TYPE_CHECKING:
     from requests import Response
@@ -161,12 +159,31 @@ def raw_request(
     return response
 
 
+def raw_request_with_retries(*args, max_retries=2, **kwargs):
+    backoff = 1
+    for attempt in range(max_retries):
+        try:
+            return raw_request(*args, **kwargs)
+        except ConnectionError as e:
+            if attempt == max_retries - 1:
+                raise
+            logger.warning(
+                "CKAN request failed (attempt %d/%d): %s; retrying in %ds",
+                attempt + 1,
+                max_retries,
+                e,
+                backoff,
+            )
+            time.sleep(backoff)
+            backoff *= 2
+
+
 def request(
     endpoint, *, json: Optional[dict] = None, headers: dict = {}, params=None, **kwargs
 ):
     """Make a CKAN request and raise on error."""
     # Raise an exception for HTTP errors (4xx, 5xx responses)
-    response = raw_request(
+    response = raw_request_with_retries(
         endpoint, json=json, headers=headers, params=params, **kwargs
     )
     response.raise_for_status()
@@ -245,7 +262,7 @@ def ckan_request(
 ):
     """Make a CKAN request and return the JSON response."""
     # Raise an exception for HTTP errors (4xx, 5xx responses)
-    response = raw_request(
+    response = raw_request_with_retries(
         endpoint, json=json, headers=headers, params=params, **kwargs
     )
     raise_ckan_error(response, context)
