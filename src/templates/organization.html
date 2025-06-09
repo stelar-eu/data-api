@@ -867,6 +867,134 @@
             }
         }
 
+        function saveMember(){
+            const userRow = $('#user-row-edit');
+            const selectCapacity = $('#select-capacity');
+            const userId = userRow.find('input[name="user-original-id"]').val();
+            const originalCapacity = userRow.find('input[name="user-original-capacity"]').val();
+            const newCapacity = selectCapacity.val();
+
+            if (!newCapacity) {
+                alert("Please select a capacity.");
+                return;
+            }
+
+            if (newCapacity === originalCapacity) {
+                cancelEditUser();
+                return;
+
+            }else {
+                deleteMember(userId, function() {
+                    $('#org-users-footer .stelar-loader').remove();
+                    $('#org-users-footer .alert').remove();
+                    $('#org-users-footer').prepend(createLoaderElement(false, true));
+                    $.ajax({
+                        url: "{{url_for('catalog_blueprint.api_add_user_member_to_organization', entity_id=organization.id, member_id='')}}"+userId,
+                        type: "POST",
+                        data: JSON.stringify({ capacity: newCapacity }),
+                        contentType: "application/json",
+                        success: function(response) {
+                            $('#org-users-footer .stelar-loader').remove();
+                            $('#org-users-footer .alert').remove();
+                            if (response.success) {
+                                const userDetails = systemUsers.find(user => user.id === userId);
+                                if (userDetails) {
+                                    $(`#user-${userId}`).replaceWith(buildNormalUserRow(userDetails.fullname, userDetails.username, userId, newCapacity.slice(0, 1).toUpperCase() + newCapacity.slice(1)));
+                                    organizationUsers.push(userId);
+                                    systemUsers = systemUsers.filter(user => user.id !== userId);
+                                }
+                                $('#org-users-footer').prepend(createAlertElement("success", "User updated successfully."));
+                                setTimeout(function () {
+                                    $('#org-users-footer .alert').fadeOut(500, function () {
+                                        $(this).remove();
+                                    });
+                                }, 3000);
+                                fetchSystemUsers(function(usersRep) {
+                                    fetchOrganizationUsers(usersRep);
+                                });
+                            } else {
+                                $('#org-users-footer').prepend(createAlertElement("danger", "Failed to update user: " + response.error));
+                                setTimeout(function () {
+                                    $('#org-users-footer .alert').fadeOut(500, function () {
+                                        $(this).remove();
+                                    });
+                                }, 3000);
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error("AJAX Error:", status, error);
+                            alert("An error occurred while updating the user.");
+                        }
+                    });
+                });
+            }           
+        }
+
+
+        function deleteMember(userId, callback){
+            $.ajax({
+                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}"+userId,
+                type: "DELETE",
+                success: function(response) {
+                    if (response.success) {
+                        if (callback && typeof callback === 'function') {
+                            callback();
+                        }
+                    } 
+                },
+                error: function(xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
+                }
+            });
+        }
+
+        function removeUserFromOrg(userId){
+            if (!userId) {
+                console.error("User ID is not defined.");
+                return;
+            }
+
+            if (!confirm("Are you sure you want to remove this user from the organization?")) {
+                return;
+            }
+
+            $('#org-users-footer .stelar-loader').remove()
+            $('#org-users-footer .alert').remove();
+            $('#org-users-footer').prepend(createLoaderElement(false, true));
+            $.ajax({
+                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}"+userId,
+                type: "DELETE",
+                success: function(response) {
+                    $('#org-users-footer .stelar-loader').remove();
+                    $('#org-users-footer .alert').remove();
+                    if (response.success) {
+                        $(`#user-${userId}`).remove();
+                        organizationUsers = organizationUsers.filter(user => user !== userId);
+                        $('#org-users-footer').prepend(createAlertElement("success", "User removed successfully."));
+                        setTimeout(function () {
+                            $('#org-users-footer .alert').fadeOut(500, function () {
+                                $(this).remove();
+                            });
+                        }, 3000);
+                        fetchSystemUsers(function(usersRep) {
+                            fetchOrganizationUsers(usersRep);
+                        });
+                    } else {
+                        $('#org-users-footer').prepend(createAlertElement("danger", "Failed to remove user: " + response.error));
+                        setTimeout(function () {
+                            $('#org-users-footer .alert').fadeOut(500, function () {
+                                $(this).remove();
+                            });
+                        }, 3000);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
+                    alert("An error occurred while removing the user.");
+                }
+            });
+        }
+
         function saveNewMember(){
             const selectUser = $('#select-user');
             const selectCapacity = $('#select-capacity');
