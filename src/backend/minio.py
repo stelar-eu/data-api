@@ -52,6 +52,9 @@ class MinioClientSingleton:
                     ),
                     read=read_timeout,
                 )
+
+                logger.debug(f"Creating PoolManager with num_pools={num_pools}, maxsize={maxsize}, block={block}")
+
                 pool = urllib3.PoolManager(
                     num_pools=num_pools,
                     maxsize=maxsize,
@@ -83,14 +86,14 @@ class MinioClientSingleton:
     def get_client(cls) -> Minio:
         """Returns the initialized Minio client"""
         if not cls._initialized:
-            cls._initialize(cls)
+            cls._initialize()
         return cls.client
 
     @classmethod
     def get_admin(cls) -> MinioAdmin:
         """Returns the initialized MinioAdmin client."""
         if not cls._initialized:
-            cls._initialize(cls)
+            cls._initialize()
         return cls.admin
 
 

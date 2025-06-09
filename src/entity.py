@@ -178,10 +178,10 @@ class Entity:
 
         # TODO: This will change to harmonize with search and list/fetch
 
-        # obj = self.get_cached(eid)
-        # authorize(obj, self.name, "read")
-        # return obj
-        return self.get(eid)
+        obj = self.get_cached(eid)
+        authorize(obj, self.name, "read")
+        return obj
+        # return self.get(eid)
 
     def get_cached(self, eid):
         """Get an entity by ID from the entity cache.
@@ -210,7 +210,7 @@ class Entity:
         Returns:
             The created entity object.
         """
-        # authorize(init_data, self.name, "create")
+        authorize(init_data, self.name, "create")
         return self.create(init_data)
 
     def delete_entity(self, eid: str, purge=False):
@@ -224,6 +224,7 @@ class Entity:
         Returns:
             The result of the delete operation.
         """
+        authorize(eid, self.name, "delete")
         return self.delete(eid, purge)
 
     def update_entity(self, eid: str, entity_data):
@@ -239,6 +240,7 @@ class Entity:
         Returns:
             The updated entity object.
         """
+        authorize(eid, self.name, "update")
         return self.update(eid, entity_data)
 
     def patch_entity(self, eid: str, patch_data):
@@ -254,6 +256,7 @@ class Entity:
         Returns:
             The patched entity object.
         """
+        authorize(eid, self.name, "update")
         return self.patch(eid, patch_data)
 
     #
@@ -822,6 +825,8 @@ class MemberEntity:
             member_id: the ID of the member
             capacity: the capacity of the member
         """
+        authorize(member_id, self.child.name, "edit_membership")
+        authorize(eid, self.parent.name, "add_member")
         return self.add_member(eid, member_id, capacity)
 
     def remove_member_entity(self, eid: str, member_id: str):
@@ -834,6 +839,8 @@ class MemberEntity:
             eid: the ID of the group or org
             member_id: the ID of the member
         """
+        authorize(member_id, self.child.name, "edit_membership")
+        authorize(eid, self.parent.name, "remove_member")
         return self.remove_member(eid, member_id)
 
     def list_member_entities(self, eid: str, capacity: str | None = None):
@@ -846,6 +853,7 @@ class MemberEntity:
             eid: the ID of the group or org
             capacity: the capacity of the members to list, or None to list all members.
         """
+        #TODO: authorize(eid, self.parent.name, "list_members")
         return self.list_members(eid, capacity)
 
     def add_member(self, eid: str, member_id: str, capacity: str):

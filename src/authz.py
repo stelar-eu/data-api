@@ -124,13 +124,13 @@ def authorize(resource, entity, action):
     
     # Check for read access for packages
     if action in ["read_dataset", "read_workflow", "read_process", "read_tool"]:
-        return check_read_access_for_packages(resource,cu)
+        return check_read_access_for_packages(resource, cu)
     
     # Check for read access for resources
     if action in ["read_resource", "read_task"]:
         return check_read_access_for_resources(resource,cu)
 
-    if not authorization(Resource(resource["id"], entity), action):
+    if not authorization(Resource(resource, entity), action):
         detail = {
             "entity": entity,
             "resource": resource,

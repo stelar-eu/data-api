@@ -3,6 +3,7 @@
 # We need to configure logging as the first thing to do...
 #
 import logging
+import traceback
 
 import authz_module
 import logsys
@@ -1821,5 +1822,6 @@ def create_app():
             authz_module.load_authorization_schema()
     except Exception as e:
         logger.error("Failed to load authorization schema: %s", e)
+        logger.error("Traceback: %s", traceback.format_exc())
     # Return the application instance so that gunicorn can run it.
     return app
