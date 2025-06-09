@@ -1513,7 +1513,13 @@ def track_resource_lineage(resource_id):
     sql = utils.sql_workflow_execution_templates["resource_lineage_template"]
 
     # Execute the SQL command in the database
-    resp = pgsql.execSql(sql, (resource_id,))
+    resp = pgsql.execSql(
+        sql,
+        (
+            resource_id,
+            resource_id,
+        ),
+    )
 
     if resp and len(resp) > 0:
         return resp
