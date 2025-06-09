@@ -718,19 +718,19 @@
       if (param) {
         var values = param.split(",").map(function(v) { return v.trim(); }).filter(function(v) { return v !== ""; });
         if (values.length > 0) {
-            var actualField = (field === "org") ? "organization" : field;
-            var filterStr = (actualField === "tags")
-          ? actualField + ": (" + values.join(" OR ") + ")"
+        var actualField = (field === "org") ? "organization" : field;
+        var filterStr = (actualField === "tags")
+          ? actualField + ':("' + values.join('" OR "') + '")'
           : actualField + ":(" + values.join(" OR ") + ")";
-            filters.push(filterStr);
+        filters.push(filterStr);
         }
       }
       });
       var bboxParam = urlParams.get("bbox");
       if (bboxParam) {
-        query.bbox = bboxParam.split(",").map(function(coord) {
-          return parseFloat(coord.trim());
-        });
+      query.bbox = bboxParam.split(",").map(function(coord) {
+        return parseFloat(coord.trim());
+      });
       }
       var keywordParam = urlParams.get("keywords");
       query.q = keywordParam ? keywordParam : "";
@@ -1093,7 +1093,7 @@
         displayText = type.charAt(0).toUpperCase() + type.slice(1) + ": " + filter;
       }
       var idValue = (type === "bbox") ? "filter-bbox" : "filter-" + type + "-" + filter;
-      var filterHtml = `<span class="badge badge-lg ${badgeClass} me-1" data-category=${type} data-value=${filter} id="${idValue}">
+      var filterHtml = `<span class="badge badge-lg ${badgeClass} me-1" data-category=${type} data-value=${filter} id="${idValue.replace(/\s+/g, '_')}">
       ${displayText}
       <button type="button" class="btn-close btn-close-sm remove-filter" data-type="${type}" data-filter="${filter}" aria-label="Close"></button>
       </span>`;
@@ -1118,7 +1118,7 @@
       if (type === 'bbox') {
         $('#filter-bbox').remove();
       } else {
-        $(`#filter-${type}-${filter}`).remove();
+        $(`#filter-${type}-${filter.replace(/\s+/g, '_')}`).remove();
       }
     }
 
@@ -1571,6 +1571,12 @@
               $('#spatial-search-modal-footer .stelar-loader').remove();
               $('#spatial-search-modal-footer .alert').remove();
               $('#spatial-search-modal-footer').prepend(createAlertElement("success", "Spatial search completed successfully"));
+              setTimeout(function () {
+                $('#spatial-search-modal-footer .alert').fadeOut(500, function () {
+                  $(this).remove();
+                });
+              }, 3000);
+
               // Remove the polygon used for the search from the map, if it exists
               if (drawnPolygon) {
                 // Instead of removing the drawnPolygon, update its style to a dashed gray border with a light gray fill
@@ -1687,6 +1693,12 @@
           if (confirm("Remove all shapes from the map?")) {
             if (drawnPolygon) {
               searchMap.removeLayer(drawnPolygon);
+              searchMap.eachLayer(function (layer) {
+                if (layer instanceof L.Polygon || layer instanceof L.Rectangle) {
+                  searchMap.removeLayer(layer);
+                }
+              });
+
               drawnPolygon = null;
             }
           }
