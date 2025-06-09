@@ -2331,7 +2331,7 @@
               const u=`{{url_for('dashboard_blueprint.task',process_id='__PID__',task_id='__TID__')}}`.replace('__PID__',d.process_id).replace('__TID__',d.id);
               window.open(u,'_blank');
             }else if(d.type==='resource'&&d.package_id){
-              const u=`{{url_for('dashboard_blueprint.dataset_detail',dataset_id='__DID__')}}`.replace('__DID__',d.package_id);
+              const u=`{{url_for('dashboard_blueprint.viewResource',resource_id='__RID__')}}`.replace('__RID__',d.id);
               window.open(u,'_blank');
             }
           });

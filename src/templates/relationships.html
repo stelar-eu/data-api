@@ -9,13 +9,15 @@
     <!-- CSS files -->
     {% include 'tabler.html' %}
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
     <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
     <script type="text/javascript" src="{{ url_for('static', filename='utils.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/graphology/0.25.4/graphology.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.32.0/cytoscape.min.js"></script>
-
-
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
 </head>
 
 <body>
@@ -45,6 +47,102 @@
                                 </ol>
                             </h3>
                         </div>
+                        <div class="col-auto ms-auto d-print-none">
+                            <div class="d-flex align-items-center">
+                              <a class="btn btn-primary ms-auto me-2" href="#modal-new-relationship" data-bs-toggle="modal">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" class="icon icon-2">
+                                        <path d="M12 5l0 14"></path>
+                                        <path d="M5 12l14 0"></path>
+                                </svg>
+                                Add New Relationship
+                              </a>
+                            </div>
+                        </div>
+                        <div class="col-lg-12">
+                            <div class="text-secondary text-sm h4 m-0">
+                                <div class="mt-1 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
+                                    <a href="{{url_for('dashboard_blueprint.organization', organization_id=package.organization.id)}}"
+                                        target="_blank" class="text-blue card-link list-inline-item" title="Belongs to">
+                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                            class="icon icon-tabler icon-tabler-building-bank" width="44" height="44"
+                                            viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M3 21l18 0" />
+                                            <path d="M3 10l18 0" />
+                                            <path d="M5 6l7 -3l7 3" />
+                                            <path d="M4 10l0 11" />
+                                            <path d="M20 10l0 11" />
+                                            <path d="M8 14l0 3" />
+                                            <path d="M12 14l0 3" />
+                                            <path d="M16 14l0 3" />
+                                        </svg>
+                                        {{ package.organization.title }}
+                                    </a>
+                                    <div class="list-inline-item" title="Created at">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-calendar-plus">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path
+                                                d="M12.5 21h-6.5a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v5" />
+                                            <path d="M16 3v4" />
+                                            <path d="M8 3v4" />
+                                            <path d="M4 11h16" />
+                                            <path d="M16 19h6" />
+                                            <path d="M19 16v6" />
+                                        </svg>
+                                        {{ package.get('metadata_created') | datetimeformat }}
+                                    </div>
+                                    <div class="list-inline-item" title="Last modified at">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-calendar-bolt">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path
+                                                d="M13.5 21h-7.5a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v5" />
+                                            <path d="M16 3v4" />
+                                            <path d="M8 3v4" />
+                                            <path d="M4 11h16" />
+                                            <path d="M19 16l-2 3h4l-2 3" />
+                                        </svg>
+                                        {{ package.get('metadata_modified') | datetimeformat }}
+                                    </div>
+                                    <div class="list-inline-item" title="Created by">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-user">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                                            <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                                        </svg>
+                                        {{ package.get('author') }}
+                                    </div>
+                                    {% if package.get('url') %}
+                                    <div class="list-inline-item text-blue" title="Go to URL">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-link">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M9 15l6 -6" />
+                                            <path d="M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464" />
+                                            <path
+                                                d="M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463" />
+                                        </svg>
+                                        <a href="{{ package.get('url') }}" target="_blank">URL</a>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                            </div>
+
+                        </div>
                     </div>
                 </div>
             </div>
@@ -52,14 +150,22 @@
                 <div class="container-xl">
                     <div class="card" style="height: 100vh;">
                         <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-lg-4">
+                            <div class="row g-4">
+                                <div class="col-lg-5">
                                     <h4 class="card-title">Manage Relationships</h4>
                                     <p class="card-subtitle"> The relationships where the package participates as a
                                         subject
                                         or as object can be managed below.</p>
                                     <div style="max-height: 60vh; overflow-y: auto;">
-                                        <table class="table" style="overflow: auto;">
+                                        <table class="table table-responsive" style="overflow: auto;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Relationship</th>
+                                                    <th>Object Name</th>
+                                                    <th>Object Type</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
                                             <tbody id="relationships-as-subject">
                                                 <tr class="text-center">
                                                     <td colspan="4" class="border-bottom-0">
@@ -72,22 +178,8 @@
                                             </tbody>
                                         </table>
                                     </div>
-                                    <div style="max-height: 60vh; overflow-y: auto;">
-                                        <table class="table" style="overflow: auto;">
-                                            <tbody id="relationships-as-object">
-                                                <tr class="text-center">
-                                                    <td colspan="4" class="border-bottom-0">
-                                                        <div class="spinner-border spinner-border-sm m-6 text-secondary"
-                                                            style="width: 4rem; height: 4rem;"></div>
-                                                        <div class="text-muted">Please wait while we retrieve
-                                                            relationships</div>
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
                                 </div>
-                                <div class="col-lg-8">
+                                <div class="col-lg-7">
                                     <h4 class="card-title">Relationship Graph</h4>
                                     <p class="card-subtitle">
                                         The graph below illustrates the relationships between the package and other
@@ -111,6 +203,156 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="modal modal-blur fade" id="modal-new-relationship" tabindex="-1" style="display: none;" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Establish New Relationship</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="new-relationship-form">
+                                    <div class="mb-3">
+                                        <label class="form-label">Relationship Type</label>
+                                        <select class="form-select" id="relationship-type" required>
+                                            <option value="">Select a relationship type</option>
+                                            <option value="depends_on">Depends On</option>
+                                            <option value="dependency_of">Dependency Of</option>
+                                            <option value="derives_from">Derives From</option>
+                                            <option value="has_derivation">Has Derivation</option>
+                                            <option value="links_to">Links To</option>
+                                            <option value="linked_from">Linked From</option>
+                                            <option value="child_of">Child Of</option>
+                                            <option value="parent_of">Parent Of</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Object Category</label>
+                                        <select class="form-select" id="object-category" required>
+                                            <option value="">Select a category</option>
+                                            <option value="dataset">Dataset</option>
+                                            <option value="process">Workflow Process</option>
+                                            <option value="tool">Tool</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Object Name</label>
+                                        <select id="object-name" class="form-select" placeholder="Start typing..." required></select>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer" id="new-relationship-footer">
+                                <button type="button" class="btn btn-primary ms-auto" onclick="createNewRelationship()">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" class="icon icon-2">
+                                        <path d="M12 5l0 14"></path>
+                                        <path d="M5 12l14 0"></path>
+                                    </svg>
+                                    Create Relationship</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    let objectNameSelect = null;
+                    $(document).ready(function () {
+                        objectNameSelect = new TomSelect("#object-name", {
+                            valueField: "id",
+                            labelField: "title",
+                            searchField: ["title", "name"],
+                            sortField: {
+                                field: "title",
+                                direction: "asc"
+                            },
+                            options: [],
+                            load: function (query, callback) {
+                                const category = $('#object-category').val();
+                                if (!category) {
+                                    alert('Please select an object category first.');
+                                    return callback();
+                                }
+                                const endpointMap = {
+                                    dataset: "{{ url_for('catalog_blueprint.api_search_datasets') }}",
+                                    process: "{{ url_for('rest_workflows_blueprint.api_search_processes') }}",
+                                    tool: "{{ url_for('rest_workflows_blueprint.api_search_tools') }}"
+                                };
+                                const endpoint = endpointMap[category];
+                                $.ajax({
+                                    type: "POST",
+                                    url: endpoint,
+                                    contentType: "application/json",
+                                    data: JSON.stringify({ 
+                                        q: query, 
+                                        fl: ['title', 'name', 'id'] 
+                                    }),
+                                    success: function (data) {
+                                        callback(data.result.results);
+                                    },
+                                    error: function () {
+                                        console.error('Error fetching autocomplete data.');
+                                        callback();
+                                    }
+                                });
+                            }
+                        });
+
+                        $('#object-category').on('change', function () {
+                            objectNameSelect.clearOptions();
+                        });
+                    });
+
+                    function createNewRelationship() {
+                        const relationshipType = $('#relationship-type').val();
+                        //Get the value of the selected object name from the TomSelect input
+                        const objectName = $('#object-name').val();
+
+                        if (!relationshipType|| !objectName) {
+                            alert('Please fill out all fields.');
+                            return;
+                        }
+
+                        $('#new-relationship-footer .stelar-loader').remove();
+                        $('#new-relationship-footer .alert').remove();
+                        $('#new-relationship-footer').prepend(createLoaderElement(false, true));
+                  
+                        $.ajax({
+                            url: "{{ url_for('catalog_blueprint.api_create_relationship', subid=package.id, rel='__rel__', objid='__objid__') }}"
+                                .replace('__rel__', relationshipType)
+                                .replace('__objid__', objectName),
+                            type: "POST",
+                            contentType: "application/json",
+                            data: JSON.stringify({
+                            }),
+                            success: function () {
+                                $('#new-relationship-footer .stelar-loader').remove();
+                                $('#new-relationship-footer').prepend(createAlertElement('success', 'Relationship created successfully.'));
+                                $('#new-relationship-form')[0].reset();
+                                // Reset the TomSelect input
+                                objectNameSelect.clear();
+                                
+                                $('#relationship-type').val('');
+                                setTimeout(function () {
+                                    $('#new-relationship-footer .alert').fadeOut(500, function () {
+                                      $(this).remove();
+                                    });
+                                  }, 3000);
+                                fetchRelationships();
+                            },
+                            error: function () {
+                                $('#new-relationship-footer .stelar-loader').remove();
+                                $('#new-relationship-footer').prepend(createAlertElement('danger', 'Failed to create relationship'));
+                                setTimeout(function () {
+                                    $('#new-relationship-footer .alert').fadeOut(500, function () {
+                                      $(this).remove();
+                                    });
+                                }, 3000);
+                            }
+                        });
+                    }
+                </script>
             </div>
         </div>
         {% include 'footer.html' %}
@@ -118,6 +360,19 @@
     </div>
 
     <script>
+
+        function maskWithPlaceholders(){
+            loader = `<tr class="text-center">
+                            <td colspan="4" class="border-bottom-0">
+                                <div class="spinner-border spinner-border-sm m-6 text-secondary"
+                                    style="width: 4rem; height: 4rem;"></div>
+                                <div class="text-muted">Please wait while we retrieve
+                                    relationships</div>
+                            </td>
+                        </tr>`;
+            $('#relationships-as-subject').html(loader);
+        }
+
 
         function fetchRelationships() {
             $.ajax({
@@ -141,12 +396,62 @@
         }
 
         function buildRelationshipTable(relationships) {
+            const subjectTable = $('#relationships-as-subject');
+            subjectTable.empty();
+            const relationshipLabels = {
+                "depends_on": "Depends On",
+                "dependency_of": "Dependency Of",
+                "derives_from": "Derives From",
+                "has_derivation": "Has Derivation",
+                "links_to": "Links To",
+                "linked_from": "Linked From",
+                "child_of": "Child Of",
+                "parent_of": "Parent Of",
+            };
 
+            relationships.forEach(rel => {
+                const relationshipLabel = relationshipLabels[rel.relationship] || rel.relationship;
+                const objectUrl = "{{ url_for('dashboard_blueprint.dataset_detail', dataset_id='__id__') }}".replace('__id__', rel.object_name);
+                const row = `<tr>
+            <td>${relationshipLabel}</td>
+            <td><a href="${objectUrl}" target="_blank">${rel.object_name}</a></td>
+            <td>${rel.object_type.charAt(0).toUpperCase() + rel.object_type.slice(1)}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="removeRelationship('${rel.subject}', '${rel.object}', '${rel.relationship}')">Remove</button></td>
+            </tr>`;
+
+                if (rel.subject === "{{ package.id }}") {
+                    subjectTable.append(row);
+                }
+            });
+
+            if (subjectTable.children().length === 0) {
+                subjectTable.append('<tr><td colspan="4" class="text-center">No relationships established.</td></tr>');
+            }
+        }
+
+        function removeRelationship(subject, object, relationship) {
+            if (confirm("Are you sure you want to remove this relationship?")) {
+
+                $.ajax({
+                    url: "{{ url_for('catalog_blueprint.api_delete_relationships', subid='__subid__', rel='__rel__', objid='__objid__') }}"
+                        .replace('__subid__', subject)
+                        .replace('__rel__', relationship)
+                        .replace('__objid__', object),
+                    type: "DELETE",
+                    success: function () {
+                        fetchRelationships();
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error removing relationship:", error);
+                        alert("Failed to remove the relationship. Please try again.");
+                    }
+                });
+            }
         }
 
         function buildRelationshipGraph(relationships) {
             const currentId = "{{ package.name }}";
-    
+
             const typeColors = {
                 dataset: "#066fd3",
                 process: "#F59F00",
@@ -160,10 +465,10 @@
                 workflow: "#F7ECFA",
                 tool: "#FBEBEB"
             };
-    
+
             const nodesMap = new Map();
             const edges = [];
-    
+
             relationships.forEach(rel => {
                 if (!nodesMap.has(rel.subject)) {
                     nodesMap.set(rel.subject, {
@@ -179,7 +484,7 @@
                         }
                     });
                 }
-    
+
                 if (!nodesMap.has(rel.object)) {
                     nodesMap.set(rel.object, {
                         data: {
@@ -194,7 +499,7 @@
                         }
                     });
                 }
-    
+
                 const edge = {
                     data: {
                         id: `${rel.subject}_${rel.relationship}_${rel.object}`,
@@ -205,7 +510,7 @@
                 };
                 edges.push(edge);
             });
-    
+
             const cy = cytoscape({
                 container: document.getElementById('cy-container'),
                 elements: [
@@ -254,8 +559,8 @@
                     spacingFactor: 0.7,
                 }
             });
-    
-            cy.on('tap', 'node', function(evt) {
+
+            cy.on('tap', 'node', function (evt) {
                 const nodeId = evt.target.id();
                 const label = evt.target.data('label');
                 const urlTemplate = "{{ url_for('dashboard_blueprint.dataset_detail', dataset_id='__id__') }}";
@@ -263,7 +568,7 @@
                 window.open(targetUrl, '_blank');
             });
         }
-    
+
         $(document).ready(function () {
             fetchRelationships();
         });
