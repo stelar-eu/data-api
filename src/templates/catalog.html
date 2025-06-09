@@ -302,7 +302,7 @@
 
               </div>
               <div class="modal-footer" id="spatial-search-modal-footer">
-                <a class="btn btn-outline-primary ms-auto" onclick="addSpatialFilter()">
+                <a class="btn btn-outline-primary ms-auto disabled" onclick="addSpatialFilter()" id="add-spatial-filter-btn">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                     class="icon icon-tabler icons-tabler-outline icon-tabler-plus">
@@ -728,9 +728,11 @@
       });
       var bboxParam = urlParams.get("bbox");
       if (bboxParam) {
-      query.bbox = bboxParam.split(",").map(function(coord) {
-        return parseFloat(coord.trim());
-      });
+        query.bbox = bboxParam.split(",").map(function(coord) {
+          return parseFloat(coord.trim());
+        });
+      } else {
+        delete query.bbox; // Remove bbox if not present
       }
       var keywordParam = urlParams.get("keywords");
       query.q = keywordParam ? keywordParam : "";
@@ -1462,18 +1464,20 @@
         var maxX = bounds.getEast();
         var maxY = bounds.getNorth();
         spatialCoverage = [minX, minY, maxX, maxY];
+        // Remove any existing spatial filter
+        removeFilterFromLocation("bbox", null);
+        removeFilterBadge("bbox", null);
+
+        // Add the new spatial filter to the URL
+        appendFilterToLocation("bbox", spatialCoverage ? spatialCoverage.join(",") : "");
+        appendFilterBadge("bbox", spatialCoverage ? spatialCoverage.join(",") : "No spatial coverage defined");
+        $('#spatial-search-modal').modal('hide');
       } else {
+        // Remove any existing spatial filter
+        removeFilterFromLocation("bbox", null);
+        removeFilterBadge("bbox", null);      
         spatialCoverage = null;
       }
-
-      // Check if the spatial filter is already included
-      if (query.bbox && query.bbox.length > 0 && spatialCoverage) {
-        query.bbox = spatialCoverage;
-      }
-      // Add the spatial filter to the URL 
-      appendFilterToLocation("bbox", spatialCoverage ? spatialCoverage.join(",") : "");
-      appendFilterBadge("bbox", spatialCoverage ? spatialCoverage.join(",") : "No spatial coverage defined");
-      $('#spatial-search-modal').modal('hide');
     }
 
     function showResultPolygon(dataset) {
@@ -1632,7 +1636,6 @@
 
   </script>
 
-
   <!-- Spatial Modal Map -->
   <script>
     // Initialize the map
@@ -1700,6 +1703,7 @@
               });
 
               drawnPolygon = null;
+              $('#add-spatial-filter-btn').addClass('disabled');
             }
           }
         };
@@ -1709,107 +1713,7 @@
     });
 
     searchMap.addControl(new resetControl());
-
     searchMap.addControl(drawControl);
-
-    let savedPolygons = [];
-
-    // Function to generate a preview of a polygon
-    function generatePreview(polygon) {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = 100;
-      canvas.height = 100;
-
-      const bounds = polygon.getBounds();
-      const latLngs = polygon.getLatLngs()[0];
-
-      const scaleX = canvas.width / (bounds.getEast() - bounds.getWest());
-      const scaleY = canvas.height / (bounds.getNorth() - bounds.getSouth());
-
-      ctx.fillStyle = 'rgba(210, 171, 203, 0.3)';
-      ctx.beginPath();
-
-      latLngs.forEach((latLng, index) => {
-        const x = (latLng.lng - bounds.getWest()) * scaleX;
-        const y = (bounds.getNorth() - latLng.lat) * scaleY;
-        if (index === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      });
-      ctx.closePath();
-      ctx.fill();
-
-      return canvas.toDataURL();
-    }
-
-    // Function to render saved polygons in the list
-    function renderSavedPolygons() {
-      const polygonList = document.getElementById("savedPolygonList");
-      polygonList.innerHTML = "";
-
-      savedPolygons.forEach((polygon, index) => {
-        const listItem = document.createElement("li");
-        listItem.classList.add("list-group-item", "d-flex", "align-items-center");
-        listItem.style.cursor = "pointer";
-
-        const previewImg = document.createElement("img");
-        previewImg.src = polygon.preview;
-        previewImg.style.width = "50px";
-        previewImg.style.height = "50px";
-        previewImg.style.marginRight = "10px";
-        previewImg.alt = "Polygon Preview";
-
-        const polygonName = document.createElement("span");
-        polygonName.textContent = polygon.name;
-
-        listItem.appendChild(previewImg);
-        listItem.appendChild(polygonName);
-
-        // Click event to load the polygon onto the map
-        listItem.addEventListener("click", () => loadPolygon(index));
-
-        polygonList.appendChild(listItem);
-      });
-    }
-
-    // Function to save a polygon
-    function savePolygon(name, polygon) {
-      const polygonData = {
-        name: name,
-        coordinates: polygon.getLatLngs(),
-        preview: generatePreview(polygon)
-      };
-      savedPolygons.push(polygonData);
-      renderSavedPolygons();
-    }
-
-
-
-    // Function to load a saved polygon onto the map
-    function loadPolygon(index) {
-      const polygonData = savedPolygons[index];
-
-      if (drawnPolygon) {
-        searchMap.removeLayer(drawnPolygon);
-      }
-
-      drawnPolygon = L.polygon(polygonData.coordinates, {
-        color: 'purple',
-        fillOpacity: 0.3
-      }).addTo(searchMap);
-
-      drawnPolygon.on('click', function () {
-        new L.EditToolbar.Edit(searchMap, {
-          featureGroup: L.featureGroup([drawnPolygon]),
-        }).enable();
-      });
-
-      searchMap.fitBounds(drawnPolygon.getBounds());
-    }
-
 
     // Handle the creation of new shapes
     searchMap.on('draw:created', function (e) {
@@ -1823,10 +1727,30 @@
       drawnPolygon = layer;
       drawnPolygon.addTo(searchMap);
 
+      // Enable the add-spatial-filter-btn
+      $('#add-spatial-filter-btn').removeClass('disabled');
+
       drawnPolygon.on('click', function () {
-        new L.EditToolbar.Edit(searchMap, {
+        var editToolbar = new L.EditToolbar.Edit(searchMap, {
           featureGroup: L.featureGroup([drawnPolygon]),
-        }).enable();
+        });
+        editToolbar.enable();
+
+        // Add a cancel button to the map
+        var cancelButton = L.control({ position: 'topright' });
+        cancelButton.onAdd = function () {
+          var div = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+          div.innerHTML = '<button class="btn btn-danger">Cancel</button>';
+          div.style.cursor = 'pointer';
+          div.style.backgroundColor = 'white';
+          div.style.padding = '5px';
+          div.onclick = function () {
+            editToolbar.disable(); // Disable editing
+            searchMap.removeControl(cancelButton); // Remove the cancel button
+          };
+          return div;
+        };
+        cancelButton.addTo(searchMap);
       });
 
     });
@@ -1836,7 +1760,6 @@
       searchMap.invalidateSize();
     });
   </script>
-
 
   <script>
     function setCookie(name, value, minutes) {
