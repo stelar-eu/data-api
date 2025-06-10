@@ -8,6 +8,7 @@ from typing import Optional
 import requests
 from apiflask import Schema, fields, validators
 from marshmallow import EXCLUDE, INCLUDE, post_dump
+from processes import PROCESS
 from typing import List, Dict
 
 import schema
@@ -311,40 +312,20 @@ def get_package(
         response = request("package_show", params={"id": id})
         if response.status_code == 200:
             resp = response.json()
-            dataset = resp.get("result", None)
+            package = resp.get("result", None)
 
-            if dataset:
+            if package.get("type") == "tool":
+                return TOOL.get_entity(id)
+            elif package.get("type") == "workflow":
+                return WORKFLOW.get_entity(id)
+            elif package.get("type") == "dataset":
+                return DATASET.get_entity(id)
+            elif package.get("type") == "process":
+                return PROCESS.get_entity(id)
 
-                if no_resources and "resources" in dataset:
-                    dataset.pop("resources")
-
-                # Compress resources if compressed flag is True
-                if compressed and "resources" in dataset:
-                    dataset["resources"] = [
-                        {
-                            "id": resource.get("id"),
-                            "name": resource.get("name"),
-                            "url": resource.get("url"),
-                            "relation": resource.get("relation"),  # Include if present
-                        }
-                        for resource in dataset["resources"]
-                    ]
-
-                # Compress tags if compressed flag is True
-                if compressed and "tags" in dataset:
-                    dataset["tags"] = [tag.get("name") for tag in dataset["tags"]]
-
-                # Compress extras
-                if "extras" in dataset:
-                    dataset["extras"] = {
-                        extra.get("key"): extra.get("value")
-                        for extra in dataset["extras"]
-                    }
-
-            return dataset
     except requests.exceptions.HTTPError as he:
         if he.response.status_code == 404:
-            raise ValueError(f"Dataset with ID: {id} was not found")
+            raise ValueError(f"Package with ID: {id} was not found")
         else:
             raise RuntimeError from he
 
