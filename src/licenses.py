@@ -110,7 +110,10 @@ class LicenseEntity:
     def delete(self, eid: str):
         """Delete a license."""
         lid = self.validate(eid)["id"]
-        return sql_utils.license_delete(lid)
+        if sql_utils.license_delete(lid):
+            return {}
+        else:
+            raise RuntimeError("Failed to delete the license from the database.")
 
 
 LICENSE = LicenseEntity()

@@ -332,3 +332,22 @@ This endpoint patches an existing license in the Data Catalog.
 def api_patch_license(entity_id, json_data):
     """Patch an existing license in the Data Catalog."""
     return LICENSE.patch(entity_id, **json_data)
+
+
+@catalog_bp.delete("/license/<entity_id>")
+@catalog_bp.output(schema.DeleteResponse, status_code=200)
+@catalog_bp.doc(
+    summary="Delete a license by its unique identifier",
+    description="""\
+This endpoint deletes a license by its unique identifier.
+    The license is used to define the terms of use for datasets, resources, and other entities in the catalog.
+    """,
+    tags=["RESTful Publishing Operations"],
+    security=security_doc,
+    responses=error_responses([401, 403, 404, 500, 502]),
+)
+@token_active
+@render_api_output(logger)
+def api_delete_license(entity_id):
+    """Delete a license by its unique identifier."""
+    return LICENSE.delete(entity_id)

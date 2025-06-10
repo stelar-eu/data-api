@@ -1034,6 +1034,13 @@ class PackageEntity(EntityWithExtras):
         return filter_list_by_type(idlist, self.package_type, idattr="name")
 
     def create(self, init_data):
+        """Create an entity in CKAN.
+
+        Args:
+            init_data: The data to create the entity with.
+        Returns:
+            The created entity object.
+        """
         # Make sure we have the two compulsory fields
         if "name" not in init_data:
             raise DataError("Missing name")
@@ -1044,7 +1051,21 @@ class PackageEntity(EntityWithExtras):
 
         # Force this!
         init_data["type"] = self.package_type
-        return super().create(init_data)
+
+        context = {"entity": self.name}
+
+        ckinit_data = self.create_to_ckan(init_data)
+
+        obj = ckan_request(self.ckan_api_create, context=context, json=ckinit_data)
+        logger.info("Created %s id=%s", self.name, obj["id"])
+
+        # Load the object from CKAN
+        loaded_obj = self.load_from_ckan(obj)
+
+        # Enhance the license information in the loaded object
+        self._enhance_license(loaded_obj)
+
+        return loaded_obj
 
     def _enhance_license(self, data: dict):
         """Enhance the license information in the data.
@@ -1063,34 +1084,11 @@ class PackageEntity(EntityWithExtras):
                 data["license_id"] = lic.get("id")
                 data["license_title"] = lic.get("title")
                 data["license_key"] = lic.get("key")
-                data["licene_image_url"] = lic.get("image_url")
+                data["license_image_url"] = lic.get("image_url")
                 data["license_url"] = lic.get("url")
             else:
                 data["license_title"] = None
                 data["license_url"] = None
-
-    def create(self, init_data):
-        """Create an entity in CKAN.
-
-        Args:
-            init_data: The data to create the entity with.
-        Returns:
-            The created entity object.
-        """
-        context = {"entity": self.name}
-
-        ckinit_data = self.create_to_ckan(init_data)
-
-        obj = ckan_request(self.ckan_api_create, context=context, json=ckinit_data)
-        logger.info("Created %s id=%s", self.name, obj["id"])
-
-        # Load the object from CKAN
-        loaded_obj = self.load_from_ckan(obj)
-
-        # Enhance the license information in the loaded object
-        self._enhance_license(loaded_obj)
-
-        return loaded_obj
 
     def get(self, eid: str):
         """Read an entity from CKAN.

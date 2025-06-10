@@ -280,7 +280,24 @@ def license_patch(license_id, **license_spec):
 
 
 def license_delete(license_id):
-    pass
+    """Deletes a license from the database.
+
+    Args:
+        license_id: UUID of the license to delete.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+    sql = utils.sql_license_template["license_delete_template"]
+    resp = pgsql.execSql(sql, (license_id,))
+
+    if "status" in resp:
+        if not resp.get("status"):
+            return False
+    else:
+        return False
+
+    return True
 
 
 # ---------------------------------------------------------
