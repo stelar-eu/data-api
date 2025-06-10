@@ -17,6 +17,8 @@ from cutils import (
     RESOURCE,
     TAG,
     VOCABULARY,
+)
+from licenses import (
     LICENSE,
     LicenseSchema,
     LicenseUpdateSchema,
