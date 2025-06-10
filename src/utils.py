@@ -225,6 +225,15 @@ sql_2fa_template = {
     "two_factor_retrieve_skey_template": "SELECT two_factor_key FROM klms.secret_2fa_keys WHERE user_uuid = %s",
 }
 
+sql_license_template = {
+    "license_list_all_template": "SELECT license_key as license FROM klms.license",
+    "license_fetch_all_template": "SELECT license_uuid as id, license_key as key, title, url, description, image_url, osi_approved, open_data_approved, metadata_created, metadata_modified FROM klms.license",
+    "license_fetch_by_id_template": "SELECT license_uuid as id, license_key as key, title, url, description, image_url, osi_approved, open_data_approved, metadata_created, metadata_modified FROM klms.license WHERE license_uuid = %s",
+    "license_fetch_by_key_template": "SELECT license_uuid as id, license_key as key, title, url, description, image_url, osi_approved, open_data_approved, metadata_created, metadata_modified FROM klms.license WHERE license_key = %s",
+    "license_create_template": "INSERT INTO klms.license(license_uuid, license_key, title, url, description, image_url, osi_approved, open_data_approved, metadata_created, metadata_modified) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, now(), now())",
+    "license_update_template": "UPDATE klms.license SET title = %s, url = %s, description = %s, image_url=%s, osi_approved = %s, open_data_approved = %s, metadata_modified = now() WHERE license_uuid = %s",
+    "license_delete_template": "DELETE FROM klms.license WHERE license_uuid = %s",
+}
 #########################################################
 
 # Templates of SQL queries for workflow management

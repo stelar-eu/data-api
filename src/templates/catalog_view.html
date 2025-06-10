@@ -192,7 +192,7 @@
                       <path d="M16 19h6" />
                       <path d="M19 16v6" />
                     </svg>
-                    {{ dataset.get('metadata_created') | datetimeformat }}
+                    {{ dataset.get('metadata_created').isoformat() | datetimeformat }}
                   </div>
                   <div class="list-inline-item" title="Last modified at">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -205,7 +205,7 @@
                       <path d="M4 11h16" />
                       <path d="M19 16l-2 3h4l-2 3" />
                     </svg>
-                    {{ dataset.get('metadata_modified') | datetimeformat }}
+                    {{ dataset.get('metadata_created').isoformat() | datetimeformat }}
                   </div>
                   <div class="list-inline-item" title="Created by">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -217,6 +217,23 @@
                     </svg>
                     {{ dataset.get('author') }}
                   </div>
+                  {% if dataset.get('license_id') %}
+                  <div class="list-inline-item" title="License">
+                    {% if dataset.get('license_image_url') != None %}
+                    <a href="{{ dataset.get('license_url') }}" target="_blank" title="Licensed under: {{ dataset.get('license_title') }}">
+                      <img src="{{ dataset.get('license_image_url') }}" alt="License Image" style="max-height: 20px;">
+                    </a>
+                    {% else %}
+                      {% if dataset.get('url') %}
+                      <a href="{{ dataset.get('license_url') }}" target="_blank" title="Licensed under: {{ dataset.get('license_title') }}">
+                        {{ dataset.get('license_title') }}
+                      </a>
+                      {% else %}
+                      {{ dataset.get('license_title') }}
+                      {% endif %}
+                    {% endif %}
+                  </div>
+                  {% endif %}
                   {% if dataset.get('url') %}
                   <div class="list-inline-item text-blue" title="Go to URL">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -591,7 +608,7 @@
                   </div>
                   <div class="mb-2">
                     <input type="hidden" name="packageTags" id="hiddenTagsInput"
-                      value="{{ dataset.get('tags') | map(attribute='display_name') | join(',') }}" />
+                      value="{{ dataset.get('tags') | join(',') }}" />
                     <div class="col-lg-12 mt-3">
                       <div class="mb-3">
                         <input type="text" id="tagInput" class="form-control" placeholder="Type a tag and press enter"
@@ -599,7 +616,7 @@
                         <div class="col tags-list mt-3" id="tagsContainer">
                           {% for tag in dataset.get('tags') %}
                           <span class="tag me-2 mb-2">
-                            {{ tag.get('display_name') }}
+                            {{ tag }}
                             <a href="#" class="btn-close ms-1" data-index="1"></a>
                           </span>
                           {% endfor %}
@@ -904,6 +921,19 @@
                       <p>
                         The URL of the dataset can reference the source of the dataset. It can be a URL to an external
                         web site or to another dataset.
+                      </p>
+                    </small>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label">License</label>
+                    <select class="form-select" id="license-id" name="license_id">
+                    </select>
+                    <small class="form-hint">
+                      <p>
+                        <strong>Important:</strong> Modifying the license might be disruptive to the intellectual property
+                        rights of the dataset. Make sure to choose a license that is compatible with the dataset's 
+                        content and your intended use.
                       </p>
                     </small>
                   </div>
@@ -1596,8 +1626,10 @@
       body = {
         title: $('input[name="package-name"]').val(),
         url: $('input[name="package-url"]').val(),
-        private: $('input[name="package-visibility"]:checked').val() == 'private'
+        private: $('input[name="package-visibility"]:checked').val() == 'private',
       }
+
+      body.license_id = $('#license-id').val() == '' || $('#license-id').val() == 'null' ? null : $('#license-id').val();
 
       if (!body['private']) {
         if (!confirm("Warning: You are about to make the package public. Do you want to continue?")) {
@@ -2254,6 +2286,51 @@
 
   </script>
   <script>
+    function fetchAvailableLicenses(callback){
+      $.ajax({
+        url: "{{url_for('catalog_blueprint.api_fetch_licenses')}}",
+        method: "GET",
+        success: function (response) {
+          if (response.success) {
+            window.availableLicenses = response.result;
+            // Populate the license dropdown in the publishing modal
+            var licenseSelect = $('#license-id');
+            licenseSelect.empty();
+
+            licenseSelect.append($('<option></option>').attr('value', '').text('Select License'));
+
+            window.availableLicenses.forEach(function (license) {
+              var option = $('<option></option>')
+                .attr('value', license.key)
+                .text(license.title + ' - (' + license.key + ')');
+              if (license.image_url) {
+                option.attr('data-image', license.image_url);
+              }
+              licenseSelect.append(option);
+            });
+
+            //If the dataset already has a license, select it
+            currentLicense = "{{ dataset.get('license_key') }}";
+            if (currentLicense && currentLicense !== 'None') {
+              licenseSelect.val(currentLicense);
+            } else {
+              licenseSelect.val('');
+            }
+         
+          } else {
+            console.error("Failed to fetch available licenses:", response.message);
+          }
+        },
+        error: function (xhr, status, error) {
+          console.error("AJAX request for available licenses failed:", error);
+        }
+      });
+      if(typeof callback === "function") {
+        callback();
+      }
+    }
+  </script>
+  <script>
     cytoscape.use(window.cytoscapeDagre);
 
     function trackLineage(resourceId){
@@ -2363,6 +2440,7 @@
 
     $(document).ready(function () {
       fetchPaths();
+      fetchAvailableLicenses();
     });
 
     // Fetch available paths for writing. The write access is checked by the API 

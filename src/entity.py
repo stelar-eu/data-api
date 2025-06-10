@@ -56,6 +56,7 @@ from exceptions import BackendLogicError, DataError, InternalException, NotFound
 from search import entity_search
 from tags import tag_object_to_string, tag_string_to_object
 import kutils as ku
+from licenses import LICENSE
 
 logger = logging.getLogger(__name__)
 
@@ -1033,6 +1034,13 @@ class PackageEntity(EntityWithExtras):
         return filter_list_by_type(idlist, self.package_type, idattr="name")
 
     def create(self, init_data):
+        """Create an entity in CKAN.
+
+        Args:
+            init_data: The data to create the entity with.
+        Returns:
+            The created entity object.
+        """
         # Make sure we have the two compulsory fields
         if "name" not in init_data:
             raise DataError("Missing name")
@@ -1043,7 +1051,117 @@ class PackageEntity(EntityWithExtras):
 
         # Force this!
         init_data["type"] = self.package_type
-        return super().create(init_data)
+
+        context = {"entity": self.name}
+
+        ckinit_data = self.create_to_ckan(init_data)
+
+        obj = ckan_request(self.ckan_api_create, context=context, json=ckinit_data)
+        logger.info("Created %s id=%s", self.name, obj["id"])
+
+        # Load the object from CKAN
+        loaded_obj = self.load_from_ckan(obj)
+
+        # Enhance the license information in the loaded object
+        self._enhance_license(loaded_obj)
+
+        return loaded_obj
+
+    def _enhance_license(self, data: dict):
+        """Enhance the license information in the data.
+
+        This method is used to enhance the license information in the data
+        by adding the license title and URL if they are not present.
+        """
+        if "license_id" in data:
+            lic = data["license_id"]
+            if lic:
+                # If the license is a string, it is the license Key
+                try:
+                    lic = LICENSE.get(lic)
+                except Exception:
+                    return
+                data["license_id"] = lic.get("id")
+                data["license_title"] = lic.get("title")
+                data["license_key"] = lic.get("key")
+                data["license_image_url"] = lic.get("image_url")
+                data["license_url"] = lic.get("url")
+            else:
+                data["license_title"] = None
+                data["license_url"] = None
+
+    def get(self, eid: str):
+        """Read an entity from CKAN.
+
+        This method bypasses any authorization checks.
+
+        Args:
+            eid: The ID of the entity to read.
+        Returns:
+            The entity object.
+        """
+        obj = ckan_request(self.ckan_api_show, id=eid, context={"entity": self.name})
+        # Check the type of the CKAN object (for those CKAN objects that have type)
+        objtype = obj.get("type", self.name)
+        if objtype != self.name:
+            raise NotFoundError(f"{self.name} not found, ID belongs to {objtype}")
+
+        # Load the object from CKAN
+        loaded_obj = self.load_from_ckan(obj)
+
+        # Enhance the license information in the loaded object
+        self._enhance_license(loaded_obj)
+
+        return loaded_obj
+
+    def update(self, eid: str, entity_data):
+        """Update an entity in CKAN.
+
+        Args:
+            eid: The ID of the entity to update.
+            entity_data: The data to update the entity with.
+        Returns:
+            The updated entity object.
+        """
+        context = {"entity": self.name}
+
+        # Convert to CKAN properly
+        ck_data = self.update_to_ckan(entity_data, eid)
+
+        obj = ckan_request(self.ckan_api_update, id=eid, context=context, json=ck_data)
+
+        # Load the object from CKAN
+        loaded_obj = self.load_from_ckan(obj)
+
+        # Enhance the license information in the loaded object
+        self._enhance_license(loaded_obj)
+
+        return loaded_obj
+
+    def patch(self, eid: str, patch_data):
+        """Patch an entity in CKAN.
+
+        Args:
+            eid: The ID of the entity to patch.
+            patch_data: The data to patch the entity with.
+        Returns:
+            The patched entity object.
+        """
+        context = {"entity": self.name}
+
+        ckpatch_data = self.update_to_ckan(patch_data, eid, mode="patch")
+
+        obj = ckan_request(
+            self.ckan_api_patch, id=eid, context=context, json=ckpatch_data
+        )
+
+        # Load the object from CKAN
+        loaded_obj = self.load_from_ckan(obj)
+
+        # Enhance the license information in the loaded object
+        self._enhance_license(loaded_obj)
+
+        return loaded_obj
 
     def search(self, query_spec: dict) -> list:
         """Search for packages.
@@ -1164,6 +1282,11 @@ class PackageSchema(Schema):
     url = fields.String(validate=validators.Length(0, 200), allow_none=True)
     version = fields.String(validate=validators.Length(0, 100), allow_none=True)
 
+    # License stuff
+    license_id = fields.String(allow_none=True, load_default=None)
+    license_title = fields.String(allow_none=True, dump_only=True)
+    license_url = fields.String(allow_none=True, dump_only=True)
+
     resources = fields.List(fields.Dict(), dump_only=True)
     groups = fields.List(fields.Dict(), dump_only=True)
     tags = fields.List(fields.String)
@@ -1196,6 +1319,7 @@ class PackageCKANSchema(EntityWithExtrasCKANSchema):
     author_email = fields.String(allow_none=True)
     maintainer = fields.String(allow_none=True)
     maintainer_email = fields.String(allow_none=True)
+    license_id = fields.String(allow_none=True, load_default=None)
     notes = fields.String(allow_none=True)
     url = fields.String(allow_none=True)
     version = fields.String(allow_none=True)

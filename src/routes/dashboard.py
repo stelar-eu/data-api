@@ -363,38 +363,26 @@ def catalog():
 @dashboard_bp.route("/catalog/<dataset_id>", methods=["GET", "POST"])
 @session_required
 def dataset_detail(dataset_id):
-    if request.method == "POST":
-        if request.form.get("dataset_delete"):
-            try:
-                id = request.form.get("dataset_delete")
-                if id == dataset_id:
-                    cutils.delete_package(id)
-                    return redirect(url_for("dashboard_blueprint.catalog"))
-            except:
-                return redirect(url_for("dashboard_blueprint.catalog"))
-        else:
-            return redirect(url_for("dashboard_blueprint.catalog"))
+    metadata_data = None
+    try:
+        metadata_data = cutils.get_package(id=dataset_id)
+    except ValueError:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+    except Exception:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+    # Tool packages should redirect to the tool view
+    if metadata_data.get("type") == "tool":
+        return redirect(url_for("dashboard_blueprint.tool", tool_id=dataset_id))
+
+    if metadata_data:
+        return render_template_with_s3(
+            "catalog_view.html",
+            dataset=metadata_data,
+            PARTNER_IMAGE_SRC=get_partner_logo(),
+        )
     else:
-        metadata_data = None
-        try:
-            metadata_data = cutils.get_package(id=dataset_id)
-        except ValueError as e:
-            return redirect(url_for("dashboard_blueprint.catalog"))
-        except Exception as e:
-            return redirect(url_for("dashboard_blueprint.catalog"))
-
-        # Tool packages should redirect to the tool view
-        if metadata_data.get("type") == "tool":
-            return redirect(url_for("dashboard_blueprint.tool", tool_id=dataset_id))
-
-        if metadata_data:
-            return render_template_with_s3(
-                "catalog_view.html",
-                dataset=metadata_data,
-                PARTNER_IMAGE_SRC=get_partner_logo(),
-            )
-        else:
-            return redirect(url_for("dashboard_blueprint.catalog"))
+        return redirect(url_for("dashboard_blueprint.catalog"))
 
 
 @dashboard_bp.route("/catalog/<dataset_id>/annotate")
