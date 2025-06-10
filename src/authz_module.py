@@ -736,8 +736,18 @@ class UMspec(ResourceSpec):
 
         user_info = ku.current_user()
         for member in members:
-            if user_info["sub"] in member and self.capacity in member:
-                return True
+            # if user_info["sub"] in member and self.capacity in member:
+            #     return True
+            if user_info["sub"] in member:
+                # Check if the capacity is a list and if the user has any of the capacities.
+                if isinstance(self.capacity, list):
+                    for cap in self.capacity:
+                        if cap in member:
+                            return True
+                else:
+                    # If capacity is not a list, check directly.
+                    if self.capacity in member:
+                        return True
         return False
 
     def auth(self, resource) -> bool:

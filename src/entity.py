@@ -825,8 +825,7 @@ class MemberEntity:
             member_id: the ID of the member
             capacity: the capacity of the member
         """
-        authorize(member_id, self.child.name, "edit_membership")
-        authorize(eid, self.parent.name, "add_member")
+        logger.info("Adding member %s to %s with capacity %s", member_id, eid, capacity)
         return self.add_member(eid, member_id, capacity)
 
     def remove_member_entity(self, eid: str, member_id: str):
@@ -839,8 +838,6 @@ class MemberEntity:
             eid: the ID of the group or org
             member_id: the ID of the member
         """
-        authorize(member_id, self.child.name, "edit_membership")
-        authorize(eid, self.parent.name, "remove_member")
         return self.remove_member(eid, member_id)
 
     def list_member_entities(self, eid: str, capacity: str | None = None):
@@ -857,12 +854,20 @@ class MemberEntity:
         return self.list_members(eid, capacity)
 
     def add_member(self, eid: str, member_id: str, capacity: str):
+        # Authorize access
+        authorize(member_id, self.child.name, "edit_membership")
+        authorize(eid, self.parent.name, "add_member")
+
         context = {"member_entity": self.child.name}
         self.parent.add_member(
             eid, member_id, self.member_kind, capacity=capacity, context=context
         )
 
     def remove_member(self, eid: str, member_id: str):
+        # Authorize access
+        authorize(member_id, self.child.name, "edit_membership")
+        authorize(eid, self.parent.name, "remove_member")
+        
         context = {"member_entity": self.child.name}
         self.parent.remove_member(eid, member_id, self.member_kind, context=context)
 

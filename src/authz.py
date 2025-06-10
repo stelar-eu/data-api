@@ -115,8 +115,8 @@ def authorize(resource, entity, action):
         gaction = generic_action(action, entity)
         if gaction in ACTIONS:
             action = gaction
-    else:
-        raise InternalException(f"Illegal action passed: {action}")
+    # else:
+    #     raise InternalException(f"Illegal action passed: {action}")
     
     #grant access without authorization check for the following actions
     if action in ["read_group", "read_organization", "read_vocabulary", "read_tag"]:

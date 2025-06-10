@@ -9,6 +9,7 @@ from apiflask import Schema, fields, validators
 from flask import current_app, g
 from marshmallow import INCLUDE, ValidationError, pre_load, validates_schema
 
+from authz import authorize
 import cutils
 import execution
 import kutils
@@ -842,6 +843,9 @@ class Task(Entity):
             NotFoundError: If the Process is not found
         """
         process_id = str(spec.get("process_id"))
+        authorize(process_id, "process", "add_task")
+
+        
         inputs = spec.get("inputs")
         outputs = spec.get("outputs", {})
         datasets = spec.get("datasets")
