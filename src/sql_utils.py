@@ -124,6 +124,166 @@ def insert_image_blob(image_id, image_blob, image_name=None):
 
 
 # ---------------------------------------------------------
+# License Management
+# ---------------------------------------------------------
+def license_list_all():
+    """Returns a compressed list of all licenses available in the system.
+    Returns:
+        An array with the list of all licenses keys
+    """
+    sql = utils.sql_license_template["license_list_all_template"]
+    resp = pgsql.execSql(sql, ())
+    if resp and len(resp) > 0:
+        licenses = [row["license"] for row in resp]
+        return licenses
+    else:
+        return None
+
+
+def license_fetch_all():
+    """Returns a list of all licenses available in the system.
+    Returns:
+        A JSON with the list of all licenses
+    """
+    sql = utils.sql_license_template["license_fetch_all_template"]
+    resp = pgsql.execSql(sql, ())
+    if resp and len(resp) > 0:
+        licenses = resp
+        return licenses
+    else:
+        return None
+
+
+def license_get_by_id(license_id):
+    """Returns the license with the given ID.
+
+    Args:
+        license_id: The ID of the license to retrieve.
+
+    Returns:
+        A JSON with the license details, or None if not found.
+    """
+    sql = utils.sql_license_template["license_fetch_by_id_template"]
+    resp = pgsql.execSql(sql, (license_id,))
+    if resp and len(resp) > 0:
+        license_details = resp[0]
+        return license_details
+    else:
+        return None
+
+
+def license_get_by_key(license_key):
+    """Returns the license with the given key.
+
+    Args:
+        license_key: The key of the license to retrieve.
+
+    Returns:
+        A JSON with the license details, or None if not found.
+    """
+    sql = utils.sql_license_template["license_fetch_by_key_template"]
+    resp = pgsql.execSql(sql, (license_key,))
+    if resp and len(resp) > 0:
+        license_details = resp[0]
+        return license_details
+    else:
+        return None
+
+
+def license_create(license_id, **license_spec):
+    """Creates a new license in the database.
+
+    Args:
+        license_id: UUID of the license.
+        license_spec: A dictionary with the license specifications.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+    sql = utils.sql_license_template["license_create_template"]
+    license_key = license_spec.get("key")
+    title = license_spec.get("title")
+    url = license_spec.get("url")
+    description = license_spec.get("description")
+    image_url = license_spec.get("image_url", None)
+    osi_approved = license_spec.get("osi_approved", False)
+    open_data_approved = license_spec.get("open_data_approved", False)
+
+    resp = pgsql.execSql(
+        sql,
+        (
+            license_id,
+            license_key,
+            title,
+            url,
+            description,
+            image_url,
+            osi_approved,
+            open_data_approved,
+        ),
+    )
+
+    if resp.get("status") is False:
+        return False
+
+    return True
+
+
+def license_patch(license_id, **license_spec):
+    """
+    Updates an existing license in the database.
+
+    Args:
+        license_id: UUID of the license.
+        license_spec: A dictionary with the license specifications to update.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+    sql = utils.sql_license_template["license_update_template"]
+
+    # Fetch the existing license details
+    existing_license = license_get_by_id(license_id)
+    if not existing_license:
+        return False
+
+    # Merge the existing license details with the new specifications
+    updated_license_spec = {**existing_license, **license_spec}
+
+    title = updated_license_spec.get("title")
+    url = updated_license_spec.get("url")
+    description = updated_license_spec.get("description")
+    image_url = updated_license_spec.get("image_url")
+    osi_approved = updated_license_spec.get("osi_approved", False)
+    open_data_approved = updated_license_spec.get("open_data_approved", False)
+
+    resp = pgsql.execSql(
+        sql,
+        (
+            title,
+            url,
+            description,
+            image_url,
+            osi_approved,
+            open_data_approved,
+            license_id,
+        ),
+    )
+
+    if "status" in resp:
+        if not resp.get("status"):
+            return False
+    else:
+        return False
+
+    return True
+
+
+def license_delete(license_id):
+    pass
+
+
+# ---------------------------------------------------------
 ## Policy Management
 # ---------------------------------------------------------
 def policy_version_create(

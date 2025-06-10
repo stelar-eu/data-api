@@ -10,7 +10,17 @@ from backend.ckan import get_solr_schema
 import utils
 import kutils
 from backend.ckan import ALL_RELATIONSHIPS, get_solr_schema
-from cutils import DATASET, GROUP, ORGANIZATION, RESOURCE, TAG, VOCABULARY
+from cutils import (
+    DATASET,
+    GROUP,
+    ORGANIZATION,
+    RESOURCE,
+    TAG,
+    VOCABULARY,
+    LICENSE,
+    LicenseSchema,
+    LicenseUpdateSchema,
+)
 from exceptions import DataError
 from package import (
     create_relationship,
@@ -220,3 +230,103 @@ def api_delete_relationships(subid, objid, rel):
     if rel not in ALL_RELATIONSHIPS:
         raise DataError(f"Invalid relationship type: {rel}")
     return delete_relationship(subid, objid, rel)
+
+
+#
+# License endpoints
+#
+
+
+@catalog_bp.get("/licenses")
+@catalog_bp.output(schema.IdListResponse, status_code=200)
+@catalog_bp.doc(
+    summary="Retrieve all licenses Keys available in the Data Catalog",
+    description="""\This endpoint retrieves all licenses available in the Data Catalog.
+    The licenses are used to define the terms of use for datasets, resources, and other entities in the catalog.
+    """,
+    tags=["RESTful Publishing Operations"],
+    security=security_doc,
+    responses=error_responses([401, 403, 500, 502]),
+)
+@token_active
+@render_api_output(logger)
+def api_get_licenses():
+    """Retrieve all licenses available in the Data Catalog."""
+    return LICENSE.list_entities()
+
+
+@catalog_bp.get("/licenses.fetch")
+@catalog_bp.output(schema.EntityListResponse, status_code=200)
+@catalog_bp.doc(
+    summary="Fetch all licenses available in the Data Catalog",
+    description="""\This endpoint retrieves all licenses available in the Data Catalog.
+    The licenses are used to define the terms of use for datasets, resources, and other entities in the catalog.
+    """,
+    tags=["RESTful Publishing Operations"],
+    security=security_doc,
+    responses=error_responses([401, 403, 500, 502]),
+)
+@token_active
+@render_api_output(logger)
+def api_fetch_licenses():
+    """Retrieve all licenses available in the Data Catalog."""
+    return LICENSE.fetch_entities()
+
+
+@catalog_bp.get("/license/<entity_id>")
+@catalog_bp.output(schema.APIResponse, status_code=200)
+@catalog_bp.doc(
+    summary="Retrieve a license by its unique identifier",
+    description="""\
+This endpoint retrieves a license by its unique identifier.
+    The license is used to define the terms of use for datasets, resources, and other entities in the catalog.
+    """,
+    tags=["RESTful Publishing Operations"],
+    security=security_doc,
+    responses=error_responses([401, 403, 404, 500, 502]),
+)
+@token_active
+@render_api_output(logger)
+def api_get_license(entity_id):
+    """Retrieve a license by its unique identifier."""
+    return LICENSE.get(entity_id)
+
+
+@catalog_bp.post("/license")
+@catalog_bp.input(LicenseSchema, location="json")
+@catalog_bp.output(schema.APIResponse, status_code=201)
+@catalog_bp.doc(
+    summary="Create a new license",
+    description="""\
+This endpoint creates a new license in the Data Catalog.
+    The license is used to define the terms of use for datasets, resources, and other entities in the catalog.
+    """,
+    tags=["RESTful Publishing Operations"],
+    security=security_doc,
+    responses=error_responses([400, 401, 403, 500, 502]),
+)
+@token_active
+@render_api_output(logger)
+def api_create_license(json_data):
+    """Create a new license in the Data Catalog."""
+    return LICENSE.create(**json_data)
+
+
+@catalog_bp.patch("/license/<entity_id>")
+@catalog_bp.input(LicenseUpdateSchema(partial=True), location="json")
+@catalog_bp.output(schema.APIResponse, status_code=200)
+@catalog_bp.doc(
+    summary="Patch an existing license",
+    description="""\
+This endpoint patches an existing license in the Data Catalog.
+    The license is used to define the terms of use for datasets, resources, and other entities in the catalog.
+    """,
+    tags=["RESTful Publishing Operations"],
+    security=security_doc,
+    responses=error_responses([400, 401, 403, 404, 500, 502]),
+)
+@token_active
+@render_api_output(logger)
+def api_patch_license(entity_id, json_data):
+    """Patch an existing license in the Data Catalog."""
+    return LICENSE.patch(entity_id, **json_data)
