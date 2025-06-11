@@ -1702,3 +1702,30 @@ def track_resource_lineage(resource_id):
         return resp
     else:
         return None
+
+
+def track_resource_forward_lineage(resource_id):
+    """Submit a request to the Metadata Database to retrieve information about the forward lineage of a resource.
+
+    Args:
+        resource_id: The identifier (UUID) assigned to a resource.
+
+    Returns:
+        A JSON with the lineage of the resource, if any.
+    """
+
+    sql = utils.sql_workflow_execution_templates["resource_forward_lineage_template"]
+
+    # Execute the SQL command in the database
+    resp = pgsql.execSql(
+        sql,
+        (
+            resource_id,
+            resource_id,
+        ),
+    )
+
+    if resp and len(resp) > 0:
+        return resp
+    else:
+        return None
