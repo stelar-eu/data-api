@@ -3,7 +3,7 @@ import logging
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import URL, Boolean, Dict, List
 from apiflask.validators import OneOf
-
+from flask import request
 import schema
 from auth import security_doc, token_active
 from backend.ckan import get_solr_schema
@@ -23,6 +23,8 @@ from licenses import (
     LicenseSchema,
     LicenseUpdateSchema,
 )
+
+from backend.kg import ONTOP_CLIENT
 from exceptions import DataError
 from package import (
     create_relationship,
@@ -368,3 +370,26 @@ This endpoint deletes a license by its unique identifier.
 def api_delete_license(entity_id):
     """Delete a license by its unique identifier."""
     return LICENSE.delete(entity_id)
+
+
+@catalog_bp.post("/sparql")
+@catalog_bp.doc(
+    summary="Execute a SPARQL query against the Knowledge Graph",
+    description="""\
+This endpoint allows users to execute SPARQL queries against the Knowledge Graph.
+The request body should contain the raw SPARQL query.
+""",
+    tags=["Knowledge Graph Operations"],
+    security=security_doc,
+    responses=error_responses([400, 401, 403, 500, 502]),
+)
+@token_active
+@render_api_output(logger)
+def api_execute_sparql():
+    """Execute a SPARQL query against the Knowledge Graph."""
+    sparql_query = request.data.decode("utf-8")  # Extract raw query from request body
+    if not sparql_query:
+        raise DataError("SPARQL query is missing in the request body.")
+
+    # Execute the SPARQL query using the ONTOP client
+    return ONTOP_CLIENT().execute_query(sparql_query)
