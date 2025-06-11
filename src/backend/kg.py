@@ -1,7 +1,6 @@
 import requests
 from flask import current_app
 import logging
-from authz_module import get_user_organizations
 import kutils
 
 logger = logging.getLogger(__name__)
