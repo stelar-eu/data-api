@@ -109,6 +109,23 @@ def api_get_resource_lineage(entity_id):
     return RESOURCE.track_lineage(entity_id)
 
 
+@catalog_bp.route("/resource/<entity_id>/cardinality", methods=["GET"])
+@catalog_bp.output(schema.APIResponse, status_code=200)
+@catalog_bp.doc(tags=["Search Operations"])
+@token_active
+@render_api_output(logger)
+def api_get_resource_cardinality(entity_id):
+    """Get the forward lineage of a resource.
+
+    Args:
+        entity_id: The unique identifier of the resource as listed in CKAN.
+
+    Returns:
+        A JSON with the forward lineage of the resource.
+    """
+    return RESOURCE.track_forward_lineage(entity_id)
+
+
 #
 # Relationship endpoints
 #
