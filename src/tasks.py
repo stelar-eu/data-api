@@ -106,7 +106,7 @@ logger = logging.getLogger(__name__)
 
 class TaskDatasetDictSchema(Schema):
     name = fields.String(
-        required=True, validate=lambda s: re.match(r"^[a-zA-Z0-9_-]+$", s) is not None
+        required=True, validate=lambda s: re.match(r"^[a-z0-9_-]+$", s) is not None
     )
     owner_org = fields.String(
         required=True, validate=lambda s: re.match(r"^[a-z0-9-]+$", s) is not None
