@@ -225,6 +225,15 @@ sql_2fa_template = {
     "two_factor_retrieve_skey_template": "SELECT two_factor_key FROM klms.secret_2fa_keys WHERE user_uuid = %s",
 }
 
+sql_license_template = {
+    "license_list_all_template": "SELECT license_key as license FROM klms.license",
+    "license_fetch_all_template": "SELECT license_uuid as id, license_key as key, title, url, description, image_url, osi_approved, open_data_approved, metadata_created, metadata_modified FROM klms.license",
+    "license_fetch_by_id_template": "SELECT license_uuid as id, license_key as key, title, url, description, image_url, osi_approved, open_data_approved, metadata_created, metadata_modified FROM klms.license WHERE license_uuid = %s",
+    "license_fetch_by_key_template": "SELECT license_uuid as id, license_key as key, title, url, description, image_url, osi_approved, open_data_approved, metadata_created, metadata_modified FROM klms.license WHERE license_key = %s",
+    "license_create_template": "INSERT INTO klms.license(license_uuid, license_key, title, url, description, image_url, osi_approved, open_data_approved, metadata_created, metadata_modified) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, now(), now())",
+    "license_update_template": "UPDATE klms.license SET title = %s, url = %s, description = %s, image_url=%s, osi_approved = %s, open_data_approved = %s, metadata_modified = now() WHERE license_uuid = %s",
+    "license_delete_template": "DELETE FROM klms.license WHERE license_uuid = %s",
+}
 #########################################################
 
 # Templates of SQL queries for workflow management
@@ -278,6 +287,154 @@ sql_workflow_execution_templates = {
                            (SELECT DISTINCT workflow_uuid, value FROM klms.workflow_tag WHERE key='package_id') as tg
                            ON ex.workflow_uuid=tg.workflow_uuid LEFT JOIN public.package as pkg ON tg.value=pkg.id;""",
     "workflow_read_tags_template": "SELECT key, value FROM klms.workflow_tag WHERE workflow_uuid = %s",
+    "resource_lineage_template": """WITH RECURSIVE lineage (
+            resource_id,
+            output_task_uuid,
+            output_name,
+            input_task_uuid,
+            input_order,
+            input_resource_id,
+            input_path,
+            input_group_name
+        ) AS (
+            -- Base case
+            SELECT
+                to_tbl.dataset_id AS resource_id,
+                to_tbl.task_uuid AS output_task_uuid,
+                to_tbl.output_name,
+                ti.task_uuid AS input_task_uuid,
+                ti.order_num AS input_order,
+                ti.resource_id AS input_resource_id,
+                ti.input_path,
+                ti.input_group_name
+            FROM klms.task_output to_tbl
+            JOIN klms.task_input ti ON to_tbl.task_uuid = ti.task_uuid
+            WHERE to_tbl.dataset_id = %s
+
+            UNION ALL
+
+            -- Recursive case
+            SELECT
+                to_tbl.dataset_id,
+                to_tbl.task_uuid,
+                to_tbl.output_name,
+                ti.task_uuid,
+                ti.order_num,
+                ti.resource_id,
+                ti.input_path,
+                ti.input_group_name
+            FROM klms.task_output to_tbl
+            JOIN klms.task_input ti ON to_tbl.task_uuid = ti.task_uuid
+            JOIN lineage l ON to_tbl.dataset_id = l.input_resource_id
+        )
+
+        -- Main SELECT
+        SELECT
+            l.*,
+            r.name AS input_resource_name,
+            r.url AS input_resource_url,
+            r.package_id AS input_resource_package_id,
+            te.state AS task_state,
+            te.start_date,
+            te.end_date,
+            te.workflow_uuid,
+            name_tag.value AS task_name,
+            COALESCE(image_tag.value, 'remote') AS task_image,
+            tracked.name AS current_resource_name,
+            output_r.name AS output_resource_name
+        FROM lineage l
+        LEFT JOIN public.resource r ON l.input_resource_id = r.id
+        LEFT JOIN klms.task_execution te ON l.input_task_uuid = te.task_uuid
+        LEFT JOIN klms.task_tag name_tag ON l.input_task_uuid = name_tag.task_uuid AND name_tag.key = '__name__'
+        LEFT JOIN klms.task_tag image_tag ON l.input_task_uuid = image_tag.task_uuid AND image_tag.key = '__image__'
+        LEFT JOIN public.resource tracked ON tracked.id = %s
+        LEFT JOIN public.resource output_r ON output_r.id = l.resource_id
+        ORDER BY l.output_task_uuid, l.input_order
+    """,
+    "resource_forward_lineage_template": """WITH RECURSIVE forward_lineage AS (
+            -- Start from resource being tracked
+            SELECT
+                ti.resource_id AS input_resource_id,
+                ti.task_uuid AS input_task_uuid,
+                ti.order_num AS input_order,
+                ti.input_group_name,
+                ti.input_path,
+                to_tbl.task_uuid AS output_task_uuid,
+                to_tbl.dataset_id AS output_resource_id,
+                to_tbl.output_name
+            FROM klms.task_input ti
+            JOIN klms.task_output to_tbl ON ti.task_uuid = to_tbl.task_uuid
+            WHERE ti.resource_id = %s
+
+            UNION ALL
+
+            -- Recursively find downstream tasks/resources
+            SELECT
+                ti.resource_id,
+                ti.task_uuid,
+                ti.order_num,
+                ti.input_group_name,
+                ti.input_path,
+                to_tbl.task_uuid,
+                to_tbl.dataset_id,
+                to_tbl.output_name
+            FROM klms.task_input ti
+            JOIN klms.task_output to_tbl ON ti.task_uuid = to_tbl.task_uuid
+            JOIN forward_lineage fwd ON ti.resource_id = fwd.output_resource_id
+        ),
+
+        tasks_with_all_inputs AS (
+            -- Now for every discovered task, expand all its inputs
+            SELECT
+                fwd.output_task_uuid AS task_uuid,
+                ti.resource_id AS input_resource_id,
+                ti.order_num AS input_order,
+                ti.input_group_name,
+                ti.input_path,
+                fwd.output_resource_id,
+                fwd.output_name
+            FROM forward_lineage fwd
+            JOIN klms.task_input ti ON fwd.output_task_uuid = ti.task_uuid
+        )
+
+        SELECT
+            t.*,
+
+            -- Get catalog names for inputs
+            r_in.name AS input_resource_name,
+            r_in.url AS input_resource_url,
+            r_in.package_id AS input_resource_package_id,
+
+            -- Get catalog names for outputs
+            r_out.name AS output_resource_name,
+            r_out.url AS output_resource_url,
+            r_out.package_id AS output_resource_package_id,
+
+            -- Get task execution info
+            te.state AS task_state,
+            te.start_date,
+            te.end_date,
+            te.workflow_uuid,
+
+            -- Get task tags
+            name_tag.value AS task_name,
+            COALESCE(image_tag.value, 'remote') AS task_image,
+
+            -- Name of tracked resource itself (root)
+            tracked.name AS current_resource_name
+
+        FROM tasks_with_all_inputs t
+
+        LEFT JOIN public.resource r_in ON t.input_resource_id = r_in.id
+        LEFT JOIN public.resource r_out ON t.output_resource_id = r_out.id
+        LEFT JOIN public.resource tracked ON tracked.id = %s
+
+        LEFT JOIN klms.task_execution te ON t.task_uuid = te.task_uuid
+        LEFT JOIN klms.task_tag name_tag ON t.task_uuid = name_tag.task_uuid AND name_tag.key = '__name__'
+        LEFT JOIN klms.task_tag image_tag ON t.task_uuid = image_tag.task_uuid AND image_tag.key = '__image__'
+
+        ORDER BY t.task_uuid, t.input_order
+    """,
     "task_create_template": "INSERT INTO klms.task_execution(task_uuid, workflow_uuid, creator_user_id, state, start_date) VALUES (%s, %s, %s, %s, %s)",
     "task_update_template": "UPDATE klms.task_execution SET state = %s WHERE task_uuid = %s",
     "task_commit_template": "UPDATE klms.task_execution SET state = %s, end_date = %s WHERE task_uuid = %s",

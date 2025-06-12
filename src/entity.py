@@ -47,15 +47,16 @@ from marshmallow import EXCLUDE, SchemaOpts, missing, post_dump, pre_load
 from psycopg2 import sql
 
 import authz_module
+import kutils as ku
 import schema
 from authz import authorize, generic_action
 from backend.ckan import ckan_request, filter_list_by_type
 from backend.pgsql import execSql, transaction
 from context import entity_cache
 from exceptions import BackendLogicError, DataError, InternalException, NotFoundError
+from licenses import LICENSE
 from search import entity_search
 from tags import tag_object_to_string, tag_string_to_object
-import kutils as ku
 
 logger = logging.getLogger(__name__)
 
@@ -282,6 +283,9 @@ class Entity:
     def patch(self, eid: str, patch_data):
         raise NotImplementedError
 
+    def search(self, query_data: dict) -> list:
+        raise NotImplementedError
+
 
 class CKANEntity(Entity):
     def __init__(
@@ -336,7 +340,7 @@ class CKANEntity(Entity):
         init_data = self.ckan_schema.dump(init_data)
         return init_data
 
-    def update_to_ckan(self, update_data, current_obj):
+    def update_to_ckan(self, update_data, current_obj, mode="update"):
         """Convert the data to the CKAN format for updating.
 
         This method is used to convert the update data to the CKAN format for updating
@@ -474,7 +478,7 @@ class CKANEntity(Entity):
         """
         context = {"entity": self.name}
 
-        ckpatch_data = self.update_to_ckan(patch_data, eid)
+        ckpatch_data = self.update_to_ckan(patch_data, eid, mode="patch")
 
         obj = ckan_request(
             self.ckan_api_patch, id=eid, context=context, json=ckpatch_data
@@ -943,6 +947,24 @@ class EntityWithMembers(EntityWithExtras):
             context=context,
         )
 
+    def fetch(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        """Fetch the entities of this type. Specifically, in the organization
+        and group entities, CKAN offers the ability to return the full representation
+        of all entities without having to call the `entity_show` method for each entity.
+
+        Args:
+            limit: The maximum number of entities to return.
+            offset: The offset to start fetching entities from.
+        Returns:
+            A list of entity objects.
+        """
+        self.check_limit_offset(limit, "limit")
+        self.check_limit_offset(offset, "offset")
+        ents = ckan_request(
+            self.ckan_api_list, limit=limit, offset=offset, all_fields=True
+        )
+        return ents
+
     def remove_member(
         self, eid: str, member_id: str, member_kind: str, context: dict = {}
     ):
@@ -1033,6 +1055,23 @@ class PackageEntity(EntityWithExtras):
             return None
         return result[0]["id"]
 
+    @classmethod
+    def resolve_type(cls, name_or_id: str) -> str | None:
+        """Resolve a package name or ID to its type.
+
+        This method is used to resolve a name or ID to its type.
+        """
+        sql_query = sql.SQL(
+            """\
+            SELECT type
+            FROM public.package
+            WHERE state = 'active' AND (id = %s OR name = %s)"""
+        )
+        result = execSql(sql_query, [name_or_id, name_or_id])
+        if not result:
+            return None
+        return result[0]["type"]
+
     def filter_ids(self, idlist: list[str]) -> list[dict]:
         """Filter the list of packages by ID, leaving only packages of one type."""
         return filter_list_by_type(idlist, self.package_type)
@@ -1042,6 +1081,13 @@ class PackageEntity(EntityWithExtras):
         return filter_list_by_type(idlist, self.package_type, idattr="name")
 
     def create(self, init_data):
+        """Create an entity in CKAN.
+
+        Args:
+            init_data: The data to create the entity with.
+        Returns:
+            The created entity object.
+        """
         # Make sure we have the two compulsory fields
         if "name" not in init_data:
             raise DataError("Missing name")
@@ -1052,7 +1098,117 @@ class PackageEntity(EntityWithExtras):
 
         # Force this!
         init_data["type"] = self.package_type
-        return super().create(init_data)
+
+        context = {"entity": self.name}
+
+        ckinit_data = self.create_to_ckan(init_data)
+
+        obj = ckan_request(self.ckan_api_create, context=context, json=ckinit_data)
+        logger.info("Created %s id=%s", self.name, obj["id"])
+
+        # Load the object from CKAN
+        loaded_obj = self.load_from_ckan(obj)
+
+        # Enhance the license information in the loaded object
+        self._enhance_license(loaded_obj)
+
+        return loaded_obj
+
+    def _enhance_license(self, data: dict):
+        """Enhance the license information in the data.
+
+        This method is used to enhance the license information in the data
+        by adding the license title and URL if they are not present.
+        """
+        if "license_id" in data:
+            lic = data["license_id"]
+            if lic:
+                # If the license is a string, it is the license Key
+                try:
+                    lic = LICENSE.get(lic)
+                except Exception:
+                    return
+                data["license_id"] = lic.get("id")
+                data["license_title"] = lic.get("title")
+                data["license_key"] = lic.get("key")
+                data["license_image_url"] = lic.get("image_url")
+                data["license_url"] = lic.get("url")
+            else:
+                data["license_title"] = None
+                data["license_url"] = None
+
+    def get(self, eid: str):
+        """Read an entity from CKAN.
+
+        This method bypasses any authorization checks.
+
+        Args:
+            eid: The ID of the entity to read.
+        Returns:
+            The entity object.
+        """
+        obj = ckan_request(self.ckan_api_show, id=eid, context={"entity": self.name})
+        # Check the type of the CKAN object (for those CKAN objects that have type)
+        objtype = obj.get("type", self.name)
+        if objtype != self.name:
+            raise NotFoundError(f"{self.name} not found, ID belongs to {objtype}")
+
+        # Load the object from CKAN
+        loaded_obj = self.load_from_ckan(obj)
+
+        # Enhance the license information in the loaded object
+        self._enhance_license(loaded_obj)
+
+        return loaded_obj
+
+    def update(self, eid: str, entity_data):
+        """Update an entity in CKAN.
+
+        Args:
+            eid: The ID of the entity to update.
+            entity_data: The data to update the entity with.
+        Returns:
+            The updated entity object.
+        """
+        context = {"entity": self.name}
+
+        # Convert to CKAN properly
+        ck_data = self.update_to_ckan(entity_data, eid)
+
+        obj = ckan_request(self.ckan_api_update, id=eid, context=context, json=ck_data)
+
+        # Load the object from CKAN
+        loaded_obj = self.load_from_ckan(obj)
+
+        # Enhance the license information in the loaded object
+        self._enhance_license(loaded_obj)
+
+        return loaded_obj
+
+    def patch(self, eid: str, patch_data):
+        """Patch an entity in CKAN.
+
+        Args:
+            eid: The ID of the entity to patch.
+            patch_data: The data to patch the entity with.
+        Returns:
+            The patched entity object.
+        """
+        context = {"entity": self.name}
+
+        ckpatch_data = self.update_to_ckan(patch_data, eid)
+
+        obj = ckan_request(
+            self.ckan_api_patch, id=eid, context=context, json=ckpatch_data
+        )
+
+        # Load the object from CKAN
+        loaded_obj = self.load_from_ckan(obj)
+
+        # Enhance the license information in the loaded object
+        self._enhance_license(loaded_obj)
+
+        return loaded_obj
 
     def search(self, query_spec: dict) -> list:
         """Search for packages.
@@ -1173,6 +1329,11 @@ class PackageSchema(Schema):
     url = fields.String(validate=validators.Length(0, 200), allow_none=True)
     version = fields.String(validate=validators.Length(0, 100), allow_none=True)
 
+    # License stuff
+    license_id = fields.String(allow_none=True, load_default=None)
+    license_title = fields.String(allow_none=True, dump_only=True)
+    license_url = fields.String(allow_none=True, dump_only=True)
+
     resources = fields.List(fields.Dict(), dump_only=True)
     groups = fields.List(fields.Dict(), dump_only=True)
     tags = fields.List(fields.String)
@@ -1205,6 +1366,7 @@ class PackageCKANSchema(EntityWithExtrasCKANSchema):
     author_email = fields.String(allow_none=True)
     maintainer = fields.String(allow_none=True)
     maintainer_email = fields.String(allow_none=True)
+    license_id = fields.String(allow_none=True, load_default=None)
     notes = fields.String(allow_none=True)
     url = fields.String(allow_none=True)
     version = fields.String(allow_none=True)

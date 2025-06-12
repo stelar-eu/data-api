@@ -16,6 +16,10 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <!-- Leaflet PM CSS (for polygon editing) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.css" />
+  <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+  <script src="https://unpkg.com/cytoscape-dagre@2.3.2/cytoscape-dagre.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.32.0/cytoscape.min.js"></script>
+  <script src="https://unpkg.com/cytoscape-node-html-label/dist/cytoscape-node-html-label.js"></script>
 
 </head>
 
@@ -139,8 +143,8 @@
 
                       Export to Zenodo</a>
                     <div class="dropdown-divider"></div>
-                    <a class="text-danger cursor-pointer dropdown-item del-dataset-btn"
-                      data-bs-toggle="modal" data-bs-target="#modal-delete-dataset">
+                    <a class="text-danger cursor-pointer dropdown-item del-dataset-btn" data-bs-toggle="modal"
+                      data-bs-target="#modal-delete-dataset">
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                         class="me-2 text-danger icon icon-tabler icons-tabler-outline icon-tabler-trash">
@@ -188,7 +192,7 @@
                       <path d="M16 19h6" />
                       <path d="M19 16v6" />
                     </svg>
-                    {{ dataset.get('metadata_created') | datetimeformat }}
+                    {{ dataset.get('metadata_created').isoformat() | datetimeformat }}
                   </div>
                   <div class="list-inline-item" title="Last modified at">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -201,7 +205,7 @@
                       <path d="M4 11h16" />
                       <path d="M19 16l-2 3h4l-2 3" />
                     </svg>
-                    {{ dataset.get('metadata_modified') | datetimeformat }}
+                    {{ dataset.get('metadata_created').isoformat() | datetimeformat }}
                   </div>
                   <div class="list-inline-item" title="Created by">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -213,6 +217,25 @@
                     </svg>
                     {{ dataset.get('author') }}
                   </div>
+                  {% if dataset.get('license_id') %}
+                  <div class="list-inline-item" title="License">
+                    {% if dataset.get('license_image_url') != None %}
+                    <a href="{{ dataset.get('license_url') }}" target="_blank"
+                      title="Licensed under: {{ dataset.get('license_title') }}">
+                      <img src="{{ dataset.get('license_image_url') }}" alt="License Image" style="max-height: 20px;">
+                    </a>
+                    {% else %}
+                    {% if dataset.get('url') %}
+                    <a href="{{ dataset.get('license_url') }}" target="_blank"
+                      title="Licensed under: {{ dataset.get('license_title') }}">
+                      {{ dataset.get('license_title') }}
+                    </a>
+                    {% else %}
+                    {{ dataset.get('license_title') }}
+                    {% endif %}
+                    {% endif %}
+                  </div>
+                  {% endif %}
                   {% if dataset.get('url') %}
                   <div class="list-inline-item text-blue" title="Go to URL">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -249,7 +272,7 @@
                     </li>
                     <li class="nav-item" role="presentation">
                       <a href="#tabs-resources-1" class="nav-link" data-bs-toggle="tab" aria-selected="false" role="tab"
-                      tabindex="-1">Resources</a>
+                        tabindex="-1">Resources</a>
                     </li>
                     <li class="nav-item" role="presentation">
                       <a href="#tabs-extras-1" class="nav-link" data-bs-toggle="tab" aria-selected="false" role="tab"
@@ -267,9 +290,10 @@
                       <div class="card-body">
                         <div class="row">
                           <div class="card-title mb-2">Identifiers</div>
-                          <div class="col-auto"> <svg xmlns="http://www.w3.org/2000/svg" class="icon me-1 text-secondary" width="24"
-                              height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
-                              stroke-linecap="round" stroke-linejoin="round">
+                          <div class="col-auto"> <svg xmlns="http://www.w3.org/2000/svg"
+                              class="icon me-1 text-secondary" width="24" height="24" viewBox="0 0 24 24"
+                              stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                              stroke-linejoin="round">
                               <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                               <path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
                               <path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0" />
@@ -278,7 +302,8 @@
                               <path d="M21 6l0 13" />
                             </svg>
                             Name: <span id="dataset-name"><code>{{ dataset.get('name') }}</code></span>
-                            <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
+                            <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary"
+                              onclick="
                               navigator.clipboard.writeText(document.getElementById('dataset-name').innerText);
                               var el = document.getElementById('dataset-name');
                               el.classList.remove('glowing-text');
@@ -288,17 +313,20 @@
                             ">COPY</button>
                           </div>
                           <div class="col">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                              stroke-linejoin="round"
                               class="text-secondary me-1 icon icon-tabler icons-tabler-outline icon-tabler-e-passport">
                               <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                              <path d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
+                              <path
+                                d="M2 5m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z" />
                               <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
                               <path d="M9 12h-7" />
                               <path d="M15 12h7" />
                             </svg>
                             ID: <span id="dataset-id"><strong>{{ dataset.get('id') }}</strong></span>
-                            <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
+                            <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary"
+                              onclick="
                               navigator.clipboard.writeText(document.getElementById('dataset-id').innerText);
                               var el = document.getElementById('dataset-id');
                               el.classList.remove('glowing-text');
@@ -317,8 +345,9 @@
                                 {% if dataset.organization.image_url and dataset.organization.image_url != '' %}
                                 <img src="{{dataset.organization.image_url}}" />
                                 {% else %}
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                  stroke-linejoin="round"
                                   class="text-secondary icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
                                   <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                   <path d="M3 21l18 0" />
@@ -337,7 +366,8 @@
                           <div class="col mt-1">
                             <div class="row me-3 mt-1">
                               <div class="col-11">
-                                <div class="text-secondary" id="package-description">{{ dataset.get('notes', 'No\ndescription
+                                <div class="text-secondary" id="package-description">{{ dataset.get('notes',
+                                  'No\ndescription
                                   specified') |
                                   replace('\n', '<br>') | safe }}</div>
                               </div>
@@ -346,7 +376,8 @@
                                   data-bs-placement="bottom" id="edit-description-btn" onclick="editDescription()">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-pencil">
+                                    stroke-linejoin="round"
+                                    class="icon icon-tabler icons-tabler-outline icon-tabler-pencil">
                                     <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                     <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
                                     <path d="M13.5 6.5l4 4" />
@@ -357,7 +388,7 @@
                             </div>
                           </div>
                         </div>
-                      </div>                     
+                      </div>
                     </div>
                     <div class="tab-pane" id="tabs-resources-1" role="tabpanel">
                       <div class="card-body">
@@ -400,7 +431,7 @@
                             <thead>
                               <tr>
                                 <th class="text-center" style="width: 10%;">Relation</th>
-                                <th style="width: 40%;">Resource Name</th>
+                                <th style="width: 40%;">Resource</th>
                                 <th style="width: 40%;">URL</th>
                                 <th class="text-center" style="width: 10%">Format</th>
                                 <th class="w-1"></th>
@@ -415,19 +446,26 @@
                                   {% elif resource.get('relation') == 'profile' %}
                                   <span class="badge bg-orange text-orange-fg">PROFILE</span>
                                   {% else %}
-                                    <span class="badge bg-secondary text-secondary-fg">{{ resource.get('relation') | upper }}</span>
+                                  <span class="badge bg-secondary text-secondary-fg">{{ resource.get('relation') | upper
+                                    }}</span>
                                   {% endif %}
                                 </td>
-                                <td class="text-sm">{{ resource['name'] }}</td>
+                                <td class="text-sm">
+                                  <a href="{{ url_for('dashboard_blueprint.viewResource', resource_id=resource['id']) }}"
+                                    class="text-sm text-black">
+                                    {{ resource['name'] }}
+                                  </a>
+                                </td>
                                 <td class="text-sm">
                                   {% if resource['url'].startswith('s3://') %}
-                                    <a href="{{ S3_CONSOLE_URL.replace('/login', '/browser/') }}{{ resource['url'][5:] }}" target="_blank">
-                                      <small>{{ resource['url'] }}</small>
-                                    </a>
+                                  <a href="{{ S3_CONSOLE_URL.replace('/login', '/browser/') }}{{ resource['url'][5:] }}"
+                                    target="_blank">
+                                    <small>{{ resource['url'] }}</small>
+                                  </a>
                                   {% else %}
-                                    <a href="{{ resource['url'] }}" target="_blank">
-                                      <small>{{ resource['url'] }}</small>
-                                    </a>
+                                  <a href="{{ resource['url'] }}" target="_blank">
+                                    <small>{{ resource['url'] }}</small>
+                                  </a>
                                   {% endif %}
                                 </td>
                                 <td class="text-sm text-center">{{ resource['format'] }}</td>
@@ -472,6 +510,29 @@
                                         </svg>
                                         Visualize</a>
                                       {% endif %}
+                                      <a class="dropdown-item cursor-pointer"
+                                        onclick="trackLineage('{{ resource['id'] }}')">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                          viewBox="0 0 24 24" fill="currentColor"
+                                          class="me-2 icon icon-tabler icons-tabler-filled icon-tabler-chart-dots-3">
+                                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                          <path
+                                            d="M18 2a4 4 0 1 1 -3.843 5.114l-6.295 .786a3 3 0 0 1 -.094 .257l6.446 4.431a3 3 0 1 1 -.695 4.099l-3.527 1.058q .008 .127 .008 .255a4 4 0 1 1 -8 0l.005 -.2a4 4 0 0 1 7.366 -1.954l3.64 -1.094l.01 -.102q .023 -.204 .074 -.4l-6.688 -4.6a3 3 0 0 1 -4.407 -2.65l.005 -.176a3 3 0 0 1 5.784 -.931l6.312 -.79a4 4 0 0 1 3.899 -3.103" />
+                                        </svg>
+                                        Track Lineage</a>
+
+                                      <a class="dropdown-item cursor-pointer"
+                                        onclick="trackForwardLineage('{{ resource['id'] }}')">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                          stroke-linecap="round" stroke-linejoin="round"
+                                          class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-arrow-left-from-arc">
+                                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                          <path d="M9 12h12" />
+                                          <path d="M17 16l4 -4l-4 -4" />
+                                          <path d="M12 3a9 9 0 1 0 0 18" />
+                                        </svg>
+                                        Track Forward Lineage</a>
                                       <div class="dropdown-divider"></div>
                                       <a del-resource-id="{{ resource['id'] }}"
                                         class="text-danger cursor-pointer dropdown-item del-resource-btn">
@@ -507,40 +568,57 @@
                           <div class="ms-auto" id="extras-status">
                           </div>
                         </div>
-                        <div class="text-muted mb-3">The following attributes are associated with this dataset. You can add new
+                        <div class="text-muted mb-3">The following attributes are associated with this dataset. You can
+                          add new
                           attributes or edit existing ones.</div>
 
-                            <table class="table table-bordered">
-                              <thead>
-                              <tr>
-                                <th class="w-25 text-sm text-muted">Key</th>
-                                <th class="text-sm">Value</th>
-                                <th class="w-25">Actions</th>
-                              </tr>
-                              </thead>
-                              <tbody id="extra-attributes">
-                                {% for extra in dataset.get('extras') %}
-                                {% if extra != 'spatial' and extra != 'temporal_start' and extra != 'temporal_end' %}
-                                  <tr id="extra-{{ extra }}">
-                                  <td>{{ extra }}</td>
-                                  <td><strong>{{ dataset.get('extras')[extra] | replace('"', '') }}</strong></td>
-                                  <td><a class="text-link cursor-pointer" onclick="editExtra('{{extra}}')">Edit</a>
-                                    <a class="text-link cursor-pointer text-danger ms-2" onclick="deleteExtra('{{extra}}')">
-                                      Delete
-                                    </a>
-                                  </td>
-                                  </tr>
-                                {% endif %}
-                                {% endfor %}
-                                <tr id="new-extra">
-                                  <td colspan="3" class="text-center p-2">
-                                    <a class="text-green cursor-pointer" onclick="addExtraField()" title="Add New Attribute">
-                                      <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-circle-dashed-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M8.56 3.69a9 9 0 0 0 -2.92 1.95" /><path d="M3.69 8.56a9 9 0 0 0 -.69 3.44" /><path d="M3.69 15.44a9 9 0 0 0 1.95 2.92" /><path d="M8.56 20.31a9 9 0 0 0 3.44 .69" /><path d="M15.44 20.31a9 9 0 0 0 2.92 -1.95" /><path d="M20.31 15.44a9 9 0 0 0 .69 -3.44" /><path d="M20.31 8.56a9 9 0 0 0 -1.95 -2.92" /><path d="M15.44 3.69a9 9 0 0 0 -3.44 -.69" /><path d="M9 12h6" /><path d="M12 9v6" /></svg>
-                                    </a>
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
+                        <table class="table table-bordered">
+                          <thead>
+                            <tr>
+                              <th class="w-25 text-sm text-muted">Key</th>
+                              <th class="text-sm">Value</th>
+                              <th class="w-25">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody id="extra-attributes">
+                            {% for extra in dataset.get('extras') %}
+                            {% if extra != 'spatial' and extra != 'temporal_start' and extra != 'temporal_end' %}
+                            <tr id="extra-{{ extra }}">
+                              <td>{{ extra }}</td>
+                              <td><strong>{{ dataset.get('extras')[extra] | replace('"', '') }}</strong></td>
+                              <td><a class="text-link cursor-pointer" onclick="editExtra('{{extra}}')">Edit</a>
+                                <a class="text-link cursor-pointer text-danger ms-2" onclick="deleteExtra('{{extra}}')">
+                                  Delete
+                                </a>
+                              </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                            <tr id="new-extra">
+                              <td colspan="3" class="text-center p-2">
+                                <a class="text-green cursor-pointer" onclick="addExtraField()"
+                                  title="Add New Attribute">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    class="icon icon-tabler icons-tabler-outline icon-tabler-circle-dashed-plus">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M8.56 3.69a9 9 0 0 0 -2.92 1.95" />
+                                    <path d="M3.69 8.56a9 9 0 0 0 -.69 3.44" />
+                                    <path d="M3.69 15.44a9 9 0 0 0 1.95 2.92" />
+                                    <path d="M8.56 20.31a9 9 0 0 0 3.44 .69" />
+                                    <path d="M15.44 20.31a9 9 0 0 0 2.92 -1.95" />
+                                    <path d="M20.31 15.44a9 9 0 0 0 .69 -3.44" />
+                                    <path d="M20.31 8.56a9 9 0 0 0 -1.95 -2.92" />
+                                    <path d="M15.44 3.69a9 9 0 0 0 -3.44 -.69" />
+                                    <path d="M9 12h6" />
+                                    <path d="M12 9v6" />
+                                  </svg>
+                                </a>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                     <div class="tab-pane" id="tabs-processes-1" role="tabpanel">
@@ -580,7 +658,7 @@
                   </div>
                   <div class="mb-2">
                     <input type="hidden" name="packageTags" id="hiddenTagsInput"
-                      value="{{ dataset.get('tags') | map(attribute='display_name') | join(',') }}" />
+                      value="{{ dataset.get('tags') | join(',') }}" />
                     <div class="col-lg-12 mt-3">
                       <div class="mb-3">
                         <input type="text" id="tagInput" class="form-control" placeholder="Type a tag and press enter"
@@ -588,7 +666,7 @@
                         <div class="col tags-list mt-3" id="tagsContainer">
                           {% for tag in dataset.get('tags') %}
                           <span class="tag me-2 mb-2">
-                            {{ tag.get('display_name') }}
+                            {{ tag }}
                             <a href="#" class="btn-close ms-1" data-index="1"></a>
                           </span>
                           {% endfor %}
@@ -603,8 +681,8 @@
 
                   <div class="d-flex align-items-center justify-content-between">
                     <h5 class="card-title">Temporal Coverage</h5>
-                    <a class="cursor-pointer" title="Update Temporal" data-bs-toggle="tooltip" data-bs-placement="bottom"
-                      id="update-temporal-btn" onclick="invokeUpdateTemporal()">
+                    <a class="cursor-pointer" title="Update Temporal" data-bs-toggle="tooltip"
+                      data-bs-placement="bottom" id="update-temporal-btn" onclick="invokeUpdateTemporal()">
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                         class="text-primary ms-2 icon icon-tabler icons-tabler-outline icon-tabler-cloud-up">
@@ -630,8 +708,8 @@
                   </div>
                 </div>
               </div>
-             
-              
+
+
             </div>
           </div>
 
@@ -898,6 +976,20 @@
                   </div>
 
                   <div class="mb-3">
+                    <label class="form-label">License</label>
+                    <select class="form-select" id="license-id" name="license_id">
+                    </select>
+                    <small class="form-hint">
+                      <p>
+                        <strong>Important:</strong> Modifying the license might be disruptive to the intellectual
+                        property
+                        rights of the dataset. Make sure to choose a license that is compatible with the dataset's
+                        content and your intended use.
+                      </p>
+                    </small>
+                  </div>
+
+                  <div class="mb-3">
                     <label class="form-label">Visibility</label>
                     <div class="form-selectgroup-boxes row mb-1">
                       <div class="col-lg-6 text-success mb-2">
@@ -972,24 +1064,26 @@
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-  
-                    <div class="h3 ms-4">Interactive Map</div>
-                    <p class="ms-4 text-sm text-secondary">Use the drawing toolbox below to define an area on the map.
-                      The area will define the spatial coverage of the dataset.
-                    </p>
-                    <div id="spatial-map" class="m-4 mb-2 card card-link m" style="height: 60vh">
+
+                  <div class="h3 ms-4">Interactive Map</div>
+                  <p class="ms-4 text-sm text-secondary">Use the drawing toolbox below to define an area on the map.
+                    The area will define the spatial coverage of the dataset.
+                  </p>
+                  <div id="spatial-map" class="m-4 mb-2 card card-link m" style="height: 60vh">
 
 
-                    </div>
+                  </div>
 
-                    <div class="d-flex justify-content-end mx-4">
-                      <span class="ms-auto">
-                        <a class="text-danger text-link cursor-pointer" onclick="resetSpatial()">Reset Spatial Coverage</a>
-                      </span>
-                    </div>
-                    <p class="ms-4 text-sm text-secondary">Only one polygon can define the spatial coverage of a dataset.</p> 
+                  <div class="d-flex justify-content-end mx-4">
+                    <span class="ms-auto">
+                      <a class="text-danger text-link cursor-pointer" onclick="resetSpatial()">Reset Spatial
+                        Coverage</a>
+                    </span>
+                  </div>
+                  <p class="ms-4 text-sm text-secondary">Only one polygon can define the spatial coverage of a dataset.
+                  </p>
 
-                  
+
                 </div>
                 <div class="modal-footer" id="spatial-modal-footer">
                   <a class="btn btn-primary ms-auto" onclick="updateSpatialCoverage()" id="update-spatial-btn">
@@ -1006,14 +1100,24 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 <div class="modal-status bg-danger"></div>
                 <div class="modal-body text-center py-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="icon mb-2 text-danger icon-lg" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10.24 3.957l-8.422 14.06a1.989 1.989 0 0 0 1.7 2.983h16.845a1.989 1.989 0 0 0 1.7 -2.983l-8.423 -14.06a1.989 1.989 0 0 0 -3.4 0z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="icon mb-2 text-danger icon-lg" width="24" height="24"
+                    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                    <path
+                      d="M10.24 3.957l-8.422 14.06a1.989 1.989 0 0 0 1.7 2.983h16.845a1.989 1.989 0 0 0 1.7 -2.983l-8.423 -14.06a1.989 1.989 0 0 0 -3.4 0z">
+                    </path>
+                    <path d="M12 9v4"></path>
+                    <path d="M12 17h.01"></path>
+                  </svg>
                   <h3>Are you sure?</h3>
                   <div class="text-secondary">Do you really want to remove <strong>{{dataset.title}}</strong>.</div>
                   <div class="text-start mt-2">
                     <label class="form-check">
                       <input class="form-check-input" type="checkbox" id="soft-delete-checkbox" checked>
                       <span class="form-check-label"> Soft Delete </span>
-                      <span class="form-check-description"> Perform a soft delete on the dataset, ensuring it remains recoverable for a short retention period before permanent deletion.</span>
+                      <span class="form-check-description"> Perform a soft delete on the dataset, ensuring it remains
+                        recoverable for a short retention period before permanent deletion.</span>
                     </label>
                   </div>
                 </div>
@@ -1023,11 +1127,43 @@
                       <div class="col"><a href="#" class="btn w-100" data-bs-dismiss="modal">
                           Cancel
                         </a></div>
-                      <div class="col"><a class="btn btn-danger w-100" data-bs-dismiss="modal" onclick="deleteDataset()">
+                      <div class="col"><a class="btn btn-danger w-100" data-bs-dismiss="modal"
+                          onclick="deleteDataset()">
                           Delete
                         </a></div>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal modal-blur fade mt-4" id="modal-track-lineage" tabindex="-1" role="dialog"
+            aria-hidden="true">
+            <div class="modal-dialog modal-full-width modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Lineage Tracker · <span id="track-lineage-id"></span></h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <button id="download-png" class="btn btn-primary mb-2">Download Graph as PNG</button>
+                  <div id="lineage-container" style="
+                      width: 100%; 
+                      height: 70vh; 
+                      overflow: hidden;
+                      background-color: #ffffff;
+                      background-image: 
+                          linear-gradient(to right, #f1f1f1 1px, transparent 1px),
+                          linear-gradient(to bottom, #f1f1f1 1px, transparent 1px);
+                      background-size: 10px 10px;
+                      ">
+                  </div>
+                </div>
+                <div class="modal-footer" id="modal-track-lineage-footer">
+                  <a class="btn btn-primary-outline me-auto" data-bs-dismiss="#modal-track-lineage">
+                    Close
+                  </a>
                 </div>
               </div>
             </div>
@@ -1059,8 +1195,8 @@
   <!-- Datepickers -->
   <script>
 
-    var startTimeStr = {{ dataset.extras.get('temporal_start') | safe }};
-    var endTimeStr = {{ dataset.extras.get('temporal_end') | safe }};
+    var startTimeStr = '{{ dataset.extras.get('temporal_start') | safe if dataset.extras.get('temporal_start') else 'null' }}';
+    var endTimeStr = '{{ dataset.extras.get('temporal_end') | safe if dataset.extras.get('temporal_end') else 'null' }}';
 
     if (startTimeStr) {
       document.getElementById('start-datetime').value = new Date(startTimeStr).toISOString().slice(0, 16);
@@ -1070,15 +1206,15 @@
     }
 
     function invokeUpdateTemporal() {
-      getExtras(function(currentExtras) {
-         updateTemporal(currentExtras);
+      getExtras(function (currentExtras) {
+        updateTemporal(currentExtras);
       });
     }
 
-    function updateTemporal(currentExtras){
+    function updateTemporal(currentExtras) {
       var startValue = document.getElementById('start-datetime').value;
       var endValue = document.getElementById('end-datetime').value;
-      
+
       // Do nothing if either date is missing or start is not before end
       if (!startValue || !endValue || new Date(startValue) >= new Date(endValue)) {
         alert("Please ensure both start and end dates are selected, and that the start date is before the end date.");
@@ -1087,21 +1223,21 @@
       $('#update-temporal-btn .stelar-symbol').remove();
       $('#update-temporal-btn .stelar-loader').remove();
       $('#update-temporal-btn').prepend(createLoaderElement(true, true));
-    
+
       var startTime = new Date(startValue).toISOString();
       var endTime = new Date(endValue).toISOString();
 
       currentExtras.temporal_start = startTime;
-      currentExtras.temporal_end = endTime;      
+      currentExtras.temporal_end = endTime;
 
-      patchExtras(currentExtras, function(success) {
+      patchExtras(currentExtras, function (success) {
         $('#update-temporal-btn .stelar-loader').remove();
-        if(success){
+        if (success) {
           $('#update-temporal-btn').prepend(createGreenTick(true));
         } else {
           $('#update-temporal-btn').prepend(createRedCross(true));
         }
-        setTimeout(function(){
+        setTimeout(function () {
           $('.stelar-symbol').remove();
         }, 2000);
       });
@@ -1110,7 +1246,7 @@
 
   <script>
 
-    function buildNormalExtraRow(key, value){
+    function buildNormalExtraRow(key, value) {
       value = value.replace(/"/g, '');
       return `
         <tr id="extra-${key}">
@@ -1127,7 +1263,7 @@
         </tr>`;
     }
 
-    function buildEditExtraRow(key, value){
+    function buildEditExtraRow(key, value) {
       return `
         <tr id="extra-row-edit">
           <td>  
@@ -1144,7 +1280,7 @@
         </tr>`;
     }
 
-    function buildAddExtraRow(){
+    function buildAddExtraRow() {
       return `
         <tr id="extra-row-new">
           <td>
@@ -1160,38 +1296,38 @@
       `;
     }
 
- 
-    function addExtraField(){
+
+    function addExtraField() {
       const extraRow = $('#extra-row-new');
       const editRow = $('#extra-row-edit');
       if (editRow.length > 0) {
         cancelEditExtra();
       }
       if (extraRow.length === 0) {
-        $('#new-extra').before(buildAddExtraRow());        
+        $('#new-extra').before(buildAddExtraRow());
         $('#extra-row-new input[name="extra-key"]').focus();
-        $('input[name="extra-key"]').on('input', function(){
+        $('input[name="extra-key"]').on('input', function () {
           const newKey = $(this).val().trim().toLowerCase();
           // Check in a case-insensitive way if a row with id "extra-{newKey}" already exists in the table of extras
           if ($(`#extra-attributes tr[id="extra-${newKey}"]`).length > 0) {
-        $(this).addClass('is-invalid');
+            $(this).addClass('is-invalid');
           } else {
-        $(this).removeClass('is-invalid');
+            $(this).removeClass('is-invalid');
           }
         });
       } else if (!extraRow.hasClass('glowing-row')) {
         extraRow.addClass('glowing-row');
-        setTimeout(function(){
+        setTimeout(function () {
           extraRow.removeClass('glowing-row');
         }, 2000);
       }
     }
 
-    function cancelAddExtraField(){ 
+    function cancelAddExtraField() {
       $('#extra-row-new').remove();
     }
 
-    function editExtra(key){
+    function editExtra(key) {
       const addRow = $('#extra-row-new');
       if (addRow.length > 0) {
         cancelAddExtraField();
@@ -1206,7 +1342,7 @@
       }
     }
 
-    function cancelEditExtra(){
+    function cancelEditExtra() {
       const extraRow = $('#extra-row-edit');
       if (extraRow.length > 0) {
         const key = extraRow.find('td:first').text().trim();
@@ -1218,7 +1354,7 @@
     }
 
 
-    function saveExtra(){
+    function saveExtra() {
       const extraRow = $('#extra-row-edit');
       if (extraRow.length > 0) {
         const key = extraRow.find('td:first').text().trim();
@@ -1228,17 +1364,17 @@
           return;
         }
         $('#extras-status').append(createLoaderElement(true, false));
-        getExtras(function(currentExtras) {
+        getExtras(function (currentExtras) {
           currentExtras[key] = value;
-          patchExtras(currentExtras, function(success){
+          patchExtras(currentExtras, function (success) {
             $('#extras-status .stelar-loader').remove();
-            if(success){
+            if (success) {
               $('#extra-row-edit').replaceWith(buildNormalExtraRow(key, value));
               $('#extras-status').append(createGreenTick(true));
-            }else{
+            } else {
               $('#extras-status').append(createRedCross(true));
             }
-            setTimeout(function(){
+            setTimeout(function () {
               $('.stelar-symbol').remove();
             }, 2000);
           });
@@ -1248,7 +1384,7 @@
       }
     }
 
-    function saveNewExtra(){
+    function saveNewExtra() {
       const extraRow = $('#extra-row-new');
       if (extraRow.length > 0) {
         const key = extraRow.find('input[name="extra-key"]').val().trim().toLowerCase();
@@ -1258,21 +1394,21 @@
           return;
         }
         $('#extras-status').append(createLoaderElement(true, false));
-        getExtras(function(currentExtras) {
+        getExtras(function (currentExtras) {
           if (currentExtras[key]) {
             alert(`An extra with key "${key}" already exists.`);
             return;
           }
           currentExtras[key] = value;
-          patchExtras(currentExtras, function(success){
+          patchExtras(currentExtras, function (success) {
             $('#extras-status .stelar-loader').remove();
-            if(success){
+            if (success) {
               $('#extra-row-new').replaceWith(buildNormalExtraRow(key, value));
               $('#extras-status').append(createGreenTick(true));
-            }else{
+            } else {
               $('#extras-status').append(createRedCross(true));
             }
-            setTimeout(function(){
+            setTimeout(function () {
               $('.stelar-symbol').remove();
             }, 2000);
           });
@@ -1283,23 +1419,23 @@
     }
 
 
-    function deleteExtra(extra){
+    function deleteExtra(extra) {
       if (!confirm(`Are you sure you want to delete the extra "${extra}"?`)) {
         return;
       }
       $('#extras-status').append(createLoaderElement(true, false));
-      getExtras(function(currentExtras) {
+      getExtras(function (currentExtras) {
         if (currentExtras[extra]) {
           delete currentExtras[extra];
-          patchExtras(currentExtras, function(success){
+          patchExtras(currentExtras, function (success) {
             $('#extras-status .stelar-loader').remove();
-            if(success){
+            if (success) {
               $(`#extra-${extra}`).remove();
               $('#extras-status').append(createGreenTick(true));
-            }else{
+            } else {
               $('#extras-status').append(createRedCross(true));
             }
-            setTimeout(function(){
+            setTimeout(function () {
               $('.stelar-symbol').remove();
             }, 2000);
           });
@@ -1309,41 +1445,41 @@
       });
     }
 
-    function patchExtras(extras, callback){
+    function patchExtras(extras, callback) {
       $.ajax({
-      url: "{{url_for('catalog_blueprint.api_patch_dataset', entity_id=dataset.id)}}",
-      type: "PATCH",
-      contentType: "application/json",
-      data: JSON.stringify({extras: extras}),
-      success: function(response) {
-        if(response.success){
-          console.log("Extras updated successfully");
-        if(callback) callback(true);
-        } else {
-          console.error("Failed to update extras:", response.message);
-        if(callback) callback(false);
+        url: "{{url_for('catalog_blueprint.api_patch_dataset', entity_id=dataset.id)}}",
+        type: "PATCH",
+        contentType: "application/json",
+        data: JSON.stringify({ extras: extras }),
+        success: function (response) {
+          if (response.success) {
+            console.log("Extras updated successfully");
+            if (callback) callback(true);
+          } else {
+            console.error("Failed to update extras:", response.message);
+            if (callback) callback(false);
+          }
+        },
+        error: function (xhr, status, error) {
+          console.error("Error updating extras:", error);
+          if (callback) callback(false);
         }
-      },
-      error: function(xhr, status, error) {
-        console.error("Error updating extras:", error);
-        if(callback) callback(false);
-      }
       });
     }
 
-    function getExtras(callback){
+    function getExtras(callback) {
       $.ajax({
-      url: "{{url_for('catalog_blueprint.api_get_dataset', entity_id=dataset.id)}}",
-      type: "GET",
-      dataType: "json",
-      success: function(response) {
-        if(response.success){
-        callback(response.result.extras);
+        url: "{{url_for('catalog_blueprint.api_get_dataset', entity_id=dataset.id)}}",
+        type: "GET",
+        dataType: "json",
+        success: function (response) {
+          if (response.success) {
+            callback(response.result.extras);
+          }
+        },
+        error: function (xhr, status, error) {
+          console.error("Error fetching extras:", error);
         }
-      },
-      error: function(xhr, status, error) {
-        console.error("Error fetching extras:", error);
-      }
       });
     }
   </script>
@@ -1373,17 +1509,17 @@
     }).addTo(map);
 
   </script>
-  
+
   <!-- Spatial Map -->
   <script>
     // Keep the server-rendered spatial coverage here at page load
 
-    {% if dataset.extras.get('spatial') %} 
-      var spatialCoverage = JSON.parse(`{{ dataset.extras.get('spatial') | safe }}`);
+    {% if dataset.get('spatial') %}
+    var spatialCoverage = JSON.parse(`{{ dataset.get('spatial') | safe }}`);
     {% else %}
-      var spatialCoverage = null;
+    var spatialCoverage = null;
     {% endif %}
-    
+
     var spatialMap = L.map('spatial-map', {
       center: [38.6137, 24.6116],
       zoom: 3,
@@ -1471,7 +1607,7 @@
     }
 
 
-    function resetSpatial(){
+    function resetSpatial() {
       if (drawnPolygon) {
         spatialMap.removeLayer(drawnPolygon);
         drawnPolygon = null;
@@ -1483,7 +1619,7 @@
       updateSpatialCoverage();
     }
 
-    function updateSpatialCoverage(){
+    function updateSpatialCoverage() {
       $('#spatial-modal-footer .alert').remove();
       $('#spatial-modal-footer .stelar-loader').remove();
       $('#update-spatial-btn').addClass('disabled');
@@ -1520,7 +1656,7 @@
       })
     }
 
-    map.whenReady(function(){
+    map.whenReady(function () {
       loadSpatialCoverage();
     });
 
@@ -1555,8 +1691,10 @@
       body = {
         title: $('input[name="package-name"]').val(),
         url: $('input[name="package-url"]').val(),
-        private: $('input[name="package-visibility"]:checked').val() == 'private'
+        private: $('input[name="package-visibility"]:checked').val() == 'private',
       }
+
+      body.license_id = $('#license-id').val() == '' || $('#license-id').val() == 'null' ? null : $('#license-id').val();
 
       if (!body['private']) {
         if (!confirm("Warning: You are about to make the package public. Do you want to continue?")) {
@@ -2213,9 +2351,305 @@
 
   </script>
   <script>
+    function fetchAvailableLicenses(callback) {
+      $.ajax({
+        url: "{{url_for('catalog_blueprint.api_fetch_licenses')}}",
+        method: "GET",
+        success: function (response) {
+          if (response.success) {
+            window.availableLicenses = response.result;
+            // Populate the license dropdown in the publishing modal
+            var licenseSelect = $('#license-id');
+            licenseSelect.empty();
+
+            licenseSelect.append($('<option></option>').attr('value', '').text('Select License'));
+
+            window.availableLicenses.forEach(function (license) {
+              var option = $('<option></option>')
+                .attr('value', license.key)
+                .text(license.title + ' - (' + license.key + ')');
+              if (license.image_url) {
+                option.attr('data-image', license.image_url);
+              }
+              licenseSelect.append(option);
+            });
+
+            //If the dataset already has a license, select it
+            currentLicense = "{{ dataset.get('license_key') }}";
+            if (currentLicense && currentLicense !== 'None') {
+              licenseSelect.val(currentLicense);
+            } else {
+              licenseSelect.val('');
+            }
+
+          } else {
+            console.error("Failed to fetch available licenses:", response.message);
+          }
+        },
+        error: function (xhr, status, error) {
+          console.error("AJAX request for available licenses failed:", error);
+        }
+      });
+      if (typeof callback === "function") {
+        callback();
+      }
+    }
+  </script>
+  <script>
+    cytoscape.use(window.cytoscapeDagre);
+
+    function trackLineage(resourceId) {
+      $('#modal-track-lineage').modal('show');
+      $('lineage-container').empty();
+      $('#track-lineage-id').text(resourceId + ' Backward Lineage');
+      $.ajax({
+        url: `{{url_for('catalog_blueprint.api_get_resource_lineage',entity_id='__ID__')}}`.replace('__ID__', resourceId),
+        type: 'GET',
+        success: function (response) {
+          const data = response.result;
+          const nodes = data.nodes.map(n => {
+            const t = n.type.toLowerCase();
+            const isTask = t === 'task';
+            let lbl = isTask ? `${n.label}\n${formatIsoDate(n.end_date) || ''}` : n.label;
+            if (t === 'resource' && n.url) {
+              lbl += `\n${n.url}`;
+            }
+            return {
+              data: {
+                id: n.id,
+                label: lbl,
+                type: t,
+                package_id: n.package_id,
+                process_id: n.process_id,
+                isTrackedResource: (n.id === resourceId).toString(),
+                ...(n.final ? { final: true } : {})
+              }
+            };
+          });
+          const edges = data.edges.map(([s, t]) => ({ data: { source: s, target: t } }));
+          const cy = cytoscape({
+            container: document.getElementById('lineage-container'),
+            elements: [...nodes, ...edges],
+            style: [
+              {
+                selector: 'node', style: {
+                  'label': 'data(label)',
+                  'text-wrap': 'wrap',
+                  'text-max-width': 200,
+                  'text-valign': 'center',
+                  'text-halign': 'center',
+                  'font-size': '10px',
+                  'shape': 'round-rectangle',
+                  'border-width': 0,
+                  'padding': '15px',
+                  'width': 'label',
+                  'height': 'label'
+                }
+              },
+              {
+                selector: 'node[type="task"]', style: {
+                  'shape': 'ellipse',
+                  'color': '#ae3ec9',
+                  'background-color': '#d1c4e9'
+                }
+              },
+              {
+                selector: 'node[type="resource"][isTrackedResource="true"]', style: {
+                  'shape': 'round-rectangle',
+                  'color': '#2fb344',
+                  'background-color': '#c8e6c9'
+                }
+              },
+              {
+                selector: 'node[type="resource"][isTrackedResource="false"]', style: {
+                  'shape': 'round-rectangle',
+                  'background-color': '#E6F1FA',
+                  'color': '#066fd3'
+                }
+              },
+              {
+                selector: 'node[type="process"]', style: {
+                  'shape': 'round-rectangle',
+                  'background-color': '#fff9c4'
+                }
+              },
+              {
+                selector: 'edge', style: {
+                  'width': 2,
+                  'line-color': '#ccc',
+                  'target-arrow-color': '#ccc',
+                  'target-arrow-shape': 'triangle',
+                  'curve-style': 'round-taxi'
+                }
+              }
+            ],
+            layout: { name: 'dagre', rankDir: 'LR', nodeSep: 50, edgeSep: 15, rankSep: 100 }
+          });
+
+
+
+          cy.on('tap', 'node', e => {
+            const d = e.target.data();
+            if (d.type === 'task') {
+              const u = `{{url_for('dashboard_blueprint.task',process_id='__PID__',task_id='__TID__')}}`.replace('__PID__', d.process_id).replace('__TID__', d.id);
+              window.open(u, '_blank');
+            } else if (d.type === 'resource' && d.package_id) {
+              const u = `{{url_for('dashboard_blueprint.viewResource',resource_id='__RID__')}}`.replace('__RID__', d.id);
+              window.open(u, '_blank');
+            }
+          });
+          cy.ready(() => {
+            setTimeout(() => {
+              const layout = cy.layout({ name: 'dagre', rankDir: 'LR' });
+              layout.run();
+              cy.fit(cy.elements(), { padding: 50 });
+            }, 100);
+          });
+          document.getElementById('download-png').onclick = () => {
+            const png = cy.png({ full: true, scale: 2 });
+            const l = document.createElement('a');
+            l.href = png;
+            l.download = 'lineage_graph.png';
+            document.body.appendChild(l);
+            l.click();
+            document.body.removeChild(l);
+          };
+        },
+        error: function (err) { console.error('Error fetching lineage data:', err); }
+      });
+    }
+
+    function trackForwardLineage(resourceId) {
+      $('#modal-track-lineage').modal('show');
+      $('#lineage-container').empty();
+      $('#track-lineage-id').text(resourceId + ' Forward Lineage');
+      $.ajax({
+        url: `{{url_for('catalog_blueprint.api_get_resource_cardinality',entity_id='__ID__')}}`.replace('__ID__', resourceId),
+        type: 'GET',
+        success: function (response) {
+          const data = response.result;
+          const nodes = data.nodes.map(n => {
+            const t = n.type.toLowerCase();
+            const isTask = t === 'task';
+            let lbl = isTask ? `${n.label}\n${formatIsoDate(n.end_date) || ''}` : n.label;
+            if (t === 'resource' && n.url) {
+              lbl += `\n${n.url}`;
+            }
+            return {
+              data: {
+                id: n.id,
+                label: lbl,
+                type: t,
+                package_id: n.package_id,
+                process_id: n.process_id,
+                isTrackedResource: (n.id === resourceId).toString(),
+                ...(n.final ? { final: true } : {})
+              }
+            };
+          });
+          const edges = data.edges.map(([s, t]) => ({ data: { source: s, target: t } }));
+          const cy = cytoscape({
+            container: document.getElementById('lineage-container'),
+            elements: [...nodes, ...edges],
+            style: [
+              {
+                selector: 'node', style: {
+                  'label': 'data(label)',
+                  'text-wrap': 'wrap',
+                  'text-max-width': 200,
+                  'text-valign': 'center',
+                  'text-halign': 'center',
+                  'font-size': '10px',
+                  'shape': 'round-rectangle',
+                  'border-width': 0,
+                  'padding': '15px',
+                  'width': 'label',
+                  'height': 'label'
+                }
+              },
+              {
+                selector: 'node[type="task"]', style: {
+                  'shape': 'ellipse',
+                  'color': '#ae3ec9',
+                  'background-color': '#d1c4e9'
+                }
+              },
+              {
+                selector: 'node[type="resource"][isTrackedResource="true"]', style: {
+                  'shape': 'round-rectangle',
+                  'color': '#2fb344',
+                  'background-color': '#c8e6c9'
+                }
+              },
+              {
+                selector: 'node[type="resource"][isTrackedResource="false"]', style: {
+                  'shape': 'round-rectangle',
+                  'background-color': '#E6F1FA',
+                  'color': '#066fd3'
+                }
+              },
+              {
+                selector: 'node[type="process"]', style: {
+                  'shape': 'round-rectangle',
+                  'background-color': '#fff9c4'
+                }
+              },
+              {
+                selector: 'edge', style: {
+                  'width': 2,
+                  'line-color': '#ccc',
+                  'target-arrow-color': '#ccc',
+                  'target-arrow-shape': 'triangle',
+                  'curve-style': 'bezier'
+                }
+              }
+            ],
+            layout: { name: 'dagre', rankDir: 'LR', nodeSep: 50, edgeSep: 15, rankSep: 100 }
+          });
+
+          cy.on('tap', 'node', e => {
+            const d = e.target.data();
+            if (d.type === 'task') {
+              const u = `{{url_for('dashboard_blueprint.task',process_id='__PID__',task_id='__TID__')}}`.replace('__PID__', d.process_id).replace('__TID__', d.id);
+              window.open(u, '_blank');
+            } else if (d.type === 'resource' && d.package_id) {
+              const u = `{{url_for('dashboard_blueprint.viewResource',resource_id='__RID__')}}`.replace('__RID__', d.id);
+              window.open(u, '_blank');
+            }
+          });
+
+          cy.ready(() => {
+            setTimeout(() => {
+              const layout = cy.layout({ name: 'dagre', rankDir: 'LR' });
+              layout.run();
+              cy.fit(cy.elements(), { padding: 50 });
+            }, 100);
+          });
+
+          document.getElementById('download-png').onclick = () => {
+            const png = cy.png({ full: true, scale: 2 });
+            const l = document.createElement('a');
+            l.href = png;
+            l.download = 'lineage_graph.png';
+            document.body.appendChild(l);
+            l.click();
+            document.body.removeChild(l);
+          };
+        },
+        error: function (err) {
+          console.error('Error fetching lineage data:', err);
+        }
+      });
+    }
+  </script>
+
+
+
+  <script>
 
     $(document).ready(function () {
       fetchPaths();
+      fetchAvailableLicenses();
     });
 
     // Fetch available paths for writing. The write access is checked by the API 
@@ -2359,26 +2793,26 @@
     });
   </script>
   <script>
-    function deleteDataset(){
+    function deleteDataset() {
       $.ajax({
-          url: "{{ url_for('catalog_blueprint.api_delete_dataset', entity_id=dataset.id) }}",
-          type: "DELETE",
-          contentType: "application/json;",
-          data: JSON.stringify({'purge': !$('#soft-delete-checkbox').is(':checked')}),
-          success: function (response) {
-              window.location.href = "{{ url_for('dashboard_blueprint.catalog') }}";
-          },
-          error: function (error) {
-              $('#modal-delete-dataset .alert').remove();
-              $('#modal-delete-dataset').append(createAlertElement('danger', 'Failed to delete dataset'));
-              setTimeout(function () {
-                  $('#modal-delete-dataset .alert').fadeOut(500, function () {
-                      $(this).remove();
-                  });
-              }, 3000);
-          }
+        url: "{{ url_for('catalog_blueprint.api_delete_dataset', entity_id=dataset.id) }}",
+        type: "DELETE",
+        contentType: "application/json;",
+        data: JSON.stringify({ 'purge': !$('#soft-delete-checkbox').is(':checked') }),
+        success: function (response) {
+          window.location.href = "{{ url_for('dashboard_blueprint.catalog') }}";
+        },
+        error: function (error) {
+          $('#modal-delete-dataset .alert').remove();
+          $('#modal-delete-dataset').append(createAlertElement('danger', 'Failed to delete dataset'));
+          setTimeout(function () {
+            $('#modal-delete-dataset .alert').fadeOut(500, function () {
+              $(this).remove();
+            });
+          }, 3000);
+        }
       })
-  }
+    }
   </script>
 
 </body>

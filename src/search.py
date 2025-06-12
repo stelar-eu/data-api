@@ -1,4 +1,5 @@
 """Code related to search endpoints."""
+
 from typing import Any, Optional
 
 from apiflask import Schema
@@ -129,7 +130,7 @@ def entity_search(
 
     if offset:
         params["start"] = offset
-    
+
     if include_private:
         params["include_private"] = include_private
 

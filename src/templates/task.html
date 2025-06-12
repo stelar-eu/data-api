@@ -484,7 +484,7 @@
                                     <thead>
                                         <tr>
                                             <th>Parameter</th>
-                                            <th class="text-end">Value</th>
+                                            <th class="text-end w-75">Value</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -495,7 +495,11 @@
                                                 <div>{{ key }}</div>
                                             </td>
                                             <td class="w-3 fw-bold text-end">
-                                                {{ value }}
+                                                {% if value is mapping %}
+                                                    <pre style="text-align: left; white-space: pre-wrap;">{{ value | tojson(indent=2) }}</pre>
+                                                    {% else %}
+                                                    {{ value }}
+                                                {% endif %}
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -720,7 +724,7 @@
             Object.keys(metrics).forEach(key => {
                 let value = metrics[key];
                 if (typeof value === 'object' && value !== null) {
-                value = `<pre style="text-align: left; white-space: pre-wrap;">${JSON.stringify(value, null, 2)}</pre>`;
+                    value = `<pre style="text-align: left; white-space: pre-wrap;">${JSON.stringify(value, null, 2)}</pre>`;
                 }
                 const row = `<tr>
                         <td><div>${key}</div></td>

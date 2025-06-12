@@ -8,11 +8,15 @@ from typing import Optional
 import requests
 from apiflask import Schema, fields, validators
 from marshmallow import EXCLUDE, INCLUDE, post_dump
+from processes import PROCESS
+from typing import List, Dict
 
 import schema
+import uuid
 import utils
 from backend.ckan import ckan_request, request
 from backend.pgsql import execSql
+import sql_utils
 from entity import (
     AnyCapacity,
     CKANEntity,
@@ -23,7 +27,7 @@ from entity import (
     PackageEntity,
     PackageSchema,
 )
-from exceptions import DataError
+from exceptions import DataError, NotFoundError, ConflictError
 from routes.users import api_user_editor
 from search import resource_search
 from spatial import GeoJSONGeom, Spatial
@@ -76,274 +80,25 @@ def is_resource(id: str):
         return False
 
 
-def search_packages(
-    keyword: str, limit: int = 0, offset: int = 0, expand_mode: bool = False
-):
-    """
-    Search for datasets in the CKAN catalog using a keyword.
-
-    This function interacts with the CKAN API to search datasets in the catalog using
-    the `package_search` endpoint. It allows filtering datasets by a keyword and can
-    return either basic or detailed package information.
-
-    Args:
-        keyword (str): The search keyword to filter datasets.
-        limit (int): The number of results to return. If 0, no limit is applied.
-        offset (int): The starting point (offset) to fetch the search results from.
-        expand_mode (bool): If True, fetch detailed metadata for each dataset.
+def get_package(id: str):
+    """Retrieve package details from the CKAN catalog using its unique identifier.
+    The retrieval is based on the type of the package and returns the respective
+    authorized get_entity method for the package type.
 
     Returns:
-        list: A list of dictionaries containing package details.
-
-    Raises:
-        Exception: If an error occurs while performing the search.
-
-    Example:
-        Response: [
-            {"id": "dataset_id_1", "name": "Dataset 1", ...},
-            {"id": "dataset_id_2", "name": "Dataset 2", ...}
-        ]
-    """
-    try:
-        # Validate limit and offset
-        if limit < 0 or offset < 0:
-            raise ValueError("Limit and offset must be non-negative integers.")
-
-        # Prepare query parameters
-        params = {
-            "q": keyword,
-            "start": offset,
-            "rows": (
-                limit if limit > 0 else 1000
-            ),  # Default to a high limit if no limit is specified
-        }
-
-        # Make the request to the CKAN API
-        response = request("package_search", json=params)
-
-        if response.status_code == 200:
-            results = response.json()["result"]["results"]
-
-            if expand_mode:
-                # Fetch detailed metadata for sorting or further processing
-                detailed_results = []
-                for dataset in results:
-                    dataset_info = get_package(
-                        dataset["id"], include_extras=True, include_resources=True
-                    )
-                    detailed_results.append(dataset_info)
-
-                return detailed_results
-            else:
-                # Return basic search results
-                return results
-        else:
-            # Handle error responses from the API
-            raise Exception(
-                f"CKAN API returned an error: {response.status_code} - {response.text}"
-            )
-
-    except Exception as e:
-        # Raise the exception if an error occurs during processing
-        raise Exception(f"Error while searching packages: {str(e)}")
-
-
-def list_packages(
-    limit: Optional[int] = None, offset: Optional[int] = None, expand_mode: bool = False
-):
-    """
-    Retrieve a list of all dataset IDs from the CKAN catalog.
-
-    This function interacts with the CKAN API to fetch the list of all available
-    datasets in the catalog. It calls the `package_list` endpoint, which returns
-    only the unique identifiers (IDs) of the datasets.
-
-    Args:
-        limit (int): The number of dataset IDs to return. If None, no limit is applied.
-        offset (int): The starting point (offset) to fetch the dataset IDs from.
-
-    Returns:
-        list: A list of dataset IDs if the request is successful.
-
-    Raises:
-        Exception: If an error occurs while fetching the dataset list.
-
-    Example:
-        Response: ["dataset_id_1", "dataset_id_2", "dataset_id_3"]
+        dict or None: The package details as a dictionary if found, otherwise None
     """
 
-    def check(val, name):
-        if not isinstance(val, Optional[int]):
-            raise TypeError(f"{name} must be an integer, or None")
-        if val is not None:
-            if val < 0:
-                raise ValueError(f"{name} must be nonnegative")
+    ptype = PackageEntity.resolve_type(id)
 
-    check(limit, "limit")
-    check(offset, "offset")
-
-    try:
-        # Make the request to the CKAN API using the constructed parameters
-        response = request("package_list", limit=limit, offset=offset)
-        if response.status_code == 200:
-            datasets = response.json()["result"]
-            if expand_mode:
-                # Fetch detailed metadata for sorting
-                detailed_datasets = []
-                for dataset in datasets:
-                    dataset_info = get_package(dataset, True, True)
-                    detailed_datasets.append(dataset_info)
-
-                sorted_datasets = sorted(
-                    detailed_datasets,
-                    key=lambda x: datetime.fromisoformat(x["metadata_modified"]),
-                    reverse=True,
-                )
-
-                paginated_datasets = (
-                    sorted_datasets[offset : offset + limit]  # noqa
-                    if limit > 0
-                    else sorted_datasets
-                )
-                return paginated_datasets
-
-            else:
-                return datasets
-        else:
-            return None
-
-    except Exception:
-        # If an error occurs during the request, raise a general exception
-        raise
-
-
-def count_packages(type: str = None) -> int:
-    """
-    Returns the number of packages published in the CKAN data catalog
-    by looking at the organization parameters.
-
-    Returns:
-        int: The count of packages or 0 if none are registered.
-
-    Raises:
-        RuntimeError: In case of error
-    """
-    if type is not None:
-        query = "SELECT COUNT(*) FROM package WHERE state='active' AND type=%s"
-        result = execSql(query, (type,))
-    else:
-        query = "SELECT COUNT(*) FROM package WHERE state='active'"
-        result = execSql(query, ())
-    return result[0]["count"]
-
-
-def fetch_packages(
-    limit: Optional[int] = None,
-    offset: Optional[int] = None,
-    type_filter: str = None,
-):
-    """
-    Retrieve details for multiple packages, with support for pagination.
-
-    Args:
-        limit (int): The number of dataset IDs to retrieve (pagination).
-        offset (int): The offset point to start retrieving datasets from.
-        tag_filter (str):  Apply tag filter according to mode.
-        filter_mode (str): Mode of the filter. 'keep' for keeping the matches,
-        'discard' for discarding the matches
-
-    Returns:
-        dict: A dictionary where keys are package IDs, and values are package details.
-
-    Example:
-        {
-            "dataset_id_1": {...dataset details...},
-            "dataset_id_2": {...dataset details...}
-        }
-    """
-
-    query = """SELECT id, title, name, author, notes, type FROM package 
-                WHERE state='active' AND type != 'tool' 
-                ORDER BY metadata_modified DESC"""
-    if limit:
-        query += f" LIMIT {limit}"
-    if offset:
-        query += f" OFFSET {offset}"
-    result = execSql(query)
-
-    for row in result:
-        logger.debug(row)
-
-    return result
-
-
-def get_package(
-    id: str, compressed: bool = False, no_resources: bool = False, title: str = None
-):
-    """Retrieve a dataset's details from the CKAN catalog using its unique identifier.
-
-    This function interacts with the CKAN API to fetch metadata about a specific dataset.
-    It is designed to work without requiring authentication, leveraging CKAN's support for
-    unauthenticated GET requests.
-
-    Args:
-        id (str): The unique identifier (name) of the dataset to retrieve.
-        compressed (bool): Whether to compress the dataset's 'resources' field.
-        no_resources (bool): Whether to exclude the 'resources' field from the dataset.
-        title (str): The title of the dataset to retrieve. If provided, it will be converted
-        to an ID and dominate any ID provided.
-
-    Returns:
-        dict or None: The dataset's details as a dictionary if found, otherwise None.
-
-    Raises:
-        ValueError: If the dataset with the specified ID is not found (HTTP 404).
-        RuntimeError: For any other HTTP errors encountered while making the request.
-    """
-    try:
-        # If title is provided, convert it to a valid ID
-        if title:
-            id = re.sub(r"[\W_]+", "_", title).lower()
-
-        response = request("package_show", params={"id": id})
-        if response.status_code == 200:
-            resp = response.json()
-            dataset = resp.get("result", None)
-
-            if dataset:
-
-                if no_resources and "resources" in dataset:
-                    dataset.pop("resources")
-
-                # Compress resources if compressed flag is True
-                if compressed and "resources" in dataset:
-                    dataset["resources"] = [
-                        {
-                            "id": resource.get("id"),
-                            "name": resource.get("name"),
-                            "url": resource.get("url"),
-                            "relation": resource.get("relation"),  # Include if present
-                        }
-                        for resource in dataset["resources"]
-                    ]
-
-                # Compress tags if compressed flag is True
-                if compressed and "tags" in dataset:
-                    dataset["tags"] = [tag.get("name") for tag in dataset["tags"]]
-
-                # Compress extras
-                if "extras" in dataset:
-                    dataset["extras"] = {
-                        extra.get("key"): extra.get("value")
-                        for extra in dataset["extras"]
-                    }
-
-            return dataset
-    except requests.exceptions.HTTPError as he:
-        if he.response.status_code == 404:
-            raise ValueError(f"Dataset with ID: {id} was not found")
-        else:
-            raise RuntimeError from he
+    if ptype == "tool":
+        return TOOL.get_entity(id)
+    elif ptype == "workflow":
+        return WORKFLOW.get_entity(id)
+    elif ptype == "dataset":
+        return DATASET.get_entity(id)
+    elif ptype == "process":
+        return PROCESS.get_entity(id)
 
 
 def create_package(
@@ -369,6 +124,7 @@ def create_package(
         basic_metadata["tags"] = utils.handle_keywords(basic_metadata["tags"])
 
         resp_org = api_user_editor()
+
         if resp_org["success"]:
             org_json = resp_org["result"]
             if len(org_json) > 0:
@@ -443,61 +199,6 @@ def create_package(
         raise RuntimeError(new_package_resp.json["result"])
 
 
-def patch_package(id: str, package_metadata: dict):
-    """
-    This method utilizes the CKAN API to PATCH a package in the catalog.
-    The package to be PATCHED must be defined with package metadata.
-    Inside the package_metadata, resources cannot be defined or they will be omitted.
-
-    Args:
-    - id (str): The unique identifier for the dataset package that needs to be patched.
-    - package_metadata (dict): A dictionary containing metadata to update the package (e.g.,
-      name, description, tags, etc.)
-
-    Returns:
-    - dict: The updated package information if successful.
-
-    Raises:
-    - ValueError: If the dataset with the given ID is not found.
-    - Exception: For other types of exceptions during the request.
-    """
-    try:
-        package_metadata["id"] = id
-        if package_metadata.get("resources"):
-            package_metadata.pop("resources")
-
-        # Handle keywords appropriately
-        if package_metadata.get("tags"):
-            package_metadata["tags"] = utils.handle_keywords(package_metadata["tags"])
-
-        response = request("package_patch", json=package_metadata)
-        if response.status_code == 200:
-            return response.json().get("result")
-
-    except requests.exceptions.HTTPError as he:
-        if he.response.status_code == 404:
-            raise ValueError(f"Dataset with ID: {id} was not found")
-        else:
-            raise Exception from he
-    except Exception as e:
-        raise Exception from e
-
-
-def delete_package(id: str):
-    try:
-        if id:
-            response = request("dataset_purge", json={"id": id})
-            if response.status_code == 200:
-                return id
-    except requests.exceptions.HTTPError as he:
-        if he.response.status_code == 404:
-            raise ValueError(f"Package with ID: {id} was not found")
-        elif he.response.status_code == 409:
-            raise AttributeError("Conflict error")
-    except Exception as e:
-        raise Exception from e
-
-
 def get_package_resources(package_id: str, relation_filter: str = None):
     try:
         package = get_package(package_id)
@@ -516,86 +217,6 @@ def get_package_resources(package_id: str, relation_filter: str = None):
             raise ValueError(f"Package with ID: {package_id} was not found")
     except Exception as e:
         raise Exception from e
-
-
-def get_resource(id: str):
-    try:
-        if id:
-            response = request("resource_show", json={"id": id})
-            if response.status_code == 200:
-                return response.json()["result"]
-        else:
-            raise ValueError("ID cannot be empty")
-    except requests.exceptions.HTTPError as he:
-        if he.response.status_code == 404:
-            raise ValueError(f"Resource with ID: {id} was not found")
-    except Exception as e:
-        raise Exception from e
-
-
-def create_resource(
-    package_id: str, resource_metadata: dict, relation_type: str = "owned"
-) -> dict:
-    try:
-        if package_id:
-            resource_metadata["package_id"] = package_id
-            resource_metadata["relation"] = relation_type
-
-            response = request("resource_create", json=resource_metadata)
-
-            if response.status_code == 200:
-                resource_id = response.json()["result"]["id"]
-                if resource_metadata.get("resource_type"):
-                    sql_commands = utils.extractResourceProperties(
-                        resource_id, resource_metadata
-                    )
-                    for sql in sql_commands:
-                        utils.execSql(sql)
-
-            return response.json()["result"]
-
-    except requests.exceptions.HTTPError as he:
-        if he.response.status_code == 404:
-            raise ValueError(f"Package with ID: {package_id} was not found")
-    except Exception as e:
-        raise Exception from e
-
-
-def patch_resource(id: str, resource_metadata: dict):
-    try:
-        if id:
-            resource_metadata["id"] = id
-            response = request("resource_patch", json=resource_metadata)
-            if response.status_code == 200:
-                return response.json()["result"]
-        else:
-            raise ValueError("ID cannot be empty")
-    except requests.exceptions.HTTPError as he:
-        if he.response.status_code == 404:
-            raise ValueError(f"Resource with ID: {id} was not found")
-        if he.response.status_code == 400:
-            raise AttributeError(f"Missing parameters: {he}")
-    except Exception as e:
-        raise Exception from e
-
-
-def delete_resource(id: str):
-    try:
-        if id:
-            # Performing double delete because CKAN needs 2 resource delete requests
-            # to hard delete a resource.
-            # Ugh....
-            response = request("resource_delete", json={"id": id})
-            # VSAM: Actually, take this back! eventually we are going to honor the CKAN soft delete,
-            # so we will not delete the resource twice.
-            # if response.status_code == 200:
-            #    response = request("resource_delete", json={"id": id})
-            if response.status_code == 200:
-                return id
-        else:
-            raise ValueError("ID cannot be empty")
-    except requests.exceptions.HTTPError as he:
-        raise ValueError(f"Resource with ID: {id} was not found", he)
 
 
 # ------------------------------------------------------------
@@ -698,6 +319,187 @@ class ResourceEntity(CKANEntity):
         self.operations.remove("fetch")
         self.operations.append("search")
         self.search_query_schema = schema.ResourceSearchQuery()
+
+    def track_lineage(self, resource_id: str):
+        """Return the lineage of a resource. Thus meaning
+        upon which task execution with which resource this artifact
+        was created.
+        """
+        self.get_entity(resource_id)  # Ensure the resource exists and is accessible
+        records = sql_utils.track_resource_lineage(resource_id)
+        return (
+            self.build_enriched_lineage_graph(
+                lineage_records=records,
+            )
+            if records
+            else {"nodes": [], "edges": []}
+        )
+
+    def build_enriched_lineage_graph(self, lineage_records: List[Dict]) -> Dict:
+        nodes = {}
+        edge_set = set()
+
+        # Get the current (target) resource being tracked
+        if not lineage_records:
+            return {"nodes": [], "edges": []}
+
+        current_resource_id = lineage_records[0]["resource_id"]
+        current_resource_name = lineage_records[0].get(
+            "current_resource_name", "Current Resource"
+        )
+
+        def add_node(node_id: str, label: str, node_type: str, extra: Dict = None):
+            if node_id not in nodes:
+                nodes[node_id] = {"id": node_id, "label": label, "type": node_type}
+                if extra:
+                    nodes[node_id].update(extra)
+
+        for entry in lineage_records:
+            # Input resource
+            input_res_id = entry["input_resource_id"]
+            input_res_label = entry.get("input_resource_name") or "Unnamed Resource"
+            add_node(
+                input_res_id,
+                input_res_label,
+                "Resource",
+                {
+                    "url": entry.get("input_resource_url"),
+                    "package_id": entry.get("input_resource_package_id"),
+                },
+            )
+
+            # Task
+            task_id = entry["input_task_uuid"]
+            task_name = entry.get("task_name") or "Unnamed Task"
+            add_node(
+                task_id,
+                task_name,
+                "Task",
+                {
+                    "process_id": entry.get("workflow_uuid"),
+                    "state": entry.get("task_state"),
+                    "start_date": entry.get("start_date"),
+                    "end_date": entry.get("end_date"),
+                    "image": entry.get("task_image", "remote"),
+                },
+            )
+
+            # Output resource
+            output_res_id = entry["resource_id"]
+            task_alias = entry.get("output_name") or "Output Resource"
+            global_name = entry.get("output_resource_name") or task_alias
+            output_label = (
+                f"{global_name} ({task_alias})"
+                if global_name != task_alias
+                else global_name
+            )
+            is_final = output_res_id == current_resource_id
+
+            add_node(
+                output_res_id,
+                output_label,
+                "Resource",
+                {"final": True} if is_final else {},
+            )
+            # Edges (ensure uniqueness)
+            edge_set.add((input_res_id, task_id))
+            edge_set.add((task_id, output_res_id))
+
+        return {
+            "nodes": list(nodes.values()),
+            "edges": list(edge_set),
+            "current_resource_name": current_resource_name,
+        }
+
+    def track_forward_lineage(self, resource_id: str):
+        self.get_entity(resource_id)  # Ensure the resource exists and is accessible
+        records = sql_utils.track_resource_forward_lineage(resource_id)
+        return (
+            self.build_forward_enriched_lineage_graph(
+                lineage_records=records,
+            )
+            if records
+            else {"nodes": [], "edges": []}
+        )
+
+    def build_forward_enriched_lineage_graph(self, lineage_records: List[Dict]) -> Dict:
+        nodes = {}
+        edge_set = set()
+
+        if not lineage_records:
+            return {"nodes": [], "edges": [], "current_resource_name": None}
+
+        # The resource being tracked (root resource)
+        tracked_resource_id = lineage_records[0]["input_resource_id"]
+        current_resource_name = lineage_records[0].get(
+            "current_resource_name", "Tracked Resource"
+        )
+
+        def add_node(node_id: str, label: str, node_type: str, extra: Dict = None):
+            if node_id not in nodes:
+                nodes[node_id] = {"id": node_id, "label": label, "type": node_type}
+                if extra:
+                    nodes[node_id].update(extra)
+
+        for entry in lineage_records:
+            # Input resource node (may be the tracked resource or another input)
+            input_res_id = entry["input_resource_id"]
+            input_global_name = entry.get("input_resource_name") or "Unnamed Resource"
+            add_node(
+                input_res_id,
+                input_global_name,
+                "Resource",
+                {
+                    "url": entry.get("input_resource_url"),
+                    "package_id": entry.get("input_resource_package_id"),
+                    "final": input_res_id == tracked_resource_id,
+                },
+            )
+
+            # Task node (output task uuid is the one being executed here)
+            task_id = entry["task_uuid"]
+            task_name = entry.get("task_name") or "Unnamed Task"
+            add_node(
+                task_id,
+                task_name,
+                "Task",
+                {
+                    "process_id": entry.get("workflow_uuid"),
+                    "state": entry.get("task_state"),
+                    "start_date": entry.get("start_date"),
+                    "end_date": entry.get("end_date"),
+                    "image": entry.get("task_image", "remote"),
+                },
+            )
+
+            # Output resource node
+            output_res_id = entry["output_resource_id"]
+            output_name = entry.get("output_name") or "Output Resource"
+            output_global_name = entry.get("output_resource_name") or output_name
+            output_label = (
+                f"{output_global_name} ({output_name})"
+                if output_global_name != output_name
+                else output_global_name
+            )
+            add_node(
+                output_res_id,
+                output_label,
+                "Resource",
+                {
+                    "url": entry.get("output_resource_url"),
+                    "package_id": entry.get("output_resource_package_id"),
+                },
+            )
+
+            # Edges: input resource → task, task → output resource
+            edge_set.add((input_res_id, task_id))
+            edge_set.add((task_id, output_res_id))
+
+        return {
+            "nodes": list(nodes.values()),
+            "edges": list(edge_set),
+            "current_resource_name": current_resource_name,
+        }
 
     def search(self, query_spec):
         """Search for resources in the catalog.
