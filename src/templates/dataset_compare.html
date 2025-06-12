@@ -113,8 +113,8 @@
                                   data: [{
                                   x: "{{ dataset.get('title','Not specified') }}",
                                   y: [
-                                    new Date({{ dataset.extras.get('temporal_start') | safe }}).getTime(),
-                                    new Date({{ dataset.extras.get('temporal_end') | safe }}).getTime()
+                                    new Date("{{ dataset.extras.get('temporal_start') | safe }}").getTime(),
+                                    new Date("{{ dataset.extras.get('temporal_end') | safe }}").getTime()
                                   ]
                                   }]
                                 },
@@ -202,8 +202,8 @@
                   
                       {% if datasets %}
                       {% for dataset in datasets %}
-                      {% if dataset.extras.get('spatial') %}
-                      var spatialCoverage = JSON.parse(`{{ dataset.extras.get('spatial') | safe }}`);
+                      {% if dataset.get('spatial') %}
+                      var spatialCoverage = JSON.parse(`{{ dataset.get('spatial') | safe }}`);
                       const coordinates_{{ loop.index }} = spatialCoverage.coordinates[0].map(coord => [coord[1], coord[0]]);
                         var colorChannels = [];
                         for (var i = 0; i < 3; i++) {
@@ -376,7 +376,7 @@
                               <td>Tags</td>
                               {% if datasets %} {% set tag_counts = {} %} {% for dataset
                               in datasets %} {% for tag in dataset.get('tags') %} {% set
-                              tag_name = tag.get('display_name') %} {% set tag_counts =
+                              tag_name = tag %} {% set tag_counts =
                               tag_counts.update({tag_name: tag_counts.get(tag_name, 0) +
                               1}) or tag_counts %} {% endfor %} {% endfor %} {% set
                               colors = ['text-blue', 'text-green', 'text-danger',
@@ -388,7 +388,7 @@
                               {% for dataset in datasets %}
                               <td class="text-center">
                                 {% for tag in dataset.get('tags') %} {% set tag_name =
-                                tag.get('display_name') %}
+                                tag %}
                                 <span class="tag m-1 mb-0 {{ all_tags.get(tag_name, '') }}">{{ tag_name }}</span><br />
                                 {% endfor %}
                               </td>
@@ -401,19 +401,27 @@
                             </tr>
                             <tr>
                               <td>Formats</td>
-                              {% if datasets %} {% for dataset in datasets %}
-                              <td></td>
+                              {% if datasets %} 
+                              {% for dataset in datasets %}
+                              <td class="text-center">
+                                {% set formats = dataset.get('resources', []) | map(attribute='format') | list %}
+                                {% set unique_formats = formats | unique %}
+                                {{ unique_formats | join(', ') }}
+                              </td>
                               {% endfor %} {% endif %}
                             </tr>
                             <tr>
-                              <td>Relations</td>
+                              <td>Count</td>
                               {% if datasets %} {% for dataset in datasets %}
-                              <td></td>
+                              <td class="text-center">
+                                {% set resource_count = dataset.get('resources', []) | length %}
+                                <span class="badge bg-purple-lt">{{ resource_count }}</span>
+                              </td>
                               {% endfor %} {% endif %}
                             </tr>
                             <tr class="bg-light">
                               <th colspan="{% if datasets %}{{ datasets|length + 1 }}{% endif %}" class="subheader">
-                                Spatial, Temporal & Profiles
+                                Spatial & Temporal Attributes
                               </th>
                             </tr>
                             <tr>
@@ -429,8 +437,8 @@
                                   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                                     maxZoom: 19,
                                   }).addTo(map{{ loop.index }});
-                                  {% if dataset.extras.get('spatial') %} 
-                                    var spatialCoverage = JSON.parse(`{{ dataset.extras.get('spatial') | safe }}`);
+                                  {% if dataset.get('spatial') %} 
+                                    var spatialCoverage = JSON.parse(`{{ dataset.get('spatial') | safe }}`);
                                     const coordinates{{ loop.index }} = spatialCoverage.coordinates[0].map(coord => [coord[1], coord[0]]);
                                     let drawnPolygon{{ loop.index }} = L.polygon(coordinates{{ loop.index }}, { color: "purple", weight: 1 }).addTo(map{{ loop.index }});
                                       drawnPolygon{{ loop.index }}.bindTooltip("{{ dataset.get('title','Not specified') }}", {direction: 'right'});
@@ -472,9 +480,12 @@
                                 <script>
                                   var options{{ loop.index }} = {
                                     series: [{
-                                      data: [{
+                                        data: [{
                                         x: '',
-                                        y: [new Date('2024-06-01').getTime(), new Date('2025-01-01').getTime()]
+                                        y: [
+                                            new Date("{{ dataset.extras.get('temporal_start') | safe }}").getTime(),
+                                            new Date("{{ dataset.extras.get('temporal_end') | safe }}").getTime()
+                                        ]
                                       }]
                                     }],
                                       chart: {
@@ -515,16 +526,6 @@
                               {% endfor %} {% endif %}
                             </tr>
                           </tbody>
-                          <tfoot>
-                            <tr>
-                              <td>Profiling</td>
-                              {% if datasets %} {% for dataset in datasets %}
-                              <td>
-                                <a class="btn w-100">Open Available Profiles</a>
-                              </td>
-                              {% endfor %} {% endif %}
-                            </tr>
-                          </tfoot>
                         </table>
                       </div>
                     </div>
@@ -532,8 +533,6 @@
                 </div>
               </div>
             </div>
-
-
         </div>
       </div>
       {% include 'footer.html'%}

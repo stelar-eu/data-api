@@ -582,7 +582,7 @@ class EntityWithExtras(CKANEntity):
         self.has_extras = True
         self.extras_table = extras_table
 
-    def update_to_ckan(self, update_data, current_obj, mode="update"):
+    def update_to_ckan(self, update_data, current_obj):
         """Convert the data to the CKAN format for updating.
 
         This method is overloaded to handle the 'extras' field, supporting
@@ -597,21 +597,21 @@ class EntityWithExtras(CKANEntity):
         """
 
         if self.ckan_schema.opts.extra_attributes:
-            # ALWAYS inject current extras if any extras might be involved
-            curextras = db_fetch_entity_extras(current_obj, self.extras_table)
+            extras_present = "extras" in update_data
 
-            update_extras = update_data.setdefault("extras", {})
-            update_extras["current extras object"] = curextras
-            update_extras["extras update present"] = False  # Always patch-style
+            if extras_present or any(
+                attr in update_data for attr in self.ckan_schema.opts.extra_attributes
+            ):
+                # Fetch the full 'extras' object directly from the database
+                curextras = db_fetch_entity_extras(current_obj, self.extras_table)
 
-        if mode == "patch":
-            # Fetch current CKAN data
-            current_ckan = self.get(current_obj)
-            merged = {**current_ckan, **update_data}
-            update_data = self.ckan_schema.dump(merged)
-        else:
-            update_data = self.ckan_schema.dump(update_data)
+                # Add the curextras object to the update data
+                update_extras = update_data.setdefault("extras", {})
+                # Note that we are purposely using a name with spaces...
+                update_extras["current extras object"] = curextras
+                update_extras["extras update present"] = extras_present
 
+        update_data = self.ckan_schema.dump(update_data)
         return update_data
 
     def create_to_ckan(self, init_data):
@@ -745,12 +745,21 @@ class EntityWithExtrasCKANSchema(Schema):
         # We could have an 'instrumented' extras object
         if "current extras object" in extras:
             current_extras = extras.pop("current extras object")
-            extras.pop("extras update present")
+            extras_present = extras.pop("extras update present")
 
             # Before merge, we convert dump the remaining extras
             extras = {k: json.dumps(v) for k, v in extras.items()}
 
-            extras = current_extras | extras | attrs
+            # Merge the current extras with the new extras
+            if extras_present:
+                curattrs = {
+                    attr: current_extras[attr]
+                    for attr in self.opts.extra_attributes
+                    if attr in current_extras
+                }
+                extras = extras | (curattrs | attrs)
+            else:
+                extras = current_extras | attrs
         else:
             # Convert the extras to strings
             extras = {k: json.dumps(v) for k, v in extras.items()}
@@ -935,6 +944,24 @@ class EntityWithMembers(EntityWithExtras):
             context=context,
         )
 
+    def fetch(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        """Fetch the entities of this type. Specifically, in the organization
+        and group entities, CKAN offers the ability to return the full representation
+        of all entities without having to call the `entity_show` method for each entity.
+
+        Args:
+            limit: The maximum number of entities to return.
+            offset: The offset to start fetching entities from.
+        Returns:
+            A list of entity objects.
+        """
+        self.check_limit_offset(limit, "limit")
+        self.check_limit_offset(offset, "offset")
+        ents = ckan_request(
+            self.ckan_api_list, limit=limit, offset=offset, all_fields=True
+        )
+        return ents
+
     def remove_member(
         self, eid: str, member_id: str, member_kind: str, context: dict = {}
     ):
@@ -1024,6 +1051,23 @@ class PackageEntity(EntityWithExtras):
         if not result:
             return None
         return result[0]["id"]
+
+    @classmethod
+    def resolve_type(cls, name_or_id: str) -> str | None:
+        """Resolve a package name or ID to its type.
+
+        This method is used to resolve a name or ID to its type.
+        """
+        sql_query = sql.SQL(
+            """\
+            SELECT type
+            FROM public.package
+            WHERE state = 'active' AND (id = %s OR name = %s)"""
+        )
+        result = execSql(sql_query, [name_or_id, name_or_id])
+        if not result:
+            return None
+        return result[0]["type"]
 
     def filter_ids(self, idlist: list[str]) -> list[dict]:
         """Filter the list of packages by ID, leaving only packages of one type."""
@@ -1149,7 +1193,7 @@ class PackageEntity(EntityWithExtras):
         """
         context = {"entity": self.name}
 
-        ckpatch_data = self.update_to_ckan(patch_data, eid, mode="patch")
+        ckpatch_data = self.update_to_ckan(patch_data, eid)
 
         obj = ckan_request(
             self.ckan_api_patch, id=eid, context=context, json=ckpatch_data
