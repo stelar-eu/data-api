@@ -413,11 +413,9 @@
                             <tr>
                               <td>Count</td>
                               {% if datasets %} {% for dataset in datasets %}
-                              <td>
+                              <td class="text-center">
                                 {% set resource_count = dataset.get('resources', []) | length %}
                                 <span class="badge bg-purple-lt">{{ resource_count }}</span>
-                                
-
                               </td>
                               {% endfor %} {% endif %}
                             </tr>
