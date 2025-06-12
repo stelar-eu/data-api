@@ -1195,8 +1195,8 @@
   <!-- Datepickers -->
   <script>
 
-    var startTimeStr = {{ dataset.extras.get('temporal_start') | safe if dataset.extras.get('temporal_start') else 'null' }};
-    var endTimeStr = {{ dataset.extras.get('temporal_end') | safe if dataset.extras.get('temporal_end') else 'null' }};
+    var startTimeStr = '{{ dataset.extras.get('temporal_start') | safe if dataset.extras.get('temporal_start') else 'null' }}';
+    var endTimeStr = '{{ dataset.extras.get('temporal_end') | safe if dataset.extras.get('temporal_end') else 'null' }}';
 
     if (startTimeStr) {
       document.getElementById('start-datetime').value = new Date(startTimeStr).toISOString().slice(0, 16);
@@ -1514,8 +1514,8 @@
   <script>
     // Keep the server-rendered spatial coverage here at page load
 
-    {% if dataset.extras.get('spatial') %}
-    var spatialCoverage = JSON.parse(`{{ dataset.extras.get('spatial') | safe }}`);
+    {% if dataset.get('spatial') %}
+    var spatialCoverage = JSON.parse(`{{ dataset.get('spatial') | safe }}`);
     {% else %}
     var spatialCoverage = null;
     {% endif %}
