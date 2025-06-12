@@ -19,6 +19,7 @@ import pytest
 import werkzeug
 from apiflask import APIFlask
 from keycloak import KeycloakOpenID
+from stelar.client import Client
 
 from data_api import create_app
 
@@ -190,7 +191,7 @@ def monkeysession(request):
 
 
 @pytest.fixture(scope="session")
-def app(monkeysession, forwarded_services):
+def renamed_app(monkeysession, forwarded_services):
     """Create a test app with the testcluster configuration.
 
     The app is configured to use the testcluster's PostgreSQL database and
@@ -248,39 +249,50 @@ def app(monkeysession, forwarded_services):
     yield app
 
 
-@pytest.fixture()
-def client(app) -> werkzeug.Client:
-    """Return a test client for the app."""
-    return app.test_client()
-
-
-@pytest.fixture()
-def runner(app):
-    """Return a test runner for the app."""
-    return app.test_cli_runner()
-
-
-@pytest.fixture()
-def app_context(app):
-    """Return an app context for the app."""
-    with app.app_context():
-        yield
-
-
 Credentials = namedtuple("Credentials", ["token", "refresh_token"])
 
 
 @pytest.fixture(scope="module")
-def keycloak_client(app: APIFlask) -> KeycloakOpenID:
-    config = app.config["settings"]
+def keycloak_client() -> KeycloakOpenID:
+    c = cc.testcluster_config()
+    k8s_context = c["cluster"]["context"]
+
+    # Get the stelar api config map from kubernetes
+    cm = cc.stelar_api_cm(k8s_context)
+
+    scheme = c["cluster"]["net"]["scheme"]
+    dn = c["cluster"]["net"]["dn"]
+
+    kc_url = f"{scheme}://kc.{dn}/"
+    # kc_ext_url = f"{scheme}://kc.{dn}/"
+    cc.kc_client_secret(k8s_context)
+
     cli = KeycloakOpenID(
-        server_url=config["KEYCLOAK_URL"],
-        client_id=config["KEYCLOAK_CLIENT_ID"],
-        realm_name=config["REALM_NAME"],
-        client_secret_key=config["KEYCLOAK_CLIENT_SECRET"],
+        server_url=kc_url,
+        client_id="stelar-api",
+        realm_name=cm["REALM_NAME"],
+        client_secret_key=cc.kc_client_secret(k8s_context),
         verify=True,
     )
     return cli
+
+
+@pytest.fixture(scope="session")
+def stelar_client_username_password() -> tuple[str, str]:
+    match cc.testcluster_config():
+        case {"cluster": {"access": {"username": username, "password": password}}}:
+            pass
+        case {
+            "cluster": {
+                "access": {"client_context": cprofile, "client_config": cfgfile}
+            }
+        }:
+            username, password = cc.client_context(cprofile, cfgfile)
+        case {"cluster": {"access": {"client_context": cprofile}}}:
+            username, password = cc.client_context(cprofile)
+        case _:
+            assert False
+    return username, password
 
 
 @pytest.fixture(scope="module")
@@ -311,10 +323,29 @@ def credentials(keycloak_client) -> Generator[Credentials]:
 
 
 @pytest.fixture
-def app_client(app, credentials):
-    with app.test_client() as client:
-        client.environ_base["HTTP_AUTHORIZATION"] = f"Bearer {credentials.token}"
-        yield client
+def testcli() -> Generator[Client, None, None]:
+    match cc.testcluster_config():
+        case {
+            "cluster": {
+                "access": {
+                    "base_url": base_url,
+                    "username": username,
+                    "password": password,
+                }
+            }
+        }:
+            client = Client(base_url=base_url, username=username, password=password)
+        case {
+            "cluster": {
+                "access": {"client_context": cprofile, "client_config": cfgfile}
+            }
+        }:
+            client = Client(context=cprofile, config_file=cfgfile)
+        case {"cluster": {"access": {"client_context": cprofile}}}:
+            client = Client(context=cprofile)
+        case _:
+            assert False
+    yield client
 
 
 @pytest.fixture(scope="session")

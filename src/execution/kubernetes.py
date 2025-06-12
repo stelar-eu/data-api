@@ -228,16 +228,24 @@ class K8sExecEngine(ExecEngine):
             V1Container,
             V1Job,
             V1JobSpec,
+            V1LocalObjectReference,
             V1ObjectMeta,
             V1PodSpec,
             V1PodTemplateSpec,
-            V1LocalObjectReference,
         )
 
         # Determine if image requires credentials
         image_pull_secrets = []
+        image_pull_policy = "Always"
+
         if tool_name.startswith("img.stelar.gr/stelar/"):
             image_pull_secrets = [V1LocalObjectReference(name="stelar-registry-secret")]
+        elif tool_name.startswith("registry.minikube"):
+            image_pull_secrets = [V1LocalObjectReference(name="quay-pull-secret")]
+            quay_svc_host = os.getenv("QUAY_SERVICE_HOST")
+            quay_svc_port = os.getenv("QUAY_SERVICE_PORT")
+            quay_addr = f"{quay_svc_host}:{quay_svc_port}"
+            tool_name = tool_name.replace("registry.minikube", quay_addr)
 
         jm = V1Job(
             api_version="batch/v1",
@@ -265,7 +273,7 @@ class K8sExecEngine(ExecEngine):
                             V1Container(
                                 name="main",
                                 image=tool_name,
-                                image_pull_policy="Always",
+                                image_pull_policy=image_pull_policy,
                                 args=[token, self.api_url, task_id, signature],
                             ),
                         ],

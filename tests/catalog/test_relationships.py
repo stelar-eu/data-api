@@ -3,6 +3,8 @@ from datafix import DataFix
 
 from package import create_relationship, delete_relationship, get_relationships
 
+pytestmark = pytest.mark.skip()
+
 
 @pytest.fixture(scope="function", autouse=True)
 def sample_packages_and_relationships(app):

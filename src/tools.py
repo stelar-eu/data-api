@@ -1,12 +1,11 @@
+import markdown
 from apiflask import fields, validators
 from marshmallow import EXCLUDE
 
-from entity import PackageCKANSchema, PackageEntity, PackageSchema
 from backend.registry import quay_request
+from entity import PackageCKANSchema, PackageEntity, PackageSchema
 from qutils import REGISTRY
 from schema import NameID
-
-import markdown
 
 
 class ToolCKANSchema(PackageCKANSchema):
@@ -110,7 +109,7 @@ class ToolEntity(PackageEntity):
             return package
         try:
             images = REGISTRY.get_repository_tags(package["repository"])
-        except:
+        except Exception:
             return package
         package.update({"images": images})
         return package

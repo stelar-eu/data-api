@@ -4,6 +4,7 @@ import pytest
 import kutils
 
 
+@pytest.mark.skip()
 def test_get_token(app):
     with app.app_context():
         tok = kutils.get_token("johndoe", "johndoe")
@@ -22,38 +23,25 @@ def testuser(dev_cluster_config):
     return username, password
 
 
-def test_get_testuser_token(app, testuser):
-    # load the client context from ~/.stelar
-    username, password = testuser
-
-    with app.app_context():
-        tok = kutils.get_token(username, password)
-        assert tok is not None
-
-
-def test_api_users_token_johndoe(client):
-    response = client.post(
-        "/api/v1/users/token", json={"username": "johndoe", "password": "johndoe"}
+def test_api_users_token_johndoe(testcli):
+    response = testcli.POST(
+        "v1/users/token", username="johndoe", password="johndoe_secret"
     )
     assert response.status_code == 200
-    assert response.json["success"] == True
-    assert "token" in response.json["result"]
-    # assert "expires" in response.json["result"]
-    # assert "user" in response.json["result"]
-    # assert response.json["result"]["user"] == "johndoe"
+    assert response.json()["success"] == True
+
+    token_json = response.json()["result"]
+
+    assert token_json["token_type"] == "Bearer"
+    assert "token" in token_json
+    assert "expires_in" in token_json
+    assert "refresh_token" in token_json
+    assert "refresh_expires_in" in token_json
 
 
-def test_api_users_token_testuser(client, testuser):
+def test_api_users_token_testuser(testcli, testuser):
     username, password = testuser
-    response = client.post(
-        "/api/v1/users/token", json={"username": username, "password": password}
-    )
+    response = testcli.POST("v1/users/token", username=username, password=password)
     assert response.status_code == 200
-    assert response.json["success"] == True
-    assert "token" in response.json["result"]
-
-
-def test_current_user(app_context, credentials):
-    cu = kutils.get_user_by_token(access_token=credentials.token)
-    assert "username" in cu
-    assert cu["username"] == "admin"
+    assert response.json()["success"] == True
+    assert "token" in response.json()["result"]

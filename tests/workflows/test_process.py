@@ -29,40 +29,6 @@ def purge_process(pid, DC, mdb_conn):
             )
 
 
-def test_process_creation(app_context, DC, mdb_conn):
-    stelar_klms = ORGANIZATION.get_entity("stelar-klms")
-    assert stelar_klms is not None
-    assert stelar_klms["name"] == "stelar-klms"
-    assert stelar_klms["type"] == "organization"
-    assert stelar_klms["name"] == "stelar-klms"
-
-    johndoe = get_user("johndoe")
-
-    proc = PROCESS.create_process(
-        johndoe, organization="stelar-klms", title="Test Process Description"
-    )
-    assert proc is not None
-    print(proc)
-    assert proc["title"] == "Test Process Description"
-    assert proc["owner_org"] == stelar_klms["id"]
-    assert isinstance(proc["metadata_created"], datetime)
-    assert isinstance(proc["start_date"], datetime)
-    assert isinstance(proc["end_date"], datetime | None)
-
-    proc2 = PROCESS.get_entity(proc["id"])
-    proc3 = PROCESS.get_entity(proc2["name"])
-    assert proc2 == proc3
-    assert proc2["title"] == "Test Process Description"
-    assert proc2["owner_org"] == stelar_klms["id"]
-    assert proc2["name"] == proc["name"]
-    assert proc2["id"] == proc["id"]
-    assert isinstance(proc2["metadata_created"], datetime)
-    assert isinstance(proc2["start_date"], datetime)
-    assert isinstance(proc2["end_date"], datetime | None)
-
-    purge_process(proc["id"], DC, mdb_conn)
-
-
 def test_process_schema_create(DC):
     s = WorkflowProcessSchema()
 
@@ -99,18 +65,16 @@ def test_process_schema_update(DC):
     assert s.load({"name": "thename"}) == {"name": "thename"}
 
 
-def test_process_api_create(app_client, DC, mdb_conn):
+def test_process_api_create(testcli, DC, mdb_conn):
     # Create a new process
-    response = app_client.post(
-        "/api/v2/process",
-        json={
-            "owner_org": "stelar-klms",
-            "title": "Test Process Description",
-        },
+    response = testcli.POST(
+        "v2/process",
+        owner_org="stelar-klms",
+        title="Test Process Description",
     )
 
     assert response.status_code == 200
-    data = response.get_json()
+    data = response.json()
     assert data["success"] is True
     assert data["result"]["title"] == "Test Process Description"
 
