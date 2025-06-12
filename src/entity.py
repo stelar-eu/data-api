@@ -935,6 +935,24 @@ class EntityWithMembers(EntityWithExtras):
             context=context,
         )
 
+    def fetch(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        """Fetch the entities of this type. Specifically, in the organization
+        and group entities, CKAN offers the ability to return the full representation
+        of all entities without having to call the `entity_show` method for each entity.
+
+        Args:
+            limit: The maximum number of entities to return.
+            offset: The offset to start fetching entities from.
+        Returns:
+            A list of entity objects.
+        """
+        self.check_limit_offset(limit, "limit")
+        self.check_limit_offset(offset, "offset")
+        ents = ckan_request(
+            self.ckan_api_list, limit=limit, offset=offset, all_fields=True
+        )
+        return ents
+
     def remove_member(
         self, eid: str, member_id: str, member_kind: str, context: dict = {}
     ):
