@@ -401,19 +401,29 @@
                             </tr>
                             <tr>
                               <td>Formats</td>
-                              {% if datasets %} {% for dataset in datasets %}
-                              <td></td>
+                              {% if datasets %} 
+                              {% for dataset in datasets %}
+                              <td class="text-center">
+                                {% set formats = dataset.get('resources', []) | map(attribute='format') | list %}
+                                {% set unique_formats = formats | unique %}
+                                {{ unique_formats | join(', ') }}
+                              </td>
                               {% endfor %} {% endif %}
                             </tr>
                             <tr>
-                              <td>Relations</td>
+                              <td>Count</td>
                               {% if datasets %} {% for dataset in datasets %}
-                              <td></td>
+                              <td>
+                                {% set resource_count = dataset.get('resources', []) | length %}
+                                <span class="badge bg-purple-lt">{{ resource_count }}</span>
+                                
+
+                              </td>
                               {% endfor %} {% endif %}
                             </tr>
                             <tr class="bg-light">
                               <th colspan="{% if datasets %}{{ datasets|length + 1 }}{% endif %}" class="subheader">
-                                Spatial, Temporal & Profiles
+                                Spatial & Temporal Attributes
                               </th>
                             </tr>
                             <tr>
