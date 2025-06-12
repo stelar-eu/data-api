@@ -1025,6 +1025,23 @@ class PackageEntity(EntityWithExtras):
             return None
         return result[0]["id"]
 
+    @classmethod
+    def resolve_type(cls, name_or_id: str) -> str | None:
+        """Resolve a package name or ID to its type.
+
+        This method is used to resolve a name or ID to its type.
+        """
+        sql_query = sql.SQL(
+            """\
+            SELECT type
+            FROM public.package
+            WHERE state = 'active' AND (id = %s OR name = %s)"""
+        )
+        result = execSql(sql_query, [name_or_id, name_or_id])
+        if not result:
+            return None
+        return result[0]["type"]
+
     def filter_ids(self, idlist: list[str]) -> list[dict]:
         """Filter the list of packages by ID, leaving only packages of one type."""
         return filter_list_by_type(idlist, self.package_type)
