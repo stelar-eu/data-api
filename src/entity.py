@@ -47,16 +47,16 @@ from marshmallow import EXCLUDE, SchemaOpts, missing, post_dump, pre_load
 from psycopg2 import sql
 
 import authz_module
+import kutils as ku
 import schema
 from authz import authorize, generic_action
 from backend.ckan import ckan_request, filter_list_by_type
 from backend.pgsql import execSql, transaction
 from context import entity_cache
 from exceptions import BackendLogicError, DataError, InternalException, NotFoundError
+from licenses import LICENSE
 from search import entity_search
 from tags import tag_object_to_string, tag_string_to_object
-import kutils as ku
-from licenses import LICENSE
 
 logger = logging.getLogger(__name__)
 
@@ -281,6 +281,9 @@ class Entity:
         raise NotImplementedError
 
     def patch(self, eid: str, patch_data):
+        raise NotImplementedError
+
+    def search(self, query_data: dict) -> list:
         raise NotImplementedError
 
 
