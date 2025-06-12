@@ -582,7 +582,7 @@ class EntityWithExtras(CKANEntity):
         self.has_extras = True
         self.extras_table = extras_table
 
-    def update_to_ckan(self, update_data, current_obj, mode="update"):
+    def update_to_ckan(self, update_data, current_obj):
         """Convert the data to the CKAN format for updating.
 
         This method is overloaded to handle the 'extras' field, supporting
@@ -597,21 +597,21 @@ class EntityWithExtras(CKANEntity):
         """
 
         if self.ckan_schema.opts.extra_attributes:
-            # ALWAYS inject current extras if any extras might be involved
-            curextras = db_fetch_entity_extras(current_obj, self.extras_table)
+            extras_present = "extras" in update_data
 
-            update_extras = update_data.setdefault("extras", {})
-            update_extras["current extras object"] = curextras
-            update_extras["extras update present"] = False  # Always patch-style
+            if extras_present or any(
+                attr in update_data for attr in self.ckan_schema.opts.extra_attributes
+            ):
+                # Fetch the full 'extras' object directly from the database
+                curextras = db_fetch_entity_extras(current_obj, self.extras_table)
 
-        if mode == "patch":
-            # Fetch current CKAN data
-            current_ckan = self.get(current_obj)
-            merged = {**current_ckan, **update_data}
-            update_data = self.ckan_schema.dump(merged)
-        else:
-            update_data = self.ckan_schema.dump(update_data)
+                # Add the curextras object to the update data
+                update_extras = update_data.setdefault("extras", {})
+                # Note that we are purposely using a name with spaces...
+                update_extras["current extras object"] = curextras
+                update_extras["extras update present"] = extras_present
 
+        update_data = self.ckan_schema.dump(update_data)
         return update_data
 
     def create_to_ckan(self, init_data):
@@ -745,12 +745,21 @@ class EntityWithExtrasCKANSchema(Schema):
         # We could have an 'instrumented' extras object
         if "current extras object" in extras:
             current_extras = extras.pop("current extras object")
-            extras.pop("extras update present")
+            extras_present = extras.pop("extras update present")
 
             # Before merge, we convert dump the remaining extras
             extras = {k: json.dumps(v) for k, v in extras.items()}
 
-            extras = current_extras | extras | attrs
+            # Merge the current extras with the new extras
+            if extras_present:
+                curattrs = {
+                    attr: current_extras[attr]
+                    for attr in self.opts.extra_attributes
+                    if attr in current_extras
+                }
+                extras = extras | (curattrs | attrs)
+            else:
+                extras = current_extras | attrs
         else:
             # Convert the extras to strings
             extras = {k: json.dumps(v) for k, v in extras.items()}
@@ -1184,7 +1193,7 @@ class PackageEntity(EntityWithExtras):
         """
         context = {"entity": self.name}
 
-        ckpatch_data = self.update_to_ckan(patch_data, eid, mode="patch")
+        ckpatch_data = self.update_to_ckan(patch_data, eid)
 
         obj = ckan_request(
             self.ckan_api_patch, id=eid, context=context, json=ckpatch_data
