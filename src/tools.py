@@ -4,6 +4,7 @@ from marshmallow import EXCLUDE
 
 from backend.registry import quay_request
 from entity import PackageCKANSchema, PackageEntity, PackageSchema
+from execution.job import JobProfileSchema
 from qutils import REGISTRY
 from schema import NameID
 
@@ -22,6 +23,8 @@ class ToolCKANSchema(PackageCKANSchema):
         load_default=None,
     )
 
+    profiles = fields.Dict(keys=fields.String, values=fields.Raw(), load_default={})
+
     # Use resources to represent images
     images = fields.Raw(data_key="resources", load_only=True)
 
@@ -35,6 +38,7 @@ class ToolCKANSchema(PackageCKANSchema):
             "parameters",
             "repository",
             "category",
+            "profiles",
         ]
 
 
@@ -52,9 +56,11 @@ class ToolSchema(PackageSchema):
         load_default=None,
     )
 
+    # Profiles are used to represent different versions or configurations of the tool
+    profiles = fields.Dict(keys=fields.String, values=fields.Nested(JobProfileSchema))
+
     # Use resources to represent images
     images = fields.Raw(dump_only=True)
-
     repository = fields.String(allow_none=True, dump_only=True)
 
     class Meta:

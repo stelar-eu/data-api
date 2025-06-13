@@ -34,6 +34,7 @@ import kubernetes as k8s
 from kubernetes.client.rest import ApiException
 
 from .engine import ExecEngine
+from .job import JobProfile
 
 if TYPE_CHECKING:
     from .engine import ExecEngineFactory
@@ -221,80 +222,11 @@ class K8sExecEngine(ExecEngine):
         # Return the task info as a dictionary
         return task_info
 
-    def _create_job_manifest(
-        self, tool_name: str, token: str, task_id: str, signature: str
-    ):
-        from kubernetes.client import (
-            V1Container,
-            V1Job,
-            V1JobSpec,
-            V1LocalObjectReference,
-            V1ObjectMeta,
-            V1PodSpec,
-            V1PodTemplateSpec,
-        )
-
-        # Determine if image requires credentials
-        image_pull_secrets = []
-        image_pull_policy = "Always"
-
-        if tool_name.startswith("img.stelar.gr/stelar/"):
-            image_pull_secrets = [V1LocalObjectReference(name="stelar-registry-secret")]
-        elif tool_name.startswith("registry.minikube"):
-            image_pull_secrets = [V1LocalObjectReference(name="quay-pull-secret")]
-            quay_svc_host = os.getenv("QUAY_SERVICE_HOST")
-            quay_svc_port = os.getenv("QUAY_SERVICE_PORT")
-            quay_addr = f"{quay_svc_host}:{quay_svc_port}"
-            tool_name = tool_name.replace("registry.minikube", quay_addr)
-
-        jm = V1Job(
-            api_version="batch/v1",
-            kind="Job",
-            metadata=V1ObjectMeta(
-                name=f"stelar-task-{task_id}",
-                labels={
-                    "stelar.metadata.class": "task-execution",
-                    "stelar.task-id": task_id,
-                },
-            ),
-            spec=V1JobSpec(
-                template=V1PodTemplateSpec(
-                    metadata=V1ObjectMeta(
-                        annotations={
-                            "stelar/task-tool": tool_name,
-                        },
-                        labels={
-                            "stelar.metadata.class": "task-execution",
-                            "stelar.task-id": task_id,
-                        },
-                    ),
-                    spec=V1PodSpec(
-                        containers=[
-                            V1Container(
-                                name="main",
-                                image=tool_name,
-                                image_pull_policy=image_pull_policy,
-                                args=[token, self.api_url, task_id, signature],
-                            ),
-                        ],
-                        restart_policy="Never",
-                        image_pull_secrets=image_pull_secrets,
-                    ),
-                ),
-                backoff_limit=4,
-                ttl_seconds_after_finished=60 * 60 * 24,  # 1 day
-            ),
-        )
-
-        return jm
-
     def create_task(
-        self, tool_name: str, token: str, task_id: str, signature: str
+        self, profile: JobProfile, token: str, task_id: str, signature: str
     ) -> tuple[str, str]:
         try:
-            job_manifest = self._create_job_manifest(
-                tool_name, token, task_id, signature
-            )
+            job_manifest = profile.manifest(token, self.api_url, task_id, signature)
             job = self.batch.create_namespaced_job(
                 body=job_manifest, namespace=self.namespace
             )
