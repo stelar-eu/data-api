@@ -913,6 +913,7 @@ class Task(Entity):
             task_info = {
                 "creator": creator_user,
                 "id": task_id,
+                "process_id": process_id,
                 "token": token,
                 "signature": task_signature,
             }
