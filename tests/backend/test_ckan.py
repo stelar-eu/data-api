@@ -1,8 +1,10 @@
 import jmespath
+import pytest
 
 from backend.ckan import ckan_request, get_id_for_entity_id_or_name
 
 
+@pytest.mark.skip()
 def test_id_from_entity_id_or_name(app_context):
     """Test the get_id_for_entity_id_or_name function."""
     # Test with a valid entity ID

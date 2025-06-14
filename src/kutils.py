@@ -1,43 +1,44 @@
 import base64
 import datetime
+import json
 import logging
 import smtplib
 import ssl
-from io import BytesIO
 from functools import wraps
+from io import BytesIO
+
 import flask
 import jwt
 import pyotp
-import json
 import qrcode
 from flask import current_app, session, url_for
 from keycloak import (
     KeycloakAuthenticationError,
+    KeycloakConnectionError,
+    KeycloakDeleteError,
     KeycloakGetError,
+    KeycloakInvalidTokenError,
     KeycloakPostError,
     KeycloakPutError,
-    KeycloakDeleteError,
-    KeycloakConnectionError,
-    KeycloakInvalidTokenError,
 )
+
 import sql_utils
 import requests
 from backend.ckan import ckan_request
-from backend.pgsql import execSql
 from backend.kc import KEYCLOAK_ADMIN_CLIENT, KEYCLOAK_OPENID_CLIENT
-from qutils import REGISTRY
+from backend.pgsql import execSql
 from backend.redis import REDIS
-
 from exceptions import (
     APIException,
     AuthenticationError,
     AuthorizationError,
     BackendError,
+    ConflictError,
     InternalException,
     InvalidError,
     NotFoundError,
-    ConflictError,
 )
+from qutils import REGISTRY
 from utils import is_valid_uuid, validate_email
 
 logger = logging.getLogger(__name__)

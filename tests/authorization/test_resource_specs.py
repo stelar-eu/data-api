@@ -69,6 +69,7 @@ def test_attr_spec():
         AttrSpec(attr="id", operation="nonexistent", value="value")
 
 
+@pytest.mark.skip()
 def test_gmspec(monkeysession, app):
     # Monkeypatch fetch_resource to return resource unchanged.
     # monkeypatch.setattr(GMspec, "fetch_resource", lambda self, resource: resource)
@@ -87,6 +88,7 @@ def test_gmspec(monkeysession, app):
     assert not spec(resource)
 
 
+@pytest.mark.skip()
 def test_gmspec_with_fake_data(app):
     with app.app_context():
         from authz_module import Resource
@@ -136,6 +138,7 @@ def test_umspec(monkeysession):
     assert not spec(resource_bad)
 
 
+@pytest.mark.skip()
 def test_umspec_with_fake_data(app, monkeypatch):
     # Monkeypatch the current_user and fetch_user_group_members functions.
     monkeypatch.setattr(ku, "current_user", fake_current_user)

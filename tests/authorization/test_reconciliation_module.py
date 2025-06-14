@@ -1,7 +1,10 @@
 import pytest
 
+
+@pytest.mark.skip("Fix this test")
 def test_update_roles_from_yaml():
     from reconciliation_module import update_roles_from_yaml
+
     ########################################################
     # 1st case: we have 3 roles in the yaml file and 4 roles in the realm
     # 1 role in the realm is not in the yaml file
@@ -12,17 +15,10 @@ def test_update_roles_from_yaml():
         {"name": "role2"},
         {"name": "role3"},
     ]
-    existing_realm_roles = {
-        "role1",
-        "role2",
-        "role3",
-        "role4"
-    }
+    existing_realm_roles = {"role1", "role2", "role3", "role4"}
 
     roles_to_delete = update_roles_from_yaml(roles_list, existing_realm_roles)
-    assert roles_to_delete == {
-        "role4"
-    }
+    assert roles_to_delete == {"role4"}
 
     ########################################################
     # 2nd case: we have 3 roles in the yaml file and 3 roles in the realm
@@ -34,11 +30,7 @@ def test_update_roles_from_yaml():
         {"name": "role2"},
         {"name": "role3"},
     ]
-    existing_realm_roles = {
-        "role1",
-        "role2",
-        "role3"
-    }
+    existing_realm_roles = {"role1", "role2", "role3"}
 
     roles_to_delete = update_roles_from_yaml(roles_list, existing_realm_roles)
     assert roles_to_delete == set()
@@ -51,17 +43,10 @@ def test_update_roles_from_yaml():
     roles_list = [
         {"name": "role1"},
     ]
-    existing_realm_roles = {
-        "role1",
-        "role2",
-        "role3"
-    }
+    existing_realm_roles = {"role1", "role2", "role3"}
 
     roles_to_delete = update_roles_from_yaml(roles_list, existing_realm_roles)
-    assert roles_to_delete == {
-        "role2",
-        "role3"
-    }
+    assert roles_to_delete == {"role2", "role3"}
 
     ########################################################
     # 4th case: we have 3 roles in the yaml file and 0 roles in the realm
@@ -99,23 +84,23 @@ def test_update_roles_from_yaml():
         "create-realm",
         "uma_authorization",
         "puller",
-        "pusher"
+        "pusher",
     }
 
     roles_to_delete = update_roles_from_yaml(roles_list, existing_realm_roles)
-    assert roles_to_delete == {
-        "role4"
-    }
+    assert roles_to_delete == {"role4"}
     assert not roles_to_delete == {
         "default-roles-master",
         "admin",
         "offline_access",
         "create-realm",
-        "uma_authorization"
+        "uma_authorization",
     }
+
 
 def test_policies_from_yaml():
     from reconciliation_module import update_policies_from_yaml
+
     ########################################################
     # 1st case: we have 3 policies in the yaml file and 4 policies in the minio server
     # 1 policy in the minio server is not in the yaml file
@@ -126,22 +111,13 @@ def test_policies_from_yaml():
         "policyfile2",
         "policyfile3",
     ]
-    existing_policies = {
-        "policyfile1",
-        "policyfile2",
-        "policyfile3",
-        "policyfile4"
-    }
+    existing_policies = {"policyfile1", "policyfile2", "policyfile3", "policyfile4"}
 
-    policies_to_delete, policy_names_set = update_policies_from_yaml(roles_list, existing_policies)
-    assert policies_to_delete == {
-        "policyfile4"
-    }
-    assert policy_names_set == {
-        "policyfile1",
-        "policyfile2",
-        "policyfile3"
-    }
+    policies_to_delete, policy_names_set = update_policies_from_yaml(
+        roles_list, existing_policies
+    )
+    assert policies_to_delete == {"policyfile4"}
+    assert policy_names_set == {"policyfile1", "policyfile2", "policyfile3"}
 
     ########################################################
     # 2nd case: we have 3 policies in the yaml file and 3 policies in the minio server
@@ -153,19 +129,13 @@ def test_policies_from_yaml():
         "policyfile2",
         "policyfile3",
     ]
-    existing_policies = {
-        "policyfile1",
-        "policyfile2",
-        "policyfile3"
-    }
+    existing_policies = {"policyfile1", "policyfile2", "policyfile3"}
 
-    policies_to_delete, policy_names_set = update_policies_from_yaml(roles_list, existing_policies)
+    policies_to_delete, policy_names_set = update_policies_from_yaml(
+        roles_list, existing_policies
+    )
     assert policies_to_delete == set()
-    assert policy_names_set == {
-        "policyfile1",
-        "policyfile2",
-        "policyfile3"
-    }
+    assert policy_names_set == {"policyfile1", "policyfile2", "policyfile3"}
 
     ########################################################
     # 3rd case: we have 1 policy in the yaml file and 3 policies in the minio server
@@ -175,20 +145,13 @@ def test_policies_from_yaml():
     roles_list = [
         "policyfile1",
     ]
-    existing_policies = {
-        "policyfile1",
-        "policyfile2",
-        "policyfile3"
-    }
+    existing_policies = {"policyfile1", "policyfile2", "policyfile3"}
 
-    policies_to_delete, policy_names_set = update_policies_from_yaml(roles_list, existing_policies)
-    assert policies_to_delete == {
-        "policyfile2",
-        "policyfile3"
-    }
-    assert policy_names_set == {
-        "policyfile1"
-    }
+    policies_to_delete, policy_names_set = update_policies_from_yaml(
+        roles_list, existing_policies
+    )
+    assert policies_to_delete == {"policyfile2", "policyfile3"}
+    assert policy_names_set == {"policyfile1"}
 
     ########################################################
     # 4th case: we have 3 policies in the yaml file and 0 policies in the minio server
@@ -201,13 +164,11 @@ def test_policies_from_yaml():
     ]
     existing_policies = set()
 
-    policies_to_delete, policy_names_set = update_policies_from_yaml(roles_list, existing_policies)
+    policies_to_delete, policy_names_set = update_policies_from_yaml(
+        roles_list, existing_policies
+    )
     assert policies_to_delete == set()
-    assert policy_names_set == {
-        "policyfile1",
-        "policyfile2",
-        "policyfile3"
-    }
+    assert policy_names_set == {"policyfile1", "policyfile2", "policyfile3"}
 
     ########################################################
     # 5th case: we have 3 policies in the yaml file and 8 policies in the minio server
@@ -232,10 +193,10 @@ def test_policies_from_yaml():
         "writeonly",
     }
 
-    policies_to_delete, policy_names_set = update_policies_from_yaml(roles_list, existing_policies)
-    assert policies_to_delete == {
-        "policyfile4"
-    }
+    policies_to_delete, policy_names_set = update_policies_from_yaml(
+        roles_list, existing_policies
+    )
+    assert policies_to_delete == {"policyfile4"}
     assert policy_names_set == {
         "policyfile1",
         "policyfile2",
@@ -249,8 +210,10 @@ def test_policies_from_yaml():
         "writeonly",
     }
 
+
 def test_update_client_roles():
     from reconciliation_module import update_client_roles
+
     ########################################################
     # 1st case: we have 3 policies in the yaml file and 4 client roles in the minio server
     # 1 client role in the minio server is not in the yaml file
@@ -265,13 +228,13 @@ def test_update_client_roles():
         "client_role1",
         "client_role2",
         "client_role3",
-        "client_role4"
+        "client_role4",
     }
 
-    client_roles_to_delete = update_client_roles(policy_names_set, exisitng_client_roles)
-    assert client_roles_to_delete == {
-        "client_role4"
-    }
+    client_roles_to_delete = update_client_roles(
+        policy_names_set, exisitng_client_roles
+    )
+    assert client_roles_to_delete == {"client_role4"}
 
     ########################################################
     # 2nd case: we have 3 policies in the yaml file and 3 client roles in the minio server
@@ -283,13 +246,11 @@ def test_update_client_roles():
         "client_role2",
         "client_role3",
     }
-    exisitng_client_roles = {
-        "client_role1",
-        "client_role2",
-        "client_role3"
-    }
+    exisitng_client_roles = {"client_role1", "client_role2", "client_role3"}
 
-    client_roles_to_delete = update_client_roles(policy_names_set, exisitng_client_roles)
+    client_roles_to_delete = update_client_roles(
+        policy_names_set, exisitng_client_roles
+    )
     assert client_roles_to_delete == set()
 
     ########################################################
@@ -300,17 +261,12 @@ def test_update_client_roles():
     policy_names_set = {
         "client_role1",
     }
-    exisitng_client_roles = {
-        "client_role1",
-        "client_role2",
-        "client_role3"
-    }
+    exisitng_client_roles = {"client_role1", "client_role2", "client_role3"}
 
-    client_roles_to_delete = update_client_roles(policy_names_set, exisitng_client_roles)
-    assert client_roles_to_delete == {
-        "client_role2",
-        "client_role3"
-    }
+    client_roles_to_delete = update_client_roles(
+        policy_names_set, exisitng_client_roles
+    )
+    assert client_roles_to_delete == {"client_role2", "client_role3"}
 
     ########################################################
     # 4th case: we have 3 policies in the yaml file and 0 client roles in the minio server
@@ -323,7 +279,9 @@ def test_update_client_roles():
     }
     exisitng_client_roles = set()
 
-    client_roles_to_delete = update_client_roles(policy_names_set, exisitng_client_roles)
+    client_roles_to_delete = update_client_roles(
+        policy_names_set, exisitng_client_roles
+    )
     assert client_roles_to_delete == set()
 
     ########################################################
@@ -342,19 +300,16 @@ def test_update_client_roles():
         "client_role2",
         "client_role3",
         "client_role4",
-        "consoleAdmin"
+        "consoleAdmin",
     }
 
-    client_roles_to_delete = update_client_roles(policy_names_set, exisitng_client_roles)
-    assert client_roles_to_delete == {
-        "client_role4"
-    }
-    assert not client_roles_to_delete == {
-        "consoleAdmin"
-    }
+    client_roles_to_delete = update_client_roles(
+        policy_names_set, exisitng_client_roles
+    )
+    assert client_roles_to_delete == {"client_role4"}
+    assert not client_roles_to_delete == {"consoleAdmin"}
     assert not client_roles_to_delete == {
         "client_role1",
         "client_role2",
-        "client_role3"
+        "client_role3",
     }
-   

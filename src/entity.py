@@ -47,16 +47,17 @@ from marshmallow import EXCLUDE, SchemaOpts, missing, post_dump, pre_load
 from psycopg2 import sql
 
 import authz_module
+import kutils as ku
 import schema
 from authz import authorize, generic_action
 from backend.ckan import ckan_request, filter_list_by_type
 from backend.pgsql import execSql, transaction
 from context import entity_cache
 from exceptions import BackendLogicError, DataError, InternalException, NotFoundError
+from licenses import LICENSE
 from search import entity_search
 from tags import tag_object_to_string, tag_string_to_object
-import kutils as ku
-from licenses import LICENSE
+from utils import is_valid_uuid
 
 logger = logging.getLogger(__name__)
 
@@ -283,6 +284,9 @@ class Entity:
     def patch(self, eid: str, patch_data):
         raise NotImplementedError
 
+    def search(self, query_data: dict) -> list:
+        raise NotImplementedError
+
 
 class CKANEntity(Entity):
     def __init__(
@@ -337,7 +341,7 @@ class CKANEntity(Entity):
         init_data = self.ckan_schema.dump(init_data)
         return init_data
 
-    def update_to_ckan(self, update_data, current_obj, mode="update"):
+    def update_to_ckan(self, update_data, current_obj):
         """Convert the data to the CKAN format for updating.
 
         This method is used to convert the update data to the CKAN format for updating
@@ -475,7 +479,7 @@ class CKANEntity(Entity):
         """
         context = {"entity": self.name}
 
-        ckpatch_data = self.update_to_ckan(patch_data, eid, mode="patch")
+        ckpatch_data = self.update_to_ckan(patch_data, eid)
 
         obj = ckan_request(
             self.ckan_api_patch, id=eid, context=context, json=ckpatch_data
@@ -534,11 +538,11 @@ UserOrgCapacity = create_capacity_schema(
 )
 
 
-def db_fetch_entity_extras(eid: str, table: str):
+def db_fetch_entity_extras(eid_or_name: str, table: str):
     """Fetch the extras for an entity from the database.
 
     Arguments:
-        eid: the ID of the entity
+        eid_or_name: the ID or name of the entity
         table: the name of the table to fetch from. This should be
             either 'package' or 'group'
     Returns:
@@ -546,6 +550,21 @@ def db_fetch_entity_extras(eid: str, table: str):
     """
     with transaction() as conn:
         with conn.cursor() as cur:
+            # Convert eid_or_name to a valid UUID
+            if is_valid_uuid(eid_or_name):
+                eid = eid_or_name
+            else:
+                cur.execute(
+                    sql.SQL("SELECT id FROM {table} WHERE name = %s").format(
+                        table=sql.Identifier(table),
+                    ),
+                    [eid_or_name],
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise NotFoundError(f"{table} {eid_or_name} not found")
+                eid = row[0]
+
             cur.execute(
                 sql.SQL("SELECT key, value FROM {table} WHERE {eid} = %s").format(
                     table=sql.Identifier(f"{table}_extra"),
@@ -604,6 +623,12 @@ class EntityWithExtras(CKANEntity):
             ):
                 # Fetch the full 'extras' object directly from the database
                 curextras = db_fetch_entity_extras(current_obj, self.extras_table)
+                logger.debug(
+                    "Fetched current extras for %s %s: %s",
+                    self.extras_table,
+                    current_obj,
+                    curextras,
+                )
 
                 # Add the curextras object to the update data
                 update_extras = update_data.setdefault("extras", {})
@@ -1133,79 +1158,6 @@ class PackageEntity(EntityWithExtras):
             else:
                 data["license_title"] = None
                 data["license_url"] = None
-
-    def get(self, eid: str):
-        """Read an entity from CKAN.
-
-        This method bypasses any authorization checks.
-
-        Args:
-            eid: The ID of the entity to read.
-        Returns:
-            The entity object.
-        """
-        obj = ckan_request(self.ckan_api_show, id=eid, context={"entity": self.name})
-        # Check the type of the CKAN object (for those CKAN objects that have type)
-        objtype = obj.get("type", self.name)
-        if objtype != self.name:
-            raise NotFoundError(f"{self.name} not found, ID belongs to {objtype}")
-
-        # Load the object from CKAN
-        loaded_obj = self.load_from_ckan(obj)
-
-        # Enhance the license information in the loaded object
-        self._enhance_license(loaded_obj)
-
-        return loaded_obj
-
-    def update(self, eid: str, entity_data):
-        """Update an entity in CKAN.
-
-        Args:
-            eid: The ID of the entity to update.
-            entity_data: The data to update the entity with.
-        Returns:
-            The updated entity object.
-        """
-        context = {"entity": self.name}
-
-        # Convert to CKAN properly
-        ck_data = self.update_to_ckan(entity_data, eid)
-
-        obj = ckan_request(self.ckan_api_update, id=eid, context=context, json=ck_data)
-
-        # Load the object from CKAN
-        loaded_obj = self.load_from_ckan(obj)
-
-        # Enhance the license information in the loaded object
-        self._enhance_license(loaded_obj)
-
-        return loaded_obj
-
-    def patch(self, eid: str, patch_data):
-        """Patch an entity in CKAN.
-
-        Args:
-            eid: The ID of the entity to patch.
-            patch_data: The data to patch the entity with.
-        Returns:
-            The patched entity object.
-        """
-        context = {"entity": self.name}
-
-        ckpatch_data = self.update_to_ckan(patch_data, eid)
-
-        obj = ckan_request(
-            self.ckan_api_patch, id=eid, context=context, json=ckpatch_data
-        )
-
-        # Load the object from CKAN
-        loaded_obj = self.load_from_ckan(obj)
-
-        # Enhance the license information in the loaded object
-        self._enhance_license(loaded_obj)
-
-        return loaded_obj
 
     def search(self, query_spec: dict) -> list:
         """Search for packages.

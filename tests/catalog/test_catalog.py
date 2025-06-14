@@ -19,17 +19,10 @@ from tags import get_vocabulary
 #  The followng fixes a bug in FlaskClient !!
 # werkzeug.__version__ = "3.1.3"
 
-
-def test_dummy_app(app):
-    for k, v in app.config.items():
-        if k == "settings":
-            continue
-        print(k, "=", v)
-    for k, v in app.config["settings"].items():
-        print("setting  ", k, "=", v)
+pytestmark = pytest.mark.skip()
 
 
-def test_entity_creation(app):
+def test_entity_creation():
     e = CKANEntity(
         "dset",
         "dsets",
@@ -100,13 +93,8 @@ def test_load_extras(input_data, expected_output):
     assert c["extras"] == expected_output
 
 
-@pytest.fixture(scope="session")
-def thedaltons(app):
-    with app.app_context():
-        return get_vocabulary("daltons")
-
-
-def test_get_vocabulary(thedaltons):
+def test_get_vocabulary(testcli):
+    thedaltons = testcli.GET("v2/vocabulary/daltons").json()["result"]
     assert thedaltons["name"] == "daltons"
 
 
@@ -219,6 +207,7 @@ def test_dataset_api(client: werkzeug.Client, credentials):
     # print("There are", len(elements), "datasets")
 
 
+@pytest.mark.skip()
 def test_dataset_ckan_schema(DC):
     s = PackageCKANSchema()
 

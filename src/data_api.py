@@ -1686,6 +1686,64 @@ def yaml_config(config_file):
     return config_data
 
 
+def resolve_image_registry_address(addr: str, env: dict) -> str:
+    """Resolve the image registry address based on deployment info.
+
+    `addr` needs to be one of "auto", "internal", "external",
+    "localhost", or a specific IP address (containing dots and possibly a port)
+
+    "auto" examines the REGISTRY_EXT_URL and specifically the protocol (http or https).
+    If it is https, then the "external" registry address will be used,
+    else the "internal" registry address will be used.
+
+    "external" basically translated something like "img.stelar.gr", by taking the
+    url in REGISTRY_EXT_URL and removing the protocol part.
+
+    "internal" is the address taken as  $QUAY_SERVICE_HOST:$QUAY_SERVICE_PORT,
+    which is the internal address of the quay service in the Kubernetes cluster.
+    This is used on minikube (development) deployments, but it requires further
+    configuration (allowing non-tls access from the kubelet to the registry, is a
+    creation-time configuration option in minikube).
+
+    "localhost"  or any string containing dots (.) and optionally a port (like :3334)
+    is taken as a literal address. Again, this should only be used for testing purposes.
+
+    Args:
+        addr: A string representing the image registry address.
+        env: A dictionary containing environment variables, such as REGISTRY_EXT_URL.
+
+    Returns:
+        A string with the resolved image registry address.
+    """
+
+    try:
+        if addr == "auto":
+            if env["REGISTRY_EXT_URL"].startswith("https://"):
+                return resolve_image_registry_address("external")
+            else:
+                return resolve_image_registry_address("internal")
+
+        elif addr == "external":
+            registry = re.sub(r"^https?://", "", env["REGISTRY_EXT_URL"])
+            return registry
+
+        elif addr == "internal":
+            return f"{env['QUAY_SERVICE_HOST']}:{env['QUAY_SERVICE_PORT']}"
+
+        else:
+            return addr  # This is either "localhost" or a specific IP address
+
+    except KeyError as e:
+        logger.critical(f"Missing environment variable: {e}")
+        # If the required environment variables are not set, we cannot resolve the address
+        return None
+    except Exception:
+        # On failure, leave this unconfigured
+        logger.exception("Error resolving image registry address")
+        # This is not a critical error, so we just return None
+        return None
+
+
 def main(app):
     app.config["settings"] = {
         "FLASK_RUN_HOST": os.getenv("FLASK_RUN_HOST", "0.0.0.0"),
@@ -1767,7 +1825,33 @@ def main(app):
         "SMTP_PORT": os.getenv("SMTP_PORT", "465"),
         "SMTP_EMAIL": os.getenv("SMTP_EMAIL", "info@stelar.gr"),
         "SMTP_PASSWORD": os.getenv("SMTP_PASSWORD", "None"),
-        "execution": {"engine": os.getenv("EXECUTION_ENGINE", "none")},
+        "execution": {
+            "engine": os.getenv("EXECUTION_ENGINE", "none"),
+            # The below needs to be one of "auto", "internal", "external",
+            # "localhost", or a specific IP address (containing dots and possibly a port)
+            # See resolve_registry_address() for details.
+            "image_registry_address": resolve_image_registry_address(
+                os.getenv("IMAGE_REGISTRY_ADDRESS", "auto"), os.environ
+            ),
+            "image_registry_org": os.getenv("IMAGE_REGISTRY_ORG", "stelar"),
+            "namespace": os.getenv("API_NAMESPACE"),
+            "api_url": os.getenv("API_URL", "http://stelarapi/"),
+            "default_specs": {
+                "restart_policy": "Never",
+                "image_pull_policy": "Always",
+                "image_pull_secrets": ["stelar-registry-secret"],
+                # Resource limits:
+                # uncomment the below lines to set resource limits and requests.
+                # TODO: Eventually, these limits could be given by deployment config.
+                #
+                # "cpu_limit": "1",
+                # "cpu_request": "0.5",
+                # "memory_limit": "1Gi",
+                # "memory_request": "512Mi",
+                "ttl_seconds_after_finished": 60 * 60 * 24,
+                "backoff_limit": 3,
+            },
+        },
     }
 
     # Apply configuration settings for this API

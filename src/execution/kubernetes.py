@@ -27,13 +27,14 @@ TODOs:
 from __future__ import annotations
 
 import logging
-import os
-from typing import TYPE_CHECKING
+import re
+from typing import TYPE_CHECKING, Any
 
 import kubernetes as k8s
 from kubernetes.client.rest import ApiException
 
 from .engine import ExecEngine
+from .job import JobSpec
 
 if TYPE_CHECKING:
     from .engine import ExecEngineFactory
@@ -64,7 +65,7 @@ def kubernetes_client_config(engine_config):
 
 
 def configure(cfg: dict, client_config=True) -> ExecEngineFactory:
-    """Configure a docker execution engine factory
+    """Configure a Kubernetes execution engine factory
 
     Args:
         cfg (dict): Deployment configuration
@@ -82,21 +83,61 @@ def configure(cfg: dict, client_config=True) -> ExecEngineFactory:
     if client_config:
         kubernetes_client_config(engine_config)
 
-    # Get execution namespace from engine config. If
-    # misssing, use the 'API_NAMESPACE' environment var.
+    # Get execution namespace from engine config.
     # Else, raise an exception.
     nspace = engine_config.get("namespace", None)
     if nspace is None:
-        nspace = os.environ.get("API_NAMESPACE", None)
-    if nspace is None:
         raise RuntimeError("Execution namespace undefined")
     logger.info("Established namespace %s for task execution", nspace)
+
+    api_url = engine_config.get("api_url", None)
+    if api_url is None:
+        raise RuntimeError("API URL for task execution not defined in config")
+    else:
+        logger.info("Established API URL %s for task execution", api_url)
+
+    # Get registry address from engine config, if available
+    registry_address = engine_config.get("image_registry_address", None)
+    if registry_address is None:
+        logger.warning("Image registry address not defined in config, using default.")
+    else:
+        logger.info(
+            "Established registry address %s for task execution", registry_address
+        )
+
+    # Get registry organization from engine config, if available
+    registry_org = engine_config.get("image_registry_org", "stelar")
+    if registry_org is None:
+        logger.warning(
+            "Image registry organization not defined in config, using default."
+        )
+    else:
+        logger.info(
+            "Established registry organization %s for task execution", registry_org
+        )
+
+    default_specs = engine_config.get(
+        "default_specs",
+        {
+            "image_pull_policy": "Always",
+            "image_pull_secrets": ["stelar-registry-secret"],
+            "ttl_seconds_after_finished": 60 * 60 * 24,
+            "backoff_limit": 3,
+            "restart_policy": "Never",
+        },
+    )
 
     # Define the factory function in here
     def factory() -> ExecEngine:
         # The api_url is available in cfg
         logger.info("Created kubernetes task execution engine.")
-        return K8sExecEngine(api_url=cfg["API_URL"], namespace=nspace)
+        return K8sExecEngine(
+            api_url=api_url,
+            namespace=nspace,
+            registry_address=registry_address,
+            registry_org=registry_org,
+            default_specs=default_specs,
+        )
 
     logger.info("Created kubernetes exec engine factory")
     logging.getLogger("kubernetes.client.rest").setLevel(logging.WARNING)
@@ -104,7 +145,7 @@ def configure(cfg: dict, client_config=True) -> ExecEngineFactory:
 
 
 class K8sExecEngine(ExecEngine):
-    """This is a very simple implementation of a docker execution engine.
+    """The Kubernetes execution engine.
 
     A single instance of this class is also a docker factory.
 
@@ -112,11 +153,49 @@ class K8sExecEngine(ExecEngine):
         ExecEngine (_type_): _description_
     """
 
-    def __init__(self, api_url, namespace):
+    def __init__(
+        self, api_url, namespace, registry_address, registry_org, default_specs
+    ):
         self.api_url = api_url
         self.namespace = namespace
+        self.registry_address = registry_address
+        self.registry_org = registry_org
+        self.default_specs = default_specs
         self.v1 = k8s.client.CoreV1Api()
         self.batch = k8s.client.BatchV1Api()
+
+    def default_spec(self, spec_name) -> Any:
+        """Get the default specification for a given spec name.
+
+        Args:
+            spec_name (str): The name of the specification to retrieve.
+
+        Returns:
+            Any: The default specification value, or None if not found.
+        """
+        return self.default_specs.get(spec_name, None)
+
+    def image_spec(self, tool_image: str) -> str:
+        """Get the image spec for a tool image.
+
+        A tool image string is expected to look like:
+        `tool_name:tag`. The method will return the full image spec,
+        suitable for pulling from the configured registry.
+
+        However, it is possible that the tool image already includes
+        the full registry address and organization, in which case
+        it will be returned as is.
+
+        Args:
+            tool_image (str): The tool image string.
+
+        Returns:
+            str: The full image name including registry address and organization.
+        """
+        if re.match(r"^[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+(:[0-9]+)?//", tool_image):
+            return tool_image
+        else:
+            return f"{self.registry_address}/{self.registry_org}/{tool_image}"
 
     def fetch_task_logs(self, task_id: str) -> dict:
         """Fetch logs for all pods associated with a specific stelar.task-id.
@@ -221,72 +300,9 @@ class K8sExecEngine(ExecEngine):
         # Return the task info as a dictionary
         return task_info
 
-    def _create_job_manifest(
-        self, tool_name: str, token: str, task_id: str, signature: str
-    ):
-        from kubernetes.client import (
-            V1Container,
-            V1Job,
-            V1JobSpec,
-            V1ObjectMeta,
-            V1PodSpec,
-            V1PodTemplateSpec,
-            V1LocalObjectReference,
-        )
-
-        # Determine if image requires credentials
-        image_pull_secrets = []
-        if tool_name.startswith("img.stelar.gr/stelar/"):
-            image_pull_secrets = [V1LocalObjectReference(name="stelar-registry-secret")]
-
-        jm = V1Job(
-            api_version="batch/v1",
-            kind="Job",
-            metadata=V1ObjectMeta(
-                name=f"stelar-task-{task_id}",
-                labels={
-                    "stelar.metadata.class": "task-execution",
-                    "stelar.task-id": task_id,
-                },
-            ),
-            spec=V1JobSpec(
-                template=V1PodTemplateSpec(
-                    metadata=V1ObjectMeta(
-                        annotations={
-                            "stelar/task-tool": tool_name,
-                        },
-                        labels={
-                            "stelar.metadata.class": "task-execution",
-                            "stelar.task-id": task_id,
-                        },
-                    ),
-                    spec=V1PodSpec(
-                        containers=[
-                            V1Container(
-                                name="main",
-                                image=tool_name,
-                                image_pull_policy="Always",
-                                args=[token, self.api_url, task_id, signature],
-                            ),
-                        ],
-                        restart_policy="Never",
-                        image_pull_secrets=image_pull_secrets,
-                    ),
-                ),
-                backoff_limit=4,
-                ttl_seconds_after_finished=60 * 60 * 24,  # 1 day
-            ),
-        )
-
-        return jm
-
-    def create_task(
-        self, tool_name: str, token: str, task_id: str, signature: str
-    ) -> tuple[str, str]:
+    def create_task(self, spec: JobSpec) -> tuple[str, str]:
         try:
-            job_manifest = self._create_job_manifest(
-                tool_name, token, task_id, signature
-            )
+            job_manifest = spec.manifest(self)
             job = self.batch.create_namespaced_job(
                 body=job_manifest, namespace=self.namespace
             )
