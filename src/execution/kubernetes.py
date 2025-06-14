@@ -116,8 +116,8 @@ def configure(cfg: dict, client_config=True) -> ExecEngineFactory:
             "Established registry organization %s for task execution", registry_org
         )
 
-    default_specs = engine_config.get(
-        "default_specs",
+    default_profile = engine_config.get(
+        "default_profile",
         {
             "image_pull_policy": "Always",
             "image_pull_secrets": ["stelar-registry-secret"],
@@ -136,7 +136,7 @@ def configure(cfg: dict, client_config=True) -> ExecEngineFactory:
             namespace=nspace,
             registry_address=registry_address,
             registry_org=registry_org,
-            default_specs=default_specs,
+            default_profile=default_profile,
         )
 
     logger.info("Created kubernetes exec engine factory")
@@ -154,26 +154,26 @@ class K8sExecEngine(ExecEngine):
     """
 
     def __init__(
-        self, api_url, namespace, registry_address, registry_org, default_specs
+        self, api_url, namespace, registry_address, registry_org, default_profile
     ):
         self.api_url = api_url
         self.namespace = namespace
         self.registry_address = registry_address
         self.registry_org = registry_org
-        self.default_specs = default_specs
+        self.default_profile = default_profile
         self.v1 = k8s.client.CoreV1Api()
         self.batch = k8s.client.BatchV1Api()
 
-    def default_spec(self, spec_name) -> Any:
-        """Get the default specification for a given spec name.
+    def default_param(self, param_name) -> Any:
+        """Get the default value for a given profile parameter.
 
         Args:
-            spec_name (str): The name of the specification to retrieve.
+            param_name (str): The name of the parameter to retrieve.
 
         Returns:
-            Any: The default specification value, or None if not found.
+            Any: The default parameter value, or None if not found.
         """
-        return self.default_specs.get(spec_name, None)
+        return self.default_profile.get(param_name, None)
 
     def image_spec(self, tool_image: str) -> str:
         """Get the image spec for a tool image.

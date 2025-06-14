@@ -1836,7 +1836,7 @@ def main(app):
             "image_registry_org": os.getenv("IMAGE_REGISTRY_ORG", "stelar"),
             "namespace": os.getenv("API_NAMESPACE"),
             "api_url": os.getenv("API_URL", "http://stelarapi/"),
-            "default_specs": {
+            "default_profile": {
                 "restart_policy": "Never",
                 "image_pull_policy": "Always",
                 "image_pull_secrets": ["stelar-registry-secret"],

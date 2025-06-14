@@ -8,6 +8,8 @@ from apiflask import Schema, fields, validators
 from kubernetes.utils import parse_quantity
 
 if TYPE_CHECKING:
+    from kubernetes.client import V1Job, V1ResourceRequirements
+
     from .kubernetes import K8sExecEngine
 
 
@@ -132,33 +134,33 @@ class JobSpec:
         """
         Returns the image pull policy for the container.
         """
-        chain("image_pull_policy", self.profile, engine.default_specs)
+        return chain("image_pull_policy", self.profile, engine.default_profile)
 
     def m_image_pull_secrets(self, engine: K8sExecEngine) -> list[str]:
         """
         Merge the image pull secrets for the job.
         """
         l1 = self.profile.get("image_pull_secrets", [])
-        l2 = engine.default_specs.get("image_pull_secrets", [])
+        l2 = engine.default_profile.get("image_pull_secrets", [])
         return list(set(l1 + l2))  # Merge and remove duplicates
 
     def m_backoff_limit(self, engine: K8sExecEngine) -> int:
         """
         Returns the backoff limit for the job.
         """
-        return chain("backoff_limit", self.profile, engine.default_specs)
+        return chain("backoff_limit", self.profile, engine.default_profile)
 
     def m_ttl_seconds_after_finished(self, engine: K8sExecEngine) -> int:
         """
         Returns the time to live (TTL) in seconds after the job is finished.
         """
-        return chain("ttl_seconds_after_finished", self.profile, engine.default_specs)
+        return chain("ttl_seconds_after_finished", self.profile, engine.default_profile)
 
     def m_restart_policy(self, engine: K8sExecEngine) -> str:
         """
         Returns the restart policy for the job.
         """
-        return chain("restart_policy", self.profile, engine.default_specs)
+        return chain("restart_policy", self.profile, engine.default_profile)
 
     def m_image(self, engine: K8sExecEngine) -> str:
         """
@@ -178,11 +180,11 @@ class JobSpec:
             "stelar.process-id": self.task_info["process_id"],
         }
 
-    def m_resources(self, engine: K8sExecEngine) -> dict:
-        cpu_request = chain("cpu_request", self.profile, engine.default_specs)
-        cpu_limit = chain("cpu_limit", self.profile, engine.default_specs)
-        memory_request = chain("memory_request", self.profile, engine.default_specs)
-        memory_limit = chain("memory_limit", self.profile, engine.default_specs)
+    def m_resources(self, engine: K8sExecEngine) -> V1ResourceRequirements:
+        cpu_request = chain("cpu_request", self.profile, engine.default_profile)
+        cpu_limit = chain("cpu_limit", self.profile, engine.default_profile)
+        memory_request = chain("memory_request", self.profile, engine.default_profile)
+        memory_limit = chain("memory_limit", self.profile, engine.default_profile)
 
         from kubernetes.client import V1ResourceRequirements
 
@@ -210,7 +212,6 @@ class JobSpec:
             V1Container,
             V1Job,
             V1JobSpec,
-            V1LocalObjectReference,
             V1ObjectMeta,
             V1PodSpec,
             V1PodTemplateSpec,
@@ -239,7 +240,7 @@ class JobSpec:
                             V1Container(
                                 name="main",
                                 image=self.m_image(engine),
-                                image_pull_policy=self.m_image_pull_policy(),
+                                image_pull_policy=self.m_image_pull_policy(engine),
                                 args=self.m_args(engine),
                                 resources=self.m_resources(engine),
                             ),
@@ -249,9 +250,7 @@ class JobSpec:
                     ),
                 ),
                 backoff_limit=self.m_backoff_limit(engine),
-                ttl_seconds_after_finished=self.m_ttl_seconds_after_finished(
-                    engine
-                ),  # 1 day
+                ttl_seconds_after_finished=self.m_ttl_seconds_after_finished(engine),
             ),
         )
 
