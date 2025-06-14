@@ -411,7 +411,7 @@ def get_user_organizations(username):
         orgs = [row["id"] for row in resp]
         return orgs
     else:
-        return None
+        return []
 
 
 ##########################################################

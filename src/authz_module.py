@@ -937,16 +937,16 @@ def check_accessible_packages(fq):
     organizations_of_user = sql_utils.get_user_organizations(user_info["sub"])
 
     for org in organizations_of_user:
-        fq_org_parts.append(f" member-{org}")
+        fq_org_parts.append(f"member-{org}")
 
     # Construct Solr `fq` string with ORs only between entries
     if fq_org_parts:
         fq_query = (
-            "permission_labels:(capacity:public OR" + " OR ".join(fq_org_parts) + ")"
+            "capacity:public OR permission_labels:(" + " OR ".join(fq_org_parts) + ")"
         )
         fq.append(fq_query)
     else:
-        fq_query = "permission_labels:(capacity:public)"
+        fq_query = "capacity:public"
         fq.append(fq_query)
 
     return fq
