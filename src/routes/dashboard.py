@@ -883,7 +883,7 @@ def signup():
                 vftoken = hashlib.sha256(plain.encode("utf-8")).hexdigest()
                 # Send verification email
                 send_verification_email(
-                    email, vftoken=vftoken, id=new_uid, fullname=fullname
+                    email, vftoken=vftoken, id=new_uid["id"], fullname=fullname
                 )
                 # Registration was succesful
                 return render_template("signup.html", STATUS="SUCCESS")
