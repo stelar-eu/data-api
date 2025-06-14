@@ -1,7 +1,14 @@
+from __future__ import annotations
+
+import os
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from apiflask import Schema, fields, validators
 from kubernetes.utils import parse_quantity
+
+if TYPE_CHECKING:
+    from .kubernetes import K8sExecEngine
 
 
 class Quantity(validators.Validator):
@@ -42,41 +49,99 @@ class JobProfileSchema(Schema):
     cpu_limit = fields.String(required=False, allow_none=True, validate=Quantity())
     memory_request = fields.String(required=False, allow_none=True, validate=Quantity())
     memory_limit = fields.String(required=False, allow_none=True, validate=Quantity())
+
+    backoff_limit = fields.Integer(
+        required=False,
+        allow_none=True,
+        validate=validators.Range(min=0, max=10),
+    )
+
+    restart_policy = fields.String(
+        required=False,
+        allow_none=True,
+        validate=validators.OneOf(["Always", "OnFailure", "Never"]),
+    )
+
     ttl_seconds_after_finished = fields.Integer(
         required=False,
         allow_none=True,
     )
 
 
-class JobProfile:
+def chain(key: str, *d):
+    """
+    Chain-search a key with a list of dictionaries.
+
+    This call accepts a key and a sequence of values, all dicts except
+    possibly the last one.
+
+    It will search for the key in each dictionary in the sequence,
+    returning the value for the key in the first dictionary that contains
+    it, or the first item in the sequence if it is not a dictionary.
+
+    If the key is not found in any of the dictionaries, it returns None.
+
+    Args:
+        key (str): The key to search for.
+        *d: A sequence of dictionaries or values.
+
+    Returns:
+        The value associated with the key in the first dictionary that contains it,
+        or the first item if it is not a dictionary, or None if not found.
+    """
+    for item in d:
+        if isinstance(item, dict):
+            if key in item:
+                return item[key]
+            else:
+                continue
+        else:
+            return item
+    return None
+
+
+class JobSpec:
     """
     Metadata used to generate a Kubernetes job manifest for a task.
     """
 
-    def __init__(self, tool_name: str, image: str, spec: dict):
+    def __init__(self, tool_name: str, image: str, profile: dict, task_info: dict):
         self.tool_name = tool_name
         self.image = image
-        self.spec = spec
+        self.profile = profile
+        self.task_info = task_info
 
-    def m_args(
-        self, token: str, api_url: str, task_id: str, signature: str
-    ) -> list[str]:
+    #
+    # Manifest creation
+    #
+
+    def m_args(self, engine: K8sExecEngine) -> list[str]:
         """
         Returns the arguments to be passed to the container.
         """
+        token = self.task_info["token"]
+        api_url = engine.api_url
+        task_id = self.task_info["task_id"]
+        signature = self.task_info["signature"]
         return [token, api_url, task_id, signature]
 
-    def m_image_pull_policy(self) -> str:
+    def m_image_pull_policy(self, engine: K8sExecEngine) -> str:
         """
         Returns the image pull policy for the container.
         """
-        return "Always"
+        chain("image_pull_policy", self.profile, engine.default_specs)
 
-    def m_image_pull_secrets(self) -> list[str]:
+    def m_image_pull_secrets(self, engine: K8sExecEngine) -> list[str]:
         """
-        Returns the image pull secrets for the job.
+        Merge the image pull secrets for the job.
         """
-        return []
+        ipsl = []
+        lists = [
+            self.profile.get("image_pull_secrets", []),
+            engine.default_specs.get("image_pull_secrets", []),
+        ]
+        for 
+        
 
     def m_backoff_limit(self) -> int:
         """

@@ -8,13 +8,13 @@ from datetime import datetime
 import pandas as pd
 import requests
 from flask import current_app
+from psycopg2.extras import Json
 
 import utils
 from backend import pgsql
 
 # Auxiliary custom functions & SQL query templates for ranking
 from exceptions import BackendLogicError
-from psycopg2.extras import Json
 
 
 def is_valid_uuid(s):
@@ -866,7 +866,7 @@ def task_execution_update(task_exec_id, state, end_date=None, tags=None):
     """
 
     # Compose and execute the SQL command using the template for updating a task execution
-    if not end_date is None:
+    if end_date is not None:
         sql = utils.sql_workflow_execution_templates["task_commit_template"]
         resp = pgsql.execSql(sql, (state, end_date, task_exec_id))
     else:
