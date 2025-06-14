@@ -38,8 +38,11 @@ class JobProfileSchema(Schema):
         validate=validators.OneOf(["Always", "IfNotPresent", "Never"]),
         allow_none=True,
     )
-    image_pull_secret = fields.String(
-        required=False, allow_none=True, validate=validators.Length(min=1)
+    image_pull_secrets = fields.List(
+        fields.String(validate=validators.Length(min=1)),
+        required=False,
+        allow_none=True,
+        validate=validators.Length(min=0),
     )
     cpu_request = fields.String(
         required=False,
@@ -111,9 +114,9 @@ class JobSpec:
         self.profile = profile
         self.task_info = task_info
 
-    #
+    # -----------------------------------
     # Manifest creation
-    #
+    # -----------------------------------
 
     def m_args(self, engine: K8sExecEngine) -> list[str]:
         """
@@ -135,48 +138,71 @@ class JobSpec:
         """
         Merge the image pull secrets for the job.
         """
-        ipsl = []
-        lists = [
-            self.profile.get("image_pull_secrets", []),
-            engine.default_specs.get("image_pull_secrets", []),
-        ]
-        for 
-        
+        l1 = self.profile.get("image_pull_secrets", [])
+        l2 = engine.default_specs.get("image_pull_secrets", [])
+        return list(set(l1 + l2))  # Merge and remove duplicates
 
-    def m_backoff_limit(self) -> int:
+    def m_backoff_limit(self, engine: K8sExecEngine) -> int:
         """
         Returns the backoff limit for the job.
         """
-        return 4
+        return chain("backoff_limit", self.profile, engine.default_specs)
 
-    def m_ttl_seconds_after_finished(self) -> int:
+    def m_ttl_seconds_after_finished(self, engine: K8sExecEngine) -> int:
         """
         Returns the time to live (TTL) in seconds after the job is finished.
         """
-        return 60 * 60 * 24
+        return chain("ttl_seconds_after_finished", self.profile, engine.default_specs)
 
-    def m_restart_policy(self) -> str:
+    def m_restart_policy(self, engine: K8sExecEngine) -> str:
         """
         Returns the restart policy for the job.
         """
-        return "Never"
+        return chain("restart_policy", self.profile, engine.default_specs)
 
-    def m_image(self) -> str:
+    def m_image(self, engine: K8sExecEngine) -> str:
         """
         Returns the image to be used for the job.
         """
-        return "stelar/stelar-task-executor:latest"
+        return engine.image_spec(self.image)
 
-    def manifest(self, token: str, api_url: str, task_id: str, signature: str):
+    def m_labels(self, engine: K8sExecEngine) -> dict:
+        """
+        Returns the labels to be applied to the job.
+        """
+        return {
+            "stelar.metadata.class": "task-execution",
+            "stelar.task-id": self.task_info["task_id"],
+            "stelar.tool-name": self.tool_name,
+            "stelar.creator": self.task_info["creator"],
+            "stelar.process-id": self.task_info["process_id"],
+        }
+
+    def m_resources(self, engine: K8sExecEngine) -> dict:
+        cpu_request = chain("cpu_request", self.profile, engine.default_specs)
+        cpu_limit = chain("cpu_limit", self.profile, engine.default_specs)
+        memory_request = chain("memory_request", self.profile, engine.default_specs)
+        memory_limit = chain("memory_limit", self.profile, engine.default_specs)
+
+        from kubernetes.client import V1ResourceRequirements
+
+        return V1ResourceRequirements(
+            requests={
+                "cpu": cpu_request,
+                "memory": memory_request,
+            },
+            limits={
+                "cpu": cpu_limit,
+                "memory": memory_limit,
+            },
+        )
+
+    def manifest(self, engine: K8sExecEngine) -> V1Job:
         """
         Generates a Kubernetes job manifest for the task execution.
 
-
         Args:
-            token (str): The authentication token for the API.
-            api_url (str): The API URL via which the job will reach the STELAR API.
-            task_id (str): The unique identifier for the task.
-            signature (str): The signature for the task execution.
+            engine (K8sExecEngine): The Kubernetes execution engine instance.
         Returns:
             V1Job: A Kubernetes job manifest.
         """
@@ -190,53 +216,42 @@ class JobSpec:
             V1PodTemplateSpec,
         )
 
-        # Determine if image requires credentials
-
-        if tool_name.startswith("img.stelar.gr/stelar/"):
-            image_pull_secrets = [V1LocalObjectReference(name="stelar-registry-secret")]
-        elif tool_name.startswith("registry.minikube"):
-            image_pull_secrets = [V1LocalObjectReference(name="quay-pull-secret")]
-            quay_svc_host = os.getenv("QUAY_SERVICE_HOST")
-            quay_svc_port = os.getenv("QUAY_SERVICE_PORT")
-            quay_addr = f"{quay_svc_host}:{quay_svc_port}"
-            tool_name = tool_name.replace("registry.minikube", quay_addr)
+        self.tool_name
+        task_id = self.task_info["task_id"]
 
         jm = V1Job(
             api_version="batch/v1",
             kind="Job",
             metadata=V1ObjectMeta(
-                name=f"stelar-task-{task_id}",
-                labels={
-                    "stelar.metadata.class": "task-execution",
-                    "stelar.task-id": task_id,
-                },
+                name=f"{self.tool_name}-task-{task_id}",
+                labels=self.m_labels(engine),
             ),
             spec=V1JobSpec(
                 template=V1PodTemplateSpec(
                     metadata=V1ObjectMeta(
                         annotations={
-                            "stelar/task-tool": tool_name,
+                            "stelar/task-tool": self.tool_name,
                         },
-                        labels={
-                            "stelar.metadata.class": "task-execution",
-                            "stelar.task-id": task_id,
-                        },
+                        labels=self.m_labels(engine),
                     ),
                     spec=V1PodSpec(
                         containers=[
                             V1Container(
                                 name="main",
-                                image=tool_name,
+                                image=self.m_image(engine),
                                 image_pull_policy=self.m_image_pull_policy(),
-                                args=self.m_args(token, api_url, task_id, signature),
+                                args=self.m_args(engine),
+                                resources=self.m_resources(engine),
                             ),
                         ],
-                        restart_policy=self.m_restart_policy,
-                        image_pull_secrets=self.m_image_pull_secrets(),
+                        restart_policy=self.m_restart_policy(engine),
+                        image_pull_secrets=self.m_image_pull_secrets(engine),
                     ),
                 ),
-                backoff_limit=self.m_backoff_limit(),
-                ttl_seconds_after_finished=self.m_ttl_seconds_after_finished(),  # 1 day
+                backoff_limit=self.m_backoff_limit(engine),
+                ttl_seconds_after_finished=self.m_ttl_seconds_after_finished(
+                    engine
+                ),  # 1 day
             ),
         )
 
