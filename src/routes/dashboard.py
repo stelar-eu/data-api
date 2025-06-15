@@ -455,7 +455,9 @@ def viewResource(resource_id):
             if url and url.startswith("s3://"):
                 s3_link = url.replace("s3://", minio_console_url)
 
-            s3_endpoint = "minio.stelar.gr"
+            s3_endpoint = (
+                config.get("MINIO_API_SUBDOMAIN") + "." + config.get("KLMS_DOMAIN_NAME")
+            )
             creds = mutils.get_temp_minio_credentials(kutils.current_token())
 
             embed_uri = (
@@ -495,7 +497,9 @@ def visualize(profile_id):
 
     profile_file = resource.get("url")
 
-    s3_endpoint = "minio.stelar.gr"
+    s3_endpoint = (
+        config.get("MINIO_API_SUBDOMAIN") + "." + config.get("KLMS_DOMAIN_NAME")
+    )
     creds = mutils.get_temp_minio_credentials(kutils.current_token())
 
     embed_uri = (
