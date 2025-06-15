@@ -263,10 +263,14 @@
                                         </div>
                                         <div class="tab-pane" id="tabs-io-1" role="tabpanel">
                                             <div class="card-body p-5">
-                                                <div class="d-flex align-items-center mb-4">                                                    
+                                                <div class="d-flex align-items-center mb-4">
                                                     <h2 class="m-0">Inputs</h2>
-                                                    <a class="ms-auto cursor-pointer btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modal-new-input">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                    <a class="ms-auto cursor-pointer btn btn-outline-primary"
+                                                        data-bs-toggle="modal" data-bs-target="#modal-new-input">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24"
+                                                            height="24" viewBox="0 0 24 24" stroke-width="2"
+                                                            stroke="currentColor" fill="none" stroke-linecap="round"
+                                                            stroke-linejoin="round">
                                                             <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                                             <path d="M12 5l0 14"></path>
                                                             <path d="M5 12l14 0"></path>
@@ -286,14 +290,18 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody id="inputs-list">
-                                                       
+
                                                     </tbody>
                                                 </table>
 
-                                                <div class="d-flex align-items-center mt-6 mb-4">                                                    
+                                                <div class="d-flex align-items-center mt-6 mb-4">
                                                     <h2 class="m-0">Outputs</h2>
-                                                    <a class="ms-auto cursor-pointer btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modal-new-output">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                    <a class="ms-auto cursor-pointer btn btn-outline-primary"
+                                                        data-bs-toggle="modal" data-bs-target="#modal-new-output">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24"
+                                                            height="24" viewBox="0 0 24 24" stroke-width="2"
+                                                            stroke="currentColor" fill="none" stroke-linecap="round"
+                                                            stroke-linejoin="round">
                                                             <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                                             <path d="M12 5l0 14"></path>
                                                             <path d="M5 12l14 0"></path>
@@ -311,14 +319,18 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody id="outputs-list">
-                                                       
+
                                                     </tbody>
                                                 </table>
-                                                
-                                                <div class="d-flex align-items-center mt-6 mb-4">                                                    
+
+                                                <div class="d-flex align-items-center mt-6 mb-4">
                                                     <h2 class="m-0">Parameters</h2>
-                                                    <a class="ms-auto cursor-pointer btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modal-new-parameter">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                    <a class="ms-auto cursor-pointer btn btn-outline-primary"
+                                                        data-bs-toggle="modal" data-bs-target="#modal-new-parameter">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24"
+                                                            height="24" viewBox="0 0 24 24" stroke-width="2"
+                                                            stroke="currentColor" fill="none" stroke-linecap="round"
+                                                            stroke-linejoin="round">
                                                             <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
                                                             <path d="M12 5l0 14"></path>
                                                             <path d="M5 12l14 0"></path>
@@ -337,15 +349,37 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody id="parameters-list">
-                                                       
+
                                                     </tbody>
                                                 </table>
                                             </div>
                                         </div>
                                         <div class="tab-pane" id="tabs-profiles-1" role="tabpanel">
                                             <div class="card-body p-5">
-                                                <h2>Execution Profiles</h2>
-                                                <p>🚧 Under Construction. Available Soon!</p>
+                                                <div class="d-flex">
+                                                    <h2>Execution Profiles</h2>
+                                                    <div class="ms-auto">
+                                                        <button class="btn btn-outline-primary mb-1" onclick="addProfile()">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                                stroke-width="2" stroke-linecap="round"
+                                                                stroke-linejoin="round"
+                                                                class="icon icon-tabler icons-tabler-outline icon-tabler-plus">
+                                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                                <path d="M12 5l0 14"></path>
+                                                                <path d="M5 12l14 0"></path>
+                                                            </svg>
+                                                            Add Profile
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="text-muted mb-3">Execution profiles define the logic and
+                                                    rules for configuring and managing tasks or operations based on
+                                                    provided inputs, such as tools and images, ensuring appropriate
+                                                    behavior and resource allocation for different scenarios.</div>
+                                                <div id="profiles-container" class="row row-cards g-3">
+                                                    
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -769,7 +803,8 @@
                 </div>
             </div>
 
-            <div class="modal modal-blur fade" id="modal-new-input" tabindex="-1" style="display: none;" aria-hidden="true">
+            <div class="modal modal-blur fade" id="modal-new-input" tabindex="-1" style="display: none;"
+                aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered" role="document">
                     <div class="modal-content">
                         <div class="modal-header">
@@ -780,13 +815,16 @@
                             <div class="mb-3">
                                 <label class="form-label">Name</label>
                                 <div class="input-group">
-                                    <input type="text" class="form-control" id="new-input-name" name="new-input-name" placeholder="input_name">
+                                    <input type="text" class="form-control" id="new-input-name" name="new-input-name"
+                                        placeholder="input_name">
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Description</label>
                                 <div class="input-group">
-                                    <textarea type="text" rows=3 class="form-control" id="new-input-description" name="new-input-description" placeholder="A descriptive explanation of the input">
+                                    <textarea type="text" rows=3 class="form-control" id="new-input-description"
+                                        name="new-input-description"
+                                        placeholder="A descriptive explanation of the input">
                                     </textarea>
                                 </div>
                             </div>
@@ -820,7 +858,7 @@
                                         <option value="tar">TAR</option>
                                         <option value="html">HTML</option>
                                     </select>
-                                </div> 
+                                </div>
                             </div>
                         </div>
                         <div class="modal-footer" id="new-input-footer">
@@ -836,7 +874,8 @@
                     </div>
                 </div>
             </div>
-            <div class="modal modal-blur fade" id="modal-new-output" tabindex="-1" style="display: none;" aria-hidden="true">
+            <div class="modal modal-blur fade" id="modal-new-output" tabindex="-1" style="display: none;"
+                aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered" role="document">
                     <div class="modal-content">
                         <div class="modal-header">
@@ -847,13 +886,16 @@
                             <div class="mb-3">
                                 <label class="form-label">Name</label>
                                 <div class="input-group">
-                                    <input type="text" class="form-control" id="new-output-name" name="new-output-name" placeholder="output_name">
+                                    <input type="text" class="form-control" id="new-output-name" name="new-output-name"
+                                        placeholder="output_name">
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Description</label>
                                 <div class="input-group">
-                                    <textarea type="text" rows=3 class="form-control" id="new-output-description" name="new-output-description" placeholder="A descriptive explanation of the input">
+                                    <textarea type="text" rows=3 class="form-control" id="new-output-description"
+                                        name="new-output-description"
+                                        placeholder="A descriptive explanation of the input">
                                     </textarea>
                                 </div>
                             </div>
@@ -880,7 +922,7 @@
                                         <option value="tar">TAR</option>
                                         <option value="html">HTML</option>
                                     </select>
-                                </div> 
+                                </div>
                             </div>
                         </div>
                         <div class="modal-footer" id="new-output-footer">
@@ -896,7 +938,8 @@
                     </div>
                 </div>
             </div>
-            <div class="modal modal-blur fade" id="modal-new-parameter" tabindex="-1" style="display: none;" aria-hidden="true">
+            <div class="modal modal-blur fade" id="modal-new-parameter" tabindex="-1" style="display: none;"
+                aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered" role="document">
                     <div class="modal-content">
                         <div class="modal-header">
@@ -907,33 +950,38 @@
                             <div class="mb-3">
                                 <label class="form-label">Name</label>
                                 <div class="input-group">
-                                    <input type="text" class="form-control" id="new-parameter-name" name="new-parameter-name" placeholder="parameter_name">
+                                    <input type="text" class="form-control" id="new-parameter-name"
+                                        name="new-parameter-name" placeholder="parameter_name">
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Value</label>
                                 <div class="input-group">
-                                    <textarea type="text" rows=3 class="form-control" id="new-parameter-value" name="new-output-value">
+                                    <textarea type="text" rows=3 class="form-control" id="new-parameter-value"
+                                        name="new-output-value">
                                     </textarea>
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Description</label>
                                 <div class="input-group">
-                                    <textarea type="text" rows=3 class="form-control" id="new-parameter-description" name="new-output-description">
+                                    <textarea type="text" rows=3 class="form-control" id="new-parameter-description"
+                                        name="new-output-description">
                                     </textarea>
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Required to Specify</label>
                                 <label class="form-check form-switch form-switch-3">
-                                    <input class="form-check-input" type="checkbox" id="new-parameter-required" checked="">
+                                    <input class="form-check-input" type="checkbox" id="new-parameter-required"
+                                        checked="">
                                     <span class="form-check-label">Required</span>
                                 </label>
                             </div>
                         </div>
                         <div class="modal-footer" id="new-parameter-footer">
-                            <button type="button" class="btn btn-primary ms-auto disabled" onclick="createNewParameter()">
+                            <button type="button" class="btn btn-primary ms-auto disabled"
+                                onclick="createNewParameter()">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                     stroke-linejoin="round" class="icon icon-2">
@@ -945,6 +993,192 @@
                     </div>
                 </div>
             </div>
+            <div class="modal modal-blur fade" id="new-profile-modal" tabindex="-1" role="dialog" aria-modal="true"
+            style="display: none;">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">New Execution Profile</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <div class="mb-3">
+                                    <label class="form-label">Name</label>
+                                    <input type="text" class="form-control" name="name" placeholder="the-new-tool"
+                                        id="tool-name-input">
+                                    <small class="form-hint">
+                                        <p>
+                                            Please use a name in the format <code>the-new-profile</code> (use hyphens
+                                            instead of spaces). This name will be used as a unique identifier for the
+                                            profile. <strong>Using the <code>default</code> name will override the system's 
+                                            default profile for this tool.</strong>
+                                        </p>
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Tool Category</label>
+                                    <select class="form-select" id="tool-category"
+                                        name="tool-category">
+                                        <option value="discovery">Discovery</option>
+                                        <option value="interlinking">Interlinking</option>
+                                        <option value="annotation">Annotation</option>
+                                        <option value="annotation">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <small class="form-hint">
+                                <p>
+                                    After creating the tool, the documentation and other metadata may be updated
+                                    in the tool's page.
+                                </p>
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Image Repository</label>
+                            <input type="text" class="form-control" id="image-repository-name-input"
+                                placeholder="{{REGISTRY_URL}}/stelar/the-new-tool" id="image-repo-name-input"
+                                readonly>
+                            <small class="form-hint">
+                                <p>
+                                    This is the name of the image repository where the tool's docker images
+                                    may be pushed. It will be generated based on the name you provided.
+                                </p>
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label"><svg xmlns="http://www.w3.org/2000/svg" width="24"
+                                    height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M3 21l18 0" />
+                                    <path d="M3 10l18 0" />
+                                    <path d="M5 6l7 -3l7 3" />
+                                    <path d="M4 10l0 11" />
+                                    <path d="M20 10l0 11" />
+                                    <path d="M8 14l0 3" />
+                                    <path d="M12 14l0 3" />
+                                    <path d="M16 14l0 3" />
+                                </svg>Owner Organization</label>
+                            <select class="form-select" id="owner-org" name="owner_org">
+
+                            </select>
+                            <small class="form-hint">
+                                <p>
+                                    Creating a new tool in an organization requires you to have
+                                    the permission to do so assigned by an administrator.
+                                </p>
+                            </small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Visibility</label>
+                            <div class="form-selectgroup-boxes row mb-1">
+                              <div class="col-lg-6 text-success">
+                                <label class="form-selectgroup-item">
+                                  <input type="radio" name="package-visibility" value="public" class="form-selectgroup-input"
+                                    checked="">
+                                  <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                    <span class="me-3">
+                                      <span class="form-selectgroup-check"></span>
+                                    </span>
+                                    <span class="form-selectgroup-label-content">
+                                      <span class="form-selectgroup-title strong mb-1">Public</span>
+                                      <span class="d-block text-secondary">Accessible to all users
+                                        registered in the KLMS</span>
+                                    </span>
+                                  </span>
+                                </label>
+                              </div>
+                              <div class="col-lg-6 text-danger">
+                                <label class="form-selectgroup-item">
+                                  <input type="radio" name="package-visibility" value="private"
+                                    class="form-selectgroup-input">
+                                  <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                    <span class="me-3">
+                                      <span class="form-selectgroup-check"></span>
+                                    </span>
+                                    <span class="form-selectgroup-label-content">
+                                      <span class="form-selectgroup-title strong mb-1">Private</span>
+                                      <span class="d-block text-secondary">Accessible only to members
+                                        of the organization that
+                                        owns the package</span>
+                                    </span>
+                                  </span>
+                                </label>
+                              </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-brand-github">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path
+                                                d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
+                                        </svg>
+                                        GitHub Repository URL</label>
+                                    <div class="input-group input-group-flat">
+                                        <span class="input-group-text"> https://github.com/</span>
+                                        <input type="text" class="form-control ps-0" value="stelar-eu/klms-tool"
+                                            autocomplete="off" id="git-repo" name="git-repo">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Programming Language</label>
+                                    <select class="form-select" id="programming-language"
+                                        name="programming-language">
+                                        <option value="Python">Python</option>
+                                        <option value="Java">Java</option>
+                                        <option value="Javascript">Javascript</option>
+                                        <option value="Go">Go</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <small class="form-hint">
+                                <p>
+                                    After creating the tool, the documentation and other metadata may be updated
+                                    in the tool's page.
+                                </p>
+                            </small>
+                        </div>
+                    </div>
+                    <div class="modal-footer" id="new-tool-modal-footer">
+                        <a class="btn btn-primary btn-5 ms-auto cursor-pointer disabled" id="create-tool-btn"
+                            onclick="createTool()">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="icon icon-2">
+                                <path d="M12 5l0 14"></path>
+                                <path d="M5 12l14 0"></path>
+                            </svg>
+                            Create new Tool
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+
+
+
+
+
         </div>
         {% include 'footer.html' %}
     </div>
@@ -1357,8 +1591,8 @@
         programmingLanguageIcon.html(getProgrammingLanguageBadge(programmingLanguage));
         programmingLanguageIcon.append(
             `<span class="badge bg-${visibility ? 'danger-lt' : 'success-lt'} ms-2">
-                    ${visibility ? 'Private' : 'Public'}
-                </span>`
+                        ${visibility ? 'Private' : 'Public'}
+                    </span>`
         );
         }
         renderProgrammingLanguage();
@@ -1435,6 +1669,7 @@
                 dataType: "json",
                 success: function (data) {
                     renderToolImages(data.result.images);
+                    renderProfiles(data.result.profiles);
                 },
                 error: function (error) {
                     console.error("Error loading tool images:", error);
@@ -1519,6 +1754,385 @@
     </script>
     <script>
 
+        function renderProfile(name, spec) {
+            return `<div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header d-flex">
+                                <h3 class="card-title"><code>${name}</code>
+                                ${name === 'default' ? '<span class="text-orange h5 ms-1">Overrides system\'s default</span>' : ''}
+                                </h3>
+                                <div class="ms-auto">
+                                    <a class="cursor-pointer text-link text-primary me-2"
+                                        onclick="editProfile('${name}}')">
+                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                            width="24" height="24" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor"
+                                            stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-pencil">
+                                            <path stroke="none" d="M0 0h24v24H0z"
+                                                fill="none" />
+                                            <path
+                                                d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+                                            <path d="M13.5 6.5l4 4" />
+                                        </svg>
+                                    </a>
+                                    <a class="cursor-pointer text-link text-danger"
+                                        onclick="deleteProfile('${name}')">
+                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                            width="24" height="24" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor"
+                                            stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-trash">
+                                            <path stroke="none" d="M0 0h24v24H0z"
+                                                fill="none" />
+                                            <path d="M4 7l16 0" />
+                                            <path d="M10 11l0 6" />
+                                            <path d="M14 11l0 6" />
+                                            <path
+                                                d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+                                            <path
+                                                d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="datagrid">
+                                    <div class="row">
+                                        <div class="col-lg-5">
+                                            <div class="datagrid-item">
+                                                <div class="datagrid-title">
+                                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                                        width="24" height="24"
+                                                        viewBox="0 0 24 24" fill="none"
+                                                        stroke="currentColor"
+                                                        stroke-width="2"
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        class="m-0 icon icon-tabler icons-tabler-outline icon-tabler-brand-docker">
+                                                        <path stroke="none"
+                                                            d="M0 0h24v24H0z"
+                                                            fill="none" />
+                                                        <path
+                                                            d="M22 12.54c-1.804 -.345 -2.701 -1.08 -3.523 -2.94c-.487 .696 -1.102 1.568 -.92 2.4c.028 .238 -.32 1 -.557 1h-14c0 5.208 3.164 7 6.196 7c4.124 .022 7.828 -1.376 9.854 -5c1.146 -.101 2.296 -1.505 2.95 -2.46z" />
+                                                        <path d="M5 10h3v3h-3z" />
+                                                        <path d="M8 10h3v3h-3z" />
+                                                        <path d="M11 10h3v3h-3z" />
+                                                        <path d="M8 7h3v3h-3z" />
+                                                        <path d="M11 7h3v3h-3z" />
+                                                        <path d="M11 4h3v3h-3z" />
+                                                        <path
+                                                            d="M4.571 18c1.5 0 2.047 -.074 2.958 -.78" />
+                                                        <path d="M10 16l0 .01" />
+                                                    </svg>
+                                                    IMAGE TAG
+                                                </div>
+                                                <div class="datagrid-content">
+                                                    <kbd>${spec.image || 'Not defined'}</kbd>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-7">
+                                            <div class="datagrid-item">
+                                                <div class="datagrid-title">
+                                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                                        width="24" height="24"
+                                                        viewBox="0 0 24 24" fill="none"
+                                                        stroke="currentColor"
+                                                        stroke-width="2"
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        class="icon icon-tabler icons-tabler-outline icon-tabler-key">
+                                                        <path stroke="none"
+                                                            d="M0 0h24v24H0z"
+                                                            fill="none" />
+                                                        <path
+                                                            d="M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0z" />
+                                                        <path d="M15 9h.01" />
+                                                    </svg>
+                                                    IMAGE PULL SECRET
+                                                </div>
+                                                <div class="datagrid-content">
+                                                    <kbd>${spec.image_pull_secrets || 'Using Cluster Default'}</kbd>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="datagrid-item">
+                                        <div class="datagrid-title">
+                                            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-cloud-down"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 18.004h-5.343c-2.572 -.004 -4.657 -2.011 -4.657 -4.487c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.38 0 2.573 .813 3.13 1.99" /><path d="M19 16v6" /><path d="M22 19l-3 3l-3 -3" /></svg>
+                                            IMAGE PULL POLICY
+                                        </div>
+                                        <div class="datagrid-content">
+                                            <kbd>${spec.image_pull_policy || 'Always'}</kbd>
+                                        </div>
+                                    </div>
+                                    <div class="datagrid-item">
+                                        <div class="datagrid-title">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                class="m-0 icon icon-tabler icons-tabler-outline icon-tabler-file-description">
+                                                <path stroke="none" d="M0 0h24v24H0z"
+                                                    fill="none" />
+                                                <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+                                                <path
+                                                    d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
+                                                <path d="M9 17h6" />
+                                                <path d="M9 13h6" />
+                                            </svg>
+                                            Description
+                                        </div>
+                                        <div class="datagrid-content">
+                                            <div class="text-muted">
+                                               ${spec.description || 'No description provided'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="datagrid-item">
+                                        <div class="datagrid-title">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="1.25"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-cpu">
+                                                <path stroke="none" d="M0 0h24v24H0z"
+                                                    fill="none" />
+                                                <path
+                                                    d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" />
+                                                <path d="M9 9h6v6h-6z" />
+                                                <path d="M3 10h2" />
+                                                <path d="M3 14h2" />
+                                                <path d="M10 3v2" />
+                                                <path d="M14 3v2" />
+                                                <path d="M21 10h-2" />
+                                                <path d="M21 14h-2" />
+                                                <path d="M14 21v-2" />
+                                                <path d="M10 21v-2" />
+                                            </svg>
+                                            CPU Resources
+                                        </div>
+                                        <div class="datagrid-content">
+                                            <div class="row">
+                                                <div class="col-6">
+                                                    Requested: <span
+                                                        class="badge bg-${spec.cpu_request ? 'green-lt' : 'secondary-lt'}">
+                                                        ${spec.cpu_request || '-'}
+                                                    </span>
+                                                </div>
+                                                <div class="col-6">
+                                                    Limit: <span
+                                                        class="badge bg-${spec.cpu_limit ? 'danger-lt' : 'secondary-lt'}">
+                                                        ${spec.cpu_limit || '-'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="datagrid-item">
+                                        <div class="datagrid-title">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-ruler-2">
+                                                <path stroke="none" d="M0 0h24v24H0z"
+                                                    fill="none" />
+                                                <path d="M17 3l4 4l-14 14l-4 -4z" />
+                                                <path d="M16 7l-1.5 -1.5" />
+                                                <path d="M13 10l-1.5 -1.5" />
+                                                <path d="M10 13l-1.5 -1.5" />
+                                                <path d="M7 16l-1.5 -1.5" />
+                                            </svg>
+                                            MEMORY Resources
+                                        </div>
+                                        <div class="datagrid-content">
+                                            <div class="row">
+                                                <div class="col-6">
+                                                    Requested: <span
+                                                        class="badge bg-${spec.memory_request ? 'green-lt' : 'secondary-lt'}">
+                                                        ${spec.memory_request || '-'}
+                                                    </span>
+                                                </div>
+                                                <div class="col-6">
+                                                    Limit: <span
+                                                        class="badge bg-${spec.memory_limit ? 'danger-lt' : 'secondary-lt'}">
+                                                        ${spec.memory_limit || '-'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="datagrid-item">
+                                        <div class="datagrid-title">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-time-duration-15">
+                                                <path stroke="none" d="M0 0h24v24H0z"
+                                                    fill="none" />
+                                                <path
+                                                    d="M12 15h2a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-2v-3h3" />
+                                                <path d="M9 9v6" />
+                                                <path d="M3 12v.01" />
+                                                <path d="M12 21v.01" />
+                                                <path d="M7.5 4.2v.01" />
+                                                <path d="M16.5 19.8v.01" />
+                                                <path d="M7.5 19.8v.01" />
+                                                <path d="M4.2 16.5v.01" />
+                                                <path d="M19.8 16.5v.01" />
+                                                <path d="M4.2 7.5v.01" />
+                                                <path d="M21 12a9 9 0 0 0 -9 -9" />
+                                            </svg>
+                                            TTL
+                                        </div>
+                                        <div class="datagrid-content">
+                                            <span>${spec.ttl_seconds_after_finished || '24h'}</span>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-lg-6">
+                                            <div class="datagrid-item">
+                                                <div class="datagrid-title">
+                                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                                        width="24" height="24"
+                                                        viewBox="0 0 24 24" fill="none"
+                                                        stroke="currentColor"
+                                                        stroke-width="2"
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        class="icon icon-tabler icons-tabler-outline icon-tabler-repeat">
+                                                        <path stroke="none"
+                                                            d="M0 0h24v24H0z"
+                                                            fill="none" />
+                                                        <path
+                                                            d="M4 12v-3a3 3 0 0 1 3 -3h13m-3 -3l3 3l-3 3" />
+                                                        <path
+                                                            d="M20 12v3a3 3 0 0 1 -3 3h-13m3 3l-3 -3l3 -3" />
+                                                    </svg>
+                                                    Retry Policy
+                                                </div>
+                                                <div class="datagrid-content">
+                                                    <span class="badge bg-${spec.restart_policy === 'Always' ? 'orange-lt' : spec.restart_policy === 'OnFailure' ? 'green-lt' : 'danger-lt'}">
+                                                        ${spec.restart_policy === 'Always' ? 'Always' : spec.restart_policy === 'OnFailure' ? 'On Failure' : 'Never'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-6">
+                                            <div class="datagrid-item">
+                                                <div class="datagrid-title">
+                                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                                        width="24" height="24"
+                                                        viewBox="0 0 24 24" fill="none"
+                                                        stroke="currentColor"
+                                                        stroke-width="2"
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        class="icon icon-tabler icons-tabler-outline icon-tabler-repeat-off">
+                                                        <path stroke="none"
+                                                            d="M0 0h24v24H0z"
+                                                            fill="none" />
+                                                        <path
+                                                            d="M4 12v-3c0 -1.336 .873 -2.468 2.08 -2.856m3.92 -.144h10m-3 -3l3 3l-3 3" />
+                                                        <path
+                                                            d="M20 12v3a3 3 0 0 1 -.133 .886m-1.99 1.984a3 3 0 0 1 -.877 .13h-13m3 3l-3 -3l3 -3" />
+                                                        <path d="M3 3l18 18" />
+                                                    </svg>
+                                                    Retry Limit
+                                                </div>
+                                                <div class="datagrid-content">
+                                                    ${spec.backoff_limit ? spec.backoff_limit + " times" : '3 times'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+        }
+
+        function renderProfiles(profiles) {
+            const profilesContainer = $("#profiles-container");
+            profilesContainer.empty();
+            if (profiles.length === 0) {
+                profilesContainer.append("<div class='text-secondary text-center'>No profiles defined for this tool.</div>");
+                return;
+            }
+            Object.entries(profiles).forEach(([name, spec]) => profilesContainer.append(renderProfile(name, spec)));
+        }
+
+
+        function deleteProfile(profileName){
+            if (!confirm("Are you sure you want to delete the profile: " + profileName + "?")) {
+                return;
+            }
+
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_get_tool', entity_id=tool.get('id')) }}`,
+                type: "GET",
+                dataType: "json",
+                success: function (data) {
+                    deleteProfileFromTool(profileName, data.result.profiles);
+                },
+                error: function (error) {
+                    console.error("Error loading tool profiles:", error);
+                }
+            });
+        }
+
+        function deleteProfileFromTool(profileName, currentProfiles) {
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_patch_tool', entity_id=tool.get('id')) }}`,
+                type: "PATCH",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    profiles: Object.fromEntries(Object.entries(currentProfiles).filter(([key]) => key !== profileName))
+                }),
+                success: function (response) {
+                    renderProfiles(response.result.profiles);
+                },
+                error: function (error) {
+                    console.error("Error deleting profile:", error);
+                }
+            });
+        }
+
+
+        function editProfile(profileName){
+            $()
+
+        }
+
+        function saveProfile(profileName){
+
+        }
+
+        function addProfile(){
+            $("#new-profile-modal").modal("show");
+        }
+
+        function createNewProfile(){
+
+        }
+
+    </script>
+    <script>
+
         currentInput = {{ tool.get('inputs') | tojson | safe }};
         currentOutput = {{ tool.get('outputs') | tojson | safe }};
         currentParameters = {{ tool.get('parameters') | tojson | safe }};
@@ -1533,8 +2147,8 @@
             }
 
             Object.keys(currentInput).forEach(inputName => {
-            const input = currentInput[inputName];
-            const inputElement = `
+                const input = currentInput[inputName];
+                const inputElement = `
                 <tr id="input-${inputName}" class="input-item">
                 <td class="text-center p-2">
                     <code>${inputName}</code>
@@ -1553,7 +2167,7 @@
                 </td>
                 </tr>
             `;
-            inputsList.append(inputElement);
+                inputsList.append(inputElement);
             });
         }
 
@@ -1585,7 +2199,7 @@
             }
         }
 
-        function attachNewInputValidation(){
+        function attachNewInputValidation() {
             const newInputName = document.getElementById("new-input-name");
             newInputName.addEventListener("input", validateNewInput);
             newInputName.addEventListener("blur", validateNewInput);
@@ -1597,13 +2211,13 @@
             const newInputRequired = document.getElementById("new-input-required");
         }
 
-        function createNewInput(){
+        function createNewInput() {
             const newInputName = document.getElementById("new-input-name").value.trim();
             const newInputDescription = document.getElementById("new-input-description").value.trim();
             const newInputRequired = document.getElementById("new-input-required").checked;
             const newInputFormat = document.getElementById("new-input-format").value.toUpperCase();
 
-           
+
             if (newInputName === "" || newInputDescription === "") {
                 return;
             }
@@ -1654,7 +2268,7 @@
             });
         }
 
-        function removeInput(inputName){
+        function removeInput(inputName) {
             confirmation = confirm("Are you sure you want to remove the input: " + inputName + "?");
             if (!confirmation) {
                 return;
@@ -1945,9 +2559,9 @@
                         </td>
                         <td class="p-2">
                             <span class="text-secondary">
-                                ${typeof param.value === 'object' && param.value !== null 
-                                    ? `<pre style="text-align: left; white-space: pre-wrap;">${JSON.stringify(param.value, null, 2)}</pre>` 
-                                    : (param.value || '')}
+                                ${typeof param.value === 'object' && param.value !== null
+                        ? `<pre style="text-align: left; white-space: pre-wrap;">${JSON.stringify(param.value, null, 2)}</pre>`
+                        : (param.value || '')}
                             </span>
                         </td>
                         <td class="text-center p-2">
@@ -1994,7 +2608,7 @@
         $(document).ready(function () {
             renderInputs();
             renderOutputs();
-            renderParameters();        
+            renderParameters();
             attachNewInputValidation();
             attachNewOutputValidation();
             attachNewParameterValidation();
