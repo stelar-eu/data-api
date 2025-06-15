@@ -1719,9 +1719,9 @@ def resolve_image_registry_address(addr: str, env: dict) -> str:
     try:
         if addr == "auto":
             if env["REGISTRY_EXT_URL"].startswith("https://"):
-                return resolve_image_registry_address("external")
+                return resolve_image_registry_address("external", env)
             else:
-                return resolve_image_registry_address("internal")
+                return resolve_image_registry_address("internal", env)
 
         elif addr == "external":
             registry = re.sub(r"^https?://", "", env["REGISTRY_EXT_URL"])
@@ -1836,7 +1836,7 @@ def main(app):
             "image_registry_org": os.getenv("IMAGE_REGISTRY_ORG", "stelar"),
             "namespace": os.getenv("API_NAMESPACE"),
             "api_url": os.getenv("API_URL", "http://stelarapi/"),
-            "default_specs": {
+            "default_profile": {
                 "restart_policy": "Never",
                 "image_pull_policy": "Always",
                 "image_pull_secrets": ["stelar-registry-secret"],

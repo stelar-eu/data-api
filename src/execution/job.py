@@ -1,14 +1,31 @@
 from __future__ import annotations
 
-import os
+import logging
+import re
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from apiflask import Schema, fields, validators
+from kubernetes.client import (
+    V1Container,
+    V1Job,
+    V1JobSpec,
+    V1LocalObjectReference,
+    V1ObjectMeta,
+    V1PodSpec,
+    V1PodTemplateSpec,
+    V1ResourceRequirements,
+)
 from kubernetes.utils import parse_quantity
 
 if TYPE_CHECKING:
     from .kubernetes import K8sExecEngine
+
+logger = logging.getLogger(__name__)
+
+KUBERNETES_NAME_PATTERN = re.compile(
+    r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*"
+)
 
 
 class Quantity(validators.Validator):
@@ -71,7 +88,7 @@ class JobProfileSchema(Schema):
     )
 
 
-def chain(key: str, *d):
+def chain(key: str, *d) -> Any:
     """
     Chain-search a key with a list of dictionaries.
 
@@ -122,9 +139,9 @@ class JobSpec:
         """
         Returns the arguments to be passed to the container.
         """
-        token = self.task_info["token"]
+        token = "Bearer " + self.task_info["token"]
         api_url = engine.api_url
-        task_id = self.task_info["task_id"]
+        task_id = self.task_info["id"]
         signature = self.task_info["signature"]
         return [token, api_url, task_id, signature]
 
@@ -132,33 +149,38 @@ class JobSpec:
         """
         Returns the image pull policy for the container.
         """
-        chain("image_pull_policy", self.profile, engine.default_specs)
+        return chain("image_pull_policy", self.profile, engine.default_profile)
 
-    def m_image_pull_secrets(self, engine: K8sExecEngine) -> list[str]:
+    def m_image_pull_secrets(
+        self, engine: K8sExecEngine
+    ) -> list[V1LocalObjectReference]:
         """
         Merge the image pull secrets for the job.
         """
+
         l1 = self.profile.get("image_pull_secrets", [])
-        l2 = engine.default_specs.get("image_pull_secrets", [])
-        return list(set(l1 + l2))  # Merge and remove duplicates
+        l2 = engine.default_profile.get("image_pull_secrets", [])
+        return [
+            V1LocalObjectReference(name=name) for name in set(l1 + l2)
+        ]  # Merge and remove duplicates
 
     def m_backoff_limit(self, engine: K8sExecEngine) -> int:
         """
         Returns the backoff limit for the job.
         """
-        return chain("backoff_limit", self.profile, engine.default_specs)
+        return chain("backoff_limit", self.profile, engine.default_profile)
 
     def m_ttl_seconds_after_finished(self, engine: K8sExecEngine) -> int:
         """
         Returns the time to live (TTL) in seconds after the job is finished.
         """
-        return chain("ttl_seconds_after_finished", self.profile, engine.default_specs)
+        return chain("ttl_seconds_after_finished", self.profile, engine.default_profile)
 
     def m_restart_policy(self, engine: K8sExecEngine) -> str:
         """
         Returns the restart policy for the job.
         """
-        return chain("restart_policy", self.profile, engine.default_specs)
+        return chain("restart_policy", self.profile, engine.default_profile)
 
     def m_image(self, engine: K8sExecEngine) -> str:
         """
@@ -172,30 +194,56 @@ class JobSpec:
         """
         return {
             "stelar.metadata.class": "task-execution",
-            "stelar.task-id": self.task_info["task_id"],
-            "stelar.tool-name": self.tool_name,
+            "stelar.task-id": self.task_info["id"],
+            "stelar.tool-name": str(self.tool_name),
             "stelar.creator": self.task_info["creator"],
             "stelar.process-id": self.task_info["process_id"],
         }
 
-    def m_resources(self, engine: K8sExecEngine) -> dict:
-        cpu_request = chain("cpu_request", self.profile, engine.default_specs)
-        cpu_limit = chain("cpu_limit", self.profile, engine.default_specs)
-        memory_request = chain("memory_request", self.profile, engine.default_specs)
-        memory_limit = chain("memory_limit", self.profile, engine.default_specs)
+    def m_resources(self, engine: K8sExecEngine) -> V1ResourceRequirements | None:
+        cpu_request = chain("cpu_request", self.profile, engine.default_profile)
+        cpu_limit = chain("cpu_limit", self.profile, engine.default_profile)
+        memory_request = chain("memory_request", self.profile, engine.default_profile)
+        memory_limit = chain("memory_limit", self.profile, engine.default_profile)
 
-        from kubernetes.client import V1ResourceRequirements
+        req = {}
+        if cpu_request is not None:
+            req["cpu"] = cpu_request
+        if memory_request is not None:
+            req["memory"] = memory_request
+        limits = {}
+        if cpu_limit is not None:
+            limits["cpu"] = cpu_limit
+        if memory_limit is not None:
+            limits["memory"] = memory_limit
 
-        return V1ResourceRequirements(
-            requests={
-                "cpu": cpu_request,
-                "memory": memory_request,
-            },
-            limits={
-                "cpu": cpu_limit,
-                "memory": memory_limit,
-            },
-        )
+        res = {}
+        if req:
+            res["requests"] = req
+        if limits:
+            res["limits"] = limits
+
+        if res:
+            return V1ResourceRequirements(**res)
+        else:
+            return None
+
+    def m_name(self, engine: K8sExecEngine) -> str:
+        """
+        Returns the name of the job.
+        The name must be a DNS subdomain compliant string.
+        """
+        # Kubernetes job names must be DNS subdomain compliant
+        # https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
+        # Try to generate a name from the tool name, and check if it is valid, fall back to a safe one.
+        conv_name = self.tool_name.replace("_", "-")
+        jobname = f"task-{self.task_info['id']}-{conv_name}"
+
+        # Check if the name is valid
+        if KUBERNETES_NAME_PATTERN.fullmatch(jobname):
+            return jobname
+        else:
+            return f"task-{self.task_info['id']}"
 
     def manifest(self, engine: K8sExecEngine) -> V1Job:
         """
@@ -206,31 +254,31 @@ class JobSpec:
         Returns:
             V1Job: A Kubernetes job manifest.
         """
-        from kubernetes.client import (
-            V1Container,
-            V1Job,
-            V1JobSpec,
-            V1LocalObjectReference,
-            V1ObjectMeta,
-            V1PodSpec,
-            V1PodTemplateSpec,
-        )
+
+        logger.debug("Generating manifest")
+        logger.debug("Tool name = %s", self.tool_name)
+        logger.debug("Image = %s", self.image)
+        logger.debug("Profile = %s", self.profile)
+        logger.debug("Default profile = %s", engine.default_profile)
+        logger.debug("Task info = %s", self.task_info)
 
         self.tool_name
-        task_id = self.task_info["task_id"]
+        task_id = self.task_info["id"]
 
         jm = V1Job(
             api_version="batch/v1",
             kind="Job",
             metadata=V1ObjectMeta(
-                name=f"{self.tool_name}-task-{task_id}",
+                name=self.m_name(engine),
                 labels=self.m_labels(engine),
             ),
             spec=V1JobSpec(
                 template=V1PodTemplateSpec(
                     metadata=V1ObjectMeta(
                         annotations={
-                            "stelar/task-tool": self.tool_name,
+                            "stelar/tool-name": str(self.tool_name),
+                            "stelar/image": str(self.image),
+                            "stelar/api_url": engine.api_url,
                         },
                         labels=self.m_labels(engine),
                     ),
@@ -239,7 +287,7 @@ class JobSpec:
                             V1Container(
                                 name="main",
                                 image=self.m_image(engine),
-                                image_pull_policy=self.m_image_pull_policy(),
+                                image_pull_policy=self.m_image_pull_policy(engine),
                                 args=self.m_args(engine),
                                 resources=self.m_resources(engine),
                             ),
@@ -249,9 +297,7 @@ class JobSpec:
                     ),
                 ),
                 backoff_limit=self.m_backoff_limit(engine),
-                ttl_seconds_after_finished=self.m_ttl_seconds_after_finished(
-                    engine
-                ),  # 1 day
+                ttl_seconds_after_finished=self.m_ttl_seconds_after_finished(engine),
             ),
         )
 

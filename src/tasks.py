@@ -919,7 +919,7 @@ class Task(Entity):
             }
 
             # A job profile is constructed if tool or image are provided, else None.
-            job_spec = self.get_job_profile(spec, tool_entity, task_info)
+            job_spec = self.get_job_spec(spec, tool_entity, task_info)
 
             # Store the name and image of the task in the tags table.
             if "tool" in spec:
@@ -1047,7 +1047,7 @@ class Task(Entity):
         image_spec = f"{repo}:{image}"
 
         # If we reach here, we have a valid image and tool
-        return JobSpec(tool_name, image_spec, {}, task_info)
+        return JobSpec(tool_name, image_spec, profile, task_info)
 
     def create(self, init_data):
         """Creates a new Task under a Process according to spec"""
