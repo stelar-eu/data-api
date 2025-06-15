@@ -78,36 +78,3 @@ def test_bad_jp_load_fails(bad_spec):
     schema = JobProfileSchema()
     with pytest.raises(ValidationError):
         schema.load(bad_spec)
-
-
-def test_job_profile_creation():
-    tool = "Test Tool"
-    image = "test/image:latest"
-    spec = {
-        "name": "Test Job",
-        "description": "A job for testing",
-    }
-
-    job_profile = JobSpec(
-        tool,
-        image,
-        spec,
-        {
-            "task_id": "123",
-            "token": "abc",
-            "signature": "xyz",
-            "creator": "user1",
-            "process_id": "proc1",
-        },
-    )
-
-    assert job_profile.tool_name == tool
-    assert job_profile.image == image
-    assert job_profile.profile == spec
-    assert job_profile.task_info["task_id"] == "123"
-    assert job_profile.task_info["token"] == "abc"
-    assert job_profile.task_info["signature"] == "xyz"
-    assert job_profile.task_info["creator"] == "user1"
-    assert job_profile.task_info["process_id"] == "proc1"
-    # assert job_profile.name == "Test Job"
-    # assert job_profile.description == "A job for testing"

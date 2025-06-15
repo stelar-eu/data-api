@@ -4,9 +4,33 @@ from execution.job import JobSpec
 from execution.kubernetes import K8sExecEngine
 
 
-def test_create_job_spec():
+def test_job_spec_creation():
+    tool = "test-tool"
+    image = "latest"
+
+    profile = {
+        "name": "Test Job",
+        "description": "A job for testing",
+    }
     task_info = {
-        "task_id": "12345",
+        "task_id": "123",
+        "token": "abc",
+        "signature": "xyz",
+        "creator": "user1",
+        "process_id": "proc1",
+    }
+
+    jobspec = JobSpec(tool, image, profile, task_info)
+
+    assert jobspec.tool_name == tool
+    assert jobspec.image == image
+    assert jobspec.profile == profile
+    assert jobspec.task_info == task_info
+
+
+def test_job_spec_manifest():
+    task_info = {
+        "id": "12345",
         "tool_name": "test_tool",
         "signature": "544635735424572034572034572034572034",
         "token": "test_token",
@@ -49,7 +73,7 @@ def test_create_job_spec():
 
     m = job_spec.manifest(engine)
 
-    assert m.metadata.name == "test_tool-task-12345"
+    assert m.metadata.name == "task-12345-test-tool"
     assert m.spec.template.metadata.labels["stelar.tool-name"] == "test_tool"
     assert (
         m.spec.template.spec.containers[0].image
@@ -58,7 +82,7 @@ def test_create_job_spec():
     assert m.spec.template.spec.restart_policy is None
     assert m.spec.backoff_limit == 2
     assert m.spec.ttl_seconds_after_finished == 86400  # 1 day in seconds
-    assert set(m.spec.template.spec.image_pull_secrets) == {
+    assert set(x.name for x in m.spec.template.spec.image_pull_secrets) == {
         "my-secret",
         "default-secret",
     }
