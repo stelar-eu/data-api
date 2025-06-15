@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -20,6 +21,7 @@ from kubernetes.utils import parse_quantity
 if TYPE_CHECKING:
     from .kubernetes import K8sExecEngine
 
+logger = logging.getLogger(__name__)
 
 KUBERNETES_NAME_PATTERN = re.compile(
     r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*"
@@ -198,22 +200,33 @@ class JobSpec:
             "stelar.process-id": self.task_info["process_id"],
         }
 
-    def m_resources(self, engine: K8sExecEngine) -> V1ResourceRequirements:
+    def m_resources(self, engine: K8sExecEngine) -> V1ResourceRequirements | None:
         cpu_request = chain("cpu_request", self.profile, engine.default_profile)
         cpu_limit = chain("cpu_limit", self.profile, engine.default_profile)
         memory_request = chain("memory_request", self.profile, engine.default_profile)
         memory_limit = chain("memory_limit", self.profile, engine.default_profile)
 
-        return V1ResourceRequirements(
-            requests={
-                "cpu": cpu_request,
-                "memory": memory_request,
-            },
-            limits={
-                "cpu": cpu_limit,
-                "memory": memory_limit,
-            },
-        )
+        req = {}
+        if cpu_request is not None:
+            req["cpu"] = cpu_request
+        if memory_request is not None:
+            req["memory"] = memory_request
+        limits = {}
+        if cpu_limit is not None:
+            limits["cpu"] = cpu_limit
+        if memory_limit is not None:
+            limits["memory"] = memory_limit
+
+        res = {}
+        if req:
+            res["requests"] = req
+        if limits:
+            res["limits"] = limits
+
+        if res:
+            return V1ResourceRequirements(**res)
+        else:
+            return None
 
     def m_name(self, engine: K8sExecEngine) -> str:
         """
@@ -241,6 +254,13 @@ class JobSpec:
         Returns:
             V1Job: A Kubernetes job manifest.
         """
+
+        logger.debug("Generating manifest")
+        logger.debug("Tool name = %s", self.tool_name)
+        logger.debug("Image = %s", self.image)
+        logger.debug("Profile = %s", self.profile)
+        logger.debug("Default profile = %s", engine.default_profile)
+        logger.debug("Task info = %s", self.task_info)
 
         self.tool_name
         task_id = self.task_info["id"]

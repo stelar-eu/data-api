@@ -1047,7 +1047,7 @@ class Task(Entity):
         image_spec = f"{repo}:{image}"
 
         # If we reach here, we have a valid image and tool
-        return JobSpec(tool_name, image_spec, {}, task_info)
+        return JobSpec(tool_name, image_spec, profile, task_info)
 
     def create(self, init_data):
         """Creates a new Task under a Process according to spec"""
