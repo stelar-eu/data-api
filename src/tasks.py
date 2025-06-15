@@ -919,7 +919,7 @@ class Task(Entity):
             }
 
             # A job profile is constructed if tool or image are provided, else None.
-            job_spec = self.get_job_profile(spec, tool_entity, task_info)
+            job_spec = self.get_job_spec(spec, tool_entity, task_info)
 
             # Store the name and image of the task in the tags table.
             if "tool" in spec:

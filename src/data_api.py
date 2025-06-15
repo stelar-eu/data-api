@@ -1719,9 +1719,9 @@ def resolve_image_registry_address(addr: str, env: dict) -> str:
     try:
         if addr == "auto":
             if env["REGISTRY_EXT_URL"].startswith("https://"):
-                return resolve_image_registry_address("external")
+                return resolve_image_registry_address("external", env)
             else:
-                return resolve_image_registry_address("internal")
+                return resolve_image_registry_address("internal", env)
 
         elif addr == "external":
             registry = re.sub(r"^https?://", "", env["REGISTRY_EXT_URL"])
