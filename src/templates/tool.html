@@ -359,7 +359,7 @@
                                                 <div class="d-flex">
                                                     <h2>Execution Profiles</h2>
                                                     <div class="ms-auto">
-                                                        <button class="btn btn-outline-primary mb-1" onclick="addProfile()">
+                                                        <button class="btn btn-outline-primary mb-1" onclick="addProfile()" id="add-profile-btn">
                                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                                 stroke-width="2" stroke-linecap="round"
@@ -993,192 +993,400 @@
                     </div>
                 </div>
             </div>
-            <div class="modal modal-blur fade" id="new-profile-modal" tabindex="-1" role="dialog" aria-modal="true"
-            style="display: none;">
-            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">New Execution Profile</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                            aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-lg-8">
-                                <div class="mb-3">
-                                    <label class="form-label">Name</label>
-                                    <input type="text" class="form-control" name="name" placeholder="the-new-tool"
-                                        id="tool-name-input">
-                                    <small class="form-hint">
-                                        <p>
-                                            Please use a name in the format <code>the-new-profile</code> (use hyphens
-                                            instead of spaces). This name will be used as a unique identifier for the
-                                            profile. <strong>Using the <code>default</code> name will override the system's 
-                                            default profile for this tool.</strong>
-                                        </p>
-                                    </small>
+            <div class="modal modal-blur fade" id="new-profile-modal" tabindex="-1" role="dialog" aria-modal="true" style="display: none;">
+                <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">New Execution Profile</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <div class="row">
+                                    <div class="col-lg-7">
+                                        <label class="form-label">Name</label>
+                                        <input type="text" class="form-control" name="name" placeholder="the-profile"
+                                            id="new-profile-name">
+                                    </div>
+                                    <div class="col-lg-5">
+                                        <label class="form-label">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                class="m-0 icon icon-tabler icons-tabler-outline icon-tabler-brand-docker">
+                                                <path stroke="none"
+                                                    d="M0 0h24v24H0z"
+                                                    fill="none" />
+                                                <path
+                                                    d="M22 12.54c-1.804 -.345 -2.701 -1.08 -3.523 -2.94c-.487 .696 -1.102 1.568 -.92 2.4c.028 .238 -.32 1 -.557 1h-14c0 5.208 3.164 7 6.196 7c4.124 .022 7.828 -1.376 9.854 -5c1.146 -.101 2.296 -1.505 2.95 -2.46z" />
+                                                <path d="M5 10h3v3h-3z" />
+                                                <path d="M8 10h3v3h-3z" />
+                                                <path d="M11 10h3v3h-3z" />
+                                                <path d="M8 7h3v3h-3z" />
+                                                <path d="M11 7h3v3h-3z" />
+                                                <path d="M11 4h3v3h-3z" />
+                                                <path
+                                                    d="M4.571 18c1.5 0 2.047 -.074 2.958 -.78" />
+                                                <path d="M10 16l0 .01" />
+                                            </svg>
+                                            Image Tag</label>
+                                        <select class="form-select" id="new-profile-image-tag"
+                                            name="select-profile-image-tag">
+                                        </select>
+                                    </div>
                                 </div>
+                                <small class="form-hint mt-1">
+                                    <p>
+                                        The name of the execution profile. This is used to identify the profile in the
+                                        tool's page. Each profile is associated with a specific Tool image tag.
+                                    </p>
+                                </small>
+                                <small class="form-hint text-orange mt-1" id="default-profile-msg">
+
+                                </small>
                             </div>
-                            <div class="col-lg-4">
-                                <div class="mb-3">
-                                    <label class="form-label">Tool Category</label>
-                                    <select class="form-select" id="tool-category"
-                                        name="tool-category">
-                                        <option value="discovery">Discovery</option>
-                                        <option value="interlinking">Interlinking</option>
-                                        <option value="annotation">Annotation</option>
-                                        <option value="annotation">Other</option>
-                                    </select>
+
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" id="new-profile-description"
+                                    name="description" rows="2" placeholder="A descriptive explanation of the profile" maxlength="300">
+                                </textarea>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="row">
+                                    <div class="col-lg-6">
+                                        <label class="form-label">
+                                            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-cloud-down"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 18.004h-5.343c-2.572 -.004 -4.657 -2.011 -4.657 -4.487c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.38 0 2.573 .813 3.13 1.99" /><path d="M19 16v6" /><path d="M22 19l-3 3l-3 -3" /></svg>
+                                            Image Pull Policy</label>
+                                        <select class="form-select" id="new-profile-image-pull-policy"
+                                            name="image-pull-policy">
+                                            <option value="">-</option>
+                                            <option value="Always">Always</option>
+                                            <option value="IfNotPresent">If Not Present</option>
+                                            <option value="Never">Never</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <label class="form-label">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-key">
+                                                <path stroke="none"
+                                                    d="M0 0h24v24H0z"
+                                                    fill="none" />
+                                                <path
+                                                    d="M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0z" />
+                                                <path d="M15 9h.01" />
+                                            </svg>
+                                            Image Pull Secret</label>
+                                        <select class="form-select" id="new-profile-image-pull-secret">
+                                            <option value="">default</option>
+                                        </select>
+                                    </div>
                                 </div>
+                                <small class="form-hint mt-1">
+                                    <p>
+                                        The image pull policy determines when the container image should be pulled
+                                        from the registry. <strong>Always</strong> will always pull the latest image,
+                                        <strong>If Not Present</strong> will only pull if the image is not already
+                                        present, and <strong>Never</strong> will never pull the image. The image pull secret
+                                        is used to authenticate with the container registry if the image is private. In most cases
+                                        this should be set to <code>default</code> unless you have a specific secret applied by your 
+                                        system administrator.
+                                    </p>
+                                </small>
                             </div>
-                            <small class="form-hint">
-                                <p>
-                                    After creating the tool, the documentation and other metadata may be updated
-                                    in the tool's page.
-                                </p>
-                            </small>
-                        </div>
+                            
+                            <div class="mb-4">
+                                <div class="row">
+                                    <div class=col-lg-6>
+                                        <label class="form-label">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="1.25"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-cpu">
+                                                <path stroke="none" d="M0 0h24v24H0z"
+                                                    fill="none" />
+                                                <path
+                                                    d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" />
+                                                <path d="M9 9h6v6h-6z" />
+                                                <path d="M3 10h2" />
+                                                <path d="M3 14h2" />
+                                                <path d="M10 3v2" />
+                                                <path d="M14 3v2" />
+                                                <path d="M21 10h-2" />
+                                                <path d="M21 14h-2" />
+                                                <path d="M14 21v-2" />
+                                                <path d="M10 21v-2" />
+                                            </svg>
+                                            CPU Resources</label>
+                                        <div class="row">
+                                            <div class="col-lg-6">
+                                                <label class="form-label mt-1">Request</label>
+                                                <div class="input-group">
+                                                    <select class="form-select" id="new-profile-cpu-request"
+                                                        name="task-cpu-request">
+                                                            <option value="">-</option>
+                                                            <option value="100m">0.1 vCPU</option>
+                                                            <option value="200m">0.2 vCPU</option>
+                                                            <option value="300m">0.3 vCPU</option>
+                                                            <option value="400m">0.4 vCPU</option>
+                                                            <option value="500m">0.5 vCPU</option>
+                                                            <option value="600m">0.6 vCPU</option>
+                                                            <option value="700m">0.7 vCPU</option>
+                                                            <option value="800m">0.8 vCPU</option>
+                                                            <option value="900m">0.9 vCPU</option>
+                                                            <option value="1">1 vCPU</option>
+                                                            <option value="2">2 vCPU</option>
+                                                            <option value="4">4 vCPU</option>
+                                                            <option value="8">8 vCPU</option>
+                                                            <option value="16">16 vCPU</option>
+                                                        
+                                                    </select>
+                                                </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Image Repository</label>
-                            <input type="text" class="form-control" id="image-repository-name-input"
-                                placeholder="{{REGISTRY_URL}}/stelar/the-new-tool" id="image-repo-name-input"
-                                readonly>
-                            <small class="form-hint">
-                                <p>
-                                    This is the name of the image repository where the tool's docker images
-                                    may be pushed. It will be generated based on the name you provided.
-                                </p>
-                            </small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label"><svg xmlns="http://www.w3.org/2000/svg" width="24"
-                                    height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                    class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path d="M3 21l18 0" />
-                                    <path d="M3 10l18 0" />
-                                    <path d="M5 6l7 -3l7 3" />
-                                    <path d="M4 10l0 11" />
-                                    <path d="M20 10l0 11" />
-                                    <path d="M8 14l0 3" />
-                                    <path d="M12 14l0 3" />
-                                    <path d="M16 14l0 3" />
-                                </svg>Owner Organization</label>
-                            <select class="form-select" id="owner-org" name="owner_org">
-
-                            </select>
-                            <small class="form-hint">
-                                <p>
-                                    Creating a new tool in an organization requires you to have
-                                    the permission to do so assigned by an administrator.
-                                </p>
-                            </small>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label">Visibility</label>
-                            <div class="form-selectgroup-boxes row mb-1">
-                              <div class="col-lg-6 text-success">
-                                <label class="form-selectgroup-item">
-                                  <input type="radio" name="package-visibility" value="public" class="form-selectgroup-input"
-                                    checked="">
-                                  <span class="form-selectgroup-label d-flex align-items-center p-3">
-                                    <span class="me-3">
-                                      <span class="form-selectgroup-check"></span>
-                                    </span>
-                                    <span class="form-selectgroup-label-content">
-                                      <span class="form-selectgroup-title strong mb-1">Public</span>
-                                      <span class="d-block text-secondary">Accessible to all users
-                                        registered in the KLMS</span>
-                                    </span>
-                                  </span>
-                                </label>
-                              </div>
-                              <div class="col-lg-6 text-danger">
-                                <label class="form-selectgroup-item">
-                                  <input type="radio" name="package-visibility" value="private"
-                                    class="form-selectgroup-input">
-                                  <span class="form-selectgroup-label d-flex align-items-center p-3">
-                                    <span class="me-3">
-                                      <span class="form-selectgroup-check"></span>
-                                    </span>
-                                    <span class="form-selectgroup-label-content">
-                                      <span class="form-selectgroup-title strong mb-1">Private</span>
-                                      <span class="d-block text-secondary">Accessible only to members
-                                        of the organization that
-                                        owns the package</span>
-                                    </span>
-                                  </span>
-                                </label>
-                              </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-lg-8">
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-brand-github">
-                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                            <path
-                                                d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
-                                        </svg>
-                                        GitHub Repository URL</label>
-                                    <div class="input-group input-group-flat">
-                                        <span class="input-group-text"> https://github.com/</span>
-                                        <input type="text" class="form-control ps-0" value="stelar-eu/klms-tool"
-                                            autocomplete="off" id="git-repo" name="git-repo">
+                                            </div>
+                                            <div class="col-lg-6">
+                                                <label class="form-label mt-1">Limit</label>
+                                                <select class="form-select" id="new-profile-cpu-limit"
+                                                        name="task-cpu-request">
+                                                            <option value="">-</option>
+                                                            <option value="100m">0.1 vCPU</option>
+                                                            <option value="200m">0.2 vCPU</option>
+                                                            <option value="300m">0.3 vCPU</option>
+                                                            <option value="400m">0.4 vCPU</option>
+                                                            <option value="500m">0.5 vCPU</option>
+                                                            <option value="600m">0.6 vCPU</option>
+                                                            <option value="700m">0.7 vCPU</option>
+                                                            <option value="800m">0.8 vCPU</option>
+                                                            <option value="900m">0.9 vCPU</option>
+                                                            <option value="1">1 vCPU</option>
+                                                            <option value="2">2 vCPU</option>
+                                                            <option value="4">4 vCPU</option>
+                                                            <option value="8">8 vCPU</option>
+                                                            <option value="16">16 vCPU</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <label class="form-label">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                            width="24" height="24"
+                                                            viewBox="0 0 24 24" fill="none"
+                                                            stroke="currentColor" stroke-width="2"
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            class="icon icon-tabler icons-tabler-outline icon-tabler-ruler-2">
+                                                            <path stroke="none" d="M0 0h24v24H0z"
+                                                                fill="none" />
+                                                            <path d="M17 3l4 4l-14 14l-4 -4z" />
+                                                            <path d="M16 7l-1.5 -1.5" />
+                                                            <path d="M13 10l-1.5 -1.5" />
+                                                            <path d="M10 13l-1.5 -1.5" />
+                                                            <path d="M7 16l-1.5 -1.5" />
+                                                        </svg>
+                                            Memory Resources</label>
+                                        <div class="row">
+                                            <div class="col-lg-6">
+                                                <label class="form-label mt-1">Request</label>
+                                                <select class="form-select" id="new-profile-memory-request"
+                                                    name="task-memory-request">
+                                                    <option value="">-</option>
+                                                    <option value="128Mi">128Mi</option>
+                                                    <option value="256Mi">256Mi</option>
+                                                    <option value="512Mi">512Mi</option>
+                                                    <option value="1Gi">1Gi</option>
+                                                    <option value="2Gi">2Gi</option>
+                                                    <option value="4Gi">4Gi</option>
+                                                    <option value="8Gi">8Gi</option>
+                                                    <option value="16Gi">16Gi</option>
+                                                    <option value="32Gi">32Gi</option>
+                                                    <option value="64Gi">64Gi</option>
+                                                    <option value="128Gi">128Gi</option>
+                                                    <option value="256Gi">256Gi</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-lg-6">
+                                                <label class="form-label mt-1">Limit</label>
+                                                <select class="form-select" id="new-profile-memory-limit"
+                                                    name="task-memory-limit">
+                                                    <option value="">-</option>
+                                                    <option value="128Mi">128Mi</option>
+                                                    <option value="256Mi">256Mi</option>
+                                                    <option value="512Mi">512Mi</option>
+                                                    <option value="1Gi">1Gi</option>
+                                                    <option value="2Gi">2Gi</option>
+                                                    <option value="4Gi">4Gi</option>
+                                                    <option value="8Gi">8Gi</option>
+                                                    <option value="16Gi">16Gi</option>
+                                                    <option value="32Gi">32Gi</option>
+                                                    <option value="64Gi">64Gi</option>
+                                                    <option value="128Gi">128Gi</option>
+                                                    <option value="256Gi">256Gi</option>
+                                                </select>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-lg-4">
-                                <div class="mb-3">
-                                    <label class="form-label">Programming Language</label>
-                                    <select class="form-select" id="programming-language"
-                                        name="programming-language">
-                                        <option value="Python">Python</option>
-                                        <option value="Java">Java</option>
-                                        <option value="Javascript">Javascript</option>
-                                        <option value="Go">Go</option>
-                                    </select>
+                            <div>
+                                <div class="row">
+                                    <div class="col-lg-4">
+                                        <label class="form-label">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-time-duration-15">
+                                                <path stroke="none" d="M0 0h24v24H0z"
+                                                    fill="none" />
+                                                <path
+                                                    d="M12 15h2a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-2v-3h3" />
+                                                <path d="M9 9v6" />
+                                                <path d="M3 12v.01" />
+                                                <path d="M12 21v.01" />
+                                                <path d="M7.5 4.2v.01" />
+                                                <path d="M16.5 19.8v.01" />
+                                                <path d="M7.5 19.8v.01" />
+                                                <path d="M4.2 16.5v.01" />
+                                                <path d="M19.8 16.5v.01" />
+                                                <path d="M4.2 7.5v.01" />
+                                                <path d="M21 12a9 9 0 0 0 -9 -9" />
+                                            </svg>
+                                            TTL (seconds)</label>
+                                        <select class="form-select" id="new-profile-ttl"
+                                            name="task-ttl">
+                                            <option value="">-</option>
+                                            <option value="60">1min</option>
+                                            <option value="300">5min</option>
+                                            <option value="600">15min</option>
+                                            <option value="1800">30min</option>
+                                            <option value="3600">1h</option>
+                                            <option value="7200">2h</option>
+                                            <option value="14400">4h</option>
+                                            <option value="21600">6h</option>
+                                            <option value="43200">12h</option>
+                                            <option value="86400">1d</option>
+                                        </select>
+                                        <small class="form-hint mt-1">
+                                            <p>
+                                                The time-to-live (TTL) for tasks created with this profile. This determines how long the
+                                                a task job will remain in the cluster after its completion. 
+                                            </p>
+                                        </small>
+                                    </div>
+                                    <div class="col-lg-4">
+                                        <label class="form-label">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-repeat">
+                                                <path stroke="none"
+                                                    d="M0 0h24v24H0z"
+                                                    fill="none" />
+                                                <path
+                                                    d="M4 12v-3a3 3 0 0 1 3 -3h13m-3 -3l3 3l-3 3" />
+                                                <path
+                                                    d="M20 12v3a3 3 0 0 1 -3 3h-13m3 3l-3 -3l3 -3" />
+                                            </svg>
+                                            Retry Policy</label>
+                                        <select class="form-select" id="new-profile-retry-policy"
+                                            name="retry-policy">
+                                            <option value="">-</option>
+                                            <option value="Never">Never</option>
+                                            <option value="OnFailure">On Failure</option>
+                                            <option value="Always">Always</option>
+                                        </select>
+                                        <small class="form-hint mt-1">
+                                            <p>
+                                                The retry policy determines when the execution profile should be retried
+                                                in case of failure. <strong>Never</strong> will never retry, <strong>On Failure</strong>
+                                                will retry only if the execution fails, and <strong>Always</strong> will always retry.
+                                            </p>
+                                        </small>
+                                    </div>
+                                    <div class="col-lg-4">
+                                        <label class="form-label">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                width="24" height="24"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="2"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-repeat-off">
+                                                <path stroke="none"
+                                                    d="M0 0h24v24H0z"
+                                                    fill="none" />
+                                                <path
+                                                    d="M4 12v-3c0 -1.336 .873 -2.468 2.08 -2.856m3.92 -.144h10m-3 -3l3 3l-3 3" />
+                                                <path
+                                                    d="M20 12v3a3 3 0 0 1 -.133 .886m-1.99 1.984a3 3 0 0 1 -.877 .13h-13m3 3l-3 -3l3 -3" />
+                                                <path d="M3 3l18 18" />
+                                            </svg>
+                                            Retry Limit</label>
+                                            <select class="form-select" id="new-profile-backoff-limit"
+                                                name="backoff-limit">
+                                                <option value="">-</option>
+                                                <option value="1">1</option>
+                                                <option value="2">2</option>
+                                                <option value="3">3</option>
+                                                <option value="4">4</option>
+                                                <option value="5">5</option>
+                                            </select>
+                                        <small class="form-hint mt-1">
+                                            <p>
+                                                The retry limit determines how many times the task job should be retried
+                                                in case of failure.
+                                            </p>
+                                        </small>
+                                    </div>
                                 </div>
+
+
+
                             </div>
-                            <small class="form-hint">
-                                <p>
-                                    After creating the tool, the documentation and other metadata may be updated
-                                    in the tool's page.
-                                </p>
-                            </small>
+                            
+                        
                         </div>
-                    </div>
-                    <div class="modal-footer" id="new-tool-modal-footer">
-                        <a class="btn btn-primary btn-5 ms-auto cursor-pointer disabled" id="create-tool-btn"
-                            onclick="createTool()">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" class="icon icon-2">
-                                <path d="M12 5l0 14"></path>
-                                <path d="M5 12l14 0"></path>
-                            </svg>
-                            Create new Tool
-                        </a>
+                        <div class="modal-footer" id="new-profile-footer">
+                            <a class="btn btn-primary btn-5 ms-auto cursor-pointer disabled" id="create-profile-btn"
+                                onclick="createNewProfile()">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" class="icon icon-2">
+                                    <path d="M12 5l0 14"></path>
+                                    <path d="M5 12l14 0"></path>
+                                </svg>
+                                Create new Profile
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-
-
-
-
-
-
-
-
         </div>
         {% include 'footer.html' %}
     </div>
@@ -1662,6 +1870,21 @@
             });
         }
 
+        function renderImageSelectors(images){
+            if(images.length === 0) {
+                $('#add-profile-btn').addClass('disabled');
+                $('#add-profile-btn').attr('title', 'No tool images available to create a profile');
+            }else{
+                $('#add-profile-btn').removeClass('disabled');
+                $('#add-profile-btn').attr('title', 'Create a new execution profile for an selected image');
+            }
+            $('#new-profile-image-tag').empty();
+            images.forEach(image => {
+                const option = `<option value="${image.name}">${image.name}</option>`;
+                $('#new-profile-image-tag').append(option);
+            });
+        }
+
         function fetchToolImages() {
             $.ajax({
                 url: "{{ url_for('rest_workflows_blueprint.api_get_tool', entity_id=tool.id) }}",
@@ -1670,6 +1893,7 @@
                 success: function (data) {
                     renderToolImages(data.result.images);
                     renderProfiles(data.result.profiles);
+                    renderImageSelectors(data.result.images);
                 },
                 error: function (error) {
                     console.error("Error loading tool images:", error);
@@ -1762,21 +1986,6 @@
                                 ${name === 'default' ? '<span class="text-orange h5 ms-1">Overrides system\'s default</span>' : ''}
                                 </h3>
                                 <div class="ms-auto">
-                                    <a class="cursor-pointer text-link text-primary me-2"
-                                        onclick="editProfile('${name}}')">
-                                        <svg xmlns="http://www.w3.org/2000/svg"
-                                            width="24" height="24" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor"
-                                            stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            class="icon icon-tabler icons-tabler-outline icon-tabler-pencil">
-                                            <path stroke="none" d="M0 0h24v24H0z"
-                                                fill="none" />
-                                            <path
-                                                d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
-                                            <path d="M13.5 6.5l4 4" />
-                                        </svg>
-                                    </a>
                                     <a class="cursor-pointer text-link text-danger"
                                         onclick="deleteProfile('${name}')">
                                         <svg xmlns="http://www.w3.org/2000/svg"
@@ -2113,23 +2322,160 @@
         }
 
 
-        function editProfile(profileName){
-            $()
-
-        }
-
-        function saveProfile(profileName){
-
-        }
-
         function addProfile(){
             $("#new-profile-modal").modal("show");
         }
 
-        function createNewProfile(){
 
+        function validateNewProfile() {
+            const newProfileName = document.getElementById("new-profile-name");
+            const footerButton = document.getElementById("create-profile-btn");
+
+            const profileNameValue = newProfileName.value.trim();
+            const isValidName = /^[a-zA-Z0-9_]+$/.test(profileNameValue);
+
+            if (profileNameValue === "") {
+                newProfileName.classList.remove("is-valid", "is-invalid");
+                footerButton.classList.add("disabled");
+                $('#default-profile-msg').empty();
+                return;
+            }
+
+            if (profileNameValue === "default") {
+                $('#default-profile-msg').empty();
+                $('#default-profile-msg').text("Creating a profile named 'default' will override the system's default profile for this tool.");
+            }
+
+            if (isValidName) {
+                newProfileName.classList.add("is-valid");
+                newProfileName.classList.remove("is-invalid");
+                footerButton.classList.remove("disabled");
+            } else {
+                newProfileName.classList.add("is-invalid");
+                newProfileName.classList.remove("is-valid");
+                footerButton.classList.add("disabled");
+            }
         }
 
+        $(document).ready(function () {
+            const newProfileName = document.getElementById("new-profile-name");
+            newProfileName.addEventListener("input", validateNewProfile);
+            newProfileName.addEventListener("blur", validateNewProfile);
+            newProfileName.addEventListener("keyup", validateNewProfile);
+        });
+
+        function resetNewProfileForm(){
+            document.getElementById("new-profile-name").value = '';
+            document.getElementById("new-profile-image-pull-secret").value = '';
+            document.getElementById("new-profile-image-pull-policy").value = '';
+            document.getElementById("new-profile-description").value = '';
+            document.getElementById("new-profile-cpu-request").value = '';
+            document.getElementById("new-profile-cpu-limit").value = '';
+            document.getElementById("new-profile-memory-request").value = '';
+            document.getElementById("new-profile-memory-limit").value = '';
+            document.getElementById("new-profile-ttl").value = '';
+            document.getElementById("new-profile-retry-policy").value = '';
+            document.getElementById("new-profile-backoff-limit").value = '';
+        }
+
+        function createNewProfile(){
+
+            $('#new-profile-footer .stelar-loader').remove();
+            $('#new-profile-footer .alert').remove();
+            $('#new-profile-footer').prepend(createLoaderElement(false, true));
+            $('#create-profile-btn').addClass("disabled");
+
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_get_tool', entity_id=tool.get('id')) }}`,
+                type: "GET",
+                dataType: "json",
+                success: function (data) {
+                    addProfileToTool(data.result.profiles);
+                },
+                error: function (error) {
+                    $('#new-profile-footer .stelar-loader').remove();
+                    $('#create-profile-btn').removeClass("disabled");
+                    $('#new-profile-footer .alert').remove();
+                    $('#new-profile-footer').prepend(createAlertElement("danger", "Error loading tool profiles"));
+                }
+            });            
+        }
+
+
+        function addProfileToTool(currentProfiles)  {
+            const newProfileName = document.getElementById("new-profile-name").value.trim();
+            if (newProfileName === "") {
+                return;
+            }
+
+            const newProfile = {
+                image: document.getElementById("new-profile-image-tag").value.trim(),
+                ...(document.getElementById("new-profile-image-pull-secret").value.trim() && { image_pull_secrets: document.getElementById("new-profile-image-pull-secret").value.trim() }),
+                ...(document.getElementById("new-profile-image-pull-policy").value.trim() && { image_pull_policy: document.getElementById("new-profile-image-pull-policy").value.trim() }),
+                ...(document.getElementById("new-profile-description").value.trim() && { description: document.getElementById("new-profile-description").value.trim() }),
+                ...(document.getElementById("new-profile-cpu-request").value.trim() && { cpu_request: document.getElementById("new-profile-cpu-request").value.trim() }),
+                ...(document.getElementById("new-profile-cpu-limit").value.trim() && { cpu_limit: document.getElementById("new-profile-cpu-limit").value.trim() }),
+                ...(document.getElementById("new-profile-memory-request").value.trim() && { memory_request: document.getElementById("new-profile-memory-request").value.trim() }),
+                ...(document.getElementById("new-profile-memory-limit").value.trim() && { memory_limit: document.getElementById("new-profile-memory-limit").value.trim() }),
+                ...(document.getElementById("new-profile-ttl").value.trim() && { ttl_seconds_after_finished: document.getElementById("new-profile-ttl").value.trim() }),
+                ...(document.getElementById("new-profile-retry-policy").value.trim() && { restart_policy: document.getElementById("new-profile-retry-policy").value.trim() }),
+                ...(document.getElementById("new-profile-backoff-limit").value.trim() && { backoff_limit: parseInt(document.getElementById("new-profile-backoff-limit").value.trim()) }),
+            };
+
+            // If profile name already exists, show an error
+            if (currentProfiles.hasOwnProperty(newProfileName)) {
+                $('#new-profile-footer .stelar-loader').remove();
+                $('#create-profile-btn').removeClass("disabled");
+                $('#new-profile-footer .alert').remove();
+                $('#new-profile-footer').prepend(createAlertElement("danger", "Profile name already exists"));
+                setTimeout(function () {
+                    $('#new-profile-footer .alert').fadeOut(500, function () {
+                        $(this).remove();
+                    });
+                }, 3000);
+                return;
+            }
+
+            $.ajax({
+                url: `{{ url_for('rest_workflows_blueprint.api_patch_tool', entity_id=tool.get('id')) }}`,
+                type: "PATCH",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    profiles: {
+                        ...currentProfiles,
+                        [newProfileName]: newProfile
+                    }
+                }),
+                success: function (response) {
+                    renderProfiles(response.result.profiles);
+                    resetNewProfileForm();
+                    $('#new-profile-footer .stelar-loader').remove();
+                    $('#create-profile-btn').removeClass("disabled");
+                    $('#new-profile-footer .alert').remove();
+                    $('#new-profile-footer').prepend(createAlertElement("success", "Profile created successfully"));
+                    setTimeout(function () {
+                        $('#new-profile-footer .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                    validateNewProfile();
+                },
+                error: function (error) {
+                    $('#new-profile-footer .stelar-loader').remove();
+                    $('#create-profile-btn').removeClass("disabled");
+                    $('#new-profile-footer .alert').remove();
+                    $('#new-profile-footer').prepend(createAlertElement("danger", "Error creating profile"));
+                    setTimeout(function () {
+                        $('#new-profile-footer .alert').fadeOut(500, function () {
+                            $(this).remove();
+                        });
+                    }, 3000);
+                    console.error("Error creating profile:", error);
+                    validateNewProfile();
+                }
+            });
+            
+        }
     </script>
     <script>
 
