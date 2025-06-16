@@ -1117,6 +1117,8 @@ class PackageEntity(EntityWithExtras):
             raise DataError("Missing owner_org")
         if "type" in init_data and init_data["type"] != self.package_type:
             raise DataError(f"Invalid type: {init_data['type']}")
+        if "license_id" in init_data:
+            LICENSE.validate(init_data["license_id"])
 
         # Force this!
         init_data["type"] = self.package_type
@@ -1131,33 +1133,35 @@ class PackageEntity(EntityWithExtras):
         # Load the object from CKAN
         loaded_obj = self.load_from_ckan(obj)
 
-        # Enhance the license information in the loaded object
-        self._enhance_license(loaded_obj)
-
         return loaded_obj
 
-    def _enhance_license(self, data: dict):
-        """Enhance the license information in the data.
+    def update(self, eid: str, entity_data):
+        """Update an entity in CKAN. Check the license ID if present.
 
-        This method is used to enhance the license information in the data
-        by adding the license title and URL if they are not present.
+        Args:
+            eid: The ID of the entity to update.
+            entity_data: The data to update the entity with.
+        Returns:
+            The updated entity object.
         """
-        if "license_id" in data:
-            lic = data["license_id"]
-            if lic:
-                # If the license is a string, it is the license Key
-                try:
-                    lic = LICENSE.get(lic)
-                except Exception:
-                    return
-                data["license_id"] = lic.get("id")
-                data["license_title"] = lic.get("title")
-                data["license_key"] = lic.get("key")
-                data["license_image_url"] = lic.get("image_url")
-                data["license_url"] = lic.get("url")
-            else:
-                data["license_title"] = None
-                data["license_url"] = None
+        if "license_id" in entity_data:
+            LICENSE.validate(entity_data["license_id"])
+
+        return super().update(eid, entity_data)
+
+    def patch(self, eid: str, patch_data):
+        """Patch an entity in CKAN. Check the license ID if present.
+
+        Args:
+            eid: The ID of the entity to patch.
+            patch_data: The data to patch the entity with.
+        Returns:
+            The patched entity object.
+        """
+        if "license_id" in patch_data:
+            LICENSE.validate(patch_data["license_id"])
+
+        return super().patch(eid, patch_data)
 
     def search(self, query_spec: dict) -> list:
         """Search for packages.
@@ -1280,8 +1284,6 @@ class PackageSchema(Schema):
 
     # License stuff
     license_id = fields.String(allow_none=True, load_default=None)
-    license_title = fields.String(allow_none=True, dump_only=True)
-    license_url = fields.String(allow_none=True, dump_only=True)
 
     resources = fields.List(fields.Dict(), dump_only=True)
     groups = fields.List(fields.Dict(), dump_only=True)
