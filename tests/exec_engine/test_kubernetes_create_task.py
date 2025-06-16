@@ -20,7 +20,7 @@ def test_factory(dev_cluster_config):
 
     assert isinstance(engine, ExecEngine)
     assert isinstance(engine, k.K8sExecEngine)
-    assert engine.api_url == cluster["API_URL"]
+    assert engine.api_url == cluster["execution"]["api_url"]
     assert engine.namespace == cluster["execution"]["namespace"]
 
 

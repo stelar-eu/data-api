@@ -31,6 +31,7 @@ from processes import PROCESS
 from tasks import TASK
 from tools import TOOL
 from cutils import TAG, ORGANIZATION, DATASET, RESOURCE
+from licenses import LICENSE
 from auth import admin_required
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
@@ -455,7 +456,9 @@ def viewResource(resource_id):
             if url and url.startswith("s3://"):
                 s3_link = url.replace("s3://", minio_console_url)
 
-            s3_endpoint = "minio.stelar.gr"
+            s3_endpoint = (
+                config.get("MINIO_API_SUBDOMAIN") + "." + config.get("KLMS_DOMAIN_NAME")
+            )
             creds = mutils.get_temp_minio_credentials(kutils.current_token())
 
             embed_uri = (
@@ -495,7 +498,9 @@ def visualize(profile_id):
 
     profile_file = resource.get("url")
 
-    s3_endpoint = "minio.stelar.gr"
+    s3_endpoint = (
+        config.get("MINIO_API_SUBDOMAIN") + "." + config.get("KLMS_DOMAIN_NAME")
+    )
     creds = mutils.get_temp_minio_credentials(kutils.current_token())
 
     embed_uri = (
@@ -883,7 +888,7 @@ def signup():
                 vftoken = hashlib.sha256(plain.encode("utf-8")).hexdigest()
                 # Send verification email
                 send_verification_email(
-                    email, vftoken=vftoken, id=new_uid, fullname=fullname
+                    email, vftoken=vftoken, id=new_uid["id"], fullname=fullname
                 )
                 # Registration was succesful
                 return render_template("signup.html", STATUS="SUCCESS")

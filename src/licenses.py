@@ -76,6 +76,8 @@ class LicenseEntity:
 
     def get(self, identifier: str):
         """Get License by its ID or key."""
+        if not identifier:
+            return {}
         if utils.is_valid_uuid(identifier):
             eid = identifier
         else:

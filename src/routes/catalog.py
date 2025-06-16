@@ -95,37 +95,27 @@ def api_export_zenodo_dataset_id(dataset_id):
 
 
 @catalog_bp.route("/resource/<entity_id>/lineage", methods=["GET"])
+@catalog_bp.input(schema.LineageForwardBoolean, location="query")
 @catalog_bp.output(schema.APIResponse, status_code=200)
 @catalog_bp.doc(tags=["Search Operations"])
 @token_active
 @render_api_output(logger)
-def api_get_resource_lineage(entity_id):
+def api_get_resource_lineage(entity_id, query_data):
     """Get the lineage of a resource.
 
     Args:
         entity_id: The unique identifier of the resource as listed in CKAN.
 
+    Query Params:
+        forward: A boolean flag indicating whether to retrieve forward lineage.
+
     Returns:
         A JSON with the lineage of the resource.
     """
-    return RESOURCE.track_lineage(entity_id)
-
-
-@catalog_bp.route("/resource/<entity_id>/cardinality", methods=["GET"])
-@catalog_bp.output(schema.APIResponse, status_code=200)
-@catalog_bp.doc(tags=["Search Operations"])
-@token_active
-@render_api_output(logger)
-def api_get_resource_cardinality(entity_id):
-    """Get the forward lineage of a resource.
-
-    Args:
-        entity_id: The unique identifier of the resource as listed in CKAN.
-
-    Returns:
-        A JSON with the forward lineage of the resource.
-    """
-    return RESOURCE.track_forward_lineage(entity_id)
+    forward = query_data.get("forward", False)
+    if forward:
+        return RESOURCE.track_forward_lineage(entity_id, query_data.get("depth"))
+    return RESOURCE.track_lineage(entity_id, query_data.get("depth"))
 
 
 #

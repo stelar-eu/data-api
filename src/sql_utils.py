@@ -8,13 +8,13 @@ from datetime import datetime
 import pandas as pd
 import requests
 from flask import current_app
+from psycopg2.extras import Json
 
 import utils
 from backend import pgsql
 
 # Auxiliary custom functions & SQL query templates for ranking
 from exceptions import BackendLogicError
-from psycopg2.extras import Json
 
 
 def is_valid_uuid(s):
@@ -411,7 +411,7 @@ def get_user_organizations(username):
         orgs = [row["id"] for row in resp]
         return orgs
     else:
-        return None
+        return []
 
 
 ##########################################################
@@ -866,7 +866,7 @@ def task_execution_update(task_exec_id, state, end_date=None, tags=None):
     """
 
     # Compose and execute the SQL command using the template for updating a task execution
-    if not end_date is None:
+    if end_date is not None:
         sql = utils.sql_workflow_execution_templates["task_commit_template"]
         resp = pgsql.execSql(sql, (state, end_date, task_exec_id))
     else:
@@ -1712,55 +1712,37 @@ def workflow_statistics(workflow_tags, parameters, metrics):
         return None
 
 
-def track_resource_lineage(resource_id):
-    """Submit a request to the Metadata Database to retrieve information about the lineage of a resource.
+def track_resource_lineage(resource_id, depth=None):
+    """Retrieve backward lineage of a resource, optionally limited by depth."""
 
-    Args:
-        resource_id: The identifier (UUID) assigned to a resource.
-
-    Returns:
-        A JSON with the lineage of the resource, if any.
-    """
-
-    sql = utils.sql_workflow_execution_templates["resource_lineage_template"]
-
-    # Execute the SQL command in the database
-    resp = pgsql.execSql(
-        sql,
-        (
-            resource_id,
-            resource_id,
-        ),
-    )
-
-    if resp and len(resp) > 0:
-        return resp
+    if depth:
+        sql = utils.sql_workflow_execution_templates[
+            "resource_lineage_with_depth_template"
+        ]
+        params = (resource_id, resource_id, depth, resource_id)
     else:
-        return None
+        sql = utils.sql_workflow_execution_templates["resource_lineage_template"]
+        params = (resource_id, resource_id)
+
+    resp = pgsql.execSql(sql, params)
+
+    return resp if resp else None
 
 
-def track_resource_forward_lineage(resource_id):
-    """Submit a request to the Metadata Database to retrieve information about the forward lineage of a resource.
+def track_resource_forward_lineage(resource_id, depth=None):
+    """Retrieve forward lineage of a resource, optionally limited by depth."""
 
-    Args:
-        resource_id: The identifier (UUID) assigned to a resource.
-
-    Returns:
-        A JSON with the lineage of the resource, if any.
-    """
-
-    sql = utils.sql_workflow_execution_templates["resource_forward_lineage_template"]
-
-    # Execute the SQL command in the database
-    resp = pgsql.execSql(
-        sql,
-        (
-            resource_id,
-            resource_id,
-        ),
-    )
-
-    if resp and len(resp) > 0:
-        return resp
+    if depth:
+        sql = utils.sql_workflow_execution_templates[
+            "resource_forward_lineage_with_depth_template"
+        ]
+        params = (resource_id, resource_id, depth, resource_id)
     else:
-        return None
+        sql = utils.sql_workflow_execution_templates[
+            "resource_forward_lineage_template"
+        ]
+        params = (resource_id, resource_id)
+
+    resp = pgsql.execSql(sql, params)
+
+    return resp if resp else None

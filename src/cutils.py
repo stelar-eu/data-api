@@ -320,13 +320,13 @@ class ResourceEntity(CKANEntity):
         self.operations.append("search")
         self.search_query_schema = schema.ResourceSearchQuery()
 
-    def track_lineage(self, resource_id: str):
+    def track_lineage(self, resource_id: str, depth: Optional[int] = None):
         """Return the lineage of a resource. Thus meaning
         upon which task execution with which resource this artifact
         was created.
         """
         self.get_entity(resource_id)  # Ensure the resource exists and is accessible
-        records = sql_utils.track_resource_lineage(resource_id)
+        records = sql_utils.track_resource_lineage(resource_id, depth=depth)
         return (
             self.build_enriched_lineage_graph(
                 lineage_records=records,
@@ -411,9 +411,9 @@ class ResourceEntity(CKANEntity):
             "current_resource_name": current_resource_name,
         }
 
-    def track_forward_lineage(self, resource_id: str):
+    def track_forward_lineage(self, resource_id: str, depth: Optional[int] = None):
         self.get_entity(resource_id)  # Ensure the resource exists and is accessible
-        records = sql_utils.track_resource_forward_lineage(resource_id)
+        records = sql_utils.track_resource_forward_lineage(resource_id, depth=depth)
         return (
             self.build_forward_enriched_lineage_graph(
                 lineage_records=records,

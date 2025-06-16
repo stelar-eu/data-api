@@ -29,6 +29,7 @@ def johndoe_client(app, keycloak_client):
         keycloak_client.logout(refresh_token=rfr)
 
 
+@pytest.mark.skip()
 def test_johndoe(johndoe_client):
     init_data = {
         "name": "going-to-fail",

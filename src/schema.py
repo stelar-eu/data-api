@@ -89,6 +89,11 @@ class PaginationParameters(Schema):
     offset = Integer(required=False, validate=Range(min=0))
 
 
+class LineageForwardBoolean(Schema):
+    forward = Boolean(required=False)
+    depth = Integer(required=False, validate=Range(min=0), load_default=None)
+
+
 class NameID(String):
     """Datasets, groups and organizations, etc, have name field which is unique and immutable."""
 
