@@ -140,6 +140,12 @@
                                         </svg>
                                         {{ tool.get("author") }}
                                     </div>
+
+                                    {% if tool.license_id %}
+                                    <div class="list-inline-item" id="tool-license">
+
+                                    </div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -696,6 +702,12 @@
                                         documentation and latest commits.
                                     </p>
                                 </small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Software License</label>
+                                <select class="form-select" id="license-id" name="tool-license">
+
+                                </select>
                             </div>
 
                             <div class="mb-3">
@@ -1507,12 +1519,13 @@
 
             const gitRepo = "https://github.com/" + document.getElementById("git-repo").value.trim();
             const visibility = document.querySelector('input[name="package-visibility"]:checked').value;
+            const license = document.getElementById("license-id").value;
             const payload = {
                 git_repository: gitRepo,
                 private: visibility === 'private',
                 category: document.getElementById("tool-category").value,
+                license_id: license,
             };
-
 
             if (gitRepo) {
                 // Validate the GitHub repository URL
@@ -1787,6 +1800,70 @@
                 }
             })
 
+        }
+    </script>
+
+
+    <script>
+        function fetchAvailableLicenses(callback) {
+          $.ajax({
+            url: "{{url_for('catalog_blueprint.api_fetch_licenses')}}",
+            method: "GET",
+            success: function (response) {
+              if (response.success) {
+                window.availableLicenses = response.result;
+                displayLicense();
+                // Populate the license dropdown in the publishing modal
+                var licenseSelect = $('#license-id');
+                licenseSelect.empty();
+    
+                licenseSelect.append($('<option></option>').attr('value', '').text('Select License'));
+    
+                window.availableLicenses.forEach(function (license) {
+                  var option = $('<option></option>')
+                    .attr('value', license.key)
+                    .text(license.title + ' - (' + license.key + ')');
+                  if (license.image_url) {
+                    option.attr('data-image', license.image_url);
+                  }
+                  licenseSelect.append(option);
+                });
+    
+                //If the dataset already has a license, select it
+                currentLicense = "{{ tool.get('license_id') }}";
+                if (currentLicense && currentLicense !== 'None') {
+                  licenseSelect.val(currentLicense);
+                } else {
+                  licenseSelect.val('');
+                }
+    
+              } else {
+                console.error("Failed to fetch available licenses:", response.message);
+              }
+            },
+            error: function (xhr, status, error) {
+              console.error("AJAX request for available licenses failed:", error);
+            }
+          });
+          if (typeof callback === "function") {
+            callback();
+          }
+        }
+    
+        function displayLicense(){
+          licenseSelect = `{{ tool.get('license_id') }}`;
+          if (!licenseSelect || licenseSelect === 'None' || licenseSelect === '') {
+            return;
+          }
+          if (window.availableLicenses && window.availableLicenses.length > 0) {
+            packageLicense = window.availableLicenses.find(license => license.key === licenseSelect);
+            if (packageLicense) {
+              const licenseContent = packageLicense.image_url 
+            ? `<a href="${packageLicense.url || '#'}" target="_blank"><img style="height:25px;" src="${packageLicense.image_url}" alt="${packageLicense.title}" class="license-image"></a>` 
+            : `<a href="${packageLicense.url || '#'}" target="_blank">${packageLicense.title}</a>`;
+              $('#tool-license').html(licenseContent);
+            }
+          }
         }
     </script>
     <script>
@@ -2958,6 +3035,10 @@
             attachNewInputValidation();
             attachNewOutputValidation();
             attachNewParameterValidation();
+            fetchAvailableLicenses();
         });
     </script>
+
+
+
 </body>

@@ -218,22 +218,8 @@
                     {{ dataset.get('author') }}
                   </div>
                   {% if dataset.get('license_id') %}
-                  <div class="list-inline-item" title="License">
-                    {% if dataset.get('license_image_url') != None %}
-                    <a href="{{ dataset.get('license_url') }}" target="_blank"
-                      title="Licensed under: {{ dataset.get('license_title') }}">
-                      <img src="{{ dataset.get('license_image_url') }}" alt="License Image" style="max-height: 20px;">
-                    </a>
-                    {% else %}
-                    {% if dataset.get('url') %}
-                    <a href="{{ dataset.get('license_url') }}" target="_blank"
-                      title="Licensed under: {{ dataset.get('license_title') }}">
-                      {{ dataset.get('license_title') }}
-                    </a>
-                    {% else %}
-                    {{ dataset.get('license_title') }}
-                    {% endif %}
-                    {% endif %}
+                  <div class="list-inline-item" title="License" id="package-license">
+                  
                   </div>
                   {% endif %}
                   {% if dataset.get('url') %}
@@ -2358,6 +2344,7 @@
         success: function (response) {
           if (response.success) {
             window.availableLicenses = response.result;
+            displayLicense();
             // Populate the license dropdown in the publishing modal
             var licenseSelect = $('#license-id');
             licenseSelect.empty();
@@ -2375,7 +2362,7 @@
             });
 
             //If the dataset already has a license, select it
-            currentLicense = "{{ dataset.get('license_key') }}";
+            currentLicense = "{{ dataset.get('license_id') }}";
             if (currentLicense && currentLicense !== 'None') {
               licenseSelect.val(currentLicense);
             } else {
@@ -2392,6 +2379,22 @@
       });
       if (typeof callback === "function") {
         callback();
+      }
+    }
+
+    function displayLicense(){
+      licenseSelect = `{{ dataset.get('license_id') }}`;
+      if (!licenseSelect || licenseSelect === 'None' || licenseSelect === '') {
+        return;
+      }
+      if (window.availableLicenses && window.availableLicenses.length > 0) {
+        packageLicense = window.availableLicenses.find(license => license.key === licenseSelect);
+        if (packageLicense) {
+          const licenseContent = packageLicense.image_url 
+        ? `<a href="${packageLicense.url || '#'}" target="_blank"><img style="height:25px;" src="${packageLicense.image_url}" alt="${packageLicense.title}" class="license-image"></a>` 
+        : `<a href="${packageLicense.url || '#'}" target="_blank">${packageLicense.title}</a>`;
+          $('#package-license').html(licenseContent);
+        }
       }
     }
   </script>

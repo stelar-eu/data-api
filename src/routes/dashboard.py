@@ -31,6 +31,7 @@ from processes import PROCESS
 from tasks import TASK
 from tools import TOOL
 from cutils import TAG, ORGANIZATION, DATASET, RESOURCE
+from licenses import LICENSE
 from auth import admin_required
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)

@@ -275,6 +275,17 @@
                                         </p>
                                     </small>
                                 </div>
+                                <div class="mb-3">
+                                    <label class="form-label"><svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-license"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 21h-9a3 3 0 0 1 -3 -3v-1h10v2a2 2 0 0 0 4 0v-14a2 2 0 1 1 2 2h-2m2 -4h-11a3 3 0 0 0 -3 3v11" /><path d="M9 7l4 0" /><path d="M9 11l4 0" /></svg>License</label>
+                                    <select class="form-select" id="license-id" name="license_id">
+                                    </select>
+                                    <small class="form-hint">
+                                      <p>
+                                        Selecting the appropriate license for your dataset is important
+                                        to ensure that users understand how they can use the data.
+                                      </p>
+                                    </small>
+                                </div>
 
                                 <div class="mb-4">
                                     <label class="form-label">Visibility</label>
@@ -481,6 +492,42 @@
             })
         }
 
+   
+        function fetchAvailableLicenses(callback) {
+            $.ajax({
+            url: "{{url_for('catalog_blueprint.api_fetch_licenses')}}",
+            method: "GET",
+            success: function (response) {
+                if (response.success) {
+                window.availableLicenses = response.result;
+                // Populate the license dropdown in the publishing modal
+                var licenseSelect = $('#license-id');
+                licenseSelect.empty();
+    
+                licenseSelect.append($('<option></option>').attr('value', '').text('Select License'));
+    
+                window.availableLicenses.forEach(function (license) {
+                    var option = $('<option></option>')
+                    .attr('value', license.key)
+                    .text(license.title + ' - (' + license.key + ')');
+                    if (license.image_url) {
+                    option.attr('data-image', license.image_url);
+                    }
+                    licenseSelect.append(option);
+                });        
+    
+                } else {
+                    console.error("Failed to fetch available licenses:", response.message);
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error("AJAX request for available licenses failed:", error);
+            }
+            });
+            if (typeof callback === "function") {
+            callback();
+            }
+        }
 
         // Function to validate the tool name and generate the image repository name
         function validateToolName() {
@@ -514,6 +561,7 @@
             var programmingLanguage = $('#programming-language').val();
             var private = $('input[name="package-visibility"]:checked').val() === 'private';
             var category = $('#tool-category').val();
+            var license_id = $('#license-id').val();
 
             $('#create-tool-btn').addClass('disabled');
             $('#new-tool-modal-footer').prepend(createLoaderElement(true, true))
@@ -528,6 +576,7 @@
                     programming_language: programmingLanguage,
                     private: private,
                     category: category,
+                    ...(license_id !== "" && { license_id: license_id })
                 }),
                 success: function (data) {
                     fetchTools();
@@ -562,6 +611,7 @@
         $(document).ready(function () {
             fetchTools();
             fetchOrganizations();
+            fetchAvailableLicenses();
         });
 
     </script>
