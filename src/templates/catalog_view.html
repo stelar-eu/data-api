@@ -2524,7 +2524,7 @@
       $('#lineage-container').empty();
       $('#track-lineage-id').text(resourceId + ' Forward Lineage');
       $.ajax({
-        url: `{{url_for('catalog_blueprint.api_get_resource_cardinality',entity_id='__ID__')}}`.replace('__ID__', resourceId),
+        url: `{{url_for('catalog_blueprint.api_get_resource_lineage',entity_id='__ID__')}}`.replace('__ID__', resourceId)+"?forward=true",
         type: 'GET',
         success: function (response) {
           const data = response.result;
