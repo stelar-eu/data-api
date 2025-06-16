@@ -91,6 +91,7 @@ class PaginationParameters(Schema):
 
 class LineageForwardBoolean(Schema):
     forward = Boolean(required=False)
+    depth = Integer(required=False, validate=Range(min=0), load_default=None)
 
 
 class NameID(String):

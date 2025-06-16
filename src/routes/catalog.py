@@ -114,10 +114,8 @@ def api_get_resource_lineage(entity_id, query_data):
     """
     forward = query_data.get("forward", False)
     if forward:
-        logger.info(f"Retrieving forward lineage for resource {entity_id}")
-        return RESOURCE.track_forward_lineage(entity_id)
-    logger.info(f"Retrieving backward lineage for resource {entity_id}")
-    return RESOURCE.track_lineage(entity_id)
+        return RESOURCE.track_forward_lineage(entity_id, query_data.get("depth"))
+    return RESOURCE.track_lineage(entity_id, query_data.get("depth"))
 
 
 #
