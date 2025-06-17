@@ -5,7 +5,7 @@ from apiflask.fields import URL, Boolean, Dict, List
 from apiflask.validators import OneOf
 from flask import request
 import schema
-from auth import security_doc, token_active
+from auth import security_doc, token_active, admin_required
 from backend.ckan import get_solr_schema
 import utils
 import kutils
@@ -316,7 +316,7 @@ This endpoint creates a new license in the Data Catalog.
     security=security_doc,
     responses=error_responses([400, 401, 403, 500, 502]),
 )
-@token_active
+@admin_required
 @render_api_output(logger)
 def api_create_license(json_data):
     """Create a new license in the Data Catalog."""
@@ -336,7 +336,7 @@ This endpoint patches an existing license in the Data Catalog.
     security=security_doc,
     responses=error_responses([400, 401, 403, 404, 500, 502]),
 )
-@token_active
+@admin_required
 @render_api_output(logger)
 def api_patch_license(entity_id, json_data):
     """Patch an existing license in the Data Catalog."""
@@ -355,7 +355,7 @@ This endpoint deletes a license by its unique identifier.
     security=security_doc,
     responses=error_responses([401, 403, 404, 500, 502]),
 )
-@token_active
+@admin_required
 @render_api_output(logger)
 def api_delete_license(entity_id):
     """Delete a license by its unique identifier."""

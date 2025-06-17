@@ -195,6 +195,54 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="container container-xl mt-4">
+                    <div class="card card-md">
+                        <div class="card-body">
+                            <div class="row row-cards">
+                                <div class="col-lg-12">
+                                    <h2 class="mb-3">Miscellaneous Settings</h2>
+                                    
+                                    <div class="d-flex justify-content-end">
+                                        <h3 class="mb-1">Intellectual Property Licenses</h3>
+                                        <button class="btn btn-outline-primary ms-auto" data-bs-toggle="modal"
+                                            data-bs-target="#modal-new-license">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="icon me-2 icon-tabler icons-tabler-outline icon-tabler-plus">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path d="M12 5v14" />
+                                                <path d="M5 12h14" />
+                                            </svg>
+                                            Add License
+                                        </button>
+                                    </div>
+                                    <p class="text-secondary mb-4">
+                                        Manage the intellectual property licenses registered in the system.
+                                    </p>
+                                    <div class="row row-cards" id="license-list">
+
+                                        {% for i in range(8) %}
+                                            <div class="col-lg-3">
+                                                <a class="card card-link">
+                                                    <div class="card-body">
+                                        
+                                                        <h3 class="placeholder col-10"></h3>                                                        
+                                                        <div class="placeholder placeholder-xs col-6"></div>                                 
+                                                        <div class="text-secondary placeholder col-7"></div>
+            
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                                        
                 <div class="modal modal-blur fade" id="verify-delete-user" tabindex="-1" role="dialog"
                     aria-hidden="true">
                     <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
@@ -321,6 +369,166 @@
                     </div>
                 </div>
 
+                <div class="modal modal-blur fade" id="modal-edit-license" tabindex="-1" role="dialog" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                      <div class="modal-content">
+                        <form>
+                          <div class="modal-header">
+                            <h5 class="modal-title">Edit License | <span id="editing-license-title"></span></h5>
+                            <span id="editing-license-id" hidden></span>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body">
+                            <div class="row">
+                              <div class="mb-3 col-lg-2">
+                                <label class="form-label">Key</label>
+                                <div class="row g-2">
+                                    <div class="col p-1">
+                                    <kbd id="license-edit-key"></kbd>
+                                    </div>
+                                </div>
+                              </div>
+                              <div class="mb-3 col-lg-10">
+                                <label class="form-label">Title</label>
+                                <div class="row g-2">
+                                  <div class="col">
+                                    <input type="text" class="form-control" id="license-title-input" placeholder="License Title"
+                                      required>
+                                  </div>
+                                </div>
+                              </div>
+                              <div class="col-lg-12">
+                                <div class="mb-3">
+                                  <label class="form-label">Description</label>
+                                  <textarea id="license-edit-description" class="form-control" rows="4" required
+                                    placeholder="An informative note mainly about the Terms & Conditions of the license"></textarea>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="form-label">
+                                    Icon URL
+                                    </label>
+                                <div class="col-lg-10">  
+                                    <input type="text" class="form-control" id="license-edit-icon-url" placeholder="URL pointing to the license icon">
+                                </div>
+                                <div class="col-lg-2 p-1">
+                                    <img id="license-edit-icon" src="" alt="License Icon Preview" class="img-fluid mb-2" style="max-height: 35px;">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-lg-6">
+                                    <label class="form-label">OSI (Open Source Initiative) Approved</label>
+                                    <div class="form-check" >
+                                        <input class="form-check-input" type="checkbox" id="license-edit-osi-approved">
+                                    </div>
+                                </div>
+                                <div class="col-lg-6">
+                                    <label class="form-label">Open Data Approved</label>
+                                    <div class="form-check" >
+                                        <input class="form-check-input" type="checkbox" id="license-edit-open-data-approved">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+
+                                <label class="form-label">Terms & Conditions URL</label>
+                                <div class="col-lg-12">
+                                    <input type="text" class="form-control" id="license-edit-terms-url"
+                                        placeholder="URL pointing to the license terms & conditions"> 
+                                </div>
+                            </div>
+                          </div>
+                          <div class="modal-footer" id="edit-license-footer">
+                            <a class="cursor-pointer btn btn-danger ms-auto" id="edit-license-btn" onclick="deleteLicense()">
+                                Delete
+                            </a>
+                            <a class="cursor-pointer btn btn-primary" id="edit-license-btn" onclick="saveLicense()"
+                              disabled>
+                              
+                              Save License
+                            </a>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="modal modal-blur fade" id="modal-new-license" tabindex="-1" role="dialog" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                      <div class="modal-content">
+                        <form>
+                          <div class="modal-header">
+                            <h5 class="modal-title">New License</span></h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body">
+                            <div class="row">
+                              <div class="mb-3 col-lg-3">
+                                <label class="form-label">Key</label>
+                                    <input type="text" class="form-control" id="new-license-key" placeholder="License Key"
+                                    required>
+                              </div>
+                              <div class="mb-3 col-lg-9">
+                                <label class="form-label">Title</label>
+                                <input type="text" class="form-control" id="new-license-title" placeholder="License Title"
+                                    required>                                  
+                              </div>
+                              <div class="col-lg-12">
+                                <div class="mb-3">
+                                  <label class="form-label">Description</label>
+                                  <textarea id="new-license-description" class="form-control" rows="4" required
+                                    placeholder="An informative note mainly about the Terms & Conditions of the license"></textarea>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="row mb-3">
+                                <label class="form-label">
+                                    Icon URL
+                                    </label>
+                                <div class="col-lg-10">  
+                                    <input type="text" class="form-control" id="new-license-icon-url" placeholder="URL pointing to the license icon">
+                                </div>
+                                <div class="col-lg-2 p-1">
+                                    <img id="new-license-icon" src="" alt="License Icon Preview" class="d-none mb-2" style="max-height: 35px;">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-lg-6">
+                                    <label class="form-label">OSI (Open Source Initiative) Approved</label>
+                                    <div class="form-check" >
+                                        <input class="form-check-input" type="checkbox" id="new-license-osi-approved">
+                                    </div>
+                                </div>
+                                <div class="col-lg-6">
+                                    <label class="form-label">Open Data Approved</label>
+                                    <div class="form-check" >
+                                        <input class="form-check-input" type="checkbox" id="new-license-open-data-approved">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+
+                                <label class="form-label">Terms & Conditions URL</label>
+                                <div class="col-lg-12">
+                                    <input type="text" class="form-control" id="new-license-terms-url"
+                                        placeholder="URL pointing to the license terms & conditions"> 
+                                </div>
+                            </div>
+                          </div>
+                          <div class="modal-footer" id="new-license-footer">
+                            <a class="cursor-pointer btn btn-primary ms-auto disabled" id="new-license-btn" onclick="createNewLicense()"
+                              disabled>
+                              <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
+                              Create License
+                            </a>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+
+            
                 {% include 'footer.html' %}
             </div>
         </div>
@@ -988,6 +1196,351 @@
                 if ($(this).val().trim() !== '') {
                     $(this).removeClass('is-invalid');
                 }
+            });
+
+        </script>
+
+        <script>
+
+            function showLicense(licenseId) {
+                const license = window.availableLicenses.find(l => l.id === licenseId);
+                if (!license) {
+                    return;
+                }
+                $('#editing-license-title').text(license.title);
+                $('#editing-license-id').text(license.id);              
+                $('#license-title-input').val(license.title);
+                $('#license-edit-key').text(license.key);   
+                $('#license-edit-description').val(license.description || '');
+                if(license.image_url){
+                   $('#license-edit-icon').removeClass('d-none');
+                   $('#license-edit-icon-url').val(license.image_url);
+                   $('#license-edit-icon').attr('src', license.image_url);
+                } else {
+                   $('#license-edit-icon').addClass('d-none');
+                   $('#license-edit-icon-url').val('');
+                   $('#license-edit-icon').attr('src', '');
+                }
+
+                $('#license-edit-osi-approved').prop('checked', license.osi_approved);
+                $('#license-edit-open-data-approved').prop('checked', license.open_data_approved);
+                $('#license-edit-terms-url').val(license.url || '');
+                $('#modal-edit-license').modal('show');
+            }
+
+
+            $(document).on('input', '#license-edit-icon-url', function () {
+                const url = $(this).val().trim();
+                const imgElement = $('#license-edit-icon');
+
+                if (url) {
+                    const img = new Image();
+                    img.onload = function () {
+                        imgElement.removeClass('d-none');
+                        imgElement.attr('src', url);
+                    };
+                    img.onerror = function () {
+                        imgElement.addClass('d-none');
+                        imgElement.attr('src', '');
+                    };
+                    img.src = url;
+                } else {
+                    imgElement.addClass('d-none');
+                    imgElement.attr('src', '');
+                }
+            });
+
+
+            $(document).on('input', '#new-license-icon-url', function () {
+                const url = $(this).val().trim();
+                const imgElement = $('#new-license-icon');
+
+                if (url) {
+                    const img = new Image();
+                    img.onload = function () {
+                        imgElement.removeClass('d-none');
+                        imgElement.attr('src', url);
+                    };
+                    img.onerror = function () {
+                        imgElement.addClass('d-none');
+                        imgElement.attr('src', '');
+                    };
+                    img.src = url;
+                } else {
+                    imgElement.addClass('d-none');
+                    imgElement.attr('src', '');
+                }
+            });
+
+            $(document).on('input', '#new-license-key', function () {
+                const key = $(this).val().trim();
+                const messageElement = $('#new-license-key').next('.text-danger');
+
+                if (key === "") {
+                    $('#new-license-key').removeClass('is-valid is-invalid');
+                    messageElement.remove();
+                    $('#new-license-btn').addClass('disabled');
+                } else if (/^[a-z0-9.-]+$/.test(key)) {
+                    if (!window.availableLicenses.some(l => l.key === key)) {
+                        $('#new-license-key').removeClass('is-invalid').addClass('is-valid');
+                        messageElement.remove();
+                        $('#new-license-btn').removeClass('disabled');
+                    } else {
+                        $('#new-license-key').removeClass('is-valid').addClass('is-invalid');
+                        if (!messageElement.length) {
+                            $('#new-license-key').after('<div class="text-danger mt-1">Already In Use.</div>');
+                        }
+                        $('#new-license-btn').addClass('disabled');
+                    }
+                } else {
+                    $('#new-license-key').removeClass('is-valid').addClass('is-invalid');
+                    messageElement.remove();
+                    $('#new-license-btn').addClass('disabled');
+                }
+            });
+
+            function deleteLicense(){
+                id = $('#editing-license-id').text().trim();
+                $.ajax({
+                    url: `{{url_for('catalog_blueprint.api_delete_license', entity_id='')}}${id}`,
+                    method: "DELETE",
+                    success: function (response) {
+                        if (response.success) {
+                            fetchAvailableLicenses();
+                            $('#modal-edit-license').modal('hide');
+                        } else {
+                            $('#edit-license-footer .alert').remove();
+                            $('#edit-license-footer').prepend(createAlertElement('danger', 'Failed to delete license'));
+                            setTimeout(function () {
+                                $('#edit-license-footer .alert').fadeOut(500, function () {
+                                  $(this).remove();
+                                });
+                              }, 3000);
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        $('#edit-license-footer .alert').remove();
+                        $('#edit-license-footer').prepend(createAlertElement('danger', 'Failed to delete license'));
+                        console.error("AJAX request for deleting license failed:", error);
+                        setTimeout(function () {
+                            $('#edit-license-footer .alert').fadeOut(500, function () {
+                              $(this).remove();
+                            });
+                          }, 3000);
+                    }
+                })
+            }
+
+
+            function createNewLicense() {
+
+                key = $('#new-license-key').val().trim();
+                title = $('#new-license-title').val().trim();
+                description = $('#new-license-description').val().trim();
+                imageUrl = $('#new-license-icon-url').val().trim();
+                osiApproved = $('#new-license-osi-approved').is(':checked');
+                openDataApproved = $('#new-license-open-data-approved').is(':checked');
+                termsUrl = $('#new-license-terms-url').val().trim();
+
+
+                if (key === "" || title === "") {
+                    $('#new-license-key, #new-license-title').addClass('is-invalid');
+                    return;
+                } else {
+                    $('#new-license-key, #new-license-title').removeClass('is-invalid');
+                }
+                $('#new-license-footer .alert').remove();
+                $('#new-license-footer .stelar-loader').remove();
+                $('#new-license-footer').prepend(createLoaderElement(false, true));
+
+                $.ajax({
+                    url: "{{url_for('catalog_blueprint.api_create_license')}}",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({
+                        key: key,
+                        title: title,
+                        description: description,
+                        image_url: imageUrl,
+                        osi_approved: osiApproved,
+                        open_data_approved: openDataApproved,
+                        url: termsUrl
+                    }),
+                    success: function (response) {
+                        if (response.success) {
+                            fetchAvailableLicenses();
+                            resetNewLicenseModal();
+                            $('#new-license-modal').modal('hide');
+                            $('#new-license-footer .stelar-loader').remove();
+                            $('#new-license-footer').prepend(createAlertElement('success', 'License created successfully'));
+                            setTimeout(function () {
+                                $('#new-license-footer .alert').fadeOut(500, function () {
+                                  $(this).remove();
+                                });
+                              }, 3000);
+                        } else {
+                            $('#new-license-footer .stelar-loader').remove();
+                            $('#new-license-footer .alert').remove();
+                            $('#new-license-footer').prepend(createAlertElement('danger', 'Failed to create license'));
+                            setTimeout(function () {
+                                $('#new-license-footer .alert').fadeOut(500, function () {
+                                  $(this).remove();
+                                });
+                              }, 3000);
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        $('#new-license-footer .stelar-loader').remove();
+                        $('#new-license-footer .alert').remove();
+                        $('#new-license-footer').prepend(createAlertElement('danger', 'Failed to create license'));
+                        console.error("AJAX request for creating license failed:", error);
+                        setTimeout(function () {
+                            $('#new-license-footer .alert').fadeOut(500, function () {
+                              $(this).remove();
+                            });
+                          }, 3000);
+                    }
+                })
+             
+            }
+
+            function resetNewLicenseModal(){
+                $('#new-license-title').val('');
+                $('#new-license-key').val('');
+                $('#new-license-key').removeClass('is-valid is-invalid');
+                $('#new-license-description').val('');
+                $('#new-license-icon-url').val('');
+                $('#new-license-icon').addClass('d-none');
+            }
+        
+
+            function saveLicense(){
+                $("#edit-license-footer .alert").remove();
+                $("#edit-license-footer .stelar-loader").remove();
+                $("#edit-license-footer").prepend(createLoaderElement(false, true));
+                $.ajax({
+                    url: `{{url_for('catalog_blueprint.api_patch_license', entity_id='')}}${$('#editing-license-id').text()}`,
+                    method: "PATCH",
+                    contentType: "application/json",
+                    data: JSON.stringify({
+                        title: $('#license-title-input').val().trim(),
+                        description: $('#license-edit-description').val().trim(),
+                        image_url: $('#license-edit-icon-url').val().trim(),
+                        osi_approved: $('#license-edit-osi-approved').is(':checked'),
+                        open_data_approved: $('#license-edit-open-data-approved').is(':checked'),
+                        url: $('#license-edit-terms-url').val().trim()
+                    }),
+                    success: function (response) {
+                        if (response.success) {
+                            fetchAvailableLicenses();
+                            $("#edit-license-footer .stelar-loader").remove();
+                            $('#edit-license-footer .alert').remove();
+                            $("#edit-license-footer").prepend(createAlertElement('success', 'License updated successfully'));
+                            setTimeout(function () {
+                                $('#edit-license-footer .alert').fadeOut(500, function () {
+                                  $(this).remove();
+                                });
+                              }, 3000);
+                        } else {
+                            $("#edit-license-footer .stelar-loader").remove();
+                            $('#edit-license-footer .alert').remove();
+                            $("#edit-license-footer").prepend(createAlertElement('danger', 'Failed to update license'));
+                            setTimeout(function () {
+                                $('#edit-license-footer .alert').fadeOut(500, function () {
+                                  $(this).remove();
+                                });
+                            }, 3000);
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        $("#edit-license-footer .stelar-loader").remove();
+                        $('#edit-license-footer .alert').remove();
+                        $("#edit-license-footer").prepend(createAlertElement('danger', 'Failed to update license'));
+                        console.error("AJAX request for updating license failed:", error);
+                        setTimeout(function () {
+                            $('#edit-license-footer .alert').fadeOut(500, function () {
+                              $(this).remove();
+                            });
+                        }, 3000);
+                    }
+                })
+            }
+
+            function maskLicensesWithPlaceholders(){
+                $('#license-list').empty();
+                const placeholder = `<div class="col-lg-3">
+                                                <a class="card card-link">
+                                                    <div class="card-body">
+                                        
+                                                        <h3 class="placeholder col-10"></h3>                                                        
+                                                        <div class="placeholder placeholder-xs col-6"></div>                                 
+                                                        <div class="text-secondary placeholder col-7"></div>
+            
+                                                    </div>
+                                                </a>
+                                            </div>`;
+                for (let i = 0; i < 8; i++) {
+                    $('#license-list').append(placeholder);
+                }
+            }
+
+            function renderLicense(license){
+                return `<div class="col-lg-3">
+                            <a class="card card-link cursor-pointer" title="${license.title}" onclick="showLicense('${license.id}')">
+                                <div class="card-body">               
+                                    <h3 class="text-truncate">${license.title}</h3>                                    
+                                    <h5 class="text-secondary"><kbd>${license.key}</kbd></h5>                  
+                                    <div class="d-flex justify-content-between">
+                                        <div class="ms-auto">
+                                            ${license.image_url ? `<img src="${license.image_url}" alt="${license.title} icon" style="max-height: 22px;">` : 'No Icon'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>`;
+            }
+
+
+            function renderLicenses(licenses) {
+                $('#license-list').empty();
+                licenses.forEach(license => {
+                    $('#license-list').append(renderLicense(license));
+                });
+            }
+
+            function fetchAvailableLicenses(callback) {
+                $.ajax({
+                    url: "{{url_for('catalog_blueprint.api_fetch_licenses')}}",
+                    method: "GET",
+                    success: function (response) {
+                        if (response.success) {
+                            window.availableLicenses = response.result;
+
+                            if (response.result.length > 0) {
+                                renderLicenses(response.result);
+                            } else {
+                                $('#license-list').empty();
+                                $('#license-list').text('No licenses registered yet.');
+                            }
+                
+                        } else {
+                            $('#license-list').empty();
+                            $('#license-list').text('Failed to fetch licenses.');
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        $('#license-list').empty();
+                        $('#license-list').text('Failed to fetch licenses.');
+                        console.error("AJAX request for available licenses failed:", error);
+                    }
+                });
+                if (typeof callback === "function") {
+                    callback();
+                }
+            }
+
+            $(document).ready(function () {
+                fetchAvailableLicenses();
             });
 
         </script>
