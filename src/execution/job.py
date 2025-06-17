@@ -135,6 +135,15 @@ class JobSpec:
     # Manifest creation
     # -----------------------------------
 
+    def sanitize_label(self, value):
+        value = value.lower()
+        value = re.sub(r"\s+", "-", value)
+        # Remove invalid characters (only allow a-z, 0-9, '-',)
+        value = re.sub(r"[^a-z0-9\-]", "", value)
+        # Remove leading/trailing non-alphanumeric chars
+        value = re.sub(r"^[^a-z0-9]+|[^a-z0-9]+$", "", value)
+        return value
+
     def m_args(self, engine: K8sExecEngine) -> list[str]:
         """
         Returns the arguments to be passed to the container.
@@ -184,9 +193,13 @@ class JobSpec:
 
     def m_image(self, engine: K8sExecEngine) -> str:
         """
-        Returns the image to be used for the job.
+        Returns the image to be used for the job. If no tool
+        from the cluster is used, then the image is considered
+        to be external and is returned as is.
         """
-        return engine.image_spec(self.image)
+        return (
+            engine.image_spec(self.image) if self.tool_name is not None else self.image
+        )
 
     def m_labels(self, engine: K8sExecEngine) -> dict:
         """
@@ -195,7 +208,11 @@ class JobSpec:
         return {
             "stelar.metadata.class": "task-execution",
             "stelar.task-id": self.task_info["id"],
-            "stelar.tool-name": str(self.tool_name),
+            "stelar.tool-name": (
+                self.sanitize_label(str(self.tool_name))
+                if self.tool_name
+                else "external-image"
+            ),
             "stelar.creator": self.task_info["creator"],
             "stelar.process-id": self.task_info["process_id"],
         }
@@ -236,7 +253,7 @@ class JobSpec:
         # Kubernetes job names must be DNS subdomain compliant
         # https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
         # Try to generate a name from the tool name, and check if it is valid, fall back to a safe one.
-        conv_name = self.tool_name.replace("_", "-")
+        conv_name = self.tool_name.replace("_", "-") if self.tool_name else ""
         jobname = f"task-{self.task_info['id']}-{conv_name}"
 
         # Check if the name is valid
@@ -276,7 +293,11 @@ class JobSpec:
                 template=V1PodTemplateSpec(
                     metadata=V1ObjectMeta(
                         annotations={
-                            "stelar/tool-name": str(self.tool_name),
+                            "stelar/tool-name": (
+                                self.sanitize_label(str(self.tool_name))
+                                if self.tool_name
+                                else "external-image"
+                            ),
                             "stelar/image": str(self.image),
                             "stelar/api_url": engine.api_url,
                         },
