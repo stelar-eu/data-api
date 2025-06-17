@@ -205,7 +205,7 @@
                       <path d="M4 11h16" />
                       <path d="M19 16l-2 3h4l-2 3" />
                     </svg>
-                    {{ dataset.get('metadata_created').isoformat() | datetimeformat }}
+                    {{ dataset.get('metadata_modified').isoformat() | datetimeformat }}
                   </div>
                   <div class="list-inline-item" title="Created by">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -2554,7 +2554,42 @@
         type: 'GET',
         success: function (response) {
           const data = response.result;
-          const nodes = data.nodes.map(n => {
+          // Build incoming edge map
+          const incomingEdgesMap = {};
+          data.edges.forEach(([source, target]) => {
+            if (!incomingEdgesMap[target]) {
+              incomingEdgesMap[target] = [];
+            }
+            incomingEdgesMap[target].push(source);
+          });
+
+          // Filter nodes if includeIrrelevants is false
+          let filteredNodes = data.nodes;
+          if (!includeIrrelevants) {
+            filteredNodes = data.nodes.filter(n => {
+              const t = n.type.toLowerCase();
+
+              if (t !== 'resource') {
+                return true; // keep tasks and other non-resource nodes always
+              }
+
+              if (n.id === resourceId) {
+                return true; // always keep tracked resource
+              }
+
+              // filter out resources that have no incoming edges
+              return incomingEdgesMap[n.id] && incomingEdgesMap[n.id].length > 0;
+            });
+          }
+
+          // Build valid node ID set
+          const validNodeIds = new Set(filteredNodes.map(n => n.id));
+
+          // Filter edges to keep only those with valid source and target nodes
+          const filteredEdges = data.edges.filter(([s, t]) => validNodeIds.has(s) && validNodeIds.has(t));
+
+          // Convert filtered nodes to Cytoscape elements
+          const nodes = filteredNodes.map(n => {
             const t = n.type.toLowerCase();
             const isTask = t === 'task';
             let lbl = isTask ? `${n.label}\n${formatIsoDate(n.end_date) || ''}` : n.label;
@@ -2573,7 +2608,8 @@
               }
             };
           });
-          const edges = data.edges.map(([s, t]) => ({ data: { source: s, target: t } }));
+
+          const edges = filteredEdges.map(([s, t]) => ({ data: { source: s, target: t } }));
           const cy = cytoscape({
             container: document.getElementById('lineage-container'),
             elements: [...nodes, ...edges],
@@ -2645,11 +2681,27 @@
           });
 
           cy.ready(() => {
-            setTimeout(() => {
-              const layout = cy.layout({ name: 'dagre', rankDir: 'LR' });
-              layout.run();
+            const layout = cy.layout({ name: 'dagre', rankDir: 'LR' });
+            layout.on('layoutstop', () => {
               cy.fit(cy.elements(), { padding: 50 });
-            }, 100);
+            });
+            layout.run();
+          });
+
+          $('#modal-track-lineage').on('shown.bs.modal', function () {
+            layout.run();
+          
+            layout.on('layoutstop', () => {
+              cy.resize();
+              cy.fit(cy.elements(), { padding: 50 });
+            });
+          });
+
+
+
+          window.addEventListener('resize', () => {
+            cy.resize();
+            cy.fit(cy.elements(), { padding: 50 });
           });
 
           document.getElementById('download-png').onclick = () => {
