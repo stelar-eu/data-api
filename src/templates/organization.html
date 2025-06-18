@@ -438,7 +438,7 @@
                             <h3 class="m-0">${dataset.title}</h3>
                             <div class="d-flex">
                                 <small class="text-secondary">${dataset.author}</small>
-                                <div class="ms-auto mt-3 badges">
+                                <div class="ms-auto d-flex justify-content-end flex-wrap mt-4 badges">
                                     ${dataset.tags && dataset.tags.length ? dataset.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') : ''}
                                 </div>
                             </div>
@@ -457,7 +457,8 @@
                     "title",
                     "organization",
                     "author",
-                    "tags"
+                    "tags",
+                    "metadata_modified",
                 ],
                 "limit": 4,
                 "sort": "metadata_modified desc",
