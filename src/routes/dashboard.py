@@ -259,9 +259,12 @@ def process(process_id):
 
     process = PROCESS.get_entity(process_id)
 
+    now = datetime.now()
+
     return render_template_with_s3(
         "process.html",
         process=process,
+        now=now,
         proc_tasks=(process.get("tasks") if process and "tasks" in process else []),
         PARTNER_IMAGE_SRC=get_partner_logo(),
     )
