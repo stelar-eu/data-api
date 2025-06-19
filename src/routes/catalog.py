@@ -97,7 +97,7 @@ def api_export_zenodo_dataset_id(dataset_id):
 @catalog_bp.route("/resource/<entity_id>/lineage", methods=["GET"])
 @catalog_bp.input(schema.LineageForwardBoolean, location="query")
 @catalog_bp.output(schema.APIResponse, status_code=200)
-@catalog_bp.doc(tags=["Search Operations"])
+@catalog_bp.doc(tags=["RESTful Search Operations"])
 @token_active
 @render_api_output(logger)
 def api_get_resource_lineage(entity_id, query_data):

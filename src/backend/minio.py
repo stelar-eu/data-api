@@ -83,14 +83,14 @@ class MinioClientSingleton:
     def get_client(cls) -> Minio:
         """Returns the initialized Minio client"""
         if not cls._initialized:
-            cls._initialize(cls)
+            cls._initialize()
         return cls.client
 
     @classmethod
     def get_admin(cls) -> MinioAdmin:
         """Returns the initialized MinioAdmin client."""
         if not cls._initialized:
-            cls._initialize(cls)
+            cls._initialize()
         return cls.admin
 
 
