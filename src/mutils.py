@@ -302,8 +302,8 @@ def list_buckets_with_folders(credentials):
                                 )
                             except S3Error:
                                 continue
-                            if evaluate_write_access(credentials, bucket_name, path):
-                                folders.add(path)
+
+                            folders.add(path)
                             seen[path] = True
             except Exception as e:
                 continue
