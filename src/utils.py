@@ -280,6 +280,8 @@ sql_workflow_execution_templates = {
             klms.task_execution AS tsk 
         WHERE
             tsk.workflow_uuid = %s
+        ORDER BY
+            tsk.start_date ASC
     """,
     "workflow_get_all": """SELECT pkg.title as package_title, ex.workflow_uuid as id, ex.state, start_date, end_date, value as package_id 
                            FROM klms.workflow_execution as ex
@@ -595,11 +597,9 @@ sql_workflow_execution_templates = {
     LEFT JOIN public.resource r_in ON t.input_resource_id = r_in.id
     LEFT JOIN public.resource r_out ON t.output_resource_id = r_out.id
     LEFT JOIN public.resource tracked ON tracked.id = %s
-
     LEFT JOIN klms.task_execution te ON t.task_uuid = te.task_uuid
     LEFT JOIN klms.task_tag name_tag ON t.task_uuid = name_tag.task_uuid AND name_tag.key = '__name__'
     LEFT JOIN klms.task_tag image_tag ON t.task_uuid = image_tag.task_uuid AND image_tag.key = '__image__'
-
     ORDER BY t.task_uuid, t.input_order
     """,
     "task_create_template": "INSERT INTO klms.task_execution(task_uuid, workflow_uuid, creator_user_id, state, start_date) VALUES (%s, %s, %s, %s, %s)",
