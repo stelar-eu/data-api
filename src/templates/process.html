@@ -320,11 +320,11 @@
                                         <div class="ms-auto ">
                                             <div class="input-group">
                               
-                                              <button type="button" class="btn btn-outline-primary" id="compare-tasks-button"
+                                              <button type="button" class="btn btn-outline-primary disabled" id="compare-tasks-button"
                                                 onclick="window.location.href='{{url_for('dashboard_blueprint.dataset_compare')}}'">Compare Selected
                                                 <span class="ms-1" id="tasks-compare-number">(0)</span></button>
                               
-                                              <button data-bs-toggle="dropdown" role="button" class="btn btn-outline-primary dropdown-toggle"
+                                              <button data-bs-toggle="dropdown" role="button" class="btn btn-outline-primary dropdown-toggle disabled"
                                                 datas-bs-auto-close="outside"></button>
                                               <div class="dropdown-menu dropdown-menu-end" id="compare-tasks-options">
                               
@@ -338,7 +338,7 @@
                                         <li class="step-item">
                                             <a class="card card-link "
                                                 href="{{url_for('dashboard_blueprint.task', process_id=process.id, task_id=task.get('id') )}}">
-                                                {% if task.start_date and (now - task.start_date).total_seconds() <= 7200 %}
+                                                {% if task.start_date and (now - task.start_date).total_seconds() <= 28800 %}
                                                     <div class="ribbon ribbon-top me-6 bg-primary">NEW</div>
                                                 {% endif %}
                                                 <div class="card-body p-3">

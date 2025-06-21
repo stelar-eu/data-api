@@ -288,38 +288,25 @@ def api_post_task_output(task_id, signature, json_data):
     return tasks.TASK.save_output(task_id, signature, json_data)
 
 
-@workflows_bp.route("/task/<task_id>/abort", methods=["POST"])
+@workflows_bp.route("/task/<task_id>/terminate", methods=["POST"])
 @workflows_bp.doc(tags=["Task Operations"])
-@workflows_bp.input(schema.Task_Output, location="json")
 @workflows_bp.output(schema.APIResponse, status_code=200)
 @render_api_output(logger)
 @token_active
-def api_post_task_output_nosig(task_id, json_data):
-    """
-    Set the output of a task execution. Accepts the output files created by the tool, the metrics
-    and the logs generated during the execution. The files are validated and metadata are generated
-    based on the specifications provided in the tool creation request.
-
-    Functionally, this call is similar to the "task/output" call called with a signature.
-    Instead, this call requires a valid token to be presented in the request headers.
-    The only difference with the "task/output" call is that **this call will terminate
-    a running Kubernetes job** (if applicable), whereas the "task/output" call will not.,
-
-    The raison d'etre of this call is to allow an authenticated user with the appropriate
-    permissions to terminate a task execution and post the output, at any time.
+def api_post_task_terminate(task_id):
+    """Terminate a Task Execution.
+    This will stop the task execution in the Workflow Execution Engine and mark it as failed.
 
     Args:
-        task_id: The unique identifier of the Task.
+        task_id: The unique identifier of the Task Execution.
     Returns:
         A JSON response containing success status, or error details.
     Responses:
-        - 200: Task output successfully posted.
-        - 400: Invalid task ID or missing parameters.
-        - 401: Invalid signature. Access denied.
+        - 200: Task successfully terminated.
         - 404: Task not found.
         - 500: An unknown error occurred.
     """
-    return tasks.TASK.abort_task(task_id, json_data)
+    return tasks.TASK.terminate(task_id)
 
 
 @workflows_bp.route("/task/<task_id>/signature", methods=["GET"])
