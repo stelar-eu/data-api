@@ -314,3 +314,19 @@ class K8sExecEngine(ExecEngine):
         job_id = job.metadata.uid
         job_name = job.metadata.name
         return job_id, job_name
+
+    def abort_task(self, job_id: str) -> None:
+        """Abort a task by deleting its job.
+
+        Args:
+            job_id (str): The ID of the job to delete.
+        """
+        try:
+            self.batch.delete_namespaced_job(
+                name=job_id, namespace=self.namespace, body=k8s.client.V1DeleteOptions()
+            )
+            logger.info("abort_task: deleted job with ID: %s", job_id)
+        except ApiException as e:
+            logger.error("Failed to delete job %s: %s", job_id, e)
+            raise
+            # raise RuntimeError(f"Failed to abort task {job_id}") from e

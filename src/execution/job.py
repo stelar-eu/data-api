@@ -245,6 +245,17 @@ class JobSpec:
         else:
             return f"task-{self.task_info['id']}"
 
+    def m_annotations(self, engine: K8sExecEngine) -> dict:
+        """
+        Returns the annotations to be applied to the job.
+        """
+        return {
+            "stelar/tool-name": str(self.tool_name),
+            "stelar/image": str(self.image),
+            "stelar/api_url": engine.api_url,
+            "stelar/tool-profile": self.task_info["profile"],
+        }
+
     def manifest(self, engine: K8sExecEngine) -> V1Job:
         """
         Generates a Kubernetes job manifest for the task execution.
@@ -271,15 +282,12 @@ class JobSpec:
             metadata=V1ObjectMeta(
                 name=self.m_name(engine),
                 labels=self.m_labels(engine),
+                annotations=self.m_annotations(engine),
             ),
             spec=V1JobSpec(
                 template=V1PodTemplateSpec(
                     metadata=V1ObjectMeta(
-                        annotations={
-                            "stelar/tool-name": str(self.tool_name),
-                            "stelar/image": str(self.image),
-                            "stelar/api_url": engine.api_url,
-                        },
+                        annotations=self.m_annotations(engine),
                         labels=self.m_labels(engine),
                     ),
                     spec=V1PodSpec(
