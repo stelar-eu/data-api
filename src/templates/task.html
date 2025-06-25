@@ -21,23 +21,30 @@
                 <div class="container-xl">
                     <div class="row g-2 align-items-center">
                         <div class="col">
-                            <div class="d-flex">
-                                <h3 class="page-title">
-                                    <ol class="breadcrumb breadcrumb-arrows">
-                                        <li class="breadcrumb-item"><a class="text-secondary"
-                                                href="{{ url_for('dashboard_blueprint.processes')}}">
-                                                Workflow Processes
-                                            </a>
-                                        </li>
-                                        <li class="breadcrumb-item"><a class="text-secondary"
-                                                href="{{ url_for('dashboard_blueprint.process', process_id=task.process_id)}}">
-                                                Parent Process
-                                            </a>
-                                        </li>
-                                        <li class="breadcrumb-item active"><a href="#"><span
-                                                    class="text-strong">{{ task.name or task.id }}</span></a></li>
-                                    </ol>
-                                </h3>
+
+                            
+                            <div class="d-flex align-items-center justify-content-end">
+                                <div class="col">
+                                    <div class="page-pretitle">
+                                        PROCESSES
+                                    </div>
+                                    <h3 class="page-title">
+                                        <ol class="breadcrumb breadcrumb-arrows">
+                                            <li class="breadcrumb-item"><a class="text-secondary"
+                                                    href="{{ url_for('dashboard_blueprint.processes')}}">
+                                                    Workflow Processes
+                                                </a>
+                                            </li>
+                                            <li class="breadcrumb-item"><a class="text-secondary"
+                                                    href="{{ url_for('dashboard_blueprint.process', process_id=task.process_id)}}">
+                                                    Parent Process
+                                                </a>
+                                            </li>
+                                            <li class="breadcrumb-item active"><a href="#"><span
+                                                        class="text-strong">{{ task.name or task.id }}</span></a></li>
+                                        </ol>
+                                    </h3>
+                                </div>
                                 <div class="m-2 ms-auto">
                                     <span class="me-1" id="termination-status-area"></span>
                                     <button class="btn btn-outline-danger

@@ -270,6 +270,15 @@ def process(process_id):
     )
 
 
+@dashboard_bp.route("/tasks/compare")
+@session_required
+def task_compare():
+
+    return render_template_with_s3(
+        "task_compare.html",
+    )
+
+
 @dashboard_bp.route("/task/<process_id>/<task_id>")
 @session_required
 def task(process_id, task_id):

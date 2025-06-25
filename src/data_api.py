@@ -55,6 +55,7 @@ from routes.publisher import publisher_bp
 from routes.settings import settings_bp
 from routes.users import api_user_editor, users_bp
 from routes.workflows import workflows_bp
+from routes.llm_search import llmsearch_bp
 
 # fmt: on
 
@@ -101,6 +102,7 @@ app.register_blueprint(settings_bp, url_prefix="/console/v1/settings")
 app.register_blueprint(auth_tool_bp, url_prefix="/api/v1/auth")
 app.register_blueprint(catalog_bp, url_prefix="/api/v2")
 app.register_blueprint(workflows_bp, url_prefix="/api/v2")
+app.register_blueprint(llmsearch_bp, url_prefix="/api/v2/llm")
 
 logger.info("Blueprints registered successfully.")
 logger.debug("Endpoints: %s", app.url_map)
@@ -1183,6 +1185,8 @@ def main(app):
         "MINIO_ROOT_PASSWORD": os.getenv("MINIO_ROOT_PASSWORD", "***MISSING***"),
         "MINIO_ROOT_USER": os.getenv("MINIO_ROOT_USER", "***MISSING***"),
         "MINIO_API_EXT_URL": os.getenv("MINIO_API_EXT_URL", "***MISSING***"),
+        "LLM_SEARCH_ENABLED": os.getenv("ENABLE_LLM_SEARCH", "False").lower() == "true",
+        "LLM_SEARCH_URL": os.getenv("LLM_SEARCH_URL", "***MISSING***"),
         "KEYCLOAK_EXT_URL": os.getenv("KEYCLOAK_EXT_URL", "***MISSING***"),
         "KEYCLOAK_ISSUER_URL": os.getenv("KEYCLOAK_ISSUER_URL", "***MISSING***"),
         "MAIN_EXT_URL": os.getenv("MAIN_EXT_URL", "***MISSING***"),
