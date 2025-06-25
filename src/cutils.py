@@ -28,6 +28,7 @@ from entity import (
     PackageSchema,
 )
 from exceptions import DataError, NotFoundError, ConflictError
+from authz import authorize
 from routes.users import api_user_editor
 from search import resource_search
 from spatial import GeoJSONGeom, Spatial
@@ -319,6 +320,28 @@ class ResourceEntity(CKANEntity):
         self.operations.remove("fetch")
         self.operations.append("search")
         self.search_query_schema = schema.ResourceSearchQuery()
+
+    def create_entity(self, init_data):
+        """Create a new entity.
+
+        This method is used to create a new resource. Authorization check
+        is relying on whether the relevant permission add_resource is granted
+        for the package the resource is destined to be added to.
+
+        Args:
+            init_data: The data to initialize the entity with.
+        Returns:
+            The created entity object.
+        """
+        init_data["package_id"] = str(init_data["package_id"])  # Normalize UUID
+        authorize(init_data, "resource", "create")
+        authorize(
+            init_data["package_id"],
+            PackageEntity.resolve_type(init_data["package_id"]),
+            "add_resource",
+        )
+
+        return self.create(init_data)
 
     def track_lineage(self, resource_id: str, depth: Optional[int] = None):
         """Return the lineage of a resource. Thus meaning

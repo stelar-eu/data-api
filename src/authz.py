@@ -6,6 +6,7 @@ import flask
 
 from exceptions import AuthorizationError, InternalException
 from kutils import current_user
+import os
 
 
 def generic_action(action, entity):
@@ -62,6 +63,8 @@ ACTIONS = [
     "exec",
     # Users
     "edit_roles",
+    # Resource
+    "add_resource",
 ]
 
 
@@ -89,6 +92,10 @@ def authorize(resource, entity, action):
     ------
         AuthorizationError if authorization fails.
     """
+
+    if os.getenv("AUTHZ_DISABLED", True):
+        # Authorization is disabled, so we return without checking
+        return
 
     from authz_module import (
         Resource,
