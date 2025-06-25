@@ -881,7 +881,10 @@ def get_user(user_id):
             "active": active_status,
             "email_verified": email_verified,
             "is_admin": (
-                True if "is_admin" in user_representation["attributes"] else False
+                True
+                if user_representation.get("attributes")
+                and "is_admin" in user_representation["attributes"]
+                else False
             ),
         }
 
