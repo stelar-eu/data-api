@@ -52,6 +52,9 @@ class MinioClientSingleton:
                     ),
                     read=read_timeout,
                 )
+
+                logger.debug(f"Creating PoolManager with num_pools={num_pools}, maxsize={maxsize}, block={block}")
+
                 pool = urllib3.PoolManager(
                     num_pools=num_pools,
                     maxsize=maxsize,

@@ -50,8 +50,6 @@ new_permissions = {}
 # Global list for maintaining the currently defined roles
 role_names_list = []
 
-role_names_list = []
-
 
 class AuthorizationModule:
     """
@@ -265,6 +263,7 @@ class ResourceSpecPermissionsType(AuthorizationModule):
 
         ku.create_realm_role(self.keycloak_admin, role_name)
         if role_name not in role_names_list:
+            logger.info("Adding role name to role_names_list")
             role_names_list.append(role_name)
 
         # Normalize the action field to a list if it is not already.
@@ -737,8 +736,18 @@ class UMspec(ResourceSpec):
 
         user_info = ku.current_user()
         for member in members:
-            if user_info["sub"] in member and self.capacity in member:
-                return True
+            # if user_info["sub"] in member and self.capacity in member:
+            #     return True
+            if user_info["sub"] in member:
+                # Check if the capacity is a list and if the user has any of the capacities.
+                if isinstance(self.capacity, list):
+                    for cap in self.capacity:
+                        if cap in member:
+                            return True
+                else:
+                    # If capacity is not a list, check directly.
+                    if self.capacity in member:
+                        return True
         return False
 
     def auth(self, resource) -> bool:
@@ -901,17 +910,24 @@ def check_read_access_for_resources(resource, current_user) -> list:
     Returns:
         bool: True if the resource is accessible, otherwise False.
     """
+    package = None
     if resource is None:
         return None
     logger.info("Resource: %s", resource)
     # Check if the resource belongs to a package that the user has access to
-    for entity in ["dataset", "workflow", "process", "tool"]:
+    for entity in ["dataset", "process", "workflow", "tool"]:
+        if entity == "process":
+            try:
+                package = Entity.REGISTRY[entity].get_cached(resource.get("process_id"))
+                break
+            except Exception:
+                logger.info("Error fetching process: %s", resource.get("process_id"))
         try:
             package = Entity.REGISTRY[entity].get_cached(resource.get("package_id"))
+            break
         except Exception:
             logger.info("Error fetching package: %s", resource.get("package_id"))
-            continue
-
+            
     logger.info("Package: %s", package)
     if package is None:
         return None
