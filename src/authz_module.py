@@ -899,8 +899,8 @@ def check_read_access_for_packages(package, current_user) -> list:
         logger.info("Package is public, access granted")
         return True
 
-      
-def check_read_access_for_resources(resource,current_user) -> list:
+
+def check_read_access_for_resources(resource, current_user) -> list:
     """
     Checks if the requested resource is accessible to the current user.
     If the resource belongs to a package that the current user has access to, it returns True.
@@ -933,7 +933,7 @@ def check_read_access_for_resources(resource,current_user) -> list:
         return None
 
     return check_read_access_for_packages(package, current_user)
-    
+
 
 def check_accessible_packages(fq):
     """
@@ -942,39 +942,27 @@ def check_accessible_packages(fq):
     Args:
         fq (str): The filter query string.
     Returns:
-        fq: The updated filter query string including the permission labels that solr should use to filter the packages.
+        fq: The updated filter query string including the permission labels
+        that solr should use to filter the packages.
 
     """
-    from backend.ckan import ckan_request
-
-    logger.info("fq before: %s", fq)
     fq = [f for f in fq if "permission_labels" not in f]
-    logger.info("fq after: %s", fq)
 
     fq_org_parts = []
     user_info = ku.current_user()
-    organizations_of_user = ckan_request("organization_list", params="all_fields=true")
-    logger.info("Organizations of user: %s", organizations_of_user)
-    logger.info("User info: %s", user_info["sub"])
-    for org in organizations_of_user:
-        user_members = fetch_user_group_members(org["id"], True)
-        logger.info("User members: %s", user_members)
-        for member in user_members:
-            if user_info["sub"] in member:
-                # If the user is logged in, we can use the 'fq' parameter to filter
-                # the results by the user's organization.
-                fq_org_parts.append(f" member-{org['id']}")
+    organizations_of_user = sql_utils.get_user_organizations(user_info["sub"])
 
-    logger.info("fq_org_parts: %s", fq_org_parts)
+    for org in organizations_of_user:
+        fq_org_parts.append(f"member-{org}")
 
     # Construct Solr `fq` string with ORs only between entries
     if fq_org_parts:
         fq_query = (
-            "permission_labels:(capacity:public OR" + " OR ".join(fq_org_parts) + ")"
+            "capacity:public OR permission_labels:(" + " OR ".join(fq_org_parts) + ")"
         )
         fq.append(fq_query)
     else:
-        fq_query = "permission_labels:(capacity:public)"
+        fq_query = "capacity:public"
         fq.append(fq_query)
 
     return fq

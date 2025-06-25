@@ -31,6 +31,7 @@ from processes import PROCESS
 from tasks import TASK
 from tools import TOOL
 from cutils import TAG, ORGANIZATION, DATASET, RESOURCE
+from licenses import LICENSE
 from auth import admin_required
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
@@ -258,11 +259,23 @@ def process(process_id):
 
     process = PROCESS.get_entity(process_id)
 
+    now = datetime.now()
+
     return render_template_with_s3(
         "process.html",
         process=process,
+        now=now,
         proc_tasks=(process.get("tasks") if process and "tasks" in process else []),
         PARTNER_IMAGE_SRC=get_partner_logo(),
+    )
+
+
+@dashboard_bp.route("/tasks/compare")
+@session_required
+def task_compare():
+
+    return render_template_with_s3(
+        "task_compare.html",
     )
 
 
@@ -363,38 +376,26 @@ def catalog():
 @dashboard_bp.route("/catalog/<dataset_id>", methods=["GET", "POST"])
 @session_required
 def dataset_detail(dataset_id):
-    if request.method == "POST":
-        if request.form.get("dataset_delete"):
-            try:
-                id = request.form.get("dataset_delete")
-                if id == dataset_id:
-                    cutils.delete_package(id)
-                    return redirect(url_for("dashboard_blueprint.catalog"))
-            except:
-                return redirect(url_for("dashboard_blueprint.catalog"))
-        else:
-            return redirect(url_for("dashboard_blueprint.catalog"))
+    metadata_data = None
+    try:
+        metadata_data = cutils.get_package(id=dataset_id)
+    except ValueError:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+    except Exception:
+        return redirect(url_for("dashboard_blueprint.catalog"))
+
+    # Tool packages should redirect to the tool view
+    if metadata_data.get("type") == "tool":
+        return redirect(url_for("dashboard_blueprint.tool", tool_id=dataset_id))
+
+    if metadata_data:
+        return render_template_with_s3(
+            "catalog_view.html",
+            dataset=metadata_data,
+            PARTNER_IMAGE_SRC=get_partner_logo(),
+        )
     else:
-        metadata_data = None
-        try:
-            metadata_data = cutils.get_package(id=dataset_id)
-        except ValueError as e:
-            return redirect(url_for("dashboard_blueprint.catalog"))
-        except Exception as e:
-            return redirect(url_for("dashboard_blueprint.catalog"))
-
-        # Tool packages should redirect to the tool view
-        if metadata_data.get("type") == "tool":
-            return redirect(url_for("dashboard_blueprint.tool", tool_id=dataset_id))
-
-        if metadata_data:
-            return render_template_with_s3(
-                "catalog_view.html",
-                dataset=metadata_data,
-                PARTNER_IMAGE_SRC=get_partner_logo(),
-            )
-        else:
-            return redirect(url_for("dashboard_blueprint.catalog"))
+        return redirect(url_for("dashboard_blueprint.catalog"))
 
 
 @dashboard_bp.route("/catalog/<dataset_id>/annotate")
@@ -445,22 +446,50 @@ def dataset_relationships(dataset_id):
 @session_required
 def viewResource(resource_id):
     config = current_app.config["settings"]
+    host = config.get("MAIN_EXT_URL")
+
     if resource_id:
         try:
             minio_console_url = config.get("S3_CONSOLE_URL").replace(
                 "login", "browser/"
             )
-            resource_mtd = cutils.get_resource(id=resource_id)
-            url = resource_mtd.get("url")
+            resource = RESOURCE.get_entity(resource_id)
+            try:
+                package = DATASET.get_entity(resource.get("package_id"))
+            except Exception:
+                try:
+                    package = PROCESS.get_entity(resource.get("package_id"))
+                except Exception:
+                    package = None
+
+            s3_link = None
+
+            url = resource.get("url")
             if url and url.startswith("s3://"):
-                url = url.replace("s3://", minio_console_url)
-                resource_mtd["url"] = url
+                s3_link = url.replace("s3://", minio_console_url)
+
+            s3_endpoint = (
+                config.get("MINIO_API_SUBDOMAIN") + "." + config.get("KLMS_DOMAIN_NAME")
+            )
+            creds = mutils.get_temp_minio_credentials(kutils.current_token())
+
+            embed_uri = (
+                f"/previewer/?embed=true"
+                f"&access_key={quote(creds['AccessKeyId'])}"
+                f"&secret_key={quote(creds['SecretAccessKey'])}"
+                f"&session_token={quote(creds['SessionToken'])}"
+                f"&s3_endpoint={quote(s3_endpoint)}"
+                f"&s3_path={quote(resource.get('url'))}"
+            )
             return render_template_with_s3(
                 "resource.html",
+                S3_LINK=s3_link,
+                GUI_URL=host + embed_uri,
                 PARTNER_IMAGE_SRC=get_partner_logo(),
-                resource=resource_mtd,
+                resource=resource,
+                package=package,
             )
-        except:
+        except Exception:
             return redirect(url_for("dashboard_blueprint.catalog"))
     else:
         return redirect(url_for("dashboard_blueprint.catalog"))
@@ -481,7 +510,9 @@ def visualize(profile_id):
 
     profile_file = resource.get("url")
 
-    s3_endpoint = "minio.stelar.gr"
+    s3_endpoint = (
+        config.get("MINIO_API_SUBDOMAIN") + "." + config.get("KLMS_DOMAIN_NAME")
+    )
     creds = mutils.get_temp_minio_credentials(kutils.current_token())
 
     embed_uri = (
@@ -598,7 +629,7 @@ def tool(tool_id):
         if repo_info:
             tool["git_user"], tool["git_repo"] = repo_info
 
-    if "repository" in tool:
+    if "repository" in tool and tool["repository"] is not None:
         registry = current_app.config["settings"].get("REGISTRY_EXT_URL")
         if registry:
             registry = re.sub(r"^https?://", "", registry)
@@ -869,7 +900,7 @@ def signup():
                 vftoken = hashlib.sha256(plain.encode("utf-8")).hexdigest()
                 # Send verification email
                 send_verification_email(
-                    email, vftoken=vftoken, id=new_uid, fullname=fullname
+                    email, vftoken=vftoken, id=new_uid["id"], fullname=fullname
                 )
                 # Registration was succesful
                 return render_template("signup.html", STATUS="SUCCESS")

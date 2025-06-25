@@ -21,24 +21,40 @@
                 <div class="container-xl">
                     <div class="row g-2 align-items-center">
                         <div class="col">
-                            <div class="d-flex">
-                                <h3 class="page-title">
-                                    <ol class="breadcrumb breadcrumb-arrows">
-                                        <li class="breadcrumb-item"><a class="text-secondary"
-                                                href="{{ url_for('dashboard_blueprint.processes')}}">
-                                                Workflow Processes
-                                            </a>
-                                        </li>
-                                        <li class="breadcrumb-item"><a class="text-secondary"
-                                                href="{{ url_for('dashboard_blueprint.process', process_id=task.process_id)}}">
-                                                Parent Process
-                                            </a>
-                                        </li>
-                                        <li class="breadcrumb-item active"><a href="#"><span
-                                                    class="text-strong">{{ task.name or task.id }}</span></a></li>
-                                    </ol>
-                                </h3>
-                                <div class="m-0 ms-auto h2 d-flex align-items-center justify-content-end">
+
+                            
+                            <div class="d-flex align-items-center justify-content-end">
+                                <div class="col">
+                                    <div class="page-pretitle">
+                                        PROCESSES
+                                    </div>
+                                    <h3 class="page-title">
+                                        <ol class="breadcrumb breadcrumb-arrows">
+                                            <li class="breadcrumb-item"><a class="text-secondary"
+                                                    href="{{ url_for('dashboard_blueprint.processes')}}">
+                                                    Workflow Processes
+                                                </a>
+                                            </li>
+                                            <li class="breadcrumb-item"><a class="text-secondary"
+                                                    href="{{ url_for('dashboard_blueprint.process', process_id=task.process_id)}}">
+                                                    Parent Process
+                                                </a>
+                                            </li>
+                                            <li class="breadcrumb-item active"><a href="#"><span
+                                                        class="text-strong">{{ task.name or task.id }}</span></a></li>
+                                        </ol>
+                                    </h3>
+                                </div>
+                                <div class="m-2 ms-auto">
+                                    <span class="me-1" id="termination-status-area"></span>
+                                    <button class="btn btn-outline-danger
+                                        {% if task.exec_state in ['succeeded', 'failed'] or not task.image  %}disabled{% endif %}"
+                                            onclick="terminateTask('{{ task.id }}')" id="terminate-task-btn">
+                                        <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-power"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 6a7.75 7.75 0 1 0 10 0" /><path d="M12 4l0 8" /></svg>
+                                        Terminate
+                                    </button>
+                                </div>
+                                <div class="m-0 ms-2 h2 d-flex align-items-center justify-content-end">
                                     <span id="task-state-text" class="ms-2 me-1">{{ task.exec_state |
                                         capitalize }}</span>
                                     <span id="task-state-badge"
@@ -484,7 +500,7 @@
                                     <thead>
                                         <tr>
                                             <th>Parameter</th>
-                                            <th class="text-end">Value</th>
+                                            <th class="text-end w-75">Value</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -495,7 +511,11 @@
                                                 <div>{{ key }}</div>
                                             </td>
                                             <td class="w-3 fw-bold text-end">
-                                                {{ value }}
+                                                {% if value is mapping %}
+                                                    <pre style="text-align: left; white-space: pre-wrap;">{{ value | tojson(indent=2) }}</pre>
+                                                    {% else %}
+                                                    {{ value }}
+                                                {% endif %}
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -720,7 +740,7 @@
             Object.keys(metrics).forEach(key => {
                 let value = metrics[key];
                 if (typeof value === 'object' && value !== null) {
-                value = `<pre style="text-align: left; white-space: pre-wrap;">${JSON.stringify(value, null, 2)}</pre>`;
+                    value = `<pre style="text-align: left; white-space: pre-wrap;">${JSON.stringify(value, null, 2)}</pre>`;
                 }
                 const row = `<tr>
                         <td><div>${key}</div></td>
@@ -750,8 +770,10 @@
             if (taskStateBadge) {
                 if (newState === 'succeeded') {
                     taskStateBadge.className = 'status-indicator status-green';
+                    $('#terminate-task-btn').addClass('disabled');
                 } else if (newState === 'failed') {
                     taskStateBadge.className = 'status-indicator status-red';
+                    $('#terminate-task-btn').addClass('disabled');
                 } else if (newState === 'created') {
                     taskStateBadge.className = 'status-indicator status-secondary';
                 } else {
@@ -777,6 +799,52 @@
                 }
             }
 
+        }
+
+
+        function terminateTask() {
+            if (confirm("Are you sure you want to terminate this task? This action cannot be undone.")) {
+
+                $('#terminate-task-btn').addClass('disabled');
+                $('#termination-status-area').prepend(createLoaderElement(true, false));
+                $('#termination-status-area .stelar-symbol').remove();
+                $('#termination-status-area .stelar-loader').remove();
+
+                $.ajax({
+                    url: `{{ url_for('rest_workflows_blueprint.api_post_task_terminate', task_id=task.id) }}`,
+                    method: 'POST',
+                    success: function (response) {
+                        $('#termination-status-area .stelar-symbol').remove();
+                        $('#termination-status-area .stelar-loader').remove();
+                       
+                        if (response.success) {
+                            $('#termination-status-area').prepend(createGreenTick());
+                            setTimeout(function () {
+                                $('#termination-status-area .stelar-symbol').fadeOut(500, function () {
+                                    $(this).remove();
+                                });
+                            }, 3000);
+                            loadTaskMetadata();
+                            fetchTaskJobs();
+                        }
+                    },
+                    error: function (xhr) {
+                        $('#termination-status-area .stelar-symbol').remove();
+                        $('#termination-status-area .stelar-loader').remove();
+                        if (xhr.status === 401 || xhr.status === 403) {
+                            window.location.href = '/';
+                        } else {
+                            $('#termination-status-area').prepend(createRedCross());
+                            setTimeout(function () {
+                                $('#termination-status-area .stelar-symbol').fadeOut(500, function () {
+                                    $(this).remove();
+                                });
+                            }, 3000);
+                            console.error(xhr);
+                        }
+                    }
+                });
+            }
         }
 
         var loadTaskMetadataInterval = setInterval(loadTaskMetadata, 8000);

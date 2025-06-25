@@ -23,7 +23,9 @@ from exceptions import (
     DataError,
     NotAllowedError,
     NotFoundError,
+    InternalException,
 )
+from execution.job import JobSpec
 from mutils import expand_wildcard_path, get_temp_minio_credentials
 from processes import PROCESS
 from tools import TOOL
@@ -107,7 +109,7 @@ logger = logging.getLogger(__name__)
 
 class TaskDatasetDictSchema(Schema):
     name = fields.String(
-        required=True, validate=lambda s: re.match(r"^[a-zA-Z0-9_-]+$", s) is not None
+        required=True, validate=lambda s: re.match(r"^[a-z0-9_-]+$", s) is not None
     )
     owner_org = fields.String(
         required=True, validate=lambda s: re.match(r"^[a-z0-9-]+$", s) is not None
@@ -852,7 +854,6 @@ class Task(Entity):
         secrets = spec.get("secrets")
         parameters = spec.get("parameters")
         tags = spec.get("tags", {})
-        image = spec.get("image")
         tool = spec.get("tool")
 
         # Validate the process existence
@@ -911,62 +912,147 @@ class Task(Entity):
             if outputs is not None:
                 self.parse_outputs(task_id, outputs)
 
-            # If the task is to be executed in the cluster, create the task execution
-            # on the engine and store the container_id and job_id in the database as task tags.
+            # Create the task signature
+            # Prepare task info to pass to the job spec
+            task_signature = self.generate_signature(task_id)
+            task_info = {
+                "creator": creator_user,
+                "id": task_id,
+                "process_id": process_id,
+                "token": token,
+                "signature": task_signature,
+            }
 
-            # If tool and image are provided construct
-            if tool:
-                local_images = tool_entity.get("images")
-
-                if local_images:
-                    if image is None:
-                        # get the latest image
-                        image = local_images[0].get("name")
-                    else:
-                        for local_image in local_images:
-                            if local_image.get("name") == image:
-                                image = local_image.get("name")
-                                break
-                        else:
-                            raise NotFoundError(
-                                tool,
-                                message=f"Image '{image}' not found in tool images.",
-                            )
-
-                registry = current_app.config["settings"].get("REGISTRY_EXT_URL")
-                if registry:
-                    registry = re.sub(r"^https?://", "", registry)
-                    image = (
-                        registry
-                        + "/stelar/"
-                        + tool_entity.get("repository")
-                        + ":"
-                        + image
-                    )
+            # A job profile is constructed if tool or image are provided, else None.
+            job_spec = self.get_job_spec(spec, tool_entity, task_info)
 
             # Store the name and image of the task in the tags table.
             if "tool" in spec:
                 tags["__tool__"] = spec["tool"]
             if "name" in spec:
                 tags["__name__"] = spec["name"]
-            if "tool" in spec or "image" in spec:
-                tags["__image__"] = image
+            if job_spec is not None:
+                tags["__image__"] = job_spec.image
 
-                if image:
-                    engine = execution.exec_engine()
-                    token = "Bearer " + token
-                    task_signature = self.generate_signature(task_id)
-                    tags["container_id"], tags["job_id"] = engine.create_task(
-                        image, token, task_id, task_signature
-                    )
+                engine = execution.exec_engine()
+                tags["container_id"], tags["job_id"] = engine.create_task(job_spec)
 
             sql_utils.task_execution_update(task_id, "created", tags=tags)
 
             return {
                 "id": task_id,
                 "job_id": tags.get("job_id", "__external__"),
-                "signature": self.generate_signature(task_id),
+                "signature": task_signature,
             }
+
+    def get_job_spec(self, spec, tool_entity, task_info) -> JobSpec | None:
+        """From a task spec, generate a JobSpec object
+
+        Args:
+            spec: The task spec as a dictionary.
+            tool_entity: The tool entity if the tool is provided, else None.
+            task_info: A dictionary containing task information such as creator,
+                       id, token, and signature.
+
+        Returns:
+            A JobSpec object if a tool or image is provided, else None.
+
+        Raises:
+            NotFoundError: If the image is not found in the tool images.
+        """
+
+        tool = spec.get("tool")
+        image = spec.get("image")
+
+        if not tool and not image:
+            # An external task
+            return None
+        elif not tool:
+            # A task using an image from a public registry.
+            # TODO: This should require a special permission or something
+            return JobSpec(None, image, {}, task_info)
+        else:
+            # tool is provided and it has been converted to an entity
+            # succhesfully (else, a NotFoundError would have been raised)
+            assert tool_entity is not None
+
+        # ------------------------------------
+        # Logic:  4 cases:
+        # 1. Neither tool nor image is provided
+        #    (external task, no image)
+        #    (handled by the None return above)
+        #
+        # 2. Image is provided, tool is not
+        #    (handled by the JobProfile(None, image, {}) return above)
+        #
+        # 3. Tool and image are provided: image is a "profile name" N.
+        #    If a profile named N exists in the tool entity, use it.
+        #    -  If the profile names an image, use that, else
+        #       use N as the image name as well!
+        #    If no profile is named N, use the "default" profile but
+        #     override the image name to be N.
+        #
+        # 4. Tool is provided, image is not.
+        #    Use the default profile.
+        #    - If the default profile names an image, use that,
+        #    - else, if there is just one image use that,
+        #    - else, raise NotFoundError
+        #
+        # ---------------------------------------
+        # Default profile:
+        #  if tool.profiles exists (a dict) and there is a member
+        #  named "default", use that as the default profile.
+        #  Else, use {}
+        # ---------------------------------------
+
+        local_images = tool_entity.get("images")
+
+        profiles = tool_entity.get("profiles", {})
+        default_profile = profiles.get("default", {})
+
+        N = image
+
+        if N:
+            if N in profiles:
+                # Case 3: Tool and image are provided, image is a profile name N.
+                profile = profiles[N].copy()
+                if "image" in profile:
+                    image = profile["image"]
+                else:
+                    # Use the profile name as the image name
+                    image = N
+            else:
+                # use the default profile, but override the image name
+                profile = default_profile.copy()
+                image = N  # Not really needed, but for clarity
+        else:
+            # Case 4: Tool is provided, image is not.
+            profile = default_profile.copy()
+            if "image" in profile:
+                image = profile["image"]
+            else:
+                # If there is no image in the default profile, use the first local image
+                if local_images and len(local_images) == 1:
+                    image = local_images[0].get("name")
+                else:
+                    raise NotFoundError(
+                        tool,
+                        message=f"Could not determine default image for tool ({len(local_images)} images).",
+                    )
+
+        # Construct the local image interpreting 'image' as a tag
+        # First, check that the specified image exists in the tool images
+        if image not in [img.get("name") for img in local_images]:
+            raise NotFoundError(
+                tool,
+                message=f"Image '{image}' not found in tool images.",
+            )
+        tool_name = tool_entity["name"]
+        repo = tool_entity.get("repository", tool_name)
+        image_spec = f"{repo}:{image}"
+
+        # If we reach here, we have a valid image and tool
+        return JobSpec(tool_name, image_spec, profile, task_info)
 
     def create(self, init_data):
         """Creates a new Task under a Process according to spec"""
@@ -1241,6 +1327,44 @@ class Task(Entity):
                         }
                     )["id"]
                     return res_id
+
+    def terminate(self, id: uuid.UUID):
+        """Terminates a Task execution in the database.
+
+        The termination is done by setting the state of the Task to 'terminated'.
+        The termination is only allowed if the Task is in 'created' or 'running' state.
+        The signature is used to verify the request and ensure that only the creator
+        of the Task can terminate it.
+
+        Args:
+            id: The ID of the Task
+            signature: The signature of the Task to validate.
+
+        Raises:
+            NotFoundError: If the Task does not exist.
+            ConflictError: If the Task is already terminated or in a state that does not allow termination.
+            AuthorizationError: If the signature is invalid.
+        """
+        # Validate the task existence
+        self.validate_task(id)
+
+        task = sql_utils.task_execution_read(id)
+
+        if task["exec_state"] not in ["created", "running"]:
+            raise ConflictError(
+                f"Task '{id}' is already terminated or in a state that does not allow manual termination."
+            )
+        # Check if the task is internally running. Only then we can terminate it.
+        elif "__image__" in task.get("tags", {}):
+            engine = execution.exec_engine()
+
+            try:
+                engine.kill_task(str(id))
+                self.set_exec_state(id, "failed")
+            except Exception:
+                raise InternalException(
+                    f"Failed to terminate task '{id}' in the execution engine."
+                )
 
     def save_output(self, id: uuid.UUID, signature: str, spec):
         """Saves the output of a Task execution in the database upon spec.

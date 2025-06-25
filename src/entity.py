@@ -47,15 +47,17 @@ from marshmallow import EXCLUDE, SchemaOpts, missing, post_dump, pre_load
 from psycopg2 import sql
 
 import authz_module
+import kutils as ku
 import schema
 from authz import authorize, generic_action
 from backend.ckan import ckan_request, filter_list_by_type
 from backend.pgsql import execSql, transaction
 from context import entity_cache
 from exceptions import BackendLogicError, DataError, InternalException, NotFoundError
+from licenses import LICENSE
 from search import entity_search
 from tags import tag_object_to_string, tag_string_to_object
-import kutils as ku
+from utils import is_valid_uuid
 
 logger = logging.getLogger(__name__)
 
@@ -283,6 +285,9 @@ class Entity:
         raise NotImplementedError
 
     def patch(self, eid: str, patch_data):
+        raise NotImplementedError
+
+    def search(self, query_data: dict) -> list:
         raise NotImplementedError
 
 
@@ -536,11 +541,11 @@ UserOrgCapacity = create_capacity_schema(
 )
 
 
-def db_fetch_entity_extras(eid: str, table: str):
+def db_fetch_entity_extras(eid_or_name: str, table: str):
     """Fetch the extras for an entity from the database.
 
     Arguments:
-        eid: the ID of the entity
+        eid_or_name: the ID or name of the entity
         table: the name of the table to fetch from. This should be
             either 'package' or 'group'
     Returns:
@@ -548,6 +553,21 @@ def db_fetch_entity_extras(eid: str, table: str):
     """
     with transaction() as conn:
         with conn.cursor() as cur:
+            # Convert eid_or_name to a valid UUID
+            if is_valid_uuid(eid_or_name):
+                eid = eid_or_name
+            else:
+                cur.execute(
+                    sql.SQL("SELECT id FROM {table} WHERE name = %s").format(
+                        table=sql.Identifier(table),
+                    ),
+                    [eid_or_name],
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise NotFoundError(f"{table} {eid_or_name} not found")
+                eid = row[0]
+
             cur.execute(
                 sql.SQL("SELECT key, value FROM {table} WHERE {eid} = %s").format(
                     table=sql.Identifier(f"{table}_extra"),
@@ -606,6 +626,12 @@ class EntityWithExtras(CKANEntity):
             ):
                 # Fetch the full 'extras' object directly from the database
                 curextras = db_fetch_entity_extras(current_obj, self.extras_table)
+                logger.debug(
+                    "Fetched current extras for %s %s: %s",
+                    self.extras_table,
+                    current_obj,
+                    curextras,
+                )
 
                 # Add the curextras object to the update data
                 update_extras = update_data.setdefault("extras", {})
@@ -956,6 +982,24 @@ class EntityWithMembers(EntityWithExtras):
             context=context,
         )
 
+    def fetch(self, limit: Optional[int] = None, offset: Optional[int] = None):
+        """Fetch the entities of this type. Specifically, in the organization
+        and group entities, CKAN offers the ability to return the full representation
+        of all entities without having to call the `entity_show` method for each entity.
+
+        Args:
+            limit: The maximum number of entities to return.
+            offset: The offset to start fetching entities from.
+        Returns:
+            A list of entity objects.
+        """
+        self.check_limit_offset(limit, "limit")
+        self.check_limit_offset(offset, "offset")
+        ents = ckan_request(
+            self.ckan_api_list, limit=limit, offset=offset, all_fields=True
+        )
+        return ents
+
     def remove_member(
         self, eid: str, member_id: str, member_kind: str, context: dict = {}
     ):
@@ -1046,6 +1090,23 @@ class PackageEntity(EntityWithExtras):
             return None
         return result[0]["id"]
 
+    @classmethod
+    def resolve_type(cls, name_or_id: str) -> str | None:
+        """Resolve a package name or ID to its type.
+
+        This method is used to resolve a name or ID to its type.
+        """
+        sql_query = sql.SQL(
+            """\
+            SELECT type
+            FROM public.package
+            WHERE state = 'active' AND (id = %s OR name = %s)"""
+        )
+        result = execSql(sql_query, [name_or_id, name_or_id])
+        if not result:
+            return None
+        return result[0]["type"]
+
     def filter_ids(self, idlist: list[str]) -> list[dict]:
         """Filter the list of packages by ID, leaving only packages of one type."""
         return filter_list_by_type(idlist, self.package_type)
@@ -1055,6 +1116,13 @@ class PackageEntity(EntityWithExtras):
         return filter_list_by_type(idlist, self.package_type, idattr="name")
 
     def create(self, init_data):
+        """Create an entity in CKAN.
+
+        Args:
+            init_data: The data to create the entity with.
+        Returns:
+            The created entity object.
+        """
         # Make sure we have the two compulsory fields
         if "name" not in init_data:
             raise DataError("Missing name")
@@ -1062,10 +1130,51 @@ class PackageEntity(EntityWithExtras):
             raise DataError("Missing owner_org")
         if "type" in init_data and init_data["type"] != self.package_type:
             raise DataError(f"Invalid type: {init_data['type']}")
+        if "license_id" in init_data:
+            LICENSE.validate(init_data["license_id"])
 
         # Force this!
         init_data["type"] = self.package_type
-        return super().create(init_data)
+
+        context = {"entity": self.name}
+
+        ckinit_data = self.create_to_ckan(init_data)
+
+        obj = ckan_request(self.ckan_api_create, context=context, json=ckinit_data)
+        logger.info("Created %s id=%s", self.name, obj["id"])
+
+        # Load the object from CKAN
+        loaded_obj = self.load_from_ckan(obj)
+
+        return loaded_obj
+
+    def update(self, eid: str, entity_data):
+        """Update an entity in CKAN. Check the license ID if present.
+
+        Args:
+            eid: The ID of the entity to update.
+            entity_data: The data to update the entity with.
+        Returns:
+            The updated entity object.
+        """
+        if "license_id" in entity_data:
+            LICENSE.validate(entity_data["license_id"])
+
+        return super().update(eid, entity_data)
+
+    def patch(self, eid: str, patch_data):
+        """Patch an entity in CKAN. Check the license ID if present.
+
+        Args:
+            eid: The ID of the entity to patch.
+            patch_data: The data to patch the entity with.
+        Returns:
+            The patched entity object.
+        """
+        if "license_id" in patch_data:
+            LICENSE.validate(patch_data["license_id"])
+
+        return super().patch(eid, patch_data)
 
     def search(self, query_spec: dict) -> list:
         """Search for packages.
@@ -1186,6 +1295,9 @@ class PackageSchema(Schema):
     url = fields.String(validate=validators.Length(0, 200), allow_none=True)
     version = fields.String(validate=validators.Length(0, 100), allow_none=True)
 
+    # License stuff
+    license_id = fields.String(allow_none=True, load_default=None)
+
     resources = fields.List(fields.Dict(), dump_only=True)
     groups = fields.List(fields.Dict(), dump_only=True)
     tags = fields.List(fields.String)
@@ -1218,6 +1330,7 @@ class PackageCKANSchema(EntityWithExtrasCKANSchema):
     author_email = fields.String(allow_none=True)
     maintainer = fields.String(allow_none=True)
     maintainer_email = fields.String(allow_none=True)
+    license_id = fields.String(allow_none=True, load_default=None)
     notes = fields.String(allow_none=True)
     url = fields.String(allow_none=True)
     version = fields.String(allow_none=True)

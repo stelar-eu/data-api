@@ -464,7 +464,7 @@
                             <h3 class="m-0">${dataset.title}</h3>
                             <div class="d-flex">
                                 <small class="text-secondary">${dataset.author}</small>
-                                <div class="ms-auto mt-3 badges">
+                                <div class="ms-auto d-flex justify-content-end flex-wrap mt-4 badges">
                                     ${dataset.tags && dataset.tags.length ? dataset.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') : ''}
                                 </div>
                             </div>
@@ -483,7 +483,8 @@
                     "title",
                     "organization",
                     "author",
-                    "tags"
+                    "tags",
+                    "metadata_modified",
                 ],
                 "limit": 4,
                 "sort": "metadata_modified desc",
@@ -893,7 +894,8 @@
             }
         }
 
-        function saveMember() {
+
+        function saveMember(){
             const userRow = $('#user-row-edit');
             const selectCapacity = $('#select-capacity');
             const userId = userRow.find('input[name="user-original-id"]').val();
@@ -908,18 +910,18 @@
             if (newCapacity === originalCapacity) {
                 cancelEditUser();
                 return;
+            }else {
+                deleteMember(userId, function() {
 
-            } else {
-                deleteMember(userId, function () {
                     $('#org-users-footer .stelar-loader').remove();
                     $('#org-users-footer .alert').remove();
                     $('#org-users-footer').prepend(createLoaderElement(false, true));
                     $.ajax({
-                        url: "{{url_for('catalog_blueprint.api_add_user_member_to_organization', entity_id=organization.id, member_id='')}}" + userId,
+                        url: "{{url_for('catalog_blueprint.api_add_user_member_to_organization', entity_id=organization.id, member_id='')}}"+userId,
                         type: "POST",
                         data: JSON.stringify({ capacity: newCapacity }),
                         contentType: "application/json",
-                        success: function (response) {
+                        success: function(response) {
                             $('#org-users-footer .stelar-loader').remove();
                             $('#org-users-footer .alert').remove();
                             if (response.success) {
@@ -935,7 +937,7 @@
                                         $(this).remove();
                                     });
                                 }, 3000);
-                                fetchSystemUsers(function (usersRep) {
+                                fetchSystemUsers(function(usersRep) {
                                     fetchOrganizationUsers(usersRep);
                                 });
                             } else {
@@ -947,34 +949,35 @@
                                 }, 3000);
                             }
                         },
-                        error: function (xhr, status, error) {
+                        error: function(xhr, status, error) {
                             console.error("AJAX Error:", status, error);
                             alert("An error occurred while updating the user.");
                         }
                     });
                 });
-            }
+            }           
         }
 
 
-        function deleteMember(userId, callback) {
+        function deleteMember(userId, callback){
             $.ajax({
-                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}" + userId,
+                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}"+userId,
                 type: "DELETE",
-                success: function (response) {
+                success: function(response) {
                     if (response.success) {
                         if (callback && typeof callback === 'function') {
                             callback();
                         }
-                    }
+                    } 
                 },
-                error: function (xhr, status, error) {
+                error: function(xhr, status, error) {
                     console.error("AJAX Error:", status, error);
                 }
             });
         }
 
-        function removeUserFromOrg(userId) {
+
+        function removeUserFromOrg(userId){
             if (!userId) {
                 console.error("User ID is not defined.");
                 return;
@@ -988,9 +991,9 @@
             $('#org-users-footer .alert').remove();
             $('#org-users-footer').prepend(createLoaderElement(false, true));
             $.ajax({
-                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}" + userId,
+                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}"+userId,
                 type: "DELETE",
-                success: function (response) {
+                success: function(response) {
                     $('#org-users-footer .stelar-loader').remove();
                     $('#org-users-footer .alert').remove();
                     if (response.success) {
@@ -1002,7 +1005,8 @@
                                 $(this).remove();
                             });
                         }, 3000);
-                        fetchSystemUsers(function (usersRep) {
+
+                        fetchSystemUsers(function(usersRep) {
                             fetchOrganizationUsers(usersRep);
                         });
                     } else {
@@ -1014,14 +1018,16 @@
                         }, 3000);
                     }
                 },
-                error: function (xhr, status, error) {
+                error: function(xhr, status, error) {
+
                     console.error("AJAX Error:", status, error);
                     alert("An error occurred while removing the user.");
                 }
             });
         }
 
-        function saveNewMember() {
+
+        function saveNewMember(){
             const selectUser = $('#select-user');
             const selectCapacity = $('#select-capacity');
             const userId = selectUser.val();

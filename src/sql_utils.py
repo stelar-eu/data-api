@@ -8,13 +8,13 @@ from datetime import datetime
 import pandas as pd
 import requests
 from flask import current_app
+from psycopg2.extras import Json
 
 import utils
 from backend import pgsql
 
 # Auxiliary custom functions & SQL query templates for ranking
 from exceptions import BackendLogicError
-from psycopg2.extras import Json
 
 
 def is_valid_uuid(s):
@@ -124,6 +124,183 @@ def insert_image_blob(image_id, image_blob, image_name=None):
 
 
 # ---------------------------------------------------------
+# License Management
+# ---------------------------------------------------------
+def license_list_all():
+    """Returns a compressed list of all licenses available in the system.
+    Returns:
+        An array with the list of all licenses keys
+    """
+    sql = utils.sql_license_template["license_list_all_template"]
+    resp = pgsql.execSql(sql, ())
+    if resp and len(resp) > 0:
+        licenses = [row["license"] for row in resp]
+        return licenses
+    else:
+        return None
+
+
+def license_fetch_all():
+    """Returns a list of all licenses available in the system.
+    Returns:
+        A JSON with the list of all licenses
+    """
+    sql = utils.sql_license_template["license_fetch_all_template"]
+    resp = pgsql.execSql(sql, ())
+    if resp and len(resp) > 0:
+        licenses = resp
+        return licenses
+    else:
+        return None
+
+
+def license_get_by_id(license_id):
+    """Returns the license with the given ID.
+
+    Args:
+        license_id: The ID of the license to retrieve.
+
+    Returns:
+        A JSON with the license details, or None if not found.
+    """
+    sql = utils.sql_license_template["license_fetch_by_id_template"]
+    resp = pgsql.execSql(sql, (license_id,))
+    if resp and len(resp) > 0:
+        license_details = resp[0]
+        return license_details
+    else:
+        return None
+
+
+def license_get_by_key(license_key):
+    """Returns the license with the given key.
+
+    Args:
+        license_key: The key of the license to retrieve.
+
+    Returns:
+        A JSON with the license details, or None if not found.
+    """
+    sql = utils.sql_license_template["license_fetch_by_key_template"]
+    resp = pgsql.execSql(sql, (license_key,))
+    if resp and len(resp) > 0:
+        license_details = resp[0]
+        return license_details
+    else:
+        return None
+
+
+def license_create(license_id, **license_spec):
+    """Creates a new license in the database.
+
+    Args:
+        license_id: UUID of the license.
+        license_spec: A dictionary with the license specifications.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+    sql = utils.sql_license_template["license_create_template"]
+    license_key = license_spec.get("key")
+    title = license_spec.get("title")
+    url = license_spec.get("url")
+    description = license_spec.get("description")
+    image_url = license_spec.get("image_url", None)
+    osi_approved = license_spec.get("osi_approved", False)
+    open_data_approved = license_spec.get("open_data_approved", False)
+
+    resp = pgsql.execSql(
+        sql,
+        (
+            license_id,
+            license_key,
+            title,
+            url,
+            description,
+            image_url,
+            osi_approved,
+            open_data_approved,
+        ),
+    )
+
+    if resp.get("status") is False:
+        return False
+
+    return True
+
+
+def license_patch(license_id, **license_spec):
+    """
+    Updates an existing license in the database.
+
+    Args:
+        license_id: UUID of the license.
+        license_spec: A dictionary with the license specifications to update.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+    sql = utils.sql_license_template["license_update_template"]
+
+    # Fetch the existing license details
+    existing_license = license_get_by_id(license_id)
+    if not existing_license:
+        return False
+
+    # Merge the existing license details with the new specifications
+    updated_license_spec = {**existing_license, **license_spec}
+
+    title = updated_license_spec.get("title")
+    url = updated_license_spec.get("url")
+    description = updated_license_spec.get("description")
+    image_url = updated_license_spec.get("image_url")
+    osi_approved = updated_license_spec.get("osi_approved", False)
+    open_data_approved = updated_license_spec.get("open_data_approved", False)
+
+    resp = pgsql.execSql(
+        sql,
+        (
+            title,
+            url,
+            description,
+            image_url,
+            osi_approved,
+            open_data_approved,
+            license_id,
+        ),
+    )
+
+    if "status" in resp:
+        if not resp.get("status"):
+            return False
+    else:
+        return False
+
+    return True
+
+
+def license_delete(license_id):
+    """Deletes a license from the database.
+
+    Args:
+        license_id: UUID of the license to delete.
+
+    Returns:
+        A boolean: True, if the statement executed successfully; otherwise, False.
+    """
+    sql = utils.sql_license_template["license_delete_template"]
+    resp = pgsql.execSql(sql, (license_id,))
+
+    if "status" in resp:
+        if not resp.get("status"):
+            return False
+    else:
+        return False
+
+    return True
+
+
+# ---------------------------------------------------------
 ## Policy Management
 # ---------------------------------------------------------
 def policy_version_create(
@@ -200,6 +377,41 @@ def policy_info_read(filter):
             return policy_version
         else:
             return None
+
+
+def get_user_organizations(username):
+    """Returns the list of organizations a user belongs to.
+
+    Args:
+        username: The unique username of the user.
+
+    Returns:
+        A list of organization IDs the user belongs to.
+    """
+    sql = """
+        SELECT g.id, g.name
+        FROM "group" g
+        JOIN member m
+        ON g.id = m.group_id
+        JOIN "user" u
+        ON m.table_id = u.id
+        WHERE (u.name = %s OR u.id = %s)
+        AND m.table_name = 'user'
+        AND g.is_organization = true
+        AND m.state = 'active';
+    """
+    resp = pgsql.execSql(
+        sql,
+        (
+            username,
+            username,
+        ),
+    )
+    if resp and len(resp) > 0:
+        orgs = [row["id"] for row in resp]
+        return orgs
+    else:
+        return []
 
 
 ##########################################################
@@ -654,7 +866,7 @@ def task_execution_update(task_exec_id, state, end_date=None, tags=None):
     """
 
     # Compose and execute the SQL command using the template for updating a task execution
-    if not end_date is None:
+    if end_date is not None:
         sql = utils.sql_workflow_execution_templates["task_commit_template"]
         resp = pgsql.execSql(sql, (state, end_date, task_exec_id))
     else:
@@ -1498,3 +1710,39 @@ def workflow_statistics(workflow_tags, parameters, metrics):
         return resp
     else:
         return None
+
+
+def track_resource_lineage(resource_id, depth=None):
+    """Retrieve backward lineage of a resource, optionally limited by depth."""
+
+    if depth:
+        sql = utils.sql_workflow_execution_templates[
+            "resource_lineage_with_depth_template"
+        ]
+        params = (resource_id, resource_id, depth, resource_id)
+    else:
+        sql = utils.sql_workflow_execution_templates["resource_lineage_template"]
+        params = (resource_id, resource_id)
+
+    resp = pgsql.execSql(sql, params)
+
+    return resp if resp else None
+
+
+def track_resource_forward_lineage(resource_id, depth=None):
+    """Retrieve forward lineage of a resource, optionally limited by depth."""
+
+    if depth:
+        sql = utils.sql_workflow_execution_templates[
+            "resource_forward_lineage_with_depth_template"
+        ]
+        params = (resource_id, resource_id, depth, resource_id)
+    else:
+        sql = utils.sql_workflow_execution_templates[
+            "resource_forward_lineage_template"
+        ]
+        params = (resource_id, resource_id)
+
+    resp = pgsql.execSql(sql, params)
+
+    return resp if resp else None

@@ -288,6 +288,27 @@ def api_post_task_output(task_id, signature, json_data):
     return tasks.TASK.save_output(task_id, signature, json_data)
 
 
+@workflows_bp.route("/task/<task_id>/terminate", methods=["POST"])
+@workflows_bp.doc(tags=["Task Operations"])
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
+@token_active
+def api_post_task_terminate(task_id):
+    """Terminate a Task Execution.
+    This will stop the task execution in the Workflow Execution Engine and mark it as failed.
+
+    Args:
+        task_id: The unique identifier of the Task Execution.
+    Returns:
+        A JSON response containing success status, or error details.
+    Responses:
+        - 200: Task successfully terminated.
+        - 404: Task not found.
+        - 500: An unknown error occurred.
+    """
+    return tasks.TASK.terminate(task_id)
+
+
 @workflows_bp.route("/task/<task_id>/signature", methods=["GET"])
 @workflows_bp.doc(tags=["Task Operations"])
 @workflows_bp.output(schema.APIResponse, status_code=200)

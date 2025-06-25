@@ -58,6 +58,7 @@ def configure():
                 "entity": {"level": override_level("WARNING")},
                 "data_api": {"level": override_level("WARNING")},
                 "authz_module": {"level": "DEBUG"},
+                "execution.job": {"level": override_level("WARNING")},
                 "routes": {"level": override_level("WARNING")},
                 "routes.generic": {"level": override_level("WARNING")},
                 "routes.catalog": {"level": override_level("WARNING")},

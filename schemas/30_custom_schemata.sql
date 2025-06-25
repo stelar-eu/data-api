@@ -208,6 +208,21 @@ END;
 $$
 LANGUAGE plpgsql;
 
+---------------------------------------------
+--             PACKAGE LICENSE             
+---------------------------------------------
+CREATE TABLE IF NOT EXISTS klms.license (
+    license_uuid varchar(64) NOT NULL PRIMARY KEY,
+    license_key TEXT UNIQUE NOT NULL,         
+    title TEXT NOT NULL,                      
+    url TEXT,
+    description TEXT,                         
+    image_url TEXT,
+    osi_approved BOOLEAN DEFAULT FALSE,      
+    open_data_approved BOOLEAN DEFAULT FALSE, 
+    metadata_created TIMESTAMP DEFAULT NOW(),
+    metadata_modified TIMESTAMP DEFAULT NOW()
+);
 
 ---------------------------------------------
 --            CKAN AUTHOR TRIGGER 

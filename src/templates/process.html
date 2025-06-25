@@ -160,7 +160,7 @@
                         <canvas id='lineage-canvas' style='border-radius: 8px' width='1500' height='600' class='col-lg-12 card px-0 d-none'>
                         </canvas>
 
-                        <div class="col-lg-5">
+                        <div class="col-lg-4">
                             <div class="card">
                                 <div class="card-body">
                                     <div class="card-title">Basic Information</div>
@@ -309,18 +309,53 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-lg-7">
+                        <div class="col-lg-8">
                             <div class="card">
                                 <div class="card-body m-2">
-                                    <h3 class="card-title">List of Process Tasks</h3>
+                                    <div class="d-flex mb-3">
+                                        <div>
+                                        <h3 class="card-title mb-1">Process Tasks</h3>
+                                        <p class="text-secondary">Tasks are the individual steps in the process. Click on a task to view its details.</p>
+                                        </div>
+                                        <div class="ms-auto ">
+                                            <div class="input-group">
+                              
+                                              <button type="button" class="btn btn-outline-primary" id="compare-tasks-button"
+                                                onclick="window.location.href='{{url_for('dashboard_blueprint.task_compare')}}'">Compare Selected
+                                                <span class="ms-1" id="tasks-compare-number">(0)</span></button>
+                              
+                                              <button data-bs-toggle="dropdown" role="button" class="btn btn-outline-primary dropdown-toggle disabled"
+                                                datas-bs-auto-close="outside"></button>
+                                              <div class="dropdown-menu dropdown-menu-end" id="compare-tasks-options">
+                              
+                                              </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <ul class="steps steps-vertical ">
                                         {% if proc_tasks %}
                                         {% for task in proc_tasks %}
                                         <li class="step-item">
-                                            <a class="card disabled card-link m"
+                                            <a class="card card-link "
                                                 href="{{url_for('dashboard_blueprint.task', process_id=process.id, task_id=task.get('id') )}}">
+                                                {% if task.start_date and (now - task.start_date).total_seconds() <= 28800 %}
+                                                    <div class="ribbon ribbon-top me-6 bg-primary">NEW</div>
+                                                {% endif %}
                                                 <div class="card-body p-3">
                                                     <div class="row">
+                                                        <div class="col-md-1 d-flex justify-content-end">
+                                                            <button class="btn btn-pill btn-outline-success m-1 me-1 p-1 text-center comparator-btn align-self-center" data-task-id="{{task.id}}" title="Add to comparison">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="m-0 icon icon-tabler icons-tabler-outline icon-tabler-git-compare">
+                                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                                <path d="M6 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                                                <path d="M18 18m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                                                <path d="M11 6h5a2 2 0 0 1 2 2v8"></path>
+                                                                <path d="M14 9l-3 -3l3 -3"></path>
+                                                                <path d="M13 18h-5a2 2 0 0 1 -2 -2v-8"></path>
+                                                                <path d="M10 15l3 3l-3 3"></path>
+                                                                </svg>
+                                                            </button>
+                                                        </div>
                                                         <div class="col">
                                                             <div class="list-inline list-inline-dots">
                                                                 <span class="list-inline-item"><strong>{{
@@ -558,9 +593,23 @@
     function generateTaskHTML(task, index) {
         return `
             <li class="step-item">
-                <a class="card disabled card-link m" href="{{ url_for('dashboard_blueprint.task', process_id=process.id, task_id='') }}${task.id}">
+                <a class="card card-link" href="{{ url_for('dashboard_blueprint.task', process_id=process.id, task_id='') }}${task.id}">
+                    <div class="ribbon ribbon-top me-6 bg-primary">NEW</div>
                     <div class="card-body p-3">
                         <div class="row">
+                            <div class="col-md-1 d-flex justify-content-end">
+                                    <button class="btn btn-pill btn-outline-success m-1 me-1 p-1 text-center comparator-btn align-self-center" data-task-id="${task.id}" title="Add to comparison">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="m-0 icon icon-tabler icons-tabler-outline icon-tabler-git-compare">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                        <path d="M6 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                        <path d="M18 18m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                        <path d="M11 6h5a2 2 0 0 1 2 2v8"></path>
+                                        <path d="M14 9l-3 -3l3 -3"></path>
+                                        <path d="M13 18h-5a2 2 0 0 1 -2 -2v-8"></path>
+                                        <path d="M10 15l3 3l-3 3"></path>
+                                        </svg>
+                                    </button>
+                            </div>
                             <div class="col">
                                 <div class="list-inline list-inline-dots">
                                     <span class="list-inline-item"><strong>${index}. ${task.name}</strong></span>
@@ -658,6 +707,7 @@
             success: function (response) {
                 if (response.success) {
                     updateTaskStatus(response.result.tasks);
+                    attachComparatorButtonListeners();
                 }
             },
             error: function (xhr, status, error) {
@@ -817,6 +867,165 @@
             }
         });
     }
+
+</script>
+
+
+<script>
+
+    function setCookie(name, value, minutes) {
+        var expires = "";
+        if (minutes) {
+          var date = new Date();
+          date.setTime(date.getTime() + (minutes * 60 * 1000));
+          expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "") + expires + "; path=/";
+      }
+  
+    function getCookie(name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i].trim();
+            if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    }
+
+    function appendClearAllOption() {
+        if ($('#clear-all-tasks').length === 0) {
+            $('#compare-tasks-options').append(`
+            <div class="dropdown-item cursor-pointer text-center text-danger" id="clear-all-tasks" data-task-id="__clearall__" onclick="clearAllCompareTasks()">
+            Clear All
+            </div>
+        `);
+        }
+    }
+  
+    function appendTaskCompareOption(taskName, id) {
+        $('#compare-tasks-options').append(`
+            <div class="dropdown-item d-flex justify-content-between align-items-center" id="compare-tasks-option-${id}">
+            ${taskName} 
+            <span class="ms-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-danger cursor-pointer icon icon-tabler icons-tabler-outline icon-tabler-trash remove-task" data-task-id="${id}">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+            <path d="M4 7l16 0" />
+            <path d="M10 11l0 6" />
+            <path d="M14 11l0 6" />
+            <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+            <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                </svg>
+            </span>
+            </div>
+            `);
+    }
+  
+    function refreshTaskCompareOption(selectedIds) {
+        // Remove any options not in selectedIds
+        $('#compare-tasks-options .dropdown-item').each(function () {
+            var taskId = $(this).find('.remove-task').data('task-id');
+            if (taskId && taskId.toString() === '__clearall__') {
+                return;
+            }
+            if (taskId && !taskId.includes(taskId.toString())) {
+                $(this).remove();
+            }
+        });
+
+        // Add options for selectedIds
+        selectedIds.forEach(function (id) {
+            if ($(`#compare-tasks-option-${id}`).length === 0) {
+                $.get(`{{url_for('rest_workflows_blueprint.api_get_task_metadata', entity_id='')}}${id}`, function (data) {
+                    appendTaskCompareOption(data.result.name, id);
+                });
+            }
+        });
+
+        $('#tasks-compare-number').text(`(${selectedIds.length})`);
+        appendClearAllOption();
+    }
+  
+    function clearAllCompareTasks() {
+        setCookie('compare_tasks', '', -1);
+        $('#compare-tasks-options').empty();
+        $('.comparator-btn').removeClass('btn-success').addClass('btn-outline-success');
+        $('#tasks-compare-number').text(`(0)`);
+        appendClearAllOption();
+    }
+
+
+    function attachComparatorButtonListeners() {
+        $('.comparator-btn').off('click');
+        $('.comparator-btn').on('click', function () {
+            event.preventDefault(); // Prevent the default redirect behavior
+            var taskId = $(this).data('task-id');
+            if (!taskId) {
+                console.error("Task ID not found!");
+                return;
+            }
+
+            var cookieValue = getCookie('compare_tasks');
+            var selectedIds = cookieValue ? cookieValue.split(',') : [];
+
+            // If this task is already selected, remove it
+            if (selectedIds.indexOf(taskId.toString()) !== -1) {
+                selectedIds = selectedIds.filter(id => id !== taskId.toString());
+                setCookie('compare_tasks', selectedIds.join(','), 30); // Cookie valid for 30 minutes
+                $(this).removeClass('btn-success').addClass('btn-outline-success');
+                refreshTaskCompareOption(selectedIds);
+            } else {
+                // If this task isn't already selected, add it
+                if (selectedIds.length < 5) {
+                    selectedIds.push(taskId);
+                    setCookie('compare_tasks', selectedIds.join(','), 30);
+                    $(this).removeClass('btn-outline-success').addClass('btn-success');
+                    refreshTaskCompareOption(selectedIds);
+                    //if (selectedIds.length == 2) {
+                    //    $('#toast-message-info').removeClass('hide').addClass('show').addClass('fade');
+                    //    $('#toast-info-body').html("Looks like you have selected packages for comparison. Compare them <a href='{{url_for('dashboard_blueprint.dataset_compare')}}'>here</a>");
+                    //} 
+                } else {
+                    //$('#toast-message-alert').removeClass('hide').addClass('show').addClass('fade');
+                    //$('#toast-message-body').text("Max 5 datasets can be compared at a time");
+                }
+            }
+        });
+    }
+
+
+    function renderSelectedComparators() {
+        var cookieValue = getCookie('compare_tasks');
+        var selectedIds = cookieValue ? cookieValue.split(',') : [];
+  
+        selectedIds.forEach(function (id) {
+          $('.comparator-btn[data-task-id="' + id + '"]').removeClass('btn-outline-success').addClass('btn-success');
+        });
+  
+        refreshTaskCompareOption(selectedIds);
+  
+        // Handle removal of tasks from the dropdown and cookie
+        $(document).on('click', '.remove-task', function () {
+          var taskId = $(this).data('task-id');
+          var cookieValue = getCookie('compare_tasks');
+          var selectedIds = cookieValue ? cookieValue.split(',') : [];
+  
+          // Remove the task ID from the selected IDs
+          selectedIds = selectedIds.filter(id => id !== taskId.toString());
+          setCookie('compare_tasks', selectedIds.join(','), 30);
+          refreshTaskCompareOption(selectedIds);
+          $(`#compare-tasks-option-${taskId}`).remove();
+          $(`.comparator-btn[data-task-id="${taskId}"]`).removeClass('btn-success').addClass('btn-outline-success');
+        });
+      }
+
+
+    $(document).ready(function () {
+        attachComparatorButtonListeners();
+        renderSelectedComparators();
+    });
+
+
 
 </script>
 
