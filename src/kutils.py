@@ -880,6 +880,9 @@ def get_user(user_id):
             "roles": filtered_roles,
             "active": active_status,
             "email_verified": email_verified,
+            "is_admin": (
+                True if "is_admin" in user_representation["attributes"] else False
+            ),
         }
 
         return user_info

@@ -847,7 +847,6 @@ class Task(Entity):
         process_id = str(spec.get("process_id"))
         authorize(process_id, "process", "add_task")
 
-        
         inputs = spec.get("inputs")
         outputs = spec.get("outputs", {})
         datasets = spec.get("datasets")
@@ -1405,6 +1404,7 @@ class Task(Entity):
         user_rep = kutils.get_user(task["creator"])
         user_rep["sub"] = user_rep.pop("id")
         user_rep["preferred_username"] = user_rep.pop("username")
+        logger.debug(user_rep)
         if "current_user" not in g:
             g.current_user = user_rep
 
