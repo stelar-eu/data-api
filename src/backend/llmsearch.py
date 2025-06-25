@@ -15,6 +15,8 @@ from exceptions import (
     NotFoundError,
 )
 from requests import Response
+import kutils
+from sql_utils import get_user_organizations_names
 
 
 logger = logging.getLogger(__name__)
@@ -106,6 +108,50 @@ class LLMSearchClient:
 
         return response
 
+    def _prepare_query(self, q_spec: dict) -> dict:
+        q_spec = q_spec.copy()  # don't mutate caller's dict
+        q_spec["auth_scope"] = get_user_organizations_names(
+            kutils.current_user()["preferred_username"]
+        ) + ["public"]
+        q_spec["query"] = q_spec.pop("q", "")
+        q_spec["n_results"] = q_spec.pop("limit", 10)
+        return q_spec
+
+    def stream_request(
+        self,
+        endpoint: str,
+        *,
+        json: Optional[dict] = None,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Dict[str, str] = {},
+        **kwargs,
+    ):
+        """
+        Open a streaming POST/GET to the LLM-Search service and return
+        an iterator of raw bytes/str lines (already decoded).
+        """
+        hdrs = {
+            **self.default_headers,
+            **headers,
+            "Accept": "text/event-stream",
+        }
+
+        resp = self.raw_request(
+            endpoint,
+            json=json,
+            params=params,
+            headers=hdrs,
+            method="POST",
+            stream=True,
+            **kwargs,
+        )
+        # so handle status code directly here:
+        if resp.status_code >= 400:
+            self.raise_request_error(resp, context={})
+
+        # requests.iter_lines keeps the \n delim intact if decode_unicode=True
+        return resp.iter_lines(decode_unicode=True, chunk_size=1)
+
     def send_request(
         self,
         endpoint: str,
@@ -162,6 +208,33 @@ class LLMSearchClient:
         }
         logger.debug(f"Indexing dataset with spec: {spec}")
         return self.send_request("/add_dataset", json=spec, method="POST")
+
+    def search(
+        self,
+        **q_spec: Dict[str, Any],
+    ):
+        """
+        Search the indexed datasets in the LLM Search service.
+
+        Args:
+            q_spec (dict): The search query specification.
+        """
+        payload = self._prepare_query(q_spec)
+        dsets = self.send_request("/search_datasets", json=payload, method="POST")
+
+        results = []
+        for dset_id, score in dsets:
+            try:
+                dataset = DATASET.get_entity(dset_id)
+                dataset["score"] = score
+                results.append(dataset)
+            except Exception as e:
+                logger.warning(f"Failed to retrieve dataset {dset_id}: {e}")
+        return results
+
+    def search_stream(self, **q_spec):
+        payload = self._prepare_query(q_spec)
+        return self.stream_request("/search_datasets_streaming", json=payload)
 
 
 LLMSEARCH = LLMSearchClient.get_client

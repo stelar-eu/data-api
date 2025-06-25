@@ -414,6 +414,41 @@ def get_user_organizations(username):
         return []
 
 
+def get_user_organizations_names(username):
+    """Returns the list of organizations names a user belongs to.
+
+    Args:
+        username: The unique username of the user.
+
+    Returns:
+        A list of organization IDs the user belongs to.
+    """
+    sql = """
+        SELECT g.id, g.name
+        FROM "group" g
+        JOIN member m
+        ON g.id = m.group_id
+        JOIN "user" u
+        ON m.table_id = u.id
+        WHERE (u.name = %s OR u.id = %s)
+        AND m.table_name = 'user'
+        AND g.is_organization = true
+        AND m.state = 'active';
+    """
+    resp = pgsql.execSql(
+        sql,
+        (
+            username,
+            username,
+        ),
+    )
+    if resp and len(resp) > 0:
+        orgs = [row["name"] for row in resp]
+        return orgs
+    else:
+        return []
+
+
 ##########################################################
 ## 2FA Management
 ##########################################################

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <title>STELAR | AI Search</title>
+  <!-- CSS files -->
+  {% include 'tabler.html' %}
+  <!-- Leaflet CSS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="{{ url_for('static', filename='images.js') }}"></script>
+  <script src="{{ url_for('static', filename='utils.js') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}" />
+  <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png" />
+</head>
+
+<body>
+  <div class="page">
+    <!-- Navbar -->
+    {% include 'header.html' %}
+    <div class="page-wrapper">
+      <!-- Page body -->
+      <div class="page-body justify-content-center align-items-center">
+        <div class="container-xl d-none" id="results-container">
+          <div class="row row-cards" id="results">
+
+          </div>
+        </div>
+        <div class="container-xl mb-6">
+          <div class="align-items-center text-center">
+            <div id="typewriter" class="h1"></div>
+
+            <div class="input-icon">
+              <input type="text" value="" class="form-control form-control-rounded p-6 h2" style="height:3.5rem;"
+                placeholder="Type anything to search" id="search-input" name="search-input" aria-label="Search"
+                autocomplete="off" />
+              <span class="input-icon-addon">
+
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="width: 100px;"
+                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  class="icon icon-1 h-50">
+                  <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"></path>
+                  <path d="M21 21l-6 -6"></path>
+                </svg>
+              </span>
+            </div>
+          </div>
+          <div class="row row-cards text-center align-items-center justify-content-center mx-4" id="suggestions">
+
+            <div class="col-12 col-md-6 col-lg-4">
+              <a class="btn btn-outline-primary btn-pill w-100 mb-1"
+                onclick="document.getElementById('search-input').value='Find resources on yield prediction using satellite data';$('#search-input').focus();">Find
+                resources on yield prediction using satellite data</a>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+              <a class="btn btn-outline-primary btn-pill w-100 mb-1"
+                onclick="document.getElementById('search-input').value='Access satellite-based phenology data for wheat';$('#search-input').focus();">Access
+                satellite-based phenology data for wheat</a>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+              <a class="btn btn-outline-primary  btn-pill w-100 mb-1"
+                onclick="document.getElementById('search-input').value='Find precision datasets for fertilizer management';$('#search-input').focus();">Find
+                precision datasets for fertilizer management</a>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+              <a class="btn btn-outline-primary btn-pill w-100 mb-1"
+                onclick="document.getElementById('search-input').value='Access risk records for food incident outbreaks';$('#search-input').focus();">Access
+                risk records for food incident outbreaks</a>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4">
+              <a class="btn btn-outline-primary btn-pill w-100 mb-1"
+                onclick="document.getElementById('search-input').value='LAI time series for cereal crops from Sentinel-2';$('#search-input').focus();">Explore
+                LAI time series for cereal crops from Sentinel-2</a>
+            </div>
+          </div>
+
+          <div class="m-6 d-none h2" id="stages" style="height: 150px; overflow-y: auto;">
+
+          </div>
+        </div>
+      </div>
+      {% include 'footer.html'%}
+    </div>
+  </div>
+  <script>
+    const texts = [
+      "What are you looking for?",
+      "Search for datasets fit for your needs",
+      "Explore AI-powered insights on datasets",
+      "Find the data you need to fuel your projects",
+    ];
+    const text = texts[Math.floor(Math.random() * texts.length)];
+    const speed = 70; // typing speed in milliseconds
+    let i = 0;
+
+    function typeWriter() {
+      if (i < text.length) {
+        document.getElementById("typewriter").innerHTML += text.charAt(i);
+        i++;
+        setTimeout(typeWriter, speed);
+      }
+    }
+
+    window.onload = typeWriter;
+  </script>
+
+
+  <script>
+
+    function renderDatasets(datasets) {
+      showResults();
+      const container = $('#results');
+      container.empty(); // Clear existing suggestions
+
+      if (datasets.length === 0) {
+        container.append('<div class="alert alert-info">No datasets found.</div>');
+        return;
+      } else {
+        datasets.forEach(dataset => {
+          const html = `
+            <div class="col-12 col-md-6 col-lg-4">
+              <a href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}${dataset.id}" target="_blank" class="card-link">
+              <div class="card">
+                <div class="card-body">
+                <h5 class="card-title">${dataset.title}</h5>
+                <p class="card-text">${dataset.notes}</p>
+                </div>
+              </div>
+              </a>
+            </div>`
+          container.append(html);
+        });
+      }
+    }
+
+    function hideSuggestions() {
+      $('#suggestions').addClass('d-none');
+    }
+
+    function showSuggestions() {
+      $('#suggestions').removeClass('d-none').fadeIn('slow');
+    }
+
+    function hideResults() {
+      $('#results-container').addClass('d-none');
+      $('#results').empty();
+    }
+
+    function showResults() {
+      $('#results-container').removeClass('d-none');
+    }
+
+    function hideSearchInput() {
+      $('#typewriter').addClass('d-none');
+      $('#search-input').addClass('d-none');
+    }
+
+    function showSearchInput() {
+      $('#typewriter').removeClass('d-none').fadeIn('slow');
+      $('#search-input').removeClass('d-none').fadeIn('slow');
+    }
+
+    function hideStages() {
+      $('#stages').addClass('d-none');
+      $('#stages').empty();
+    }
+
+    function buildStageHtml(label, status) {
+      const icon = {
+        loading: createLoaderElement(true, true),
+        completed: createGreenTick(true),
+        error: createRedCross(true)
+      }[status];
+
+      return `
+        <div class="d-flex align-items-center justify-content-center stage-row"
+            data-stage="${label}">
+          ${icon}
+          <span class="ms-1">${label}</span>
+        </div>`;
+    }
+
+    function appendStage(label, status) {
+      hideSuggestions();
+      hideSearchInput();
+      $('#stages').removeClass('d-none');
+
+      const $existing = $(`#stages .stage-row[data-stage="${label}"]`);
+      const $newRow = $(buildStageHtml(label, status)).hide();
+
+      if ($existing.length) {
+        /* ---- replace existing row (same spot) ---- */
+        $existing.replaceWith($newRow);
+      } else {
+        /* ---- prepend new row ---- */
+        $('#stages').prepend($newRow);
+      }
+
+      /* slide the new row into view */
+      $newRow.slideDown('slow');
+
+      /* keep only three visible rows */
+      $('#stages').children().each(function (index) {
+        if (index > 2) {
+          $(this).slideUp('slow', function () {
+            $(this).remove();
+          });
+        }
+      });
+    }
+
+    function appendLoadingStage(stage) { appendStage(stage, 'loading'); }
+    function appendCompletedStage(stage) { appendStage(stage, 'completed'); }
+    function appendErrorStage(stage) { appendStage(stage, 'error'); }
+
+    async function performLLMSearch(query) {
+      hideSuggestions(); // hide suggestions during the search
+      hideSearchInput(); // hide search input during the search
+
+      const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      async function fetchDatasetInfo(datasetId) {
+        try {
+          const response = await fetch(`{{url_for('catalog_blueprint.api_get_dataset', entity_id='')}}${datasetId}`);
+          if (!response.ok) {
+            console.error(`Failed to fetch dataset info for ID: ${datasetId}`);
+            return null;
+          }
+          const data = await response.json();
+          return data.result; // Return only the dataset representation
+        } catch (error) {
+          console.error(`Error fetching dataset info for ID: ${datasetId}`, error);
+          return null;
+        }
+      }
+
+      try {
+        const response = await fetch("{{ url_for('llmsearch_blueprint.api_llm_search_stream') }}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ q: query }),
+        });
+
+        if (!response.ok) {
+          appendErrorStage("Failed to initiate search");
+          console.error("Error:", response.statusText);
+          hideStages();
+          showSearchInput();
+          showSuggestions();
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let done = false;
+
+        while (!done) {
+          const { value, done: readerDone } = await reader.read();
+          done = readerDone;
+
+          if (value) {
+            let decodedValue = decoder.decode(value);
+            const lines = decodedValue.split('\n').filter(line => line.trim() !== '');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const jsonString = line.replace('data: ', '');
+                try {
+                  const data = JSON.parse(jsonString);
+                  if (data.status === "processing") {
+                    appendLoadingStage(data.message);
+                    await sleep(600); // Add sleep to make stages visible
+                  } else if (data.status === "analysis_complete") {
+                    appendCompletedStage(data.message);
+                    console.log("Components:", data.components);
+                    await sleep(600); // Add sleep to make stages visible
+                  } else if (data.status === "complete") {
+                    appendCompletedStage("Search complete");
+
+                    // Add a new stage for gathering dataset information
+                    appendLoadingStage("Gathering Dataset Information");
+                    const datasetInfoArray = [];
+                    for (const result of data.results) {
+                      const datasetInfo = await fetchDatasetInfo(result[0]);
+                      if (datasetInfo) {
+                        datasetInfoArray.push(datasetInfo);
+                      }
+                    }
+                    console.log("All Retrieved Dataset Information:", datasetInfoArray);
+                    appendCompletedStage("Dataset Information Gathered");
+                    await sleep(600);
+                    hideStages();
+                    renderDatasets(datasetInfoArray);
+                  }
+                } catch (error) {
+                  console.error("Failed to parse JSON:", jsonString, error);
+                  appendErrorStage("Invalid response format");
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        appendErrorStage("An error occurred during the search");
+        console.error("Error:", error);
+        hideStages();
+        showSearchInput();
+        showSuggestions();
+      }
+    }
+
+    $(document).ready(function () {
+      // Initialize the search simulation
+      $('#search-input').on('keypress', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          performLLMSearch($(this).val());
+        }
+      });
+      $('#search-input').focus();
+    });
+
+  </script>
+
+</body>
+
+</html>

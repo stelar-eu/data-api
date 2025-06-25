@@ -186,6 +186,18 @@ def dashboard_index():
 
 
 # -------------------------------------
+# LLM Search Route
+# -------------------------------------
+@dashboard_bp.route("/search", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+def llm_search():
+    return render_template_with_s3(
+        "llm_search.html", PARTNER_IMAGE_SRC=get_partner_logo()
+    )
+
+
+# -------------------------------------
 # Workflow Processes Routes
 # -------------------------------------
 @dashboard_bp.route("/processes")
