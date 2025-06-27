@@ -2,6 +2,7 @@ import requests
 import logging
 import kutils
 from flask import current_app
+from functools import wraps
 
 from typing import TYPE_CHECKING, Optional, Dict, Any
 from urllib.parse import urljoin
@@ -22,6 +23,28 @@ from sql_utils import get_user_organizations_names
 logger = logging.getLogger(__name__)
 
 
+def llm_search_enabled(func):
+    """Decorator that prevents method execution when LLM Search is disabled.
+
+    It inspects the Flask application's configuration for the
+    ``LLM_SEARCH_ENABLED`` flag and raises :class:`NotImplementedError`
+    if the flag is not set to ``True``.
+    """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Access the real Flask application object and query the config flag
+        app = current_app._get_current_object()
+        config = app.config.get("settings", {})
+        if not config.get("LLM_SEARCH_ENABLED", False):
+            raise NotImplementedError(
+                "LLM Search functionality is disabled via configuration."
+            )
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 class LLMSearchClient:
     """
     Client for interacting with the LLM Search service.
@@ -35,6 +58,7 @@ class LLMSearchClient:
         }
 
     @classmethod
+    @llm_search_enabled
     def get_client(cls):
         """
         Create and return an LLMSearchClient instance using the Flask app context.
@@ -45,6 +69,7 @@ class LLMSearchClient:
             endpoint_url = config["LLM_SEARCH_URL"]
             return cls(endpoint_url)
 
+    @llm_search_enabled
     def raw_request(
         self,
         endpoint: str,
@@ -117,6 +142,7 @@ class LLMSearchClient:
         q_spec["n_results"] = q_spec.pop("limit", 10)
         return q_spec
 
+    @llm_search_enabled
     def stream_request(
         self,
         endpoint: str,
@@ -152,6 +178,7 @@ class LLMSearchClient:
         # requests.iter_lines keeps the \n delim intact if decode_unicode=True
         return resp.iter_lines(decode_unicode=True, chunk_size=1)
 
+    @llm_search_enabled
     def send_request(
         self,
         endpoint: str,
@@ -177,6 +204,7 @@ class LLMSearchClient:
         jsobj = response.json()
         return jsobj
 
+    @llm_search_enabled
     def index(
         self,
         identifier: str,
@@ -206,9 +234,42 @@ class LLMSearchClient:
                 ],
             },
         }
-        logger.debug(f"Indexing dataset with spec: {spec}")
         return self.send_request("/add_dataset", json=spec, method="POST")
 
+    @llm_search_enabled
+    def update(self, identifier: str, **kwargs):
+        dset = DATASET.get_entity(identifier)
+
+        spec = {
+            "dataset_id": dset["id"],
+            "dataset_official_description": dset["notes"],
+            "dataset_profile_description": "",
+            "dataset_metadata": {
+                "title": dset["title"],
+                "creator": dset["author"],
+                "organization": dset["organization"]["title"],
+                "name": dset["name"],
+                "tags": list(dset["tags"]),
+                "auth_scope": [
+                    "public" if not dset["private"] else dset["organization"]["name"]
+                ],
+            },
+        }
+        return self.send_request("/update_dataset", json=spec, method="PUT")
+
+    @llm_search_enabled
+    def delete(self, identifier: str, **kwargs):
+        """
+        Delete a dataset from the LLM Search service.
+
+        Args:
+            identifier (str): The unique identifier for the dataset to delete.
+        """
+        dset = DATASET.get_entity(identifier)
+        spec = {"dataset_id": dset["id"]}
+        return self.send_request("/delete_dataset", json=spec, method="DELETE")
+
+    @llm_search_enabled
     def search(
         self,
         **q_spec: Dict[str, Any],
@@ -232,6 +293,7 @@ class LLMSearchClient:
                 logger.warning(f"Failed to retrieve dataset {dset_id}: {e}")
         return results
 
+    @llm_search_enabled
     def search_stream(self, **q_spec):
         payload = self._prepare_query(q_spec)
         return self.stream_request("/search_datasets_streaming", json=payload)

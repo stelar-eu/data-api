@@ -1188,6 +1188,7 @@ def main(app):
         "MINIO_API_EXT_URL": os.getenv("MINIO_API_EXT_URL", "***MISSING***"),
         "LLM_SEARCH_ENABLED": os.getenv("ENABLE_LLM_SEARCH", "False").lower() == "true",
         "LLM_SEARCH_URL": os.getenv("LLM_SEARCH_URL", "***MISSING***"),
+        "LLM_GROQ_API_KEY": os.getenv("LLM_GROQ_API_KEY", "***MISSING***"),
         "KEYCLOAK_EXT_URL": os.getenv("KEYCLOAK_EXT_URL", "***MISSING***"),
         "KEYCLOAK_ISSUER_URL": os.getenv("KEYCLOAK_ISSUER_URL", "***MISSING***"),
         "MAIN_EXT_URL": os.getenv("MAIN_EXT_URL", "***MISSING***"),
