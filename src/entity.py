@@ -876,7 +876,7 @@ class MemberEntity:
             eid: the ID of the group or org
             capacity: the capacity of the members to list, or None to list all members.
         """
-        #TODO: authorize(eid, self.parent.name, "list_members")
+        # TODO: authorize(eid, self.parent.name, "list_members")
         return self.list_members(eid, capacity)
 
     def add_member(self, eid: str, member_id: str, capacity: str):
@@ -893,7 +893,7 @@ class MemberEntity:
         # Authorize access
         authorize(member_id, self.child.name, "edit_membership")
         authorize(eid, self.parent.name, "remove_member")
-        
+
         context = {"member_entity": self.child.name}
         self.parent.remove_member(eid, member_id, self.member_kind, context=context)
 
@@ -1027,7 +1027,7 @@ class EntityWithMembers(EntityWithExtras):
             capacity=capacity,
             context=context,
         )
-    
+
     @classmethod
     def resolve_id(cls, name_or_id: str) -> str | None:
         """Resolve a group or org name or ID to an ID, with simple in-memory caching.
@@ -1186,6 +1186,13 @@ class PackageEntity(EntityWithExtras):
         if "license_id" in entity_data:
             LICENSE.validate(entity_data["license_id"])
 
+        # Check for special ownership transfer permissions
+        if "owner_org" in entity_data:
+            spec = entity_data
+            spec["id"] = eid
+            authorize(spec, self.name, "create")
+            authorize(eid, self.name, "edit_ownership")
+
         return super().update(eid, entity_data)
 
     def patch(self, eid: str, patch_data):
@@ -1199,6 +1206,13 @@ class PackageEntity(EntityWithExtras):
         """
         if "license_id" in patch_data:
             LICENSE.validate(patch_data["license_id"])
+
+        # Check for special ownership transfer permissions
+        if "owner_org" in patch_data:
+            spec = patch_data
+            spec["id"] = eid
+            authorize(spec, self.name, "create")
+            authorize(eid, self.name, "edit_ownership")
 
         return super().patch(eid, patch_data)
 

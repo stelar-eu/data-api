@@ -514,6 +514,7 @@ class AttrSpec(ResourceSpec):
     def name_equals(self, lhs, rhs) -> bool:
         from utils import is_valid_uuid
         from entity import EntityWithMembers
+
         if not is_valid_uuid(rhs):
             rhs = EntityWithMembers.resolve_id(rhs)
 
@@ -521,7 +522,6 @@ class AttrSpec(ResourceSpec):
             lhs = EntityWithMembers.resolve_id(lhs)
 
         return lhs == rhs
-    
 
     def from_date(self, lhs, rhs) -> bool:
         """
@@ -939,7 +939,7 @@ def check_read_access_for_resources(resource, current_user) -> list:
             break
         except Exception:
             logger.info("Error fetching package: %s", resource.get("package_id"))
-            
+
     logger.info("Package: %s", package)
     if package is None:
         return None
