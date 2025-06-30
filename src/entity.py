@@ -1027,6 +1027,32 @@ class EntityWithMembers(EntityWithExtras):
             capacity=capacity,
             context=context,
         )
+    
+    @classmethod
+    def resolve_id(cls, name_or_id: str) -> str | None:
+        """Resolve a group or org name or ID to an ID, with simple in-memory caching.
+
+        This method is used to resolve a name or ID to an ID.
+        """
+        if not hasattr(cls, "_resolve_id_cache"):
+            cls._resolve_id_cache = {}
+
+        cache = cls._resolve_id_cache
+        if name_or_id in cache:
+            return cache[name_or_id]
+
+        sql_query = sql.SQL(
+            """\
+            SELECT id
+            FROM public.group
+            WHERE state = 'active' AND (id = %s OR name = %s)"""
+        )
+        result = execSql(sql_query, [name_or_id, name_or_id])
+        if not result:
+            cache[name_or_id] = None
+            return None
+        cache[name_or_id] = result[0]["id"]
+        return result[0]["id"]
 
 
 class PackageEntity(EntityWithExtras):

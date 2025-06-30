@@ -511,6 +511,34 @@ class AttrSpec(ResourceSpec):
         """
         pass
 
+    def name_equals(self, lhs, rhs) -> bool:
+        from utils import is_valid_uuid
+        from entity import EntityWithMembers
+        if not is_valid_uuid(rhs):
+            rhs = EntityWithMembers.resolve_id(rhs)
+
+        if not is_valid_uuid(lhs):
+            lhs = EntityWithMembers.resolve_id(lhs)
+
+        return lhs == rhs
+    
+    def resolve_type(cls, name_or_id: str) -> str | None:
+        """Resolve a package name or ID to its type.
+
+        This method is used to resolve a name or ID to its type.
+        """
+        sql_query = sql.SQL(
+            """\
+            SELECT type
+            FROM public.package
+            WHERE state = 'active' AND (id = %s OR name = %s)"""
+        )
+        result = execSql(sql_query, [name_or_id, name_or_id])
+        if not result:
+            return None
+        return result[0]["type"]
+            
+
     def from_date(self, lhs, rhs) -> bool:
         """
         Placeholder for a 'from_date' comparison operation.
