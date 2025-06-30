@@ -511,6 +511,18 @@ class AttrSpec(ResourceSpec):
         """
         pass
 
+    def name_equals(self, lhs, rhs) -> bool:
+        from utils import is_valid_uuid
+        from entity import EntityWithMembers
+        if not is_valid_uuid(rhs):
+            rhs = EntityWithMembers.resolve_id(rhs)
+
+        if not is_valid_uuid(lhs):
+            lhs = EntityWithMembers.resolve_id(lhs)
+
+        return lhs == rhs
+    
+
     def from_date(self, lhs, rhs) -> bool:
         """
         Placeholder for a 'from_date' comparison operation.
