@@ -771,10 +771,10 @@
 
         this.title = `🛠️ Task: ${t.label} – \u{1F464} ${t.creator}`;
 
-        this.addWidget("text", "ID", t.id);
-        this.addWidget("text", "Start", fmt(t.start_date));
-        this.addWidget("text", "End", t.end_date ? fmt(t.end_date) : "–");
-        this.addWidget("text", "Image", t.tags?.image || "remote");
+        this.addWidget("text", "ID",    t.id,                       "id");
+        this.addWidget("text", "Start", fmt(t.start_date),          "start");
+        this.addWidget("text", "End",   t.end_date?fmt(t.end_date):"–", "end");
+        this.addWidget("text", "Image", t.tags?.image || "remote",  "image");
         this.addWidget("button", "Open Task", null, () => {
             window.open(TASK_URL(t.id), "_blank");
         });
@@ -919,6 +919,50 @@
             })
             .fail((x, s, e) => console.error('Graph fetch:', s, e));
     }
+
+    (function(canvas, graph){
+
+        /* -------- persistent flags -------------------------------- */
+        let showMetrics    = true;
+        let showParams     = true;
+        let showInputs     = true;   // packages
+        let showOutputs    = true;   // datasets
+    
+        /* -------- bit flag alias ---------------------------------- */
+        const H = LiteGraph.NODE_HIDDEN;
+    
+        /* -------- apply current flags to every node --------------- */
+        function apply(){
+            graph._nodes.forEach(n=>{
+                let keep = true;
+                const k  = n.properties?.kind;
+                const t  = n.properties?.type;
+                if(k==="metrics")          keep = showMetrics;
+                else if(k==="parameters")  keep = showParams;
+                else if(t==="package")     keep = showInputs;
+                else if(t==="resource")    keep = showOutputs;
+    
+                n.flags = keep ? (n.flags & ~H) : (n.flags | H);
+            });
+            canvas.dirty_canvas   = true;
+            canvas.dirty_bgcanvas = true;
+            canvas.draw(true,true);        // one forced repaint
+        }
+    
+        /* -------- make functions global --------------------------- */
+        window.toggleMetrics    = flag => { showMetrics = flag;    apply(); };
+        window.toggleParameters = flag => { showParams  = flag;    apply(); };
+        window.toggleInputs     = flag => { showInputs  = flag;    apply(); };
+        window.toggleOutputs    = flag => { showOutputs = flag;    apply(); };
+    
+        /* -------- re-apply after every graph rebuild -------------- */
+        const origUpdate = updateGraph;
+        window.updateGraph = function(){
+            origUpdate.apply(this, arguments);
+            apply();                              // re-hide / re-show as needed
+        };
+    
+    })(canvas, graph);
 
     /* 4.  Toggle ------------------------------------------------------- */
     function toggleGraph() {
