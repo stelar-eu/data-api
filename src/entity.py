@@ -1126,7 +1126,7 @@ class PackageEntity(EntityWithExtras):
             """\
             SELECT type
             FROM public.package
-            WHERE state = 'active' AND (id = %s OR name = %s)"""
+            WHERE id = %s OR name = %s"""
         )
         result = execSql(sql_query, [name_or_id, name_or_id])
         if not result:

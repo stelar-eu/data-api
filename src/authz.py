@@ -65,6 +65,7 @@ ACTIONS = [
     "edit_roles",
     # Resource
     "add_resource",
+    "edit_ownership",
 ]
 
 
@@ -93,7 +94,7 @@ def authorize(resource, entity, action):
         AuthorizationError if authorization fails.
     """
 
-    if os.getenv("AUTHZ_DISABLED", True):
+    if os.getenv("AUTHZ_DISABLED", False):
         # Authorization is disabled, so we return without checking
         return
 

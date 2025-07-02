@@ -322,7 +322,7 @@ class ResourceEntity(CKANEntity):
         self.search_query_schema = schema.ResourceSearchQuery()
 
     def create_entity(self, init_data):
-        """Create a new entity.
+        """Create a new resource.
 
         This method is used to create a new resource. Authorization check
         is relying on whether the relevant permission add_resource is granted
