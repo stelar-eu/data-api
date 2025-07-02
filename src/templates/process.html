@@ -746,7 +746,7 @@
     canvas.allow_searchbox = false;
 
 
-    /* 1.  Colours ------------------------------------------------------ */
+    /* 1.  Colours & Link Blueprints ------------------------------------ */
     const STATE_COLOR = {
         succeeded: { header: "#223322", background: "#304f30" },
         failed: { header: "#332222", background: "#553333" },
@@ -754,6 +754,12 @@
         created: { header: "#222222", background: "#474747" },
         default: { header: "#222222", background: "#474747" }
     };
+
+    
+    const RESOURCE_URL = id => `{{url_for('dashboard_blueprint.viewResource', resource_id='')}}${id}`;
+    const TASK_URL     = id => `{{url_for('dashboard_blueprint.task', process_id=process.id, task_id='')}}${id}`;
+    const PACKAGE_URL = id => `{{url_for('dashboard_blueprint.dataset_detail',  dataset_id='')}}${id}`;
+
 
     /* 2.  Node classes ------------------------------------------------- */
     function TaskNode(t) {
@@ -769,6 +775,9 @@
         this.addWidget("text", "Start", fmt(t.start_date));
         this.addWidget("text", "End", t.end_date ? fmt(t.end_date) : "–");
         this.addWidget("text", "Image", t.tags?.image || "remote");
+        this.addWidget("button", "Open Task", null, () => {
+            window.open(TASK_URL(t.id), "_blank");
+        });
 
         t.inputs.forEach(n => { if (this.findInputSlot(n) === -1) this.addInput(n); });
         t.outputs.forEach(n => { if (this.findOutputSlot(n) === -1) this.addOutput(n); });
@@ -783,15 +792,24 @@
         this.addOutput("input");
         this.properties = { uuid: p.id, ...p };
         this.addWidget("text", "", p.id, "uuid");
+        this.addWidget("button", "Open Package", null, () => {
+            window.open(PACKAGE_URL(p.id), "_blank");
+        });
         this.computeSize(true);
     }
     LiteGraph.registerNodeType("basic/package", PackageNode);
+
+ 
 
     function DatasetNode(r) {
         this.title = `📄 Resource: ${r.label}`;
         this.addInput("from");
         this.properties = { uuid: r.id, ...r };
         this.addWidget("text", "", r.id, "uuid");
+        this.addWidget("button", "Open Resource", null, () => {
+            window.open(RESOURCE_URL(r.id), "_blank");
+        });
+
         this.properties = { ...r };
         this.computeSize(true);
     }
@@ -851,7 +869,7 @@
                             const r = result.nodes.find(nn => nn.id === e.target);
                             if (!r || lg[r.id]) return;
                             const d = LiteGraph.createNode("basic/dataset", r);
-                            d.pos = [n.pos[0] + 360, n.pos[1] + 260 + (i * 60)];
+                            d.pos = [n.pos[0] + 360, n.pos[1] + 350 + (i * 60)];
                             graph.add(d); lg[r.id] = d;
                         });
 
