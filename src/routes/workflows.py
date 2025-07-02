@@ -29,6 +29,25 @@ generate_endpoints(tools.TOOL, workflows_bp, logger)
 generate_endpoints(wflow.WORKFLOW, workflows_bp, logger)
 
 
+@workflows_bp.route("/process/<entity_id>/graph", methods=["GET"])
+@workflows_bp.doc(tags=["RESTful Search Operations"])
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
+@token_active
+def api_get_process_graph(entity_id):
+    """Returns the process graph of the specific Process.
+    Args:
+        entity_id: The unique identifier of the Process.
+    Returns:
+        A JSON with the process graph.
+    Responses:
+        - 200: Process graph successfully returned.
+        - 404: Process is not found
+        - 500: An unknown error occurred
+    """
+    return processes.PROCESS.build_process_graph(entity_id)
+
+
 # --------------------------------------------------------
 # ----------------------- REGISTRY -----------------------
 # --------------------------------------------------------
