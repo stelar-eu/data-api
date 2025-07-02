@@ -71,8 +71,12 @@
                                         {{ walkthrough.time }} minutes
 
                                     </div>
+                                    <div class="list-inline-item badge-list" title="Walkthrough Type">
+                                        {% for tag in walkthrough.tags %}
+                                        <span class="badge bg-primary-lt text-black">{{ tag }}</span>
+                                        {% endfor %}
+                                    </div>
                                 </div>
-
                             </div>
                         </div>
                     </div>
