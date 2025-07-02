@@ -596,6 +596,43 @@ class ProcessEntity(PackageEntity):
 
                 task_tags[tid][k] = v
 
+        # -----------------------------------------------------------------
+        # 1.3‒ TASK PARAMETERS --------------------------------------------
+        # -----------------------------------------------------------------
+        task_params = {tid: {} for tid in task_ids}
+        if task_ids:
+            sql_params = sql.SQL(
+                """
+                SELECT task_uuid, key, value
+                FROM {sch}.parameters
+                WHERE task_uuid = ANY(%s)
+            """
+            ).format(sch=sql.Identifier("klms"))
+            for row in execSql(sql_params, [list(task_ids)]):
+                tid = _get(row, "task_uuid" if isinstance(row, dict) else 0)
+                k = _get(row, "key" if isinstance(row, dict) else 1)
+                v = _get(row, "value" if isinstance(row, dict) else 2)
+                task_params[tid][k] = v
+
+        # -----------------------------------------------------------------
+        # 1.4‒ TASK METRICS -----------------------------------------------
+        # -----------------------------------------------------------------
+        task_metrics = {tid: {} for tid in task_ids}
+        if task_ids:
+            sql_metrics = sql.SQL(
+                """
+                SELECT task_uuid, key, value, issued
+                FROM {sch}.metrics
+                WHERE task_uuid = ANY(%s)
+                ORDER BY task_uuid, key, issued
+            """
+            ).format(sch=sql.Identifier("klms"))
+            for row in execSql(sql_metrics, [list(task_ids)]):
+                tid = _get(row, "task_uuid" if isinstance(row, dict) else 0)
+                k = _get(row, "key" if isinstance(row, dict) else 1)
+                v = _get(row, "value" if isinstance(row, dict) else 2)
+                task_metrics[tid][k] = v
+
         # -----------------------------------------------------------------------
         # 2. INPUTS & OUTPUTS ----------------------------------------------------
         # -----------------------------------------------------------------------
@@ -723,7 +760,9 @@ class ProcessEntity(PackageEntity):
                 "end_date": end_date,
                 "inputs": sorted(task_inputs[tid]),
                 "outputs": sorted(task_outputs[tid]),
-                "tags": task_tags.get(tid, {}),  # <-- NEW
+                "tags": task_tags.get(tid, {}),
+                "parameters": task_params.get(tid, {}),
+                "metrics": task_metrics.get(tid, {}),
             }
 
         # package nodes (needed for collapsed inputs **and** for any output-packages)
