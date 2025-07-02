@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>STELAR | Walkthroughs</title>
+    <!-- CSS files -->
+    {% include 'tabler.html' %}
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet PM CSS (for polygon editing) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.css" />
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="{{ url_for('static', filename='images.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+
+</head>
+
+<body>
+    <div class="page">
+        <!-- Navbar -->
+        {% include 'header.html' %}
+        <div class="page-wrapper">
+            <!-- Page header -->
+            <div class="page-header d-print-none">
+                <div class="container-xl">
+                    <div class="row g-2 align-items-center">
+                        <div class="col">
+                            <!-- Page pre-title -->
+                            <div class="page-pretitle">Walkthroughs</div>
+                            <h3 class="page-title">
+                                <ol class="breadcrumb breadcrumb-arrows">
+                                    <li class="breadcrumb-item active"><a href="#">
+                                            Walkthrough Scenarios
+                                        </a>
+                                    </li>
+                                </ol>
+                            </h3>
+                            <p class="mt-3 text-sm text-secondary">
+                                This page provides a list of available walkthrough scenarios. Each scenario is designed
+                                to guide you through specific tasks and features of the STELAR platform, helping you to
+                                understand and utilize its capabilities effectively.
+                                You can explore each scenario to learn about different functionalities, from data
+                                management to advanced analytics. Click on a scenario to view its details and start your
+                                walkthrough experience.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="page-body">
+                <div class="container-xl">
+                    <div class="row row-cards">
+                        {% for walkthrough in walkthroughs %}
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <a class="card card-link cursor-pointer"
+                                href="{{ url_for('dashboard_blueprint.walkthrough', walkthrough_name=walkthrough.name) }}">
+                                <div class="img-responsive img-responsive-16x9 card-img-top"
+                                    style="background-size: cover; background-position: center; background-image: url({{ walkthrough.image if walkthrough.image else url_for('static', filename='logo.png') }})">
+                                </div>
+                                <div class="card-body">
+                                    <h3 class="card-title">{{ walkthrough.title }}</h3>
+
+                                    <div class="d-flex">
+                                        <p class="text-muted mt-1">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="me-1 icon icon-tabler icons-tabler-outline icon-tabler-clock-hour-2">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                                                <path d="M12 12l3 -2" />
+                                                <path d="M12 7v5" />
+                                            </svg>
+                                            {{ walkthrough.time }} minutes
+                                        </p>
+
+                                        <p class="h3 text-muted ms-auto">
+                                            Pilot <span class="text-primary">{{walkthrough.pilot | capitalize}}</span> |
+                                            Use-Case <span class="text-primary">{{walkthrough.usecase |
+                                                capitalize}}</span>
+                                        </p>
+                                    </div>
+
+                                    <p class="card-text">{{ walkthrough.description }}</p>
+                                    <div class="badge-list">
+                                        {% for tag in walkthrough.tags %}
+                                        <span class="badge bg-primary-lt text-black">{{ tag }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        {% endfor %}
+
+                        {% if walkthroughs|length == 0 %}
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h3 class="card-title">No Walkthroughs Available</h3>
+                                    <p class="card-text">Currently, there are no walkthrough scenarios available.
+                                        Please check back later or contact support for more information.</p>
+                                    <a href="{{ url_for('dashboard_blueprint.index') }}" class="btn btn-primary">Return
+                                        to Dashboard</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% include 'footer.html'%}
+        </div>
+    </div>
+</body>
+
+</html>
