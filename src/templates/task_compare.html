@@ -19,6 +19,9 @@
   <script src="{{ url_for('static', filename='images.js') }}"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}" />
   <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+
 </head>
 
 <body>
@@ -35,20 +38,22 @@
               <div class="page-pretitle">PROCESSES</div>
               <h3 class="page-title">
                 <ol class="breadcrumb breadcrumb-arrows">
-                    <li class="breadcrumb-item"><a class="text-secondary"
-                            href="{{ url_for('dashboard_blueprint.processes')}}">
-                            Workflow Processes
-                        </a>
-                    </li>                
-                    <li class="breadcrumb-item active"><a href="#"><span
-                                class="text-strong">Compare Tasks</span></a></li>
+                  <li class="breadcrumb-item"><a class="text-secondary"
+                      href="{{ url_for('dashboard_blueprint.processes')}}">
+                      Workflow Processes
+                    </a>
+                  </li>
+                  <li class="breadcrumb-item active"><a href="#"><span class="text-strong">Compare Tasks</span></a></li>
                 </ol>
-                </h3>
+              </h3>
               <p class="mt-3 text-sm text-secondary">
-                Use this page to compare the performance of two or more tasks. Select the tasks you want to compare from the
-                list below. The comparison will contrast the performance metrics of the selected tasks, utilized input artifacts and produced output ones, 
+                Use this page to compare the performance of two or more tasks. Select the tasks you want to compare from
+                the
+                list below. The comparison will contrast the performance metrics of the selected tasks, utilized input
+                artifacts and produced output ones,
                 allowing you to analyze their efficiency and effectiveness in the context of your project.
-                This can help you identify which tasks are performing well and which may need optimization or further investigation.
+                This can help you identify which tasks are performing well and which may need optimization or further
+                investigation.
               </p>
             </div>
           </div>
@@ -57,14 +62,398 @@
       <!-- Page body -->
       <div class="page-body">
         <div class="container-xl">
+          <div class="card">
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-vcenter table-bordered table-nowrap card-table">
+                  <tr>
+                    <td class="w-1"></td>
+                    {% if tasks %}
+                    {% for task in tasks %}
+                    <td class="text-center">
+                      <div class="h2 text-wrap fw-bold mt-1 mb-0">
+                        <a href="{{url_for('dashboard_blueprint.task', process_id=task.get('process_id'), task_id=task.get('id'))}}"
+                           target="_blank">{{task.get('name','Task ' + task.id)}}</a>
+                      </div>
 
-            
+                      <div class="d-flex text-muted align-items-center justify-content-center my-2">
+      
+                          <span id="task-state-text" class="ms-2 me-0">{{ task.exec_state |
+                          capitalize }}</span>
+                    
+                        <span id="task-state-badge"
+                          class="status-indicator {% if task.exec_state == 'succeeded' %}status-green{% elif task.exec_state == 'failed' %}status-red{% elif task.exec_state == 'created' %}status-secondary{% else %}status-yellow status-indicator-animated{% endif %}">
+                          <span class="status-indicator-circle"></span>
+                          <span class="status-indicator-circle"></span>
+                          <span class="status-indicator-circle"></span>
+                        </span>
+                      </div>
+                      <a href="{{url_for('dashboard_blueprint.task', process_id=task.get('process_id'), task_id=task.get('id'))}}"
+                         target="_blank"
+                         class="btn w-100 mt-2">
+                        Open Task</a>
+                    </td>
+                    {% endfor %} 
+                    {% endif %}
+                  </tr>
+                  <tbody>
+                    <tr class="bg-light">
+                      <th colspan="{% if tasks %}{{ tasks|length + 1 }}{% endif %}" class="subheader">
+                        General Information
+                      </th>
+                    </tr>
 
-            
+                    <tr>
+                      <td>ID</td>
+                      {% if tasks %}
+                      {% for task in tasks %}
+                      <td class="text-center">
+                        <div class="p text-wrap">
+                          <span id="task-{{ task.id }}"><code>{{ task.id }}</code></span>
+                          <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
+                            navigator.clipboard.writeText(document.getElementById('task-{{ task.id }}').innerText);
+                            var el = document.getElementById('task-{{ task.id }}');
+                            el.classList.remove('glowing-text');
+                            void el.offsetWidth; // trigger reflow to restart animation
+                            el.classList.add('glowing-text');">
+                            COPY
+                          </button>                         
+                        </div>
+                      </td>
+                      {% endfor %} 
+                      {% endif %}                      
+                    </tr>
+                    <tr>
+                      <td>Workflow Process</td>
+                      {% if tasks %}
+                      {% for task in tasks %}
+                      <td class="text-center">
+                        <div class="p text-wrap">
+                          <a href="{{url_for('dashboard_blueprint.process', process_id=task.get('process_id'))}}"
+                             target="_blank">Open Workflow Process</a>
+                        </div>                   
+                      </td>
+                      {% endfor %} 
+                      {% endif %}
+                   
+                    </tr>
+
+                    <tr>
+                      <td>Creator</td>
+                      {% if tasks %}
+                      {% for task in tasks %}
+                      <td class="text-center fw-bold">
+                        <div class="p text-wrap">
+                          {{task.get('creator', 'Not specified')}}
+                        </div>
+                      </td>
+                      {% endfor %} 
+                      {% endif %}
+                    </tr>
+                    <tr>
+                      <td>Start Date</td>
+                      {% if tasks %}
+                      {% for task in tasks %}
+                      <td class="text-center">
+                        <div class="p text-wrap">
+                          {{task.get('start_date', 'Not specified').strftime('%d-%m-%Y %H:%M:%S')}}
+                        </div>
+                      </td>
+                      {% endfor %} 
+                      {% endif %}
+                    </tr>
+                    <tr>
+                      <td>End Date</td>
+                      {% if tasks %}
+                      {% for task in tasks %}
+                      <td class="text-center">
+                        <div class="p text-wrap">
+                          {% if task.get('end_date') %}
+                          {{ task.get('end_date').strftime('%d-%m-%Y %H:%M:%S') }}
+                          {% else %}
+                          Not Finished
+                          {% endif %}
+                        </div>
+                      </td>
+                      {% endfor %} 
+                      {% endif %}
+                    </tr>
+                    <tr>
+                      <td>Duration</td>
+                      {% if tasks %}
+                      {% for task in tasks %}
+                      <td class="text-center">
+                        <div class="p text-wrap">
+                            {% if task.get('start_date') %}
+                            {% set end_date = task.get('end_date') or now %}
+                            {% set duration_seconds = (end_date - task.start_date).total_seconds() %}
+                            {% if duration_seconds < 60 %}
+                            {{ "%.2f"|format(duration_seconds) }} seconds
+                            {% elif duration_seconds < 3600 %}
+                            {{ "%.2f"|format(duration_seconds / 60) }} minutes
+                            {% elif duration_seconds < 86400 %}
+                            {{ "%.2f"|format(duration_seconds / 3600) }} hours
+                            {% elif duration_seconds < 604800 %}
+                            {{ "%.2f"|format(duration_seconds / 86400) }} days
+                            {% else %}
+                            {{ "%.2f"|format(duration_seconds / 604800) }} weeks
+                            {% endif %}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </div>
+                      </td>
+                      {% endfor %} 
+                      {% endif %}
+                    </tr>
+                    <tr class="bg-light">
+                      <th colspan="{% if tasks %}{{ tasks|length + 1 }}{% endif %}" class="subheader">
+                        TOOL INFORMATION
+                      </th>
+                    </tr>
+                    <tr>
+                      <td>Tool</td>
+                      {% if tasks %}
+                      {% for task in tasks %}
+                      <td class="text-center">
+                        <div class="p text-wrap">
+                          {% if task.get("tool") %}
+                          <a href="{{ url_for('dashboard_blueprint.tool', tool_id=task.get('tool')) }}"
+                             target="_blank">{{ task.get("tool") }}</a>
+                          {% else %}
+                          <span class="text-muted">-</span>
+                          {% endif %}
+                        </div>
+                      </td>
+                      {% endfor %} 
+                      {% endif %}
+                    </tr>
+                    <tr>
+                      <td>Tool Image</td>
+                      {% if tasks %}
+                      {% for task in tasks %}
+                      <td class="text-center">
+                        <div class="p text-wrap">
+                          {% if task.get("image") %}
+                            <kbd>{{task.get("image") }}</kbd>
+                          {% else %}
+                            <span class="text-muted">Remote Task</span>
+                          {% endif %}
+                        </div>
+                      </td>
+                      {% endfor %} 
+                      {% endif %}
+                    </tr>
+                    <tr class="bg-light">
+                      <th colspan="{% if tasks %}{{ tasks|length + 1 }}{% endif %}" class="subheader">
+                        Inputs
+                      </th>
+                    </tr>
+                    <tr>
+                      <td>Input Artifacts</td>
+                      {% if tasks %}
+                      {% for task in tasks %}
+                      <td>
+                        <div class="text-small"></div>
+                        {% if task.get('inputs') %}
+                        {% for input_artifact in task.get('inputs', []) %}
+                        <div id="tree-{{ task.id }}-{{ loop.index }}" class="jstree"></div>
+                        <script>
+                          document.addEventListener("DOMContentLoaded", function () {
+                            const treeData = {
+                              text: "<kbd>{{ input_artifact }}</kbd>",
+                              id: "{{input_artifact }}",
+                              children: [
+                              {% for artifact in task.get('inputs')[input_artifact] %}
+                              {
+                                  {% set is_resource = artifact in resources %}
+                                  {% set looks_like_id = artifact|length == 36 and artifact.isalnum() %}
+                                  {% if is_resource or looks_like_id %}
+                                    text   : "📄 {{ resources[artifact].get('name', artifact) + ' - (' + artifact + ')' if is_resource else artifact }}",
+                                    a_attr: {
+                                      "href": "{{ url_for('dashboard_blueprint.viewResource', resource_id=artifact) }}",
+                                      "target": "_blank",
+                                      "onclick": "window.open(this.href, '_blank'); return false;"
+                                    }
+                                  {% else %}
+                                    text : "{{ artifact }}",
+                                  {% endif %}
+                              }{{ "," if not loop.last }}
+                              {% endfor %}
+                              ]
+                            };
+                            $('#tree-{{ task.id }}-{{ loop.index }}').jstree({
+                              'core': {
+                                'themes': {
+                                  'icons': false,
+                                  'responsive': true
+                                },
+                                'data': [treeData]
+                              }
+                            });
+                          });
+                        </script>
+                        <br>
+                        {% endfor %}
+                        {% else %}
+                        <span class="text-muted">No inputs</span>
+                        {% endif %}
+                        </div>
+                      </td>
+                      {% endfor %}
+                      {% endif %}
+                    </tr>
+                    <tr class="bg-light">
+                      <th colspan="{% if tasks %}{{ tasks|length + 1 }}{% endif %}" class="subheader">
+                        Outputs
+                      </th>
+                    </tr>
+                    <tr>
+                      <td>Output Artifacts</td>
+                      {% if tasks %}
+                      {% for task in tasks %}
+                      <td>
+                        <div class="text-small">
+                          {% if task.get('outputs') %}
+                          {% for output_key, output_data in task.get('outputs', {}).items() %}
+                          <div>
+                            <kbd>{{ output_key  }}</kbd> -> 
+                            {% if output_data.get('resource_id', '') in resources %}
+                            <a href="{{ url_for('dashboard_blueprint.viewResource', resource_id=output_data.get('resource_id')) }}"
+                               target="_blank">{{ resources[output_data.get('resource_id')].get('name', output_data.get('resource_id')) }}</a>
+                            {% else %}
+                              {{ output_data.get("url")}}
+                            {% endif %}
+                          </div>
+                          {% endfor %}
+                          {% endif %}
+                        </div>
+                      </td>
+                      {% endfor %}
+                      {% endif %}
+                    </tr>
+
+                    <tr class="bg-light">
+                      <th colspan="{% if tasks %}{{ tasks|length + 1 }}{% endif %}" class="subheader">
+                        Parameters
+                      </th>
+                    </tr>
+                    {% macro render_tree(node, first_map=None) -%}
+                    {% if node is mapping %}
+                    <table class="table table-sm table-bordered mb-0">
+                      <thead class="table-light"></thead>
+                      <tbody>
+                      {% for key, val in node|dictsort %}
+                        <tr>
+                          <th scope="row">{{ key }}</th>
+                          <td class="d-flex align-items-center">
+                            {% if val is mapping %}
+                              {{ render_tree(val, first_map[key] if first_map and first_map[key] is defined else None) }}
+                            {% elif val is sequence and not val is string %}
+                              {{ render_tree(val, first_map[key] if first_map and first_map[key] is defined else None) }}
+                            {% else %}
+                              <code>{{ val }}</code>
+                              {% if first_map and first_map[key] is defined %}
+                                {% set o = first_map[key]|extract_number %}
+                                {% set c = val               |extract_number %}
+                                {% if o is not none and c is not none and o != 0 %}
+                                  {% set pct = ((c - o) / o * 100) %}
+                                  {% set p = pct|round(0, 'common') %}
+                                  {% if p > 0 %}
+                                    <span class="text-green d-inline-flex align-items-center lh-1 ms-2">
+                                      +{{ p }}%
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon ms-1 icon-2">
+                                        <path d="M3 17l6 -6l4 4l8 -8"></path>
+                                        <path d="M14 7l7 0l0 7"></path>
+                                      </svg>
+                                    </span>
+                                  {% elif p < 0 %}
+                                    <span class="text-red d-inline-flex align-items-center lh-1 ms-2">
+                                      {{ p }}%
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon ms-1 icon-2">
+                                        <path d="M3 7l6 6l4 -4l8 8"></path>
+                                        <path d="M21 10l0 7l-7 0"></path>
+                                      </svg>
+                                    </span>
+                                  {% else %}
+                                    <span class="text-yellow d-inline-flex align-items-center lh-1 ms-2">
+                                      0%
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon ms-1 icon-2">
+                                        <path d="M5 12l14 0"></path>
+                                      </svg>
+                                    </span>
+                                  {% endif %}
+                                {% endif %}
+                              {% endif %}
+                            {% endif %}
+                          </td>
+                        </tr>
+                      {% endfor %}
+                      </tbody>
+                    </table>
+                    {% elif node is sequence and not node is string %}
+                    <table class="table table-sm table-bordered mb-0">
+                      <thead class="table-light"></thead>
+                      <tbody>
+                      {% for item in node %}
+                        <tr>
+                          <td>{{ loop.index }}</td>
+                          <td>{{ render_tree(item, first_map) }}</td>
+                        </tr>
+                      {% endfor %}
+                      </tbody>
+                    </table>
+                    {% else %}
+                    <code>{{ node }}</code>
+                    {% endif %}
+                    {%- endmacro %}
+
+                    {% set first_metrics = {} %}
+                    {% if tasks|length > 0 and tasks[0].metrics is mapping %}
+                    {% set first_metrics = tasks[0].metrics %}
+                    {% endif %}
+
+                    <tr>
+                      <td>Parameters</td>
+                      {% for task in tasks %}
+                        <td class="p-0">
+                          {% if task.parameters %}
+                            {{ render_tree(task.parameters) }}
+                          {% else %}
+                            <span class="text-muted">No parameters</span>
+                          {% endif %}
+                        </td>
+                      {% endfor %}
+                    </tr>
+
+                    <tr class="bg-light">
+                      <th colspan="{{ tasks|length + 1 }}" class="subheader">Metrics</th>
+                    </tr>
+                    <tr>
+                      <td>Metrics</td>
+                      {% for task in tasks %}
+                        <td class="p-0">
+                          {% if task.metrics %}
+                            {{ render_tree(task.metrics, first_metrics) }}
+                          {% else %}
+                            <span class="text-muted">No metrics</span>
+                          {% endif %}
+                        </td>
+                      {% endfor %}
+                    </tr>
+
+
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      {% include 'footer.html'%}
     </div>
+    {% include 'footer.html'%}
+  </div>
   </div>
 </body>
+
 </html>

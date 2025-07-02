@@ -31,8 +31,7 @@ from flask.json.provider import DefaultJSONProvider
 # Import Redis Session support
 from flask_session import Session
 
-# for keycloak integration with the api
-from psycopg2.extras import RealDictCursor
+from collections import OrderedDict
 
 import execution
 
@@ -121,7 +120,30 @@ def format_datetime(value):
     return "N/A"
 
 
+def sort_recursive(value):
+    """Return an OrderedDict with every nested level alphabetically sorted."""
+    if isinstance(value, dict):
+        return OrderedDict(
+            (k, sort_recursive(v))
+            for k, v in sorted(value.items(), key=lambda x: x[0].lower())
+        )
+    if isinstance(value, list):
+        return [sort_recursive(v) for v in value]
+    return value
+
+
+def extract_number(value):
+    """
+    Find the first integer or decimal in the string and return it as a float.
+    If nothing matches, return None.
+    """
+    m = re.search(r"-?\d+(\.\d+)?", str(value))
+    return float(m.group(0)) if m else None
+
+
+app.jinja_env.filters["sort_recursive"] = sort_recursive
 app.jinja_env.filters["format_datetime"] = format_datetime
+app.jinja_env.filters["extract_number"] = extract_number
 #######################################
 
 

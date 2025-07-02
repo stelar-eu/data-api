@@ -25,6 +25,7 @@ from flask import (
     url_for,
 )
 
+from utils import is_valid_uuid
 import cutils
 import kutils
 from processes import PROCESS
@@ -285,9 +286,46 @@ def process(process_id):
 @dashboard_bp.route("/tasks/compare")
 @session_required
 def task_compare():
+    task_ids = request.cookies.get("compare_tasks", "").split(",")[:5]
+    tasks = []
+    resources = {}
+
+    for tid in task_ids:
+        try:
+            t = TASK.get_entity(tid)
+            for input_key, input_values in t.get("inputs", {}).items():
+                for input_item in input_values:
+                    if is_valid_uuid(input_item):
+                        resource_id = input_item
+                        if resource_id and resource_id not in resources:
+                            try:
+                                resources[resource_id] = RESOURCE.get_entity(
+                                    resource_id
+                                )
+                            except Exception as e:
+                                logger.error(
+                                    f"Error fetching resource {resource_id}: {str(e)}"
+                                )
+
+            for output_key, output_value in t.get("outputs", {}).items():
+                resource_id = output_value.get("resource_id")
+                if is_valid_uuid(resource_id):
+                    if resource_id and resource_id not in resources:
+                        try:
+                            resources[resource_id] = RESOURCE.get_entity(resource_id)
+                        except Exception as e:
+                            logger.error(
+                                f"Error fetching resource {resource_id}: {str(e)}"
+                            )
+
+            tasks.append(t)
+        except Exception as e:
+            logger.error(f"Error fetching task {tid}: {str(e)}")
+
+    now = datetime.now()
 
     return render_template_with_s3(
-        "task_compare.html",
+        "task_compare.html", tasks=tasks, resources=resources, now=now
     )
 
 
@@ -552,7 +590,6 @@ def dataset_compare():
     dataset_ids = request.cookies.get("compare_datasets", "").split(",")[:5]
     datasets = []
 
-    logger.debug("Dataset IDs from the cookie: %d", dataset_ids)
     for dataset_id in dataset_ids:
         try:
             dataset = cutils.get_package(id=dataset_id)
