@@ -1,4 +1,4 @@
 # Branch name   image name                           Last build         
-main            petroud/stelar-api:prod              17/06/2025 18:30:00
+main            petroud/stelar-api:prod              03/07/2025 00:00:00
 k8sexecution    vsam/stelar-tuc:data-api-dev         01/06/2025 00:00:00
-refactor-tasks  petroud/stelar-api:stage             17/06/2025 00:00:00
+refactor-tasks  petroud/stelar-api:stage             03/07/2025 00:00:00
