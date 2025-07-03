@@ -25,7 +25,6 @@ from flask import (
     session,
     url_for,
 )
-
 from utils import is_valid_uuid
 import cutils
 import kutils
@@ -34,6 +33,7 @@ from tasks import TASK
 from tools import TOOL
 from cutils import TAG, ORGANIZATION, DATASET, RESOURCE
 from auth import admin_required
+from backend.llmsearch import llm_search_enabled
 import json
 
 
@@ -50,6 +50,7 @@ def render_template_with_s3(template_name, **kwargs):
     # Add the S3_CONSOLE_URL to the kwargs
     kwargs["S3_CONSOLE_URL"] = config.get("S3_CONSOLE_URL", "#")
     kwargs["AVATAR"] = session.get("AVATAR", None)
+    kwargs["LLM_SEARCH_ENABLED"] = config.get("LLM_SEARCH_ENABLED", False)
     kwargs["GITHUB_API"] = "https://api.github.com"
     kwargs["GITHUB_RAW"] = "https://raw.githubusercontent.com"
     return render_template(template_name, **kwargs)
@@ -194,6 +195,7 @@ def dashboard_index():
 @dashboard_bp.route("/search", methods=["GET"])
 @dashboard_bp.doc(False)
 @session_required
+@llm_search_enabled
 def llm_search():
     return render_template_with_s3(
         "llm_search.html", PARTNER_IMAGE_SRC=get_partner_logo()

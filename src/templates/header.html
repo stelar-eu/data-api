@@ -162,6 +162,8 @@
                             <span class="nav-link-title">Overview</span>
                         </a>
                     </li>
+
+                    {% if LLM_SEARCH_ENABLED %}
                     <li
                         class="nav-item {% if url_for('dashboard_blueprint.llm_search').endswith(request.path) %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.llm_search') }}">
@@ -176,6 +178,7 @@
                             <span class="nav-link-title">AI Search</span>
                         </a>
                     </li>
+                    {% endif %}
                     <li
                         class="nav-item {% if url_for('dashboard_blueprint.processes').endswith(request.path) %}active{% endif %}">
                         <a class="nav-link" href="{{ url_for('dashboard_blueprint.processes') }}">
