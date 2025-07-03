@@ -180,10 +180,10 @@ class Entity:
 
         # TODO: This will change to harmonize with search and list/fetch
 
-        # obj = self.get_cached(eid)
-        # authorize(obj, self.name, "read")
-        # return obj
-        return self.get(eid)
+        obj = self.get_cached(eid)
+        authorize(obj, self.name, "read")
+        return obj
+        # return self.get(eid)
 
     def get_cached(self, eid):
         """Get an entity by ID from the entity cache.
@@ -212,7 +212,7 @@ class Entity:
         Returns:
             The created entity object.
         """
-        # authorize(init_data, self.name, "create")
+        authorize(init_data, self.name, "create")
         return self.create(init_data)
 
     def delete_entity(self, eid: str, purge=False):
@@ -226,6 +226,7 @@ class Entity:
         Returns:
             The result of the delete operation.
         """
+        authorize(eid, self.name, "delete")
         return self.delete(eid, purge)
 
     def update_entity(self, eid: str, entity_data):
@@ -241,6 +242,7 @@ class Entity:
         Returns:
             The updated entity object.
         """
+        authorize(eid, self.name, "update")
         return self.update(eid, entity_data)
 
     def patch_entity(self, eid: str, patch_data):
@@ -256,6 +258,7 @@ class Entity:
         Returns:
             The patched entity object.
         """
+        authorize(eid, self.name, "update")
         return self.patch(eid, patch_data)
 
     #
@@ -848,6 +851,7 @@ class MemberEntity:
             member_id: the ID of the member
             capacity: the capacity of the member
         """
+        logger.info("Adding member %s to %s with capacity %s", member_id, eid, capacity)
         return self.add_member(eid, member_id, capacity)
 
     def remove_member_entity(self, eid: str, member_id: str):
@@ -872,15 +876,24 @@ class MemberEntity:
             eid: the ID of the group or org
             capacity: the capacity of the members to list, or None to list all members.
         """
+        # TODO: authorize(eid, self.parent.name, "list_members")
         return self.list_members(eid, capacity)
 
     def add_member(self, eid: str, member_id: str, capacity: str):
+        # Authorize access
+        authorize(member_id, self.child.name, "edit_membership")
+        authorize(eid, self.parent.name, "add_member")
+
         context = {"member_entity": self.child.name}
         self.parent.add_member(
             eid, member_id, self.member_kind, capacity=capacity, context=context
         )
 
     def remove_member(self, eid: str, member_id: str):
+        # Authorize access
+        authorize(member_id, self.child.name, "edit_membership")
+        authorize(eid, self.parent.name, "remove_member")
+
         context = {"member_entity": self.child.name}
         self.parent.remove_member(eid, member_id, self.member_kind, context=context)
 
@@ -1015,6 +1028,32 @@ class EntityWithMembers(EntityWithExtras):
             context=context,
         )
 
+    @classmethod
+    def resolve_id(cls, name_or_id: str) -> str | None:
+        """Resolve a group or org name or ID to an ID, with simple in-memory caching.
+
+        This method is used to resolve a name or ID to an ID.
+        """
+        if not hasattr(cls, "_resolve_id_cache"):
+            cls._resolve_id_cache = {}
+
+        cache = cls._resolve_id_cache
+        if name_or_id in cache:
+            return cache[name_or_id]
+
+        sql_query = sql.SQL(
+            """\
+            SELECT id
+            FROM public.group
+            WHERE state = 'active' AND (id = %s OR name = %s)"""
+        )
+        result = execSql(sql_query, [name_or_id, name_or_id])
+        if not result:
+            cache[name_or_id] = None
+            return None
+        cache[name_or_id] = result[0]["id"]
+        return result[0]["id"]
+
 
 class PackageEntity(EntityWithExtras):
     """CKAN Entities based on packages.
@@ -1087,7 +1126,7 @@ class PackageEntity(EntityWithExtras):
             """\
             SELECT type
             FROM public.package
-            WHERE state = 'active' AND (id = %s OR name = %s)"""
+            WHERE id = %s OR name = %s"""
         )
         result = execSql(sql_query, [name_or_id, name_or_id])
         if not result:
@@ -1147,6 +1186,13 @@ class PackageEntity(EntityWithExtras):
         if "license_id" in entity_data:
             LICENSE.validate(entity_data["license_id"])
 
+        # Check for special ownership transfer permissions
+        if "owner_org" in entity_data:
+            spec = entity_data
+            spec["id"] = eid
+            authorize(spec, self.name, "create")
+            authorize(eid, self.name, "edit_ownership")
+
         return super().update(eid, entity_data)
 
     def patch(self, eid: str, patch_data):
@@ -1160,6 +1206,13 @@ class PackageEntity(EntityWithExtras):
         """
         if "license_id" in patch_data:
             LICENSE.validate(patch_data["license_id"])
+
+        # Check for special ownership transfer permissions
+        if "owner_org" in patch_data:
+            spec = patch_data
+            spec["id"] = eid
+            authorize(spec, self.name, "create")
+            authorize(eid, self.name, "edit_ownership")
 
         return super().patch(eid, patch_data)
 

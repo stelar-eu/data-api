@@ -2,11 +2,11 @@
     Generic authorization logic for entities.
 """
 
-
 import flask
 
 from exceptions import AuthorizationError, InternalException
 from kutils import current_user
+import os
 
 
 def generic_action(action, entity):
@@ -46,14 +46,7 @@ ACTIONS = [
     # purging
     *combine_generic(
         ["purge"],
-        [
-            "dataset",
-            "workflow",
-            "process",
-            "tool",
-            "group",
-            "organization"
-        ],
+        ["dataset", "workflow", "process", "tool", "group", "organization"],
     ),
     # Membership
     *combine_generic(["edit_membership"], GENERIC_ACTION_ENTITIES),
@@ -70,6 +63,9 @@ ACTIONS = [
     "exec",
     # Users
     "edit_roles",
+    # Resource
+    "add_resource",
+    "edit_ownership",
 ]
 
 
@@ -98,7 +94,16 @@ def authorize(resource, entity, action):
         AuthorizationError if authorization fails.
     """
 
-    from authz_module import Resource, authorization, check_read_access_for_packages, check_read_access_for_resources
+    if os.getenv("AUTHZ_DISABLED", False):
+        # Authorization is disabled, so we return without checking
+        return
+
+    from authz_module import (
+        Resource,
+        authorization,
+        check_read_access_for_packages,
+        check_read_access_for_resources,
+    )
 
     if not flask.has_request_context():
         return
@@ -106,7 +111,7 @@ def authorize(resource, entity, action):
     # Check for admin
     cu = current_user()
     # TODO: Check if user is admin via user attributes!!
-    is_admin = cu.get("is_admin",None)
+    is_admin = cu.get("is_admin", None)
     if is_admin is not None and is_admin:
         return
 
@@ -115,22 +120,22 @@ def authorize(resource, entity, action):
         gaction = generic_action(action, entity)
         if gaction in ACTIONS:
             action = gaction
-    else:
-        raise InternalException(f"Illegal action passed: {action}")
-    
-    #grant access without authorization check for the following actions
+    # else:
+    #     raise InternalException(f"Illegal action passed: {action}")
+
+    # grant access without authorization check for the following actions
     if action in ["read_group", "read_organization", "read_vocabulary", "read_tag"]:
         return
-    
+
     # Check for read access for packages
     if action in ["read_dataset", "read_workflow", "read_process", "read_tool"]:
-        return check_read_access_for_packages(resource,cu)
-    
+        return check_read_access_for_packages(resource, cu)
+
     # Check for read access for resources
     if action in ["read_resource", "read_task"]:
-        return check_read_access_for_resources(resource,cu)
+        return check_read_access_for_resources(resource, cu)
 
-    if not authorization(Resource(resource["id"], entity), action):
+    if not authorization(Resource(resource, entity), action):
         detail = {
             "entity": entity,
             "resource": resource,

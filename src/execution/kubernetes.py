@@ -242,6 +242,51 @@ class K8sExecEngine(ExecEngine):
 
         return logs
 
+    def kill_task(self, task_id: str) -> bool:
+        """
+        Kill a task by deleting all K8s jobs and pods associated with the given task ID.
+
+        Args:
+            task_id (str): The task ID to filter pods and jobs by.
+
+        Returns:
+            bool: True if the task was successfully killed, False otherwise.
+        """
+        label_selector = f"stelar.task-id={task_id}"
+        try:
+            # Delete Jobs first
+            jobs = self.batch.list_namespaced_job(
+                namespace=self.namespace, label_selector=label_selector
+            )
+            for job in jobs.items:
+                job_name = job.metadata.name
+                logger.info(
+                    "Deleting job %s associated with task %s", job_name, task_id
+                )
+                self.batch.delete_namespaced_job(
+                    name=job_name,
+                    namespace=self.namespace,
+                    propagation_policy="Background",
+                )
+
+            # NB: Pods are automatically deleted when the job is deleted
+            # # Then delete Pods
+            pods = self.v1.list_namespaced_pod(
+                namespace=self.namespace, label_selector=label_selector
+            )
+            for pod in pods.items:
+                pod_name = pod.metadata.name
+                logger.info(
+                    "Deleting pod %s associated with task %s", pod_name, task_id
+                )
+                self.v1.delete_namespaced_pod(name=pod_name, namespace=self.namespace)
+            return True
+        except ApiException as e:
+            logger.error(
+                "Kubernetes API exception when killing task %s: %s", task_id, e
+            )
+            return False
+
     def get_task_info(self, task_id: str) -> dict:
         """
         Retrieve detailed information for a task, including logs, CPU, memory usage, and runtime.

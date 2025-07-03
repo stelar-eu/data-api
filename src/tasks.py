@@ -9,6 +9,7 @@ from apiflask import Schema, fields, validators
 from flask import current_app, g
 from marshmallow import INCLUDE, ValidationError, pre_load, validates_schema
 
+from authz import authorize
 import cutils
 import execution
 import kutils
@@ -22,6 +23,7 @@ from exceptions import (
     DataError,
     NotAllowedError,
     NotFoundError,
+    InternalException,
 )
 from execution.job import JobSpec
 from mutils import expand_wildcard_path, get_temp_minio_credentials
@@ -843,6 +845,8 @@ class Task(Entity):
             NotFoundError: If the Process is not found
         """
         process_id = str(spec.get("process_id"))
+        authorize(process_id, "process", "add_task")
+
         inputs = spec.get("inputs")
         outputs = spec.get("outputs", {})
         datasets = spec.get("datasets")
@@ -1323,6 +1327,44 @@ class Task(Entity):
                     )["id"]
                     return res_id
 
+    def terminate(self, id: uuid.UUID):
+        """Terminates a Task execution in the database.
+
+        The termination is done by setting the state of the Task to 'terminated'.
+        The termination is only allowed if the Task is in 'created' or 'running' state.
+        The signature is used to verify the request and ensure that only the creator
+        of the Task can terminate it.
+
+        Args:
+            id: The ID of the Task
+            signature: The signature of the Task to validate.
+
+        Raises:
+            NotFoundError: If the Task does not exist.
+            ConflictError: If the Task is already terminated or in a state that does not allow termination.
+            AuthorizationError: If the signature is invalid.
+        """
+        # Validate the task existence
+        self.validate_task(id)
+
+        task = sql_utils.task_execution_read(id)
+
+        if task["exec_state"] not in ["created", "running"]:
+            raise ConflictError(
+                f"Task '{id}' is already terminated or in a state that does not allow manual termination."
+            )
+        # Check if the task is internally running. Only then we can terminate it.
+        elif "__image__" in task.get("tags", {}):
+            engine = execution.exec_engine()
+
+            try:
+                engine.kill_task(str(id))
+                self.set_exec_state(id, "failed")
+            except Exception:
+                raise InternalException(
+                    f"Failed to terminate task '{id}' in the execution engine."
+                )
+
     def save_output(self, id: uuid.UUID, signature: str, spec):
         """Saves the output of a Task execution in the database upon spec.
 
@@ -1362,6 +1404,7 @@ class Task(Entity):
         user_rep = kutils.get_user(task["creator"])
         user_rep["sub"] = user_rep.pop("id")
         user_rep["preferred_username"] = user_rep.pop("username")
+        logger.debug(user_rep)
         if "current_user" not in g:
             g.current_user = user_rep
 

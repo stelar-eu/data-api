@@ -29,6 +29,25 @@ generate_endpoints(tools.TOOL, workflows_bp, logger)
 generate_endpoints(wflow.WORKFLOW, workflows_bp, logger)
 
 
+@workflows_bp.route("/process/<entity_id>/graph", methods=["GET"])
+@workflows_bp.doc(tags=["RESTful Search Operations"])
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
+@token_active
+def api_get_process_graph(entity_id):
+    """Returns the process graph of the specific Process.
+    Args:
+        entity_id: The unique identifier of the Process.
+    Returns:
+        A JSON with the process graph.
+    Responses:
+        - 200: Process graph successfully returned.
+        - 404: Process is not found
+        - 500: An unknown error occurred
+    """
+    return processes.PROCESS.build_process_graph(entity_id)
+
+
 # --------------------------------------------------------
 # ----------------------- REGISTRY -----------------------
 # --------------------------------------------------------
@@ -288,38 +307,25 @@ def api_post_task_output(task_id, signature, json_data):
     return tasks.TASK.save_output(task_id, signature, json_data)
 
 
-@workflows_bp.route("/task/<task_id>/abort", methods=["POST"])
+@workflows_bp.route("/task/<task_id>/terminate", methods=["POST"])
 @workflows_bp.doc(tags=["Task Operations"])
-@workflows_bp.input(schema.Task_Output, location="json")
 @workflows_bp.output(schema.APIResponse, status_code=200)
 @render_api_output(logger)
 @token_active
-def api_post_task_output_nosig(task_id, json_data):
-    """
-    Set the output of a task execution. Accepts the output files created by the tool, the metrics
-    and the logs generated during the execution. The files are validated and metadata are generated
-    based on the specifications provided in the tool creation request.
-
-    Functionally, this call is similar to the "task/output" call called with a signature.
-    Instead, this call requires a valid token to be presented in the request headers.
-    The only difference with the "task/output" call is that **this call will terminate
-    a running Kubernetes job** (if applicable), whereas the "task/output" call will not.,
-
-    The raison d'etre of this call is to allow an authenticated user with the appropriate
-    permissions to terminate a task execution and post the output, at any time.
+def api_post_task_terminate(task_id):
+    """Terminate a Task Execution.
+    This will stop the task execution in the Workflow Execution Engine and mark it as failed.
 
     Args:
-        task_id: The unique identifier of the Task.
+        task_id: The unique identifier of the Task Execution.
     Returns:
         A JSON response containing success status, or error details.
     Responses:
-        - 200: Task output successfully posted.
-        - 400: Invalid task ID or missing parameters.
-        - 401: Invalid signature. Access denied.
+        - 200: Task successfully terminated.
         - 404: Task not found.
         - 500: An unknown error occurred.
     """
-    return tasks.TASK.abort_task(task_id, json_data)
+    return tasks.TASK.terminate(task_id)
 
 
 @workflows_bp.route("/task/<task_id>/signature", methods=["GET"])

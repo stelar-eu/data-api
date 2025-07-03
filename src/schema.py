@@ -94,6 +94,16 @@ class LineageForwardBoolean(Schema):
     depth = Integer(required=False, validate=Range(min=0), load_default=None)
 
 
+class LLMSearchQuery(Schema):
+    q = String(
+        required=True,
+        metadata={
+            "example": "I am looking for datasets on climate change mainly in Europe"
+        },
+    )
+    limit = Integer(required=False, validate=Range(min=0), load_default=10)
+
+
 class NameID(String):
     """Datasets, groups and organizations, etc, have name field which is unique and immutable."""
 

@@ -28,6 +28,7 @@ from entity import (
     PackageSchema,
 )
 from exceptions import DataError, NotFoundError, ConflictError
+from authz import authorize
 from routes.users import api_user_editor
 from search import resource_search
 from spatial import GeoJSONGeom, Spatial
@@ -319,6 +320,51 @@ class ResourceEntity(CKANEntity):
         self.operations.remove("fetch")
         self.operations.append("search")
         self.search_query_schema = schema.ResourceSearchQuery()
+
+    def create_entity(self, init_data):
+        """Create a new resource.
+
+        This method is used to create a new resource. Authorization check
+        is relying on whether the relevant permission add_resource is granted
+        for the package the resource is destined to be added to.
+
+        Args:
+            init_data: The data to initialize the entity with.
+        Returns:
+            The created entity object.
+        """
+        init_data["package_id"] = str(init_data["package_id"])  # Normalize UUID
+        init_data["package_type"] = PackageEntity.resolve_type(init_data["package_id"])
+        authorize(init_data["package_id"], init_data["package_type"], "update")
+
+        return self.create(init_data)
+
+    def update_entity(self, eid, entity_data):
+        entity_data["package_id"] = str(entity_data["package_id"])  # Normalize UUID
+        entity_data["package_type"] = PackageEntity.resolve_type(
+            entity_data["package_id"]
+        )
+        authorize(entity_data["package_id"], entity_data["package_type"], "update")
+
+        return self.update(eid, entity_data)
+
+    def patch_entity(self, eid, patch_data):
+        spec = self.get_cached(eid)
+
+        # If the user is not aiming to update the owner package of the resource
+        # we need to verify he is granted to edit the current one.
+        # Else the package_id is checked with respect to destination package
+        # and the user's right to edit it.
+        if "package_id" not in patch_data:
+            patch_data["package_id"] = spec["package_id"]
+
+        # If the user is trying to change the package_id, we need to ensure
+        # that the package_type is also appropriately updated.
+        patch_data["package_type"] = PackageEntity.resolve_type(spec["package_id"])
+
+        authorize(patch_data["package_id"], patch_data["package_type"], "update")
+
+        return self.patch(eid, patch_data)
 
     def track_lineage(self, resource_id: str, depth: Optional[int] = None):
         """Return the lineage of a resource. Thus meaning

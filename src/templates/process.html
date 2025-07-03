@@ -16,6 +16,7 @@
     <script type="text/javascript" src="{{ url_for('static', filename='lib/litegraph.js') }}"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='utils.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='steps.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
 
 </head>
 
@@ -44,30 +45,34 @@
                                     <span class="ms-2">
                                         {% if process.get('private') %}
                                         <span class="badge bg-danger-lt" title="Private to organization users"><svg
-                                            xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="icon icon-tabler icons-tabler-outline icon-tabler-lock">
-                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                            <path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z" />
-                                            <path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" />
-                                            <path d="M8 11v-4a4 4 0 1 1 8 0v4" />
+                                                xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-lock">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path
+                                                    d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z" />
+                                                <path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" />
+                                                <path d="M8 11v-4a4 4 0 1 1 8 0v4" />
                                             </svg>
                                             PRIVATE
                                         </span>
                                         {% else %}
                                         <span class="badge bg-success-lt" title="Public to all users">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="icon icon-tabler icons-tabler-outline icon-tabler-lock-open-2">
-                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                            <path d="M3 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z" />
-                                            <path d="M9 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" />
-                                            <path d="M13 11v-4a4 4 0 1 1 8 0v4" />
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-lock-open-2">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path
+                                                    d="M3 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z" />
+                                                <path d="M9 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" />
+                                                <path d="M13 11v-4a4 4 0 1 1 8 0v4" />
                                             </svg>
                                             PUBLIC
                                         </span>
                                         {% endif %}
-                                        </span>
+                                    </span>
                                 </ol>
                             </h3>
                         </div>
@@ -98,7 +103,7 @@
                                 </div>
 
                                 <div class="ms-2">
-                                    <a class="btn btn-outline-primary" onclick="toggleGraph()" id="job-graph-btn">
+                                    <a class="btn btn-primary" onclick="toggleGraph()" id="job-graph-btn">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="currentColor"
                                             class="me-2 icon icon-tabler icons-tabler-filled icon-tabler-chart-dots-3">
@@ -113,37 +118,39 @@
                         </div>
                         <div class="col-lg-12">
                             <div class="text-secondary text-sm h4 m-0">
-                              <div class="mt-1 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
-                                <a href="{{url_for('dashboard_blueprint.organization', organization_id=process.organization.id)}}"
-                                  target="_blank" class="text-blue card-link list-inline-item" title="Belongs to">
-                                  <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-building-bank"
-                                    width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path d="M3 21l18 0" />
-                                    <path d="M3 10l18 0" />
-                                    <path d="M5 6l7 -3l7 3" />
-                                    <path d="M4 10l0 11" />
-                                    <path d="M20 10l0 11" />
-                                    <path d="M8 14l0 3" />
-                                    <path d="M12 14l0 3" />
-                                    <path d="M16 14l0 3" />
-                                  </svg>
-                                  {{ process.organization.title }}
-                                </a>
-                                <div class="list-inline-item" title="Created by">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
-                                    class="icon icon-tabler icons-tabler-outline icon-tabler-user">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
-                                    <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
-                                  </svg>
-                                  {{ process.creator }}
+                                <div class="mt-1 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
+                                    <a href="{{url_for('dashboard_blueprint.organization', organization_id=process.organization.id)}}"
+                                        target="_blank" class="text-blue card-link list-inline-item" title="Belongs to">
+                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                            class="icon icon-tabler icon-tabler-building-bank" width="44" height="44"
+                                            viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M3 21l18 0" />
+                                            <path d="M3 10l18 0" />
+                                            <path d="M5 6l7 -3l7 3" />
+                                            <path d="M4 10l0 11" />
+                                            <path d="M20 10l0 11" />
+                                            <path d="M8 14l0 3" />
+                                            <path d="M12 14l0 3" />
+                                            <path d="M16 14l0 3" />
+                                        </svg>
+                                        {{ process.organization.title }}
+                                    </a>
+                                    <div class="list-inline-item" title="Created by">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="icon icon-tabler icons-tabler-outline icon-tabler-user">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                                            <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                                        </svg>
+                                        {{ process.creator }}
+                                    </div>
                                 </div>
-                              </div>
                             </div>
-                          </div>              
+                        </div>
                     </div>
                 </div>
             </div>
@@ -156,11 +163,12 @@
 
                     </div>
                     <div class="row row-cards">
-
-                        <canvas id='lineage-canvas' style='border-radius: 8px' width='1500' height='600' class='col-lg-12 card px-0 d-none'>
-                        </canvas>
-
-                        <div class="col-lg-5">
+                        <div style="width: 1500px; height:750px;" class="d-none" id="graph-container">
+                            <canvas id='lineage-canvas' style='border-radius: 8px' 
+                                class='col-lg-12 card px-0 d-none'>
+                            </canvas>
+                        </div>
+                        <div class="col-lg-4">
                             <div class="card">
                                 <div class="card-body">
                                     <div class="card-title">Basic Information</div>
@@ -309,150 +317,181 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-lg-7">
+                        <div class="col-lg-8">
                             <div class="card">
                                 <div class="card-body m-2">
-                                    <h3 class="card-title">List of Process Tasks</h3>
+                                    <div class="d-flex mb-3">
+                                        <div>
+                                            <h3 class="card-title mb-1">Process Tasks</h3>
+                                            <p class="text-secondary">Tasks are the individual steps in the process.
+                                                Click on a task to view its details.</p>
+                                        </div>
+                                        <div class="ms-auto ">
+                                            <div class="input-group">
+
+                                                <button type="button" class="btn btn-outline-primary"
+                                                    id="compare-tasks-button"
+                                                    onclick="window.location.href='{{url_for('dashboard_blueprint.task_compare')}}'">Compare
+                                                    Selected
+                                                    <span class="ms-1" id="tasks-compare-number">(0)</span></button>
+
+                                                <button data-bs-toggle="dropdown" role="button"
+                                                    class="btn btn-outline-primary dropdown-toggle"
+                                                    datas-bs-auto-close="outside"></button>
+                                                <div class="dropdown-menu dropdown-menu-end" id="compare-tasks-options">
+
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <ul class="steps steps-vertical ">
                                         {% if proc_tasks %}
                                         {% for task in proc_tasks %}
                                         <li class="step-item">
-                                            <a class="card disabled card-link m"
+                                            <a class="card card-link "
                                                 href="{{url_for('dashboard_blueprint.task', process_id=process.id, task_id=task.get('id') )}}">
-                                                <div class="card-body p-3">
-                                                    <div class="row">
-                                                        <div class="col">
-                                                            <div class="list-inline list-inline-dots">
-                                                                <span class="list-inline-item"><strong>{{
-                                                                        loop.index}}. {{task.name}}</strong></span>
-                                                                <span
-                                                                    class="text-secondary list-inline-item">{{task.id}}</span>
-                                                            </div>
-                                                            <div style="display: none;" id="task-index-{{task.id}}">
-                                                            </div>
-                                                            <div class="text-secondary mt-1">
-                                                                <div class="m-0 list-inline">
-                                                                    <div class="list-inline-item">
-                                                                        <svg xmlns="http://www.w3.org/2000/svg"
-                                                                            width="24" height="24" viewBox="0 0 24 24"
-                                                                            fill="none" stroke="currentColor"
-                                                                            stroke-width="2" stroke-linecap="round"
-                                                                            stroke-linejoin="round"
-                                                                            class="icon icon-tabler icons-tabler-outline icon-tabler-user">
-                                                                            <path stroke="none" d="M0 0h24v24H0z"
-                                                                                fill="none" />
-                                                                            <path
-                                                                                d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
-                                                                            <path
-                                                                                d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
-                                                                        </svg>
-                                                                        {% if task.creator %}
-                                                                        {{ task.creator}}
-                                                                        {% else %}
-                                                                        Not specified
-                                                                        {% endif %}
-                                                                    </div>
-                                                                    <div class="list-inline-item">
-                                                                        <svg xmlns="http://www.w3.org/2000/svg"
-                                                                            width="24" height="24" viewBox="0 0 24 24"
-                                                                            fill="none" stroke="currentColor"
-                                                                            stroke-width="2" stroke-linecap="round"
-                                                                            stroke-linejoin="round"
-                                                                            class="icon icon-tabler icons-tabler-outline icon-tabler-brand-docker">
-                                                                            <path stroke="none" d="M0 0h24v24H0z"
-                                                                                fill="none" />
-                                                                            <path
-                                                                                d="M22 12.54c-1.804 -.345 -2.701 -1.08 -3.523 -2.94c-.487 .696 -1.102 1.568 -.92 2.4c.028 .238 -.32 1 -.557 1h-14c0 5.208 3.164 7 6.196 7c4.124 .022 7.828 -1.376 9.854 -5c1.146 -.101 2.296 -1.505 2.95 -2.46z" />
-                                                                            <path d="M5 10h3v3h-3z" />
-                                                                            <path d="M8 10h3v3h-3z" />
-                                                                            <path d="M11 10h3v3h-3z" />
-                                                                            <path d="M8 7h3v3h-3z" />
-                                                                            <path d="M11 7h3v3h-3z" />
-                                                                            <path d="M11 4h3v3h-3z" />
-                                                                            <path
-                                                                                d="M4.571 18c1.5 0 2.047 -.074 2.958 -.78" />
-                                                                            <path d="M10 16l0 .01" />
-                                                                        </svg>
-                                                                        {% if task.image %}
-                                                                        {{ task.image }}
-                                                                        {% else %}
-                                                                        Remote Task
-                                                                        {% endif %}
-                                                                    </div>
-                                                                    <div class="list-inline-item">
-                                                                        <svg xmlns="http://www.w3.org/2000/svg"
-                                                                            width="24" height="24" viewBox="0 0 24 24"
-                                                                            fill="none" stroke="currentColor"
-                                                                            stroke-width="2" stroke-linecap="round"
-                                                                            stroke-linejoin="round"
-                                                                            class="icon icon-tabler icons-tabler-outline icon-tabler-calendar-event">
-                                                                            <path stroke="none" d="M0 0h24v24H0z"
-                                                                                fill="none" />
-                                                                            <path
-                                                                                d="M4 5m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" />
-                                                                            <path d="M16 3l0 4" />
-                                                                            <path d="M8 3l0 4" />
-                                                                            <path d="M4 11l16 0" />
-                                                                            <path d="M8 15h2v2h-2z" />
-                                                                        </svg>
-                                                                        <span>{{ task.start_date.strftime('%d-%m-%Y
-                                                                            %H:%M:%S') }}</span>
-                                                                    </div>
-                                                                    <div class="list-inline-item">
-                                                                        <svg xmlns="http://www.w3.org/2000/svg"
-                                                                            width="24" height="24" viewBox="0 0 24 24"
-                                                                            fill="none" stroke="currentColor"
-                                                                            stroke-width="2" stroke-linecap="round"
-                                                                            stroke-linejoin="round"
-                                                                            class="icon icon-tabler icons-tabler-outline icon-tabler-brand-redux">
-                                                                            <path stroke="none" d="M0 0h24v24H0z"
-                                                                                fill="none" />
-                                                                            <path
-                                                                                d="M16.54 7c-.805 -2.365 -2.536 -4 -4.54 -4c-2.774 0 -5.023 2.632 -5.023 6.496c0 1.956 1.582 4.727 2.512 6" />
-                                                                            <path
-                                                                                d="M4.711 11.979c-1.656 1.877 -2.214 4.185 -1.211 5.911c1.387 2.39 5.138 2.831 8.501 .9c1.703 -.979 2.875 -3.362 3.516 -4.798" />
-                                                                            <path
-                                                                                d="M15.014 19.99c2.511 0 4.523 -.438 5.487 -2.1c1.387 -2.39 -.215 -5.893 -3.579 -7.824c-1.702 -.979 -4.357 -1.235 -5.927 -1.07" />
-                                                                            <path
-                                                                                d="M10.493 9.862c.48 .276 1.095 .112 1.372 -.366a1 1 0 0 0 -.367 -1.365a1.007 1.007 0 0 0 -1.373 .366a1 1 0 0 0 .368 1.365z" />
-                                                                            <path
-                                                                                d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-                                                                            <path
-                                                                                d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-                                                                        </svg>
-                                                                        <span id="task-status-{{ task.id }}">{{
-                                                                            task.exec_state | capitalize }}</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-auto">
-                                                            <span id="task-indicator-{{ task.id }}"
-                                                                class="status-indicator 
-                                                                {% if task.exec_state == 'succeeded' %}status-green{% elif task.exec_state == 'failed' %}status-red{% elif task.exec_state == 'created' %}status-secondary{% elif task.exec_state == 'running' %}status-yellow status-indicator-animated{% endif %}">
-                                                                <span class="status-indicator-circle"></span>
-                                                                <span class="status-indicator-circle"></span>
-                                                                <span class="status-indicator-circle"></span>
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                </div>
-                                            </a>
-                                        </li>
-                                        {% endfor %}
-                                    </ul>
-                                    {% else %}
-                                    <p id="no-tasks-message">No tasks have been submitted yet.</p>
-                                    {% endif %}
+                                                {% if task.start_date and (now - task.start_date).total_seconds() <=
+                                                    28800 %} <div class="ribbon ribbon-top me-6 bg-primary">NEW
                                 </div>
+                                {% endif %}
+                                <div class="card-body p-3">
+                                    <div class="row">
+                                        <div class="col-md-1 d-flex justify-content-end">
+                                            <button
+                                                class="btn btn-pill btn-outline-success m-1 me-1 p-1 text-center comparator-btn align-self-center"
+                                                data-task-id="{{task.id}}" title="Add to comparison">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                    class="m-0 icon icon-tabler icons-tabler-outline icon-tabler-git-compare">
+                                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                                    <path d="M6 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                                    <path d="M18 18m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                                    <path d="M11 6h5a2 2 0 0 1 2 2v8"></path>
+                                                    <path d="M14 9l-3 -3l3 -3"></path>
+                                                    <path d="M13 18h-5a2 2 0 0 1 -2 -2v-8"></path>
+                                                    <path d="M10 15l3 3l-3 3"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <div class="col">
+                                            <div class="list-inline list-inline-dots">
+                                                <span class="list-inline-item"><strong>{{
+                                                        loop.index}}. {{task.name}}</strong></span>
+                                                <span class="text-secondary list-inline-item">{{task.id}}</span>
+                                            </div>
+                                            <div style="display: none;" id="task-index-{{task.id}}">
+                                            </div>
+                                            <div class="text-secondary mt-1">
+                                                <div class="m-0 list-inline">
+                                                    <div class="list-inline-item">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2" stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            class="icon icon-tabler icons-tabler-outline icon-tabler-user">
+                                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                            <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                                                            <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                                                        </svg>
+                                                        {% if task.creator %}
+                                                        {{ task.creator}}
+                                                        {% else %}
+                                                        Not specified
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="list-inline-item">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2" stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            class="icon icon-tabler icons-tabler-outline icon-tabler-brand-docker">
+                                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                            <path
+                                                                d="M22 12.54c-1.804 -.345 -2.701 -1.08 -3.523 -2.94c-.487 .696 -1.102 1.568 -.92 2.4c.028 .238 -.32 1 -.557 1h-14c0 5.208 3.164 7 6.196 7c4.124 .022 7.828 -1.376 9.854 -5c1.146 -.101 2.296 -1.505 2.95 -2.46z" />
+                                                            <path d="M5 10h3v3h-3z" />
+                                                            <path d="M8 10h3v3h-3z" />
+                                                            <path d="M11 10h3v3h-3z" />
+                                                            <path d="M8 7h3v3h-3z" />
+                                                            <path d="M11 7h3v3h-3z" />
+                                                            <path d="M11 4h3v3h-3z" />
+                                                            <path d="M4.571 18c1.5 0 2.047 -.074 2.958 -.78" />
+                                                            <path d="M10 16l0 .01" />
+                                                        </svg>
+                                                        {% if task.image %}
+                                                        {{ task.image }}
+                                                        {% else %}
+                                                        Remote Task
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="list-inline-item">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2" stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            class="icon icon-tabler icons-tabler-outline icon-tabler-calendar-event">
+                                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                            <path
+                                                                d="M4 5m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" />
+                                                            <path d="M16 3l0 4" />
+                                                            <path d="M8 3l0 4" />
+                                                            <path d="M4 11l16 0" />
+                                                            <path d="M8 15h2v2h-2z" />
+                                                        </svg>
+                                                        <span>{{ task.start_date.strftime('%d-%m-%Y
+                                                            %H:%M:%S') }}</span>
+                                                    </div>
+                                                    <div class="list-inline-item">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2" stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            class="icon icon-tabler icons-tabler-outline icon-tabler-brand-redux">
+                                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                            <path
+                                                                d="M16.54 7c-.805 -2.365 -2.536 -4 -4.54 -4c-2.774 0 -5.023 2.632 -5.023 6.496c0 1.956 1.582 4.727 2.512 6" />
+                                                            <path
+                                                                d="M4.711 11.979c-1.656 1.877 -2.214 4.185 -1.211 5.911c1.387 2.39 5.138 2.831 8.501 .9c1.703 -.979 2.875 -3.362 3.516 -4.798" />
+                                                            <path
+                                                                d="M15.014 19.99c2.511 0 4.523 -.438 5.487 -2.1c1.387 -2.39 -.215 -5.893 -3.579 -7.824c-1.702 -.979 -4.357 -1.235 -5.927 -1.07" />
+                                                            <path
+                                                                d="M10.493 9.862c.48 .276 1.095 .112 1.372 -.366a1 1 0 0 0 -.367 -1.365a1.007 1.007 0 0 0 -1.373 .366a1 1 0 0 0 .368 1.365z" />
+                                                            <path d="M9.5 15.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                                                            <path d="M15.5 14m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+                                                        </svg>
+                                                        <span id="task-status-{{ task.id }}">{{
+                                                            task.exec_state | capitalize }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <span id="task-indicator-{{ task.id }}"
+                                                class="status-indicator 
+                                                                {% if task.exec_state == 'succeeded' %}status-green{% elif task.exec_state == 'failed' %}status-red{% elif task.exec_state == 'created' %}status-secondary{% elif task.exec_state == 'running' %}status-yellow status-indicator-animated{% endif %}">
+                                                <span class="status-indicator-circle"></span>
+                                                <span class="status-indicator-circle"></span>
+                                                <span class="status-indicator-circle"></span>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                </div>
+                                </a>
+                                </li>
+                                {% endfor %}
+                                </ul>
+                                {% else %}
+                                <p id="no-tasks-message">No tasks have been submitted yet.</p>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            {% include 'footer.html'%}
         </div>
+        {% include 'footer.html'%}
+    </div>
     </div>
 </body>
 <script>
@@ -558,9 +597,23 @@
     function generateTaskHTML(task, index) {
         return `
             <li class="step-item">
-                <a class="card disabled card-link m" href="{{ url_for('dashboard_blueprint.task', process_id=process.id, task_id='') }}${task.id}">
+                <a class="card card-link" href="{{ url_for('dashboard_blueprint.task', process_id=process.id, task_id='') }}${task.id}">
+                    <div class="ribbon ribbon-top me-6 bg-primary">NEW</div>
                     <div class="card-body p-3">
                         <div class="row">
+                            <div class="col-md-1 d-flex justify-content-end">
+                                    <button class="btn btn-pill btn-outline-success m-1 me-1 p-1 text-center comparator-btn align-self-center" data-task-id="${task.id}" title="Add to comparison">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="m-0 icon icon-tabler icons-tabler-outline icon-tabler-git-compare">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                        <path d="M6 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                        <path d="M18 18m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path>
+                                        <path d="M11 6h5a2 2 0 0 1 2 2v8"></path>
+                                        <path d="M14 9l-3 -3l3 -3"></path>
+                                        <path d="M13 18h-5a2 2 0 0 1 -2 -2v-8"></path>
+                                        <path d="M10 15l3 3l-3 3"></path>
+                                        </svg>
+                                    </button>
+                            </div>
                             <div class="col">
                                 <div class="list-inline list-inline-dots">
                                     <span class="list-inline-item"><strong>${index}. ${task.name}</strong></span>
@@ -658,6 +711,7 @@
             success: function (response) {
                 if (response.success) {
                     updateTaskStatus(response.result.tasks);
+                    attachComparatorButtonListeners();
                 }
             },
             error: function (xhr, status, error) {
@@ -675,148 +729,420 @@
     fetchTasks();
 
 </script>
-
 <script>
-    var graph = new LGraph();
-    var canvas = new LGraphCanvas("#lineage-canvas", graph);
-    canvas.read_only = true;
+    /* ===================================================================
+       LiteGraph Process Viewer
+       =================================================================== */
 
-    function TaskNode(task) {
-        this.addInput("Input");
-        this.addInput("Parameters");
-        this.addOutput("Output");
-        this.addOutput("Metrics");
-        this.addInput("Previous");
-        this.addOutput("Next");
-        this.setSize(300, 200);
-        this.res
-        this.creator = this.addWidget("text", "Creator", "", "creator");
-        this.start_date = this.addWidget("text", "Start Date", "", "start_date");
-        this.end_date = this.addWidget("text", "End Date", "", "end_date");
-        this.image = this.addWidget("text", "Image", "", "image");
-        this.properties = {
-            creator: task.creator,
-            start_date: task.start_date,
-            end_date: task.end_date,
-            image: task.image
-        };
+    const graph = new LGraph();
+    const canvas = new LGraphCanvas("#lineage-canvas", graph);
+
+    canvas.getNodeMenuOptions = function (e) { return false; }
+    canvas.showLinkMenu = function (e) { return false; }
+    canvas.processContextMenu = function (e) { return false; }
+    canvas.getGroupMenuOptions = function (e) { return false; }
+    canvas.showConnectionMenu = function (e) { return false; }
+    canvas.getCanvasMenuOptions = function (e) { return false; }
+    canvas.allow_searchbox = false;
+
+
+    /* 1.  Colours & Link Blueprints ------------------------------------ */
+    const STATE_COLOR = {
+        succeeded: { header: "#223322", background: "#304f30" },
+        failed: { header: "#332222", background: "#553333" },
+        running: { header: "#443322", background: "#665533" },
+        created: { header: "#222222", background: "#474747" },
+        default: { header: "#222222", background: "#474747" }
+    };
+
+    
+    const RESOURCE_URL = id => `{{url_for('dashboard_blueprint.viewResource', resource_id='')}}${id}`;
+    const TASK_URL     = id => `{{url_for('dashboard_blueprint.task', process_id=process.id, task_id='')}}${id}`;
+    const PACKAGE_URL = id => `{{url_for('dashboard_blueprint.dataset_detail',  dataset_id='')}}${id}`;
+
+
+    /* 2.  Node classes ------------------------------------------------- */
+    function TaskNode(t) {
+        const c = STATE_COLOR[(t.state || '').toLowerCase()] || STATE_COLOR.default;
+        this.bgcolor = c.background; this.color = c.header;
+
+        this.addInput("Previous"); this.addOutput("Next");
+        this.addInput("Parameters"); this.addOutput("Metrics");
+
+        this.title = `🛠️ Task: ${t.label} – \u{1F464} ${t.creator}`;
+
+        this.addWidget("text", "ID",    t.id,                       "id");
+        this.addWidget("text", "Start", fmt(t.start_date),          "start");
+        this.addWidget("text", "End",   t.end_date?fmt(t.end_date):"–", "end");
+        this.addWidget("text", "Image", t.tags?.image || "remote",  "image");
+        this.addWidget("button", "Open Task", null, () => {
+            window.open(TASK_URL(t.id), "_blank");
+        });
+
+        t.inputs.forEach(n => { if (this.findInputSlot(n) === -1) this.addInput(n); });
+        t.outputs.forEach(n => { if (this.findOutputSlot(n) === -1) this.addOutput(n); });
+
+        this.properties = { ...t };            // keep full payload (includes id)
+        this.computeSize(true);
     }
-
-    function KeyValueNode() {
-        this.title = "Task Metrics";
-    }
-
     LiteGraph.registerNodeType("basic/task", TaskNode);
+
+    function PackageNode(p) {
+        this.title = `📦 Package: ${p.label}`;
+        this.addOutput("input");
+        this.properties = { uuid: p.id, ...p };
+        this.addWidget("text", "", p.id, "uuid");
+        this.addWidget("button", "Open Package", null, () => {
+            window.open(PACKAGE_URL(p.id), "_blank");
+        });
+        this.computeSize(true);
+    }
+    LiteGraph.registerNodeType("basic/package", PackageNode);
+
+ 
+
+    function DatasetNode(r) {
+        this.title = `📄 Resource: ${r.label}`;
+        this.addInput("from");
+        this.properties = { uuid: r.id, ...r };
+        this.addWidget("text", "", r.id, "uuid");
+        this.addWidget("button", "Open Resource", null, () => {
+            window.open(RESOURCE_URL(r.id), "_blank");
+        });
+
+        this.properties = { ...r };
+        this.computeSize(true);
+    }
+    LiteGraph.registerNodeType("basic/dataset", DatasetNode);
+
+    function KeyValueNode() { this.title = "KV"; }
     LiteGraph.registerNodeType("basic/kv", KeyValueNode);
 
+    /* 3.  Build graph -------------------------------------------------- */
+    function updateGraph() {
+        $.getJSON("{{ url_for('rest_workflows_blueprint.api_get_process_graph', entity_id=process.id) }}")
+            .done(({ success, result }) => {
+                if (!success) { console.error('API error'); return; }
+                graph.clear(); const lg = {};
 
-    function toggleGraph(){
-        const graphContainer = document.getElementById('lineage-canvas');
-        if (graphContainer.classList.contains('d-none')) {
-            graphContainer.classList.remove('d-none');
-            document.getElementById('job-graph-btn').innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                viewBox="0 0 24 24" fill="currentColor"
-                class="me-2 icon icon-tabler icons-tabler-filled icon-tabler-chart-dots-3">
-                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                <path
-                d="M18 2a4 4 0 1 1 -3.843 5.114l-6.295 .786a3 3 0 0 1 -.094 .257l6.446 4.431a3 3 0 1 1 -.695 4.099l-3.527 1.058q .008 .127 .008 .255a4 4 0 1 1 -8 0l.005 -.2a4 4 0 0 1 7.366 -1.954l3.64 -1.094l.01 -.102q .023 -.204 .074 -.4l-6.688 -4.6a3 3 0 0 1 -4.407 -2.65l.005 -.176a3 3 0 0 1 5.784 -.931l6.312 -.79a4 4 0 0 1 3.899 -3.103" />
-            </svg>
-            Hide Process Graph
-            `;
+                /* 3.0 maps -------------------------------------------------- */
+                const outputRes = new Set();
+                const firstPkgUse = {}, pkgStack = {}, outStack = {};
+
+                result.edges.forEach(e => {
+                    if (e.relation === "output") outputRes.add(e.target);
+                    if (e.relation === "input" && !(e.source in firstPkgUse))
+                        firstPkgUse[e.source] = e.target;      // first task using this pkg
+                });
+
+                /* 3.1 tasks ------------------------------------------------- */
+                const tasks = result.nodes.filter(n => n.type === "task")
+                    .sort((a, b) => (a.start_date || "") > (b.start_date || "") ? 1 : -1);
+                const taskPos = {}; let x = 100;
+
+                tasks.forEach(t => {
+                    const n = LiteGraph.createNode("basic/task", t);
+                    n.pos = [x, 100]; graph.add(n); lg[t.id] = n; taskPos[t.id] = n.pos;
+
+                    /* parameters */
+                    if (Object.keys(t.parameters || {}).length) {
+                        const p = LiteGraph.createNode("basic/kv"); p.title = "Parameters";
+                        p.addOutput("Task"); p.pos = [n.pos[0] - 260, n.pos[1] + 500];
+                        for (const [k, v] of Object.entries(t.parameters)) p.addWidget("text", k, s(v), k);
+                        p.setSize(p.computeSize()); graph.add(p);
+                        p.properties = { kind:"parameters" };   
+                        p.connect(0, n, n.findInputSlot("Parameters"));
+                    }
+                    /* metrics */
+                    if (Object.keys(t.metrics || {}).length) {
+                        const m = LiteGraph.createNode("basic/kv"); m.title = "Metrics";
+                        m.addInput("Task"); m.pos = [n.pos[0] + 320, n.pos[1] - 360];
+                        for (const [k, v] of Object.entries(t.metrics)) m.addWidget("text", k, s(v), k);
+                        m.setSize(m.computeSize()); graph.add(m);
+                        m.properties = { kind:"metrics" };
+                        n.connect(n.findOutputSlot("Metrics"), m, 0);
+                    }
+
+                    /* output datasets stacked downwards */
+                    (result.edges.filter(e => e.relation === "output" && e.source === t.id))
+                        .forEach((e, i) => {
+                            const r = result.nodes.find(nn => nn.id === e.target);
+                            if (!r || lg[r.id]) return;
+                            const d = LiteGraph.createNode("basic/dataset", r);
+                            d.pos = [n.pos[0] + 360, n.pos[1] + 350 + (i * 60)];
+                            graph.add(d); lg[r.id] = d;
+                        });
+
+                    x += 420;
+                });
+
+                /* 3.2 input packages placed above first-use task ------------ */
+                Object.entries(firstPkgUse).forEach(([pkgId, taskId]) => {
+                    const pmeta = result.nodes.find(n => n.id === pkgId);
+                    if (!pmeta || lg[pkgId] === pkgId) return;
+                    const stack = (pkgStack[taskId] = (pkgStack[taskId] || 0) + 1) - 1;
+                    const node = LiteGraph.createNode("basic/package", pmeta);
+                    const base = taskPos[taskId];
+                    node.pos = [base[0], base[1] - 280 - (stack * 60)];
+                    node.setSize(node.computeSize());
+                    graph.add(node); lg[pkgId] = node;
+
+                });
+
+                /* 3.3 edges ------------------------------------------------- */
+                function slot(node, name, inFlag) {
+                    if (inFlag) {
+                        let i = node.findInputSlot(name);
+                        return i !== -1 ? i : node.addInput(name);
+                    } else {
+                        let o = node.findOutputSlot(name);
+                        return o !== -1 ? o : node.addOutput(name);
+                    }
+                }
+
+                result.edges.forEach(e => {
+                    const A = lg[e.source], B = lg[e.target]; if (!A || !B) return;
+                    switch (e.relation) {
+                        case "sequence":
+                            A.connect(slot(A, "Next", false), B, slot(B, "Previous", true)); break;
+                        case "input":
+                            A.connect(slot(A, e.io_name, false), B, slot(B, e.io_name, true)); break;
+                        case "output":
+                            A.connect(slot(A, e.io_name, false), B, 0); break;
+                    }
+                });
+
+                graph._nodes.forEach(node => node.computeSize(true));
+                
+                canvas.setZoom(0.8);
+                canvas.resize();
+            })
+            .fail((x, s, e) => console.error('Graph fetch:', s, e));
+    }
+
+    (function(canvas, graph){
+
+        /* -------- persistent flags -------------------------------- */
+        let showMetrics    = true;
+        let showParams     = true;
+        let showInputs     = true;   // packages
+        let showOutputs    = true;   // datasets
+    
+        /* -------- bit flag alias ---------------------------------- */
+        const H = LiteGraph.NODE_HIDDEN;
+    
+        /* -------- apply current flags to every node --------------- */
+        function apply(){
+            graph._nodes.forEach(n=>{
+                let keep = true;
+                const k  = n.properties?.kind;
+                const t  = n.properties?.type;
+                if(k==="metrics")          keep = showMetrics;
+                else if(k==="parameters")  keep = showParams;
+                else if(t==="package")     keep = showInputs;
+                else if(t==="resource")    keep = showOutputs;
+    
+                n.flags = keep ? (n.flags & ~H) : (n.flags | H);
+            });
+            canvas.dirty_canvas   = true;
+            canvas.dirty_bgcanvas = true;
+            canvas.draw(true,true);        // one forced repaint
+        }
+    
+        /* -------- make functions global --------------------------- */
+        window.toggleMetrics    = flag => { showMetrics = flag;    apply(); };
+        window.toggleParameters = flag => { showParams  = flag;    apply(); };
+        window.toggleInputs     = flag => { showInputs  = flag;    apply(); };
+        window.toggleOutputs    = flag => { showOutputs = flag;    apply(); };
+    
+        /* -------- re-apply after every graph rebuild -------------- */
+        const origUpdate = updateGraph;
+        window.updateGraph = function(){
+            origUpdate.apply(this, arguments);
+            apply();                              // re-hide / re-show as needed
+        };
+    
+    })(canvas, graph);
+
+    /* 4.  Toggle ------------------------------------------------------- */
+    function toggleGraph() {
+        const gc = document.getElementById("graph-container");
+        const c = document.getElementById("lineage-canvas");
+        const b = document.getElementById("job-graph-btn");
+        const toggleSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="currentColor"
+                                            class="me-2 icon icon-tabler icons-tabler-filled icon-tabler-chart-dots-3">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path
+                                                d="M18 2a4 4 0 1 1 -3.843 5.114l-6.295 .786a3 3 0 0 1 -.094 .257l6.446 4.431a3 3 0 1 1 -.695 4.099l-3.527 1.058q .008 .127 .008 .255a4 4 0 1 1 -8 0l.005 -.2a4 4 0 0 1 7.366 -1.954l3.64 -1.094l.01 -.102q .023 -.204 .074 -.4l-6.688 -4.6a3 3 0 0 1 -4.407 -2.65l.005 -.176a3 3 0 0 1 5.784 -.931l6.312 -.79a4 4 0 0 1 3.899 -3.103" />
+                                        </svg>`;
+        if (c.classList.contains("d-none")) {
+            gc.classList.remove("d-none");
+            c.classList.remove("d-none"); b.innerHTML = toggleSvg + "Hide Process Graph"; 
             updateGraph();
-        } else {
-            graphContainer.classList.add('d-none');
-            document.getElementById('job-graph-btn').innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                viewBox="0 0 24 24" fill="currentColor"
-                class="me-2 icon icon-tabler icons-tabler-filled icon-tabler-chart-dots-3">
-                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                <path
-                d="M18 2a4 4 0 1 1 -3.843 5.114l-6.295 .786a3 3 0 0 1 -.094 .257l6.446 4.431a3 3 0 1 1 -.695 4.099l-3.527 1.058q .008 .127 .008 .255a4 4 0 1 1 -8 0l.005 -.2a4 4 0 0 1 7.366 -1.954l3.64 -1.094l.01 -.102q .023 -.204 .074 -.4l-6.688 -4.6a3 3 0 0 1 -4.407 -2.65l.005 -.176a3 3 0 0 1 5.784 -.931l6.312 -.79a4 4 0 0 1 3.899 -3.103" />
-            </svg>
-            Show Process Graph
-            `;
+        } else { c.classList.add("d-none"); gc.classList.add("d-none"); b.innerHTML = toggleSvg + "Show Process Graph"; }
+    }
+
+    /* 5.  Helpers ------------------------------------------------------ */
+    const fmt = s => s ? new Date(s).toLocaleString() : "–";
+    const s = v => typeof v === "object" ? JSON.stringify(v) : v;
+</script>
+
+<script>
+
+    function setCookie(name, value, minutes) {
+        var expires = "";
+        if (minutes) {
+            var date = new Date();
+            date.setTime(date.getTime() + (minutes * 60 * 1000));
+            expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "") + expires + "; path=/";
+    }
+
+    function getCookie(name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i].trim();
+            if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    }
+
+    function appendClearAllOption() {
+        if ($('#clear-all-tasks').length === 0) {
+            $('#compare-tasks-options').append(`
+            <div class="dropdown-item cursor-pointer text-center text-danger" id="clear-all-tasks" data-task-id="__clearall__" onclick="clearAllCompareTasks()">
+            Clear All
+            </div>
+        `);
         }
     }
 
-    function updateGraph() {
-        $.ajax({
-            url: `{{ url_for('rest_workflows_blueprint.api_get_process', entity_id=process.id) }}`,
-            method: 'GET',
-            dataType: 'json',
-            success: function (response) {
-                if (response.success) {
-                    const process = response.result;
-                    const tasks = process.tasks;
-                    graph.clear();
-                    var prev = null;
-                    var currx = 100;
-                    tasks.forEach(task => {
+    function appendTaskCompareOption(taskName, id) {
+        $('#compare-tasks-options').append(`
+            <div class="dropdown-item d-flex justify-content-between align-items-center" id="compare-tasks-option-${id}">
+            ${taskName} 
+            <span class="ms-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-danger cursor-pointer icon icon-tabler icons-tabler-outline icon-tabler-trash remove-task" data-task-id="${id}">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+            <path d="M4 7l16 0" />
+            <path d="M10 11l0 6" />
+            <path d="M14 11l0 6" />
+            <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+            <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                </svg>
+            </span>
+            </div>
+            `);
+    }
 
-                        const node = LiteGraph.createNode("basic/task");
-                        node.title = task.name;
-                        node.setProperty("creator", task.creator);
-                        node.setProperty("start_date", formatIsoDate(task.start_date));
-                        if (task.end_date) {
-                            node.setProperty("end_date", formatIsoDate(task.end_date));
-                        } else {
-                            node.setProperty("end_date", "Not Finished");
-                        }
-                        node.setProperty("image", task.image ? task.image : "Remote Task");
-                        node.pos = [currx, 100];
-                        currx += 500;
+    function refreshTaskCompareOption(selectedIds) {
+        // Remove any options not in selectedIds
+        $('#compare-tasks-options .dropdown-item').each(function () {
+            var taskId = $(this).find('.remove-task').data('task-id');
+            if (taskId && taskId.toString() === '__clearall__') {
+                return;
+            }
+            if (taskId && !taskId.includes(taskId.toString())) {
+                $(this).remove();
+            }
+        });
 
-                        if (prev) {
-                            prev.connect(2, node, 2);
-                        }
-                        prev = node;
-                        graph.add(node);
-                        node.setSize(node.computeSize());
-                        $.ajax({
-                            url: `{{ url_for('rest_workflows_blueprint.api_get_task_metadata', entity_id='')}}${task.id}`,
-                            method: 'GET',
-                            dataType: 'json',
-                            async: false, // Make the request synchronous
-                            success: function (response) {
-                                if (response.success) {
+        // Add options for selectedIds
+        selectedIds.forEach(function (id) {
+            if ($(`#compare-tasks-option-${id}`).length === 0) {
+                $.get(`{{url_for('rest_workflows_blueprint.api_get_task_metadata', entity_id='')}}${id}`, function (data) {
+                    appendTaskCompareOption(data.result.name, id);
+                });
+            }
+        });
 
-                                    if (response.result.parameters) {
-                                        const params = LiteGraph.createNode("basic/kv");
-                                        params.title = "Task Parameters";
-                                        params.addOutput("Task");
-                                        params.pos = [currx - 750, 350];
-                                        for (const param in response.result.parameters) {
-                                            params.addWidget("text", param, response.result.parameters[param], param);
-                                        }
-                                        graph.add(params);
-                                        params.connect(0, node, 1);
-                                        node.setSize(node.computeSize());
+        $('#tasks-compare-number').text(`(${selectedIds.length})`);
+        appendClearAllOption();
+    }
 
-                                    }
-                                    if (response.result.metrics) {
-                                        const metrics = LiteGraph.createNode("basic/kv");
-                                        metrics.title = "Task Metrics";
-                                        metrics.addInput("Task");
-                                        metrics.pos = [currx - 150, -180];
-                                        for (const metric in response.result.metrics) {
-                                            metrics.addWidget("text", metric, response.result.metrics[metric], metric);
-                                        }
-                                        node.connect(1, metrics, 0);
-                                        graph.add(metrics);
-                                        node.setSize(node.computeSize());
-                                    }
-                                }
-                            }
-                        });
-                    });
+    function clearAllCompareTasks() {
+        setCookie('compare_tasks', '', -1);
+        $('#compare-tasks-options').empty();
+        $('.comparator-btn').removeClass('btn-success').addClass('btn-outline-success');
+        $('#tasks-compare-number').text(`(0)`);
+        appendClearAllOption();
+    }
+
+
+    function attachComparatorButtonListeners() {
+        $('.comparator-btn').off('click');
+        $('.comparator-btn').on('click', function () {
+            event.preventDefault(); // Prevent the default redirect behavior
+            var taskId = $(this).data('task-id');
+            if (!taskId) {
+                console.error("Task ID not found!");
+                return;
+            }
+
+            var cookieValue = getCookie('compare_tasks');
+            var selectedIds = cookieValue ? cookieValue.split(',') : [];
+
+            // If this task is already selected, remove it
+            if (selectedIds.indexOf(taskId.toString()) !== -1) {
+                selectedIds = selectedIds.filter(id => id !== taskId.toString());
+                setCookie('compare_tasks', selectedIds.join(','), 30); // Cookie valid for 30 minutes
+                $(this).removeClass('btn-success').addClass('btn-outline-success');
+                refreshTaskCompareOption(selectedIds);
+            } else {
+                // If this task isn't already selected, add it
+                if (selectedIds.length < 5) {
+                    selectedIds.push(taskId);
+                    setCookie('compare_tasks', selectedIds.join(','), 30);
+                    $(this).removeClass('btn-outline-success').addClass('btn-success');
+                    refreshTaskCompareOption(selectedIds);
+                    //if (selectedIds.length == 2) {
+                    //    $('#toast-message-info').removeClass('hide').addClass('show').addClass('fade');
+                    //    $('#toast-info-body').html("Looks like you have selected packages for comparison. Compare them <a href='{{url_for('dashboard_blueprint.dataset_compare')}}'>here</a>");
+                    //} 
+                } else {
+                    //$('#toast-message-alert').removeClass('hide').addClass('show').addClass('fade');
+                    //$('#toast-message-body').text("Max 5 datasets can be compared at a time");
                 }
-            },
-            error: function (xhr, status, error) {
-                console.error('Error fetching tasks:', status, error);
             }
         });
     }
+
+
+    function renderSelectedComparators() {
+        var cookieValue = getCookie('compare_tasks');
+        var selectedIds = cookieValue ? cookieValue.split(',') : [];
+
+        selectedIds.forEach(function (id) {
+            $('.comparator-btn[data-task-id="' + id + '"]').removeClass('btn-outline-success').addClass('btn-success');
+        });
+
+        refreshTaskCompareOption(selectedIds);
+
+        // Handle removal of tasks from the dropdown and cookie
+        $(document).on('click', '.remove-task', function () {
+            var taskId = $(this).data('task-id');
+            var cookieValue = getCookie('compare_tasks');
+            var selectedIds = cookieValue ? cookieValue.split(',') : [];
+
+            // Remove the task ID from the selected IDs
+            selectedIds = selectedIds.filter(id => id !== taskId.toString());
+            setCookie('compare_tasks', selectedIds.join(','), 30);
+            refreshTaskCompareOption(selectedIds);
+            $(`#compare-tasks-option-${taskId}`).remove();
+            $(`.comparator-btn[data-task-id="${taskId}"]`).removeClass('btn-success').addClass('btn-outline-success');
+        });
+    }
+
+
+    $(document).ready(function () {
+        attachComparatorButtonListeners();
+        renderSelectedComparators();
+    });
+
+
 
 </script>
 

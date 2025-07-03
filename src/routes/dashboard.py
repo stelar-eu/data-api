@@ -13,6 +13,7 @@ from urllib.parse import quote
 import mutils
 import time
 from apiflask import APIBlueprint
+import markdown
 
 from exceptions import ConflictError, AuthorizationError
 from flask import (
@@ -24,15 +25,17 @@ from flask import (
     session,
     url_for,
 )
-
+from utils import is_valid_uuid
 import cutils
 import kutils
 from processes import PROCESS
 from tasks import TASK
 from tools import TOOL
 from cutils import TAG, ORGANIZATION, DATASET, RESOURCE
-from licenses import LICENSE
 from auth import admin_required
+from backend.llmsearch import llm_search_enabled
+import json
+
 
 dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=False)
 
@@ -47,6 +50,7 @@ def render_template_with_s3(template_name, **kwargs):
     # Add the S3_CONSOLE_URL to the kwargs
     kwargs["S3_CONSOLE_URL"] = config.get("S3_CONSOLE_URL", "#")
     kwargs["AVATAR"] = session.get("AVATAR", None)
+    kwargs["LLM_SEARCH_ENABLED"] = config.get("LLM_SEARCH_ENABLED", False)
     kwargs["GITHUB_API"] = "https://api.github.com"
     kwargs["GITHUB_RAW"] = "https://raw.githubusercontent.com"
     return render_template(template_name, **kwargs)
@@ -186,6 +190,19 @@ def dashboard_index():
 
 
 # -------------------------------------
+# LLM Search Route
+# -------------------------------------
+@dashboard_bp.route("/search", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+@llm_search_enabled
+def llm_search():
+    return render_template_with_s3(
+        "llm_search.html", PARTNER_IMAGE_SRC=get_partner_logo()
+    )
+
+
+# -------------------------------------
 # Workflow Processes Routes
 # -------------------------------------
 @dashboard_bp.route("/processes")
@@ -259,11 +276,60 @@ def process(process_id):
 
     process = PROCESS.get_entity(process_id)
 
+    now = datetime.now()
+
     return render_template_with_s3(
         "process.html",
         process=process,
+        now=now,
         proc_tasks=(process.get("tasks") if process and "tasks" in process else []),
         PARTNER_IMAGE_SRC=get_partner_logo(),
+    )
+
+
+@dashboard_bp.route("/tasks/compare")
+@session_required
+def task_compare():
+    task_ids = request.cookies.get("compare_tasks", "").split(",")[:5]
+    tasks = []
+    resources = {}
+
+    for tid in task_ids:
+        try:
+            t = TASK.get_entity(tid)
+            for input_key, input_values in t.get("inputs", {}).items():
+                for input_item in input_values:
+                    if is_valid_uuid(input_item):
+                        resource_id = input_item
+                        if resource_id and resource_id not in resources:
+                            try:
+                                resources[resource_id] = RESOURCE.get_entity(
+                                    resource_id
+                                )
+                            except Exception as e:
+                                logger.error(
+                                    f"Error fetching resource {resource_id}: {str(e)}"
+                                )
+
+            for output_key, output_value in t.get("outputs", {}).items():
+                resource_id = output_value.get("resource_id")
+                if is_valid_uuid(resource_id):
+                    if resource_id and resource_id not in resources:
+                        try:
+                            resources[resource_id] = RESOURCE.get_entity(resource_id)
+                        except Exception as e:
+                            logger.error(
+                                f"Error fetching resource {resource_id}: {str(e)}"
+                            )
+
+            tasks.append(t)
+        except Exception as e:
+            logger.error(f"Error fetching task {tid}: {str(e)}")
+
+    now = datetime.now()
+
+    return render_template_with_s3(
+        "task_compare.html", tasks=tasks, resources=resources, now=now
     )
 
 
@@ -528,7 +594,6 @@ def dataset_compare():
     dataset_ids = request.cookies.get("compare_datasets", "").split(",")[:5]
     datasets = []
 
-    logger.debug("Dataset IDs from the cookie: %d", dataset_ids)
     for dataset_id in dataset_ids:
         try:
             dataset = cutils.get_package(id=dataset_id)
@@ -816,6 +881,124 @@ def reset_password(rs_token):
         except Exception as e:
             session["PASSWORD_RESET_FLOW"] = False
             return redirect(url_for("dashboard_blueprint.login"))
+
+
+# ----------------------------------------
+# Walkthrough Routes
+# ----------------------------------------
+@dashboard_bp.route("/walkthroughs", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+def walkthroughs():
+    """
+    Renders the walkthroughs page with available walkthroughs.
+    """
+
+    # Iterate the walkthroughs directory to find all walkthroughs
+    # registered in the system.
+    walkthroughs = []
+
+    walkthroughs_dir = os.path.join(current_app.root_path, "templates", "walkthroughs")
+    if os.path.exists(walkthroughs_dir):
+        for filename in os.listdir(walkthroughs_dir):
+            # The subdirs are the walkthroughs
+            if os.path.isdir(os.path.join(walkthroughs_dir, filename)):
+                # Check if the walkthrough has a spec.json file
+                # defining the walkthrough
+                spec_path = os.path.join(walkthroughs_dir, filename, "spec.json")
+                if os.path.exists(spec_path):
+                    try:
+                        with open(spec_path, "r") as spec_file:
+                            spec = json.load(spec_file)
+                            walkthroughs.append(
+                                {
+                                    "name": filename,
+                                    "title": spec.get("title", filename),
+                                    "description": spec.get("description", ""),
+                                    "time": spec.get("time", 0),
+                                    "pilot": spec.get("pilot", ""),
+                                    "usecase": spec.get("usecase", ""),
+                                    "tags": spec.get("tags", []),
+                                    "image": url_for(
+                                        "static",
+                                        filename=f'walkthroughs/{spec.get("image", "")}',
+                                    ),
+                                    "walkthrough": spec.get("walkthrough", ""),
+                                }
+                            )
+                    except Exception as e:
+                        logger.error(f"Error loading spec for {filename}: {e}")
+
+    return render_template_with_s3(
+        "walkthroughs.html",
+        walkthroughs=walkthroughs,
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+    )
+
+
+@dashboard_bp.route("/walkthroughs/<walkthrough_name>", methods=["GET"])
+@dashboard_bp.doc(False)
+@session_required
+def walkthrough(walkthrough_name):
+    """
+    Renders a specific walkthrough page.
+    """
+    walkthroughs_dir = os.path.join(current_app.root_path, "templates", "walkthroughs")
+    walkthrough_path = os.path.join(walkthroughs_dir, walkthrough_name)
+
+    if not os.path.exists(walkthrough_path):
+        return redirect(url_for("dashboard_blueprint.walkthroughs"))
+
+    spec_path = os.path.join(walkthrough_path, "spec.json")
+    if not os.path.exists(spec_path):
+        return redirect(url_for("dashboard_blueprint.walkthroughs"))
+
+    try:
+        with open(spec_path, "r") as spec_file:
+            spec = json.load(spec_file)
+
+            if spec.get("walkthrough"):
+                # If the spec has a readme, render it as markdown
+                readme_path = os.path.join(walkthrough_path, spec["walkthrough"])
+                if os.path.exists(readme_path):
+                    with open(readme_path, "r") as readme_file:
+                        spec["readme_content"] = readme_file.read()
+                else:
+                    spec["readme_content"] = None
+
+                raw = (
+                    spec.get("readme_content").encode("utf-8").decode("unicode_escape")
+                )
+                spec["readme"] = markdown.markdown(raw, extensions=["fenced_code"])
+
+            else:
+                spec["readme"] = "No walkthrough content available."
+
+            # Validate required fields in the spec
+            required_fields = [
+                "title",
+                "description",
+                "time",
+                "pilot",
+                "usecase",
+                "tags",
+                "readme",
+            ]
+
+            if not all(field in spec for field in required_fields):
+                logger.error(
+                    f"Walkthrough {walkthrough_name} is missing required fields: {required_fields}"
+                )
+                return redirect(url_for("dashboard_blueprint.walkthroughs"))
+
+            return render_template_with_s3(
+                "walkthrough.html",
+                walkthrough=spec,
+                PARTNER_IMAGE_SRC=get_partner_logo(),
+            )
+    except Exception as e:
+        logger.error(f"Error loading spec for {walkthrough_name}: {e}")
+        return redirect(url_for("dashboard_blueprint.walkthroughs"))
 
 
 # ----------------------------------------

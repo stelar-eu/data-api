@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>STELAR | {{walkthrough.title}} </title>
+    <!-- CSS files -->
+    {% include 'tabler.html' %}
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet PM CSS (for polygon editing) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.pm@latest/dist/leaflet.pm.css" />
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="{{ url_for('static', filename='images.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+
+</head>
+
+<body>
+    <div class="page">
+        <!-- Navbar -->
+        {% include 'header.html' %}
+        <div class="page-wrapper">
+            <!-- Page header -->
+            <div class="page-header d-print-none">
+                <div class="container-xl">
+                    <div class="row g-2 align-items-center">
+                        <div class="col">
+                            <!-- Page pre-title -->
+                            <div class="page-pretitle">Walkthroughs</div>
+                            <h3 class="page-title">
+                                <ol class="breadcrumb breadcrumb-arrows">
+                                    <li class="breadcrumb-item text-secondary">
+                                        <a href="{{ url_for('dashboard_blueprint.walkthroughs') }}"
+                                            class="text-secondary">
+                                            Walkthrough Scenarios
+                                        </a>
+                                    </li>
+                                    <li class="breadcrumb-item active">
+                                        <a href="#">{{walkthrough.title}}</a>
+                                    </li>
+                                </ol>
+                            </h3>
+                        </div>
+                        <div class="col-lg-12">
+                            <div class="text-secondary text-sm h4 m-0">
+                                <div class="mt-1 list-inline list-inline-dots mb-0 text-secondary d-sm-block d-none">
+                                    <div class="list-inline-item" title="Related Pilot & Use Case">
+                                        Pilot <span class="text-primary">{{walkthrough.pilot | capitalize}}</span> |
+                                        Use-Case <span class="text-primary">{{walkthrough.usecase |
+                                            capitalize}}</span>
+                                    </div>
+                                    <div class="list-inline-item" title="Related Pilot & Use Case">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="me-1 icon icon-tabler icons-tabler-outline icon-tabler-clock-hour-2">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                                            <path d="M12 12l3 -2" />
+                                            <path d="M12 7v5" />
+                                        </svg>
+                                        {{ walkthrough.time }} minutes
+
+                                    </div>
+                                    <div class="list-inline-item badge-list" title="Walkthrough Type">
+                                        {% for tag in walkthrough.tags %}
+                                        <span class="badge bg-primary-lt text-black">{{ tag }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="page-body">
+                <div class="container-xl">
+                    <div class="row justify-content-center">
+                        <div class="col-lg-10 col-xl-9">
+                            <div class="card card-lg">
+                                <div class="card-body markdown p-5 border-top-0">
+                                    {{ walkthrough.readme | safe }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% include 'footer.html'%}
+    </div>
+    </div>
+</body>
+
+</html>

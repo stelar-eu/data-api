@@ -2,6 +2,7 @@
 Base class for execution engines. This is used mostly for documentation purposes.
 
 """
+
 from typing import TYPE_CHECKING, Callable
 
 
@@ -29,6 +30,9 @@ class ExecEngine:
         pass
 
     def get_task_info(self, task_id: str) -> dict:
+        pass
+
+    def kill_task(self, task_id: str) -> bool:
         pass
 
 

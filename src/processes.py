@@ -7,7 +7,8 @@ import cutils
 import kutils
 import sql_utils
 from backend.ckan import ckan_request
-from backend.pgsql import transaction
+from psycopg2 import sql
+from backend.pgsql import transaction, execSql
 from entity import PackageCKANSchema, PackageEntity
 from exceptions import (
     BackendLogicError,
@@ -516,6 +517,325 @@ class ProcessEntity(PackageEntity):
             raise ConflictError(
                 "Exec state can only change from running to failed or succeeded."
             )
+
+    def build_process_graph(self, id):
+        """Return a simplified graph of a workflow execution.
+
+        *Inputs* are now aggregated per package:
+            package  ──input(io_name, resources=[…])──►  task
+
+        Args:
+            id (str): Workflow-execution UUID (or an object accepted by
+                    ``get_entity``).
+
+        Returns:
+            dict: ``{"nodes":[…], "edges":[…]}``.
+        """
+        process = self.get_entity(id)
+        workflow_uuid = getattr(process, "workflow_uuid", id)
+
+        # -- helper to absorb tuple- vs dict-rows --------------------------------
+        def _get(row, key_or_idx):
+            return row[key_or_idx] if isinstance(row, dict) else row[key_or_idx]
+
+        # ------------------------------------------------------------------
+        # 1‒ TASKS ----------------------------------------------------------
+        # ------------------------------------------------------------------
+        sql_tasks = sql.SQL(
+            """
+            SELECT task_uuid,
+                COALESCE(next_task_uuid,'') AS next_uuid,
+                state,
+                creator_user_id,
+                start_date,
+                end_date
+            FROM {sch}.task_execution
+            WHERE workflow_uuid = %s
+        """
+        ).format(sch=sql.Identifier("klms"))
+        tasks_raw = execSql(sql_tasks, [workflow_uuid])
+
+        task_ids = {
+            _get(r, "task_uuid" if isinstance(r, dict) else 0) for r in tasks_raw
+        }
+        tasks_with_time = [
+            r for r in tasks_raw if _get(r, "start_date" if isinstance(r, dict) else 4)
+        ]
+        tasks_without_time = [
+            r
+            for r in tasks_raw
+            if not _get(r, "start_date" if isinstance(r, dict) else 4)
+        ]
+        tasks_with_time.sort(
+            key=lambda r: _get(r, "start_date" if isinstance(r, dict) else 4)
+        )
+        tasks_ordered = tasks_with_time + tasks_without_time  # final ordered list
+
+        # ------------------------------------------------------------------
+        # 1.2‒ TASK TAGS ---------------------------------------------------
+        # ------------------------------------------------------------------
+        task_tags = {tid: {} for tid in task_ids}  # default empty
+        if task_ids:
+            sql_tag = sql.SQL(
+                """
+                SELECT task_uuid, key, value
+                FROM {sch}.task_tag
+                WHERE task_uuid = ANY(%s)
+            """
+            ).format(sch=sql.Identifier("klms"))
+            tags_raw = execSql(sql_tag, [list(task_ids)])
+
+            for row in tags_raw:
+                tid = _get(row, "task_uuid" if isinstance(row, dict) else 0)
+                k = _get(row, "key" if isinstance(row, dict) else 1)
+                v = _get(row, "value" if isinstance(row, dict) else 2)
+
+                # --- curate key -------------------------------------------
+                if k.startswith("__") and k.endswith("__"):
+                    k = k[2:-2]  # "__image__" → "image"
+
+                task_tags[tid][k] = v
+
+        # -----------------------------------------------------------------
+        # 1.3‒ TASK PARAMETERS --------------------------------------------
+        # -----------------------------------------------------------------
+        task_params = {tid: {} for tid in task_ids}
+        if task_ids:
+            sql_params = sql.SQL(
+                """
+                SELECT task_uuid, key, value
+                FROM {sch}.parameters
+                WHERE task_uuid = ANY(%s)
+            """
+            ).format(sch=sql.Identifier("klms"))
+            for row in execSql(sql_params, [list(task_ids)]):
+                tid = _get(row, "task_uuid" if isinstance(row, dict) else 0)
+                k = _get(row, "key" if isinstance(row, dict) else 1)
+                v = _get(row, "value" if isinstance(row, dict) else 2)
+                task_params[tid][k] = v
+
+        # -----------------------------------------------------------------
+        # 1.4‒ TASK METRICS -----------------------------------------------
+        # -----------------------------------------------------------------
+        task_metrics = {tid: {} for tid in task_ids}
+        if task_ids:
+            sql_metrics = sql.SQL(
+                """
+                SELECT task_uuid, key, value, issued
+                FROM {sch}.metrics
+                WHERE task_uuid = ANY(%s)
+                ORDER BY task_uuid, key, issued
+            """
+            ).format(sch=sql.Identifier("klms"))
+            for row in execSql(sql_metrics, [list(task_ids)]):
+                tid = _get(row, "task_uuid" if isinstance(row, dict) else 0)
+                k = _get(row, "key" if isinstance(row, dict) else 1)
+                v = _get(row, "value" if isinstance(row, dict) else 2)
+                task_metrics[tid][k] = v
+
+        # -----------------------------------------------------------------------
+        # 2. INPUTS & OUTPUTS ----------------------------------------------------
+        # -----------------------------------------------------------------------
+        inputs_raw, outputs_raw = [], []
+        resource_ids_in, resource_ids_out = set(), set()
+
+        if task_ids:
+            sql_in = sql.SQL(
+                """
+                SELECT task_uuid, resource_id, input_group_name
+                FROM {sch}.task_input
+                WHERE task_uuid = ANY(%s) AND resource_id IS NOT NULL
+            """
+            ).format(sch=sql.Identifier("klms"))
+            inputs_raw = execSql(sql_in, [list(task_ids)])
+            resource_ids_in = {
+                _get(r, "resource_id" if isinstance(r, dict) else 1) for r in inputs_raw
+            }
+
+            sql_out = sql.SQL(
+                """
+                SELECT task_uuid,
+                    dataset_id  AS resource_id,
+                    output_name AS io_name
+                FROM {sch}.task_output
+                WHERE task_uuid = ANY(%s)
+            """
+            ).format(sch=sql.Identifier("klms"))
+            outputs_raw = execSql(sql_out, [list(task_ids)])
+            resource_ids_out = {
+                _get(r, "resource_id" if isinstance(r, dict) else 1)
+                for r in outputs_raw
+            }
+
+        resource_ids_all = resource_ids_in | resource_ids_out
+
+        # -----------------------------------------------------------------------
+        # 3. RESOURCES & THEIR PACKAGES -----------------------------------------
+        # -----------------------------------------------------------------------
+        resources_raw, packages_raw = [], []
+        if resource_ids_all:
+            sql_res = sql.SQL(
+                """
+                SELECT id, name, package_id
+                FROM public.resource
+                WHERE id = ANY(%s)
+            """
+            )
+            resources_raw = execSql(sql_res, [list(resource_ids_all)])
+
+            package_ids = {
+                _get(r, "package_id" if isinstance(r, dict) else 2)
+                for r in resources_raw
+                if _get(r, "package_id" if isinstance(r, dict) else 2)
+            }
+            if package_ids:
+                sql_pkg = sql.SQL(
+                    """
+                    SELECT id, title
+                    FROM public.package
+                    WHERE id = ANY(%s)
+                """
+                )
+                packages_raw = execSql(sql_pkg, [list(package_ids)])
+
+        # map resource_id → {name, package_id}
+        res_meta = {
+            _get(r, "id" if isinstance(r, dict) else 0): {
+                "name": _get(r, "name" if isinstance(r, dict) else 1),
+                "package_id": _get(r, "package_id" if isinstance(r, dict) else 2),
+            }
+            for r in resources_raw
+        }
+
+        # -----------------------------------------------------------------------
+        # 4. COLLAPSE INPUTS BY (package, task, io_name) -------------------------
+        # -----------------------------------------------------------------------
+        pkg_input_edges = (
+            dict()
+        )  # key ➜ {"resource_ids": [...], "resource_names":[...]}
+
+        for row in inputs_raw:
+            tid = _get(row, "task_uuid" if isinstance(row, dict) else 0)
+            rid = _get(row, "resource_id" if isinstance(row, dict) else 1)
+            io_name = _get(row, "input_group_name" if isinstance(row, dict) else 2)
+            pkg_id = res_meta[rid]["package_id"]  # every resource has one (FK)
+
+            key = (pkg_id, tid, io_name)
+            entry = pkg_input_edges.setdefault(
+                key, {"resource_ids": [], "resource_names": []}
+            )
+            entry["resource_ids"].append(rid)
+            entry["resource_names"].append(res_meta[rid]["name"])
+
+        # -----------------------------------------------------------------------
+        # 5. BUILD NODES ---------------------------------------------------------
+        # -----------------------------------------------------------------------
+        nodes = {}
+
+        # task nodes
+        task_inputs, task_outputs = {tid: set() for tid in task_ids}, {
+            tid: set() for tid in task_ids
+        }
+        for row in inputs_raw:
+            task_inputs[_get(row, "task_uuid" if isinstance(row, dict) else 0)].add(
+                _get(row, "input_group_name" if isinstance(row, dict) else 2)
+            )
+        for row in outputs_raw:
+            task_outputs[_get(row, "task_uuid" if isinstance(row, dict) else 0)].add(
+                _get(row, "io_name" if isinstance(row, dict) else 2)
+            )
+        for row in tasks_raw:
+            tid = _get(row, "task_uuid" if isinstance(row, dict) else 0)
+            state = _get(row, "state" if isinstance(row, dict) else 2)
+            creator = _get(row, "creator_user_id" if isinstance(row, dict) else 1)
+            start_date = _get(row, "start_date" if isinstance(row, dict) else 3)
+            end_date = _get(row, "end_date" if isinstance(row, dict) else 4)
+            nodes[tid] = {
+                "id": tid,
+                "type": "task",
+                "label": f"{task_tags.get(tid, {}).get('name', '')}",
+                "state": state,
+                "creator": creator,
+                "start_date": start_date,
+                "end_date": end_date,
+                "inputs": sorted(task_inputs[tid]),
+                "outputs": sorted(task_outputs[tid]),
+                "tags": task_tags.get(tid, {}),
+                "parameters": task_params.get(tid, {}),
+                "metrics": task_metrics.get(tid, {}),
+            }
+
+        # package nodes (needed for collapsed inputs **and** for any output-packages)
+        for r in packages_raw:
+            pid = _get(r, "id" if isinstance(r, dict) else 0)
+            ttl = _get(r, "title" if isinstance(r, dict) else 1)
+            nodes[pid] = {
+                "id": pid,
+                "type": "package",
+                "label": ttl or f"Package {pid[:8]}…",
+            }
+
+        # resource nodes **only** for OUTPUTS (to keep clutter down)
+        for rid in resource_ids_out:
+            meta = res_meta[rid]
+            nodes[rid] = {
+                "id": rid,
+                "type": "resource",
+                "label": meta["name"] or f"Resource {rid[:8]}…",
+                "package_id": meta["package_id"],
+            }
+
+        # -----------------------------------------------------------------------
+        # 6. EDGES ---------------------------------------------------------------
+        # -----------------------------------------------------------------------
+        edges, seen = [], set()
+
+        def add_edge(src, tgt, rel, io_name="", extra=None):
+            key = (src, tgt, rel, io_name)
+            if key not in seen:
+                seen.add(key)
+                e = {"source": src, "target": tgt, "relation": rel}
+                if io_name:
+                    e["io_name"] = io_name
+                if extra:
+                    e.update(extra)
+                edges.append(e)
+
+        # (A) sequence edges by chronological start_date
+        for prev, nxt in zip(tasks_ordered, tasks_ordered[1:]):
+            add_edge(
+                _get(prev, "task_uuid" if isinstance(prev, dict) else 0),
+                _get(nxt, "task_uuid" if isinstance(nxt, dict) else 0),
+                "sequence",
+            )
+
+        # (B) package → task (collapsed inputs)
+        for (pkg_id, tid, io_name), data in pkg_input_edges.items():
+            add_edge(
+                pkg_id,
+                tid,
+                "input",
+                io_name,
+                extra={
+                    "resource_ids": data["resource_ids"],
+                    "resource_names": data["resource_names"],
+                },
+            )
+
+        # (C) outputs (task → resource)
+        for row in outputs_raw:
+            add_edge(
+                _get(row, "task_uuid" if isinstance(row, dict) else 0),
+                _get(row, "resource_id" if isinstance(row, dict) else 1),
+                "output",
+                _get(row, "io_name" if isinstance(row, dict) else 2),
+            )
+
+        # (D) package → resource
+        for rid in resource_ids_out:
+            add_edge(res_meta[rid]["package_id"], rid, "member_of")
+
+        return {"nodes": list(nodes.values()), "edges": edges}
 
 
 # ------------------------------------------

@@ -328,6 +328,7 @@ def api_patch_user(user_id, json_data):
 @users_bp.doc(tags=["User Management"], security=security_doc)
 @users_bp.output(schema.APIResponse(), status_code=200)
 @token_active
+@admin_required
 @render_api_output(logger)
 def api_delete_user(user_id):
     """
