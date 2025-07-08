@@ -165,7 +165,7 @@
               </div>
               <hr>
               <div class="form-label h3">Owner Organization</div>
-              <div class="mb-1 p-1" style="max-height: 16.5rem; overflow: auto;" id="facet-organization">
+              <div class="mb-1 p-1" style="max-height: 18rem; overflow: auto;" id="facet-organization">
                 <div class="placeholder-glow">
                   {% for i in range(0, 7) %}
                   <label class="form-check tag-item">
@@ -728,7 +728,9 @@
           "tags",
           "author",
           "organization",
-          "res_format"
+          "res_format",
+          "capacity",
+          "license_id"
         ]
       }
     };
@@ -1255,7 +1257,7 @@
               <div class="row">
                 <div class="col-md-11">
                   <h3 class="mb-0">
-                    <a href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}${pkg.id}">${pkg.title || 'Untitled Package'}</a>
+                    <a class="me-3" href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}${pkg.id}">${pkg.title || 'Untitled Package'}</a>
                     ${pkg.type === 'workflow'
           ? '<span class="badge bg-purple-lt ms-2">WORKFLOW</span>'
           : pkg.type === 'dataset'
@@ -1263,11 +1265,11 @@
             : pkg.type === 'process'
               ? '<span class="badge bg-yellow-lt ms-2">PROCESS</span>'
               : ''}
-                    <span class = "text-secondary h4 ms-2">
+                    <span class = "text-secondary h4">
                        ${pkg.capacity ? pkg.capacity.charAt(0).toUpperCase() + pkg.capacity.slice(1) : ''}
                     </span>
                   </h3>
-                  <p class="text-secondary mt-1">${pkg.notes || 'No description specified'}</p>
+                    <p class="text-secondary mt-1">${pkg.notes ? (pkg.notes.length > 250 ? pkg.notes.substring(0, 250) + '...' : pkg.notes) : 'No description specified'}</p>
                 </div>
                 <div class="col-md-1 d-flex justify-content-end">
                   <button class="btn btn-pill btn-outline-success m-3 me-1 p-1 text-center comparator-btn align-self-center"
@@ -1333,26 +1335,35 @@
                       </svg>
                       ${pkg.author || 'Not specified'}
                     </div>
+
+                    ${pkg.license_id ? `
                     <div class="list-inline-item">
-                        <span class="text-secondary h4 ms-2" title="Licensed under: ${pkg.license_id && window.availableLicenses && window.availableLicenses.find(license => license.key === pkg.license_id)
-          ? window.availableLicenses.find(license => license.key === pkg.license_id).title
-          : ''}">
-                        ${pkg.license_id && window.availableLicenses && window.availableLicenses.find(license => license.key === pkg.license_id)
-          ? `<a href="${window.availableLicenses.find(license => license.key === pkg.license_id).url || '#'}" target="_blank">
+                      <span class="text-secondary h4 ms-2" title="Licensed under: ${window.availableLicenses && window.availableLicenses.find(license => license.key === pkg.license_id)
+                        ? window.availableLicenses.find(license => license.key === pkg.license_id).title
+                        : ''}">
+                      ${window.availableLicenses && window.availableLicenses.find(license => license.key === pkg.license_id)
+                        ? `<a href="${window.availableLicenses.find(license => license.key === pkg.license_id).url || '#'}" target="_blank">
                           ${window.availableLicenses.find(license => license.key === pkg.license_id).image_url
-            ? `<img src="${window.availableLicenses.find(license => license.key === pkg.license_id).image_url}" style="max-height: 25px;" alt="${window.availableLicenses.find(license => license.key === pkg.license_id).title}" />`
-            : window.availableLicenses.find(license => license.key === pkg.license_id).title}
+                        ? `<img src="${window.availableLicenses.find(license => license.key === pkg.license_id).image_url}" style="max-height: 25px;" alt="${window.availableLicenses.find(license => license.key === pkg.license_id).title}" />`
+                        : window.availableLicenses.find(license => license.key === pkg.license_id).title}
                           </a>`
-          : ''}
-                        </span>
-                    </div>
+                        : ''}
+                      </span>
+                    </div>` : ''}
                   </div>
                 </div>
               </div>
-              <div class="row d-flex">
+              <div class="row d-flex mt-2">
                 <div class="col-md-auto ms-auto">
                   <div class="badges">
-                    ${pkg.tags && pkg.tags.length ? pkg.tags.map(tag => `<a class="card-link text-black tag m-1 mb-0" href="{{ url_for('dashboard_blueprint.catalog') }}?sort=metadata_modified+desc&tags=${encodeURIComponent(tag)}">${tag}</a>`).join('') : ''}
+                    ${pkg.tags && pkg.tags.length ? 
+                      (pkg.tags.length > 5 ? 
+                        pkg.tags.slice(0, 5).map(tag => `<a class="card-link text-black tag m-1 mb-0" href="{{ url_for('dashboard_blueprint.catalog') }}?sort=metadata_modified+desc&tags=${encodeURIComponent(tag)}">${tag}</a>`).join('') + 
+                        `<p class="text-secondary d-inline-block m-1 mb-0" title="${pkg.tags.slice(5).join(', ')}">+ ${pkg.tags.length - 5} more...</p>` 
+                        : 
+                        pkg.tags.map(tag => `<a class="card-link text-black tag m-1 mb-0" href="{{ url_for('dashboard_blueprint.catalog') }}?sort=metadata_modified+desc&tags=${encodeURIComponent(tag)}">${tag}</a>`).join('')
+                      ) 
+                      : ''}
                   </div>
                 </div>                 
               </div>
