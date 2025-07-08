@@ -903,13 +903,44 @@
         paginationHtml += '<li class="page-item disabled"><span class="page-link"> prev </span></li>';
       }
 
+      // Calculate start and end page numbers to display
+      var startPage = Math.max(1, currentPage - 5);
+      var endPage = Math.min(totalPages, currentPage + 5);
+      
+      // Adjust start/end to always show 10 pages if possible
+      if (endPage - startPage < 10 && totalPages > 10) {
+        if (currentPage < totalPages / 2) {
+          // If closer to start, show more pages to the right
+          endPage = Math.min(totalPages, startPage + 9);
+        } else {
+          // If closer to end, show more pages to the left
+          startPage = Math.max(1, endPage - 9);
+        }
+      }
+
+      // First page + ellipsis
+      if (startPage > 1) {
+        paginationHtml += '<li class="page-item"><a class="page-link pagination-link" href="#" data-page="1">1</a></li>';
+        if (startPage > 2) {
+          paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+      }
+
       // Page numbers
-      for (var i = 1; i <= totalPages; i++) {
+      for (var i = startPage; i <= endPage; i++) {
         if (i === currentPage) {
           paginationHtml += '<li class="page-item active"><span class="page-link">' + i + '</span></li>';
         } else {
           paginationHtml += '<li class="page-item"><a class="page-link pagination-link" href="#" data-page="' + i + '">' + i + '</a></li>';
         }
+      }
+
+      // Ellipsis + last page
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+          paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+        paginationHtml += '<li class="page-item"><a class="page-link pagination-link" href="#" data-page="' + totalPages + '">' + totalPages + '</a></li>';
       }
 
       // Next button
@@ -921,6 +952,14 @@
 
       $('#pagination-control').html('<ul class="pagination mb-0">' + paginationHtml + '</ul>');
 
+      // Add Go To input field
+      var goToHtml = '<div class="ms-3 mt-4 d-flex align-items-center">' +
+                     '<span class="me-2 ms-auto">Go To:</span>' +
+                     '<input type="number" min="1" max="' + totalPages + '" class="form-control form-control-sm page-goto-input" style="width: 70px; height:30px;">' +
+                     '</div>';
+      
+      $('#pagination-control').append(goToHtml);
+
       // Update pagination info e.g., "Showing 1 to 10 of 53 results"
       var startResult = query.offset + 1;
       var endResult = Math.min(query.offset + query.limit, total);
@@ -928,11 +967,25 @@
 
       // Add click listeners for pagination links
       $('.pagination-link').off('click').on('click', function (e) {
-
+        e.preventDefault();
         var page = parseInt($(this).data('page'));
         query.offset = (page - 1) * query.limit;
         maskWithPlaceholders();
         performSearch(query, false);
+      });
+
+      // Add event listener for Go To input
+      $('.page-goto-input').off('keypress').on('keypress', function (e) {
+        if (e.which === 13) { // Enter key
+          e.preventDefault();
+          var page = parseInt($(this).val());
+          if (isNaN(page) || page < 1 || page > totalPages) {
+            page = 1; // Default to first page if invalid
+          }
+          query.offset = (page - 1) * query.limit;
+          maskWithPlaceholders();
+          performSearch(query, false);
+        }
       });
     }
 
@@ -1121,7 +1174,7 @@
         displayText = type.charAt(0).toUpperCase() + type.slice(1) + ": " + filter;
       }
       var idValue = (type === "bbox") ? "filter-bbox" : "filter-" + type + "-" + filter;
-      var filterHtml = `<span class="badge badge-lg ${badgeClass} me-1" data-category=${type} data-value=${filter} id="${idValue.replace(/\s+/g, '_')}">
+      var filterHtml = `<span class="badge badge-lg ${badgeClass} me-1" data-category=${type} data-value=${filter} id="${sanitizeFilter(idValue)}">
       ${displayText}
       <button type="button" class="btn-close btn-close-sm remove-filter" data-type="${type}" data-filter="${filter}" aria-label="Close"></button>
       </span>`;
@@ -1146,7 +1199,7 @@
       if (type === 'bbox') {
         $('#filter-bbox').remove();
       } else {
-        $(`#filter-${type}-${String(filter).replace(/\s+/g, '_')}`).remove();
+        $(`#filter-${type}-${sanitizeFilter(filter)}`).remove();
       }
     }
 
@@ -1372,6 +1425,11 @@
       removeAllFiltersFromLocation();
     }
 
+    function sanitizeFilter(filter) {
+      // Convert filter to String and remove any special characters except hyphens to create a valid HTML ID
+      return String(filter).replace(/[^a-zA-Z0-9-]/g, '_');
+    }
+
     function buildFacets(facets) {
       if (facets) {
         // The facets are stored in the global variable
@@ -1385,8 +1443,7 @@
             for (let [tag, count] of entries) {
               // If the current tag is included in badges-list then create it as checked
               // Remove any / from the tag to avoid issues with HTML IDs
-                tag_curated = tag.replace(/[^a-zA-Z0-9]/g, '_');
-              if ($('#filter-tags-' + tag_curated).length > 0) {
+              if ($('#filter-tags-' + sanitizeFilter(tag)).length > 0) {
                 var checked = true;
               } else {
                 var checked = false;
