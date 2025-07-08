@@ -324,7 +324,7 @@
                                             <a class="cursor-pointer text-link"
                                                 href="{{ url_for('dashboard_blueprint.processes') }}?q={{ organization.title | urlencode }}"
                                                 target="_blank">
-                                                Browse All Processes
+                                                Browse Processes
                                             </a>
                                         </div>
 
@@ -461,11 +461,17 @@
                 <a class="card card-link" href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}${dataset.id}" target="_blank">
                     <div class="card-body">
                         <div>
-                            <h3 class="m-0">${dataset.title}</h3>
+                            <h5 class="m-0">${dataset.title}</h5>
                             <div class="d-flex">
                                 <small class="text-secondary">${dataset.author}</small>
-                                <div class="ms-auto d-flex justify-content-end flex-wrap mt-4 badges">
-                                    ${dataset.tags && dataset.tags.length ? dataset.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') : ''}
+                                <div class="ms-auto d-flex justify-content-end flex-wrap mt-4 badges h5">
+                                    ${dataset.tags && dataset.tags.length ? 
+                                        (dataset.tags.length > 3 ? 
+                                            dataset.tags.slice(0, 3).map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') + 
+                                            `<p class="text-secondary m-1 mb-0" title="${dataset.tags.slice(3).join(', ')}">+${dataset.tags.length - 3} more...</p>` 
+                                            : 
+                                            dataset.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join(''))
+                                        : ''}
                                 </div>
                             </div>
                         </div>
@@ -574,11 +580,17 @@
                                         <a class="card card-link" href="{{url_for('dashboard_blueprint.process', process_id='')}}${process.id}" target="_blank">
                                             <div class="card-body">
                                                 <div>
-                                                    <h3 class="m-0">${process.title}</h3>
+                                                    <h4 class="m-0">${process.title}</h4>
                                                     <div class="d-flex">
                                                         <small class="text-secondary">${process.author}</small>
                                                         <div class="ms-auto mt-3 badges">
-                                                            ${process.tags && process.tags.length ? process.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') : ''}
+                                                            ${process.tags && process.tags.length ? 
+                                                                (process.tags.length > 3 ? 
+                                                                    process.tags.slice(0, 3).map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') + 
+                                                                    `<p class="m-1 mb-0 text-secondary" title="${process.tags.slice(3).join(', ')}">+ ${process.tags.length - 3} more...</p>` 
+                                                                    : 
+                                                                    process.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('')) 
+                                                                : ''}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -588,6 +600,8 @@
                                 `);
                             });
                         } else {
+                            $('#org-process-count').removeClass('placeholder placeholder-glow');
+                            $('#org-process-count').text('0 Processes');
                             $('#org-processes').html('<p class="text-secondary">No recent processes found for this organization</p>');
                         }
                     }
@@ -641,7 +655,7 @@
                                     ${toolImage.startsWith('<div') ? toolImage : `<img src="${toolImage}" alt="${tool.title}" class="avatar avatar-sm mt-1">`}
                                     <div class="me-auto ms-2 mt-0 text-truncate align-items-center">
                                         <div class="ms-2">
-                                            <h3 class="m-0 text-truncate" title=${tool.title}>${tool.title}</h3>
+                                            <h4 class="m-0 text-truncate" title=${tool.title}>${tool.title}</h4>
                                             <div class="d-flex">
                                                 <small class="text-secondary">${tool.author}</small>
                                             </div>
