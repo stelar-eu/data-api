@@ -15,6 +15,8 @@ import time
 from apiflask import APIBlueprint
 import markdown
 
+from authz import authorize
+
 from exceptions import ConflictError, AuthorizationError
 from flask import (
     current_app,
@@ -24,6 +26,7 @@ from flask import (
     request,
     session,
     url_for,
+    g,
 )
 from utils import is_valid_uuid
 import cutils
@@ -42,7 +45,7 @@ dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=Fals
 logger = logging.getLogger(__name__)
 
 
-def render_template_with_s3(template_name, **kwargs):
+def render_stelar_tempalte(template_name, **kwargs):
     """
     Helper function to include the S3_CONSOLE_URL in all templates.
     """
@@ -182,11 +185,64 @@ def handle_error(redirect="dashboard_index"):
     return decorator
 
 
+def evaluate_permissions(entity, resource_name, permissions):
+    """
+    permissions: dict mapping the key you want in the template
+                 to the actual permission string you pass to authorize()
+    """
+    results = {}
+    for key, perm in permissions.items():
+        try:
+            results[key] = authorize(entity, resource_name, perm)
+        except AuthorizationError:
+            results[key] = False
+
+        # Default None to False
+        if results[key] is None:
+            results[key] = False
+
+    return results
+
+
+def require_permissions(
+    *,
+    entity_loader,  # callable: id -> entity
+    id_arg,  # str: name of the view-kwarg
+    resource_name,  # str: passed into authorize()
+    permission_map,  # dict: flag_name -> permission string
+):
+    def decorator(view_fn):
+        @wraps(view_fn)
+        def wrapped(*args, **kwargs):
+            # pull the ID out of kwargs
+            entity_id = kwargs.get(id_arg)
+            if entity_id is None:
+                raise RuntimeError(
+                    f"@require_permissions: '{id_arg}' not in view kwargs"
+                )
+
+            # load the entity
+            entity = entity_loader(entity_id)
+
+            # evaluate all perms
+            perms = evaluate_permissions(entity, resource_name, permission_map)
+
+            # stash it on g (or pass it into the view)
+            g.authorized_actions = perms
+
+            # call the original view
+            return view_fn(*args, **kwargs)
+
+        return wrapped
+
+    return decorator
+
+
 # Home page (redirect target after login)
 @dashboard_bp.route("/")
 @session_required
 def dashboard_index():
-    return render_template_with_s3("index.html", PARTNER_IMAGE_SRC=get_partner_logo())
+    return render_stelar_tempalte("index.html", PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 # -------------------------------------
@@ -197,7 +253,7 @@ def dashboard_index():
 @session_required
 @llm_search_enabled
 def llm_search():
-    return render_template_with_s3(
+    return render_stelar_tempalte(
         "llm_search.html", PARTNER_IMAGE_SRC=get_partner_logo()
     )
 
@@ -249,7 +305,7 @@ def processes():
             month: monthly_counts.get(month, 0) for month in months_to_display
         }
 
-        return render_template_with_s3(
+        return render_stelar_tempalte(
             "processes.html",
             processes=processes,
             monthly_counts=monthly_counts,
@@ -259,7 +315,7 @@ def processes():
         )
 
     else:
-        return render_template_with_s3(
+        return render_stelar_tempalte(
             "processes.html",
             processes={},
             monthly_counts={},
@@ -278,7 +334,7 @@ def process(process_id):
 
     now = datetime.now()
 
-    return render_template_with_s3(
+    return render_stelar_tempalte(
         "process.html",
         process=process,
         now=now,
@@ -328,7 +384,7 @@ def task_compare():
 
     now = datetime.now()
 
-    return render_template_with_s3(
+    return render_stelar_tempalte(
         "task_compare.html", tasks=tasks, resources=resources, now=now
     )
 
@@ -353,7 +409,7 @@ def task(process_id, task_id):
 
     logs_metadata = TASK.get_job_info(id=task_id)
 
-    return render_template_with_s3(
+    return render_stelar_tempalte(
         "task.html",
         PARTNER_IMAGE_SRC=get_partner_logo(),
         task=task_metadata,
@@ -419,7 +475,7 @@ def catalog():
 
     search_q["fq"] = fq_filters
 
-    return render_template_with_s3(
+    return render_stelar_tempalte(
         "catalog.html",
         search_q=search_q,
         tags=TAG.list_entities(limit=200, offset=0),
@@ -443,7 +499,7 @@ def dataset_detail(dataset_id):
         return redirect(url_for("dashboard_blueprint.tool", tool_id=dataset_id))
 
     if metadata_data:
-        return render_template_with_s3(
+        return render_stelar_tempalte(
             "catalog_view.html",
             dataset=metadata_data,
             PARTNER_IMAGE_SRC=get_partner_logo(),
@@ -465,7 +521,7 @@ def dataset_annotate(dataset_id):
         return redirect(url_for("dashboard_blueprint.catalog"))
 
     if metadata_data:
-        return render_template_with_s3(
+        return render_stelar_tempalte(
             "annotator.html",
             dataset=metadata_data,
             PARTNER_IMAGE_SRC=get_partner_logo(),
@@ -487,7 +543,7 @@ def dataset_relationships(dataset_id):
         return redirect(url_for("dashboard_blueprint.catalog"))
 
     if metadata_data:
-        return render_template_with_s3(
+        return render_stelar_tempalte(
             "relationships.html",
             package=metadata_data,
             PARTNER_IMAGE_SRC=get_partner_logo(),
@@ -535,7 +591,7 @@ def viewResource(resource_id):
                 f"&s3_endpoint={quote(s3_endpoint)}"
                 f"&s3_path={quote(resource.get('url'))}"
             )
-            return render_template_with_s3(
+            return render_stelar_tempalte(
                 "resource.html",
                 S3_LINK=s3_link,
                 GUI_URL=host + embed_uri,
@@ -578,7 +634,7 @@ def visualize(profile_id):
         f"&s3_path={quote(profile_file)}"
     )
 
-    return render_template_with_s3(
+    return render_stelar_tempalte(
         "visualizer.html",
         PARTNER_IMAGE_SRC=get_partner_logo(),
         VIS_URL=host + embed_uri,
@@ -602,7 +658,7 @@ def dataset_compare():
         except Exception as e:
             logging.error(f"Error fetching dataset {dataset_id}: {str(e)}")
 
-    return render_template_with_s3(
+    return render_stelar_tempalte(
         "dataset_compare.html",
         PARTNER_IMAGE_SRC=get_partner_logo(),
         datasets=datasets,
@@ -639,7 +695,7 @@ def sde_manager():
         f"&s3_endpoint={quote(s3_endpoint)}"
         f"&bucket=klms-bucket"
     )
-    return render_template_with_s3(
+    return render_stelar_tempalte(
         "sde.html",
         GUI_URL=host + embed_uri,
         PARTNER_IMAGE_SRC=get_partner_logo(),
@@ -659,7 +715,7 @@ def tools():
     if registry:
         registry = re.sub(r"^https?://", "", registry)
 
-    return render_template_with_s3(
+    return render_stelar_tempalte(
         "tools.html", REGISTRY_URL=registry, PARTNER_IMAGE_SRC=get_partner_logo()
     )
 
@@ -668,6 +724,12 @@ def tools():
 @dashboard_bp.doc(False)
 @session_required
 @handle_error(redirect="tools")
+@require_permissions(
+    entity_loader=TOOL.get_entity,
+    id_arg="tool_id",
+    resource_name="tool",
+    permission_map={"can_update": "update", "can_delete": "delete"},
+)
 def tool(tool_id):
 
     tool = TOOL.get_entity(tool_id)
@@ -690,8 +752,11 @@ def tool(tool_id):
             logger.debug("Image repo: %s", image_repo)
             tool["repository"] = image_repo
 
-    return render_template_with_s3(
-        "tool.html", tool=tool, PARTNER_IMAGE_SRC=get_partner_logo()
+    return render_stelar_tempalte(
+        "tool.html",
+        tool=tool,
+        PARTNER_IMAGE_SRC=get_partner_logo(),
+        AUTHORIZED_ACTIONS=g.authorized_actions,
     )
 
 
@@ -703,27 +768,30 @@ def tool(tool_id):
 @dashboard_bp.route("/organizations")
 @session_required
 def organizations():
-    return render_template_with_s3(
+    return render_stelar_tempalte(
         "organizations.html", PARTNER_IMAGE_SRC=get_partner_logo()
     )
 
 
 @dashboard_bp.route("/organization/<organization_id>")
 @session_required
+@require_permissions(
+    entity_loader=ORGANIZATION.get_entity,
+    id_arg="organization_id",
+    resource_name="organization",
+    permission_map={
+        "edit_members": "manage_membership",
+        "can_update": "update",
+    },
+)
 def organization(organization_id):
     org = ORGANIZATION.get_entity(organization_id)
 
-    try:
-        kutils.introspect_admin_token(kutils.current_token())
-        is_admin = True
-    except AuthorizationError:
-        is_admin = False
-
-    return render_template_with_s3(
+    return render_stelar_tempalte(
         "organization.html",
         PARTNER_IMAGE_SRC=get_partner_logo(),
         organization=org,
-        admin=is_admin,
+        AUTHORIZED_ACTIONS=g.authorized_actions,
     )
 
 
@@ -736,7 +804,7 @@ def organization(organization_id):
 @session_required
 @admin_required
 def adminSettings():
-    return render_template_with_s3("cluster.html", PARTNER_IMAGE_SRC=get_partner_logo())
+    return render_stelar_tempalte("cluster.html", PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 # Settings Route
@@ -752,7 +820,7 @@ def settings():
             TWO_FACTOR_AUTH["created_at"] = created_at.strftime("%d-%m-%Y %H:%M:%S")
     except Exception:
         pass
-    return render_template_with_s3(
+    return render_stelar_tempalte(
         "settings.html",
         PARTNER_IMAGE_SRC=get_partner_logo(),
         REGISTRY_EXT_URL=current_app.config["settings"].get("REGISTRY_EXT_URL"),
@@ -929,7 +997,7 @@ def walkthroughs():
                     except Exception as e:
                         logger.error(f"Error loading spec for {filename}: {e}")
 
-    return render_template_with_s3(
+    return render_stelar_tempalte(
         "walkthroughs.html",
         walkthroughs=walkthroughs,
         PARTNER_IMAGE_SRC=get_partner_logo(),
@@ -991,7 +1059,7 @@ def walkthrough(walkthrough_name):
                 )
                 return redirect(url_for("dashboard_blueprint.walkthroughs"))
 
-            return render_template_with_s3(
+            return render_stelar_tempalte(
                 "walkthrough.html",
                 walkthrough=spec,
                 PARTNER_IMAGE_SRC=get_partner_logo(),

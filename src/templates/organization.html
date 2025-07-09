@@ -16,6 +16,8 @@
     <script src="{{ url_for('static', filename='utils.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
     <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+    <script src="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone-min.js"></script>
+    <link href="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body>
@@ -43,6 +45,22 @@
                                 </ol>
                             </h3>
                         </div>
+                        {% if AUTHORIZED_ACTIONS.get("can_update") %}
+                        <div class="col-auto ms-auto d-print-none">
+                            <a href="#" class="btn" data-bs-toggle="modal" data-bs-target="#modal-edit-org">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    class="icon icon-tabler icons-tabler-outline icon-tabler-settings">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path
+                                        d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" />
+                                    <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+                                </svg>
+                                Settings
+                            </a>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -263,7 +281,7 @@
                                             <small class="text-secondary">People with access to organization
                                                 resources</small>
                                         </div>
-                                        {% if admin %}
+                                        {% if AUTHORIZED_ACTIONS.get("edit_members") %}
                                         <div class="ms-auto">
                                             <a class="cursor-pointer" data-bs-toggle="modal"
                                                 data-bs-target="#org-users-modal">
@@ -393,7 +411,105 @@
                 </div>
             </div>
 
-            {% if admin %}
+            <div class="modal modal-blur fade" id="modal-edit-org" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Edit Organization</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-lg-12">
+                                    <div class="mb-0">
+                                        <label class="form-label">Title</label>
+                                        <div class="row g-2">
+                                            <div class="col">
+                                                <input type="text" class="form-control"
+                                                    name="organization-name-input" placeholder="Organization Title"
+                                                    required>
+                                            </div>
+                                            <small class="form-hint">
+                                                <p>
+                                                    A name in the format <code>the-new-organization</code>
+                                                    (hyphens
+                                                    instead of spaces) will be generated for the organization.
+                                                    The name
+                                                    of the organization is one the identifiers of it, therefore
+                                                    it must be
+                                                    unique.
+                                                </p>
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex">
+                                        <div class="text-secondary ms-auto justify-content-right"
+                                            id="availability-div">
+                                            <a onclick="checkNameAvailability()"
+                                                class="text-sm p-2 cursor-pointer link-secondary"
+                                                title="Check Title Availability" data-bs-toggle="tooltip"
+                                                tabindex="-1">
+                                                Check title availability
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-12">
+                                    <div class="mb-0">
+                                        <label class="form-label">Organization Image</label>
+                                        <div class="row g-2">
+                                            <form class="dropzone dropzone-clickable text-secondary"
+                                                id="avatar-dropzone"
+                                                action="{{ url_for('pub_blueprint.transact_image', image_id='__IMAGE_ID__') }}"
+                                                data-upload-url="{{ url_for('pub_blueprint.transact_image', image_id='__IMAGE_ID__') }}"
+                                                method="POST"
+                                                style="border: var(--tblr-border-width) dashed var(--tblr-border-color)">
+                                                <div class="dz-message dz-default">
+                                                    <h3 class="dropzone-msg-title">Drop or select your image</h3>
+                                                    <span class="dropzone-msg-desc">
+                                                        Maximum size is 2MB. Files types: png, jpeg only
+                                                    </span>
+                                                </div>
+                                                <div class="fallback">
+                                                    <input name="avatar" type="file" accept="image/png, image/jpeg">
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-lg-12">
+                                    <div class="mb-3">
+                                        <label class="form-label">Description</label>
+                                        <textarea name="organization-description" class="form-control" rows="3"
+                                            required placeholder="A nice informative description"></textarea>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                        <div class="modal-footer" id="new-org-modal-footer">
+                            <button class="cursor-pointer btn btn-primary ms-auto" id="create-org-btn"
+                                onclick="createOrganization()" disabled>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
+                                    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M12 5l0 14" />
+                                    <path d="M5 12l14 0" />
+                                </svg>
+                                Create Organization
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if AUTHORIZED_ACTIONS.get("edit_members") %}
             <div class="modal modal-blur fade" id="org-users-modal" tabindex="-1" style="display: none;"
                 aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
@@ -459,19 +575,19 @@
             return `
             <div class="col-sm-6 col-lg-6">
                 <a class="card card-link" href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}${dataset.id}" target="_blank">
-                    <div class="card-body">
+                    <div class="card-body pt-4">
                         <div>
-                            <h5 class="m-0">${dataset.title}</h5>
+                            <h5 class="m-0 mb-2">${dataset.title} <span class="badge bg-blue-lt ms-1">DATASET</span></h5> 
+                            <small class="text-secondary">${dataset.author} | ${formatIsoDate(dataset.metadata_modified)}</small>
                             <div class="d-flex">
-                                <small class="text-secondary">${dataset.author}</small>
                                 <div class="ms-auto d-flex justify-content-end flex-wrap mt-4 badges h5">
-                                    ${dataset.tags && dataset.tags.length ? 
-                                        (dataset.tags.length > 3 ? 
-                                            dataset.tags.slice(0, 3).map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') + 
-                                            `<p class="text-secondary m-1 mb-0" title="${dataset.tags.slice(3).join(', ')}">+${dataset.tags.length - 3} more...</p>` 
-                                            : 
-                                            dataset.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join(''))
-                                        : ''}
+                                    ${dataset.tags && dataset.tags.length ?
+                    (dataset.tags.length > 3 ?
+                        dataset.tags.slice(0, 3).map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') +
+                        `<p class="text-secondary m-1 mb-0" title="${dataset.tags.slice(3).join(', ')}">+${dataset.tags.length - 3} more...</p>`
+                        :
+                        dataset.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join(''))
+                    : ''}
                                 </div>
                             </div>
                         </div>
@@ -584,13 +700,13 @@
                                                     <div class="d-flex">
                                                         <small class="text-secondary">${process.author}</small>
                                                         <div class="ms-auto mt-3 badges">
-                                                            ${process.tags && process.tags.length ? 
-                                                                (process.tags.length > 3 ? 
-                                                                    process.tags.slice(0, 3).map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') + 
-                                                                    `<p class="m-1 mb-0 text-secondary" title="${process.tags.slice(3).join(', ')}">+ ${process.tags.length - 3} more...</p>` 
-                                                                    : 
-                                                                    process.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('')) 
-                                                                : ''}
+                                                            ${process.tags && process.tags.length ?
+                                        (process.tags.length > 3 ?
+                                            process.tags.slice(0, 3).map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') +
+                                            `<p class="m-1 mb-0 text-secondary" title="${process.tags.slice(3).join(', ')}">+ ${process.tags.length - 3} more...</p>`
+                                            :
+                                            process.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join(''))
+                                        : ''}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -765,6 +881,8 @@
             });
         });
     </script>
+
+    {% if AUTHORIZED_ACTIONS.get("edit_members") %}
     <script>
         function buildNormalUserRow(fullname, username, userId, capacity) {
             return `<tr id="user-${userId}">
@@ -909,7 +1027,7 @@
         }
 
 
-        function saveMember(){
+        function saveMember() {
             const userRow = $('#user-row-edit');
             const selectCapacity = $('#select-capacity');
             const userId = userRow.find('input[name="user-original-id"]').val();
@@ -924,18 +1042,18 @@
             if (newCapacity === originalCapacity) {
                 cancelEditUser();
                 return;
-            }else {
-                deleteMember(userId, function() {
+            } else {
+                deleteMember(userId, function () {
 
                     $('#org-users-footer .stelar-loader').remove();
                     $('#org-users-footer .alert').remove();
                     $('#org-users-footer').prepend(createLoaderElement(false, true));
                     $.ajax({
-                        url: "{{url_for('catalog_blueprint.api_add_user_member_to_organization', entity_id=organization.id, member_id='')}}"+userId,
+                        url: "{{url_for('catalog_blueprint.api_add_user_member_to_organization', entity_id=organization.id, member_id='')}}" + userId,
                         type: "POST",
                         data: JSON.stringify({ capacity: newCapacity }),
                         contentType: "application/json",
-                        success: function(response) {
+                        success: function (response) {
                             $('#org-users-footer .stelar-loader').remove();
                             $('#org-users-footer .alert').remove();
                             if (response.success) {
@@ -951,7 +1069,7 @@
                                         $(this).remove();
                                     });
                                 }, 3000);
-                                fetchSystemUsers(function(usersRep) {
+                                fetchSystemUsers(function (usersRep) {
                                     fetchOrganizationUsers(usersRep);
                                 });
                             } else {
@@ -963,35 +1081,35 @@
                                 }, 3000);
                             }
                         },
-                        error: function(xhr, status, error) {
+                        error: function (xhr, status, error) {
                             console.error("AJAX Error:", status, error);
                             alert("An error occurred while updating the user.");
                         }
                     });
                 });
-            }           
+            }
         }
 
 
-        function deleteMember(userId, callback){
+        function deleteMember(userId, callback) {
             $.ajax({
-                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}"+userId,
+                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}" + userId,
                 type: "DELETE",
-                success: function(response) {
+                success: function (response) {
                     if (response.success) {
                         if (callback && typeof callback === 'function') {
                             callback();
                         }
-                    } 
+                    }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     console.error("AJAX Error:", status, error);
                 }
             });
         }
 
 
-        function removeUserFromOrg(userId){
+        function removeUserFromOrg(userId) {
             if (!userId) {
                 console.error("User ID is not defined.");
                 return;
@@ -1005,9 +1123,9 @@
             $('#org-users-footer .alert').remove();
             $('#org-users-footer').prepend(createLoaderElement(false, true));
             $.ajax({
-                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}"+userId,
+                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}" + userId,
                 type: "DELETE",
-                success: function(response) {
+                success: function (response) {
                     $('#org-users-footer .stelar-loader').remove();
                     $('#org-users-footer .alert').remove();
                     if (response.success) {
@@ -1020,7 +1138,7 @@
                             });
                         }, 3000);
 
-                        fetchSystemUsers(function(usersRep) {
+                        fetchSystemUsers(function (usersRep) {
                             fetchOrganizationUsers(usersRep);
                         });
                     } else {
@@ -1032,7 +1150,7 @@
                         }, 3000);
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
 
                     console.error("AJAX Error:", status, error);
                     alert("An error occurred while removing the user.");
@@ -1041,7 +1159,7 @@
         }
 
 
-        function saveNewMember(){
+        function saveNewMember() {
             const selectUser = $('#select-user');
             const selectCapacity = $('#select-capacity');
             const userId = selectUser.val();
@@ -1102,5 +1220,33 @@
         }
 
 
+    </script>
+    {% endif %}
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            Dropzone.autoDiscover = false;
+            var avatarDropzone = new Dropzone("#avatar-dropzone", {
+                maxFiles: 1,
+                maxFilesize: 2, // Maximum file size in MB
+                acceptedFiles: 'image/png,image/jpeg',
+                dictRemoveFile: "Delete",
+                dictMaxFilesExceeded: "Only one file allowed.",
+                autoProcessQueue: false,
+                addRemoveLinks: true,
+            });
+
+            // On successful upload, reload the page
+            avatarDropzone.on("success", function (file, response) {
+                if (!response.success) {
+                    alert(response.message);
+                }
+            });
+
+            // Handle error events
+            avatarDropzone.on("error", function (file, errorMessage) {
+                alert(errorMessage);
+            });
+        });
     </script>
 </body>
