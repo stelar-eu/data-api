@@ -47,7 +47,7 @@
                         </div>
                         {% if AUTHORIZED_ACTIONS.get("can_update") %}
                         <div class="col-auto ms-auto d-print-none">
-                            <a href="#" class="btn" data-bs-toggle="modal" data-bs-target="#modal-edit-org">
+                            <a href="#" class="btn" onclick="editOrganization()">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                     stroke-linejoin="round"
@@ -411,6 +411,7 @@
                 </div>
             </div>
 
+            {% if AUTHORIZED_ACTIONS.get("can_update") %}
             <div class="modal modal-blur fade" id="modal-edit-org" tabindex="-1" role="dialog" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
                     <div class="modal-content">
@@ -432,26 +433,10 @@
                                             </div>
                                             <small class="form-hint">
                                                 <p>
-                                                    A name in the format <code>the-new-organization</code>
-                                                    (hyphens
-                                                    instead of spaces) will be generated for the organization.
-                                                    The name
-                                                    of the organization is one the identifiers of it, therefore
-                                                    it must be
-                                                    unique.
+                                                    Modifying the title of the organization will not change the
+                                                    organization name identifier in the URL.
                                                 </p>
                                             </small>
-                                        </div>
-                                    </div>
-                                    <div class="d-flex">
-                                        <div class="text-secondary ms-auto justify-content-right"
-                                            id="availability-div">
-                                            <a onclick="checkNameAvailability()"
-                                                class="text-sm p-2 cursor-pointer link-secondary"
-                                                title="Check Title Availability" data-bs-toggle="tooltip"
-                                                tabindex="-1">
-                                                Check title availability
-                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -492,9 +477,9 @@
 
                             </div>
                         </div>
-                        <div class="modal-footer" id="new-org-modal-footer">
+                        <div class="modal-footer" id="edit-org-modal-footer">
                             <button class="cursor-pointer btn btn-primary ms-auto" id="create-org-btn"
-                                onclick="createOrganization()" disabled>
+                                onclick="updateOrganization()">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
                                     viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
                                     stroke-linecap="round" stroke-linejoin="round">
@@ -502,12 +487,13 @@
                                     <path d="M12 5l0 14" />
                                     <path d="M5 12l14 0" />
                                 </svg>
-                                Create Organization
+                                Update Organization
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             {% if AUTHORIZED_ACTIONS.get("add_member") or AUTHORIZED_ACTIONS.get("remove_members") %}
             <div class="modal modal-blur fade" id="org-users-modal" tabindex="-1" style="display: none;"
@@ -882,6 +868,125 @@
         });
     </script>
 
+
+    {% if AUTHORIZED_ACTIONS.get("can_update")%}
+    <script>
+
+
+        function editOrganization(){
+            $('#modal-edit-org').modal('show');
+            
+            $.ajax({
+                url: "{{url_for('catalog_blueprint.api_get_organization', entity_id=organization.id)}}",
+                type: "GET",
+                success: function (response) {
+                    if (response.success) {
+                        const org = response.result;
+                        $('input[name="organization-name-input"]').val(org.title);
+                        $('textarea[name="organization-description"]').val(org.description || '');
+                    } else {
+                        console.error("Failed to fetch organization details:", response.message);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
+                }
+            })
+        }
+
+        function uploadImage(id, callback) {
+            const avatarDropzone = Dropzone.forElement("#avatar-dropzone");
+            if (avatarDropzone.files.length === 0) {
+                // Return null if no file is in the dropzone
+                callback(null);
+                return;
+            }
+            const uploadUrlRaw = $("#avatar-dropzone").data("upload-url");
+            const file = avatarDropzone.files[0];
+            const uploadUrl = uploadUrlRaw.replace('__IMAGE_ID__', id);
+            const formData = new FormData();
+            formData.append('file', file);
+            $.ajax({
+                url: uploadUrl,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function (response) {
+                    if (response.success) {
+                        if (callback && typeof callback === 'function') {
+                            callback(response.result.url);
+                        }
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.log("An error occurred while uploading the image.");
+                    callback(null);
+                }
+            });
+        }
+
+        function updateOrganization() {
+            const title = $('input[name="organization-name-input"]').val();
+            const description = $('textarea[name="organization-description"]').val();
+            const orgId = "{{ organization.id }}";
+
+            if (!title) {
+                alert("Please enter a title for the organization.");
+                return;
+            }
+
+            $('#create-org-btn').prop('disabled', true);
+            $('#edit-org-modal-footer .stelar-loader').remove();
+            $('#edit-org-modal-footer .alert').remove();
+            $('#edit-org-modal-footer').prepend(createLoaderElement(false, true));
+
+            uploadImage(orgId, function (imageUrl) {
+                // Create the base data object
+                const updateData = {
+                    title: title,
+                    description: description
+                };
+                
+                // Only include image_url if imageUrl is not null
+                if (imageUrl !== null) {
+                    updateData.image_url = imageUrl;
+                }
+                
+                $.ajax({
+                    url: "{{url_for('catalog_blueprint.api_update_organization', entity_id=organization.id)}}",
+                    type: "PUT",
+                    data: JSON.stringify(updateData),
+                    contentType: "application/json",
+                    success: function (response) {
+                        $('#create-org-btn').prop('disabled', false);
+                        $('#edit-org-modal-footer .stelar-loader').remove();
+
+                        if (response.success) {
+                            $('#modal-edit-org').modal('hide');
+                            location.reload();
+                        } else {
+                            alert("Failed to update organization: " + response.error);
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("AJAX Error:", status, error);
+                        $('#create-org-btn').prop('disabled', false);
+                        $('#edit-org-modal-footer .stelar-loader').remove();
+                        $('#edit-org-modal-footer').prepend(createAlertElement("danger", "An error occurred while updating the organization."));
+                        setTimeout(function () {
+                            $('#edit-org-modal-footer .alert').fadeOut(500, function () {
+                                $(this).remove();
+                            });
+                        }, 3000);
+                        $('#')
+                    }
+                });
+            });
+        }
+    </script>
+    {% endif %}
+
     {% if AUTHORIZED_ACTIONS.get("add_member") or AUTHORIZED_ACTIONS.get("remove_members") %}
     <script>
         function buildNormalUserRow(fullname, username, userId, capacity) {
@@ -1222,6 +1327,7 @@
 
     </script>
     {% endif %}
+
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
