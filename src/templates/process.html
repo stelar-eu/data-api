@@ -77,10 +77,10 @@
                             </h3>
                         </div>
                         <div class="col-auto ms-auto d-print-none">
-
                             <div class="d-flex align-items-center">
                                 <div id="state-updater-status">
                                 </div>
+                                {% if AUTHORIZED_ACTIONS.get('can_update') %}
                                 <div class="ms-2">
                                     <div class="input-group">
                                         <input type="text" class="form-control text-center" id="state-input" readonly>
@@ -101,6 +101,7 @@
                                             onclick="patchProcessState()">Update State</button>
                                     </div>
                                 </div>
+                                {% endif %}
 
                                 <div class="ms-2">
                                     <a class="btn btn-primary" onclick="toggleGraph()" id="job-graph-btn">
@@ -184,7 +185,7 @@
                                             <path d="M9 12h-7" />
                                             <path d="M15 12h7" />
                                         </svg>
-                                        ID: <strong id="process-id">{{ process.id }}</strong>
+                                        ID: <kbd id="process-id">{{ process.id }}</kbd>
                                         <button type="button"
                                             class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
                                                 navigator.clipboard.writeText(document.getElementById('process-id').innerText);

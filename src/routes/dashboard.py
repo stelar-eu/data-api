@@ -348,8 +348,14 @@ def processes():
 
 
 @dashboard_bp.route("/process/<process_id>")
-@handle_error(redirect_route="catalog")
 @session_required
+@handle_error(redirect_route="processes")
+@require_permissions(
+    entity_loader=PROCESS.get_entity,
+    id_arg="process_id",
+    resource_name="process",
+    permission_map={"can_update": "update"},
+)
 def process(process_id):
 
     if not process_id:
@@ -365,6 +371,7 @@ def process(process_id):
         now=now,
         proc_tasks=(process.get("tasks") if process and "tasks" in process else []),
         PARTNER_IMAGE_SRC=get_partner_logo(),
+        AUTHORIZED_ACTIONS=g.authorized_actions,
     )
 
 
