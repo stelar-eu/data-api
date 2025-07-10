@@ -908,7 +908,6 @@ def check_read_access_for_packages(package, current_user) -> list:
             message="Error: You do not have access to this package",
         )
     else:
-        logger.info("Package is public, access granted")
         return True
 
 
@@ -925,7 +924,6 @@ def check_read_access_for_resources(resource, current_user) -> list:
     package = None
     if resource is None:
         return None
-    logger.info("Resource: %s", resource)
     # Check if the resource belongs to a package that the user has access to
     for entity in ["dataset", "process", "workflow", "tool"]:
         if entity == "process":
@@ -940,7 +938,6 @@ def check_read_access_for_resources(resource, current_user) -> list:
         except Exception:
             logger.info("Error fetching package: %s", resource.get("package_id"))
 
-    logger.info("Package: %s", package)
     if package is None:
         return None
 
