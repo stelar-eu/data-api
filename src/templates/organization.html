@@ -281,7 +281,7 @@
                                             <small class="text-secondary">People with access to organization
                                                 resources</small>
                                         </div>
-                                        {% if AUTHORIZED_ACTIONS.get("edit_members") %}
+                                        {% if AUTHORIZED_ACTIONS.get("add_member") or AUTHORIZED_ACTIONS.get("remove_members") %}
                                         <div class="ms-auto">
                                             <a class="cursor-pointer" data-bs-toggle="modal"
                                                 data-bs-target="#org-users-modal">
@@ -509,7 +509,7 @@
                 </div>
             </div>
 
-            {% if AUTHORIZED_ACTIONS.get("edit_members") %}
+            {% if AUTHORIZED_ACTIONS.get("add_member") or AUTHORIZED_ACTIONS.get("remove_members") %}
             <div class="modal modal-blur fade" id="org-users-modal" tabindex="-1" style="display: none;"
                 aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
@@ -882,7 +882,7 @@
         });
     </script>
 
-    {% if AUTHORIZED_ACTIONS.get("edit_members") %}
+    {% if AUTHORIZED_ACTIONS.get("add_member") or AUTHORIZED_ACTIONS.get("remove_members") %}
     <script>
         function buildNormalUserRow(fullname, username, userId, capacity) {
             return `<tr id="user-${userId}">

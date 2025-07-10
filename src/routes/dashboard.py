@@ -812,7 +812,8 @@ def organizations():
     id_arg="organization_id",
     resource_name="organization",
     permission_map={
-        "edit_members": "manage_membership",
+        "add_member": "add_member",
+        "remove_member": "remove_member",
         "can_update": "update",
     },
 )
