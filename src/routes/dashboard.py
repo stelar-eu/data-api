@@ -31,6 +31,7 @@ from flask import (
 from utils import is_valid_uuid
 import cutils
 import kutils
+from entity import PackageEntity
 from processes import PROCESS
 from tasks import TASK
 from tools import TOOL
@@ -45,7 +46,7 @@ dashboard_bp = APIBlueprint("dashboard_blueprint", __name__, enable_openapi=Fals
 logger = logging.getLogger(__name__)
 
 
-def render_stelar_tempalte(template_name, **kwargs):
+def render_stelar_template(template_name, **kwargs):
     """
     Helper function to include the S3_CONSOLE_URL in all templates.
     """
@@ -165,10 +166,14 @@ def session_required(f):
     return decorated_function
 
 
-def handle_error(redirect="dashboard_index"):
+def handle_error(redirect_route="dashboard_index", **redirect_kwargs):
     """
     Custom decorator to handle errors in the dashboard routes.
     Redirects to the specified parent page on error.
+
+    Args:
+        redirect_route: The name of the route to redirect to on error
+        **redirect_kwargs: Any keyword arguments to pass to url_for when redirecting
     """
 
     def decorator(f):
@@ -176,9 +181,17 @@ def handle_error(redirect="dashboard_index"):
         def decorated_function(*args, **kwargs):
             try:
                 return f(*args, **kwargs)
+
+            except AuthorizationError as e:
+                logger.error(f"Authorization error: {e}")
+                return render_stelar_template(
+                    "403.html", PARTNER_IMAGE_SRC=get_partner_logo()
+                )
             except Exception as e:
-                logger.error(f"Error in route: {e}")
-                return redirect(url_for(f"dashboard_blueprint.{redirect}"))
+                logger.error(f"An error occurred: {str(e)}", "error")
+                return redirect(
+                    url_for(f"dashboard_blueprint.{redirect_route}", **redirect_kwargs)
+                )
 
         return decorated_function
 
@@ -197,7 +210,7 @@ def evaluate_permissions(entity, resource_name, permissions):
         except AuthorizationError:
             results[key] = False
 
-        # Default None to False
+        # Default None to False, no permission granted
         if results[key] is None:
             results[key] = False
 
@@ -221,11 +234,22 @@ def require_permissions(
                     f"@require_permissions: '{id_arg}' not in view kwargs"
                 )
 
-            # load the entity
             entity = entity_loader(entity_id)
 
+            # Use the provided resource_name
+            actual_resource_name = resource_name
+
+            if actual_resource_name == "package":
+                try:
+                    actual_resource_name = PackageEntity.resolve_type(entity_id)
+                except Exception:
+                    logger.error(
+                        f"Failed to resolve resource type for entity {entity_id}, defaulting to 'dataset'"
+                    )
+                    actual_resource_name = "dataset"
+
             # evaluate all perms
-            perms = evaluate_permissions(entity, resource_name, permission_map)
+            perms = evaluate_permissions(entity, actual_resource_name, permission_map)
 
             # stash it on g (or pass it into the view)
             g.authorized_actions = perms
@@ -242,7 +266,7 @@ def require_permissions(
 @dashboard_bp.route("/")
 @session_required
 def dashboard_index():
-    return render_stelar_tempalte("index.html", PARTNER_IMAGE_SRC=get_partner_logo())
+    return render_stelar_template("index.html", PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 # -------------------------------------
@@ -253,7 +277,7 @@ def dashboard_index():
 @session_required
 @llm_search_enabled
 def llm_search():
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "llm_search.html", PARTNER_IMAGE_SRC=get_partner_logo()
     )
 
@@ -305,7 +329,7 @@ def processes():
             month: monthly_counts.get(month, 0) for month in months_to_display
         }
 
-        return render_stelar_tempalte(
+        return render_stelar_template(
             "processes.html",
             processes=processes,
             monthly_counts=monthly_counts,
@@ -315,7 +339,7 @@ def processes():
         )
 
     else:
-        return render_stelar_tempalte(
+        return render_stelar_template(
             "processes.html",
             processes={},
             monthly_counts={},
@@ -324,6 +348,7 @@ def processes():
 
 
 @dashboard_bp.route("/process/<process_id>")
+@handle_error(redirect_route="catalog")
 @session_required
 def process(process_id):
 
@@ -334,7 +359,7 @@ def process(process_id):
 
     now = datetime.now()
 
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "process.html",
         process=process,
         now=now,
@@ -384,12 +409,13 @@ def task_compare():
 
     now = datetime.now()
 
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "task_compare.html", tasks=tasks, resources=resources, now=now
     )
 
 
 @dashboard_bp.route("/task/<process_id>/<task_id>")
+@handle_error(redirect_route="processes")
 @session_required
 def task(process_id, task_id):
     # Basic input validation
@@ -409,7 +435,7 @@ def task(process_id, task_id):
 
     logs_metadata = TASK.get_job_info(id=task_id)
 
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "task.html",
         PARTNER_IMAGE_SRC=get_partner_logo(),
         task=task_metadata,
@@ -475,7 +501,7 @@ def catalog():
 
     search_q["fq"] = fq_filters
 
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "catalog.html",
         search_q=search_q,
         tags=TAG.list_entities(limit=200, offset=0),
@@ -485,12 +511,21 @@ def catalog():
 
 @dashboard_bp.route("/catalog/<dataset_id>", methods=["GET", "POST"])
 @session_required
+@handle_error(redirect_route="catalog")
+@require_permissions(
+    entity_loader=cutils.get_package,
+    id_arg="dataset_id",
+    resource_name="package",
+    permission_map={
+        "can_update": "update",
+        "can_delete": "delete",
+        "can_edit_ownership": "edit_ownership",
+    },
+)
 def dataset_detail(dataset_id):
     metadata_data = None
     try:
         metadata_data = cutils.get_package(id=dataset_id)
-    except ValueError:
-        return redirect(url_for("dashboard_blueprint.catalog"))
     except Exception:
         return redirect(url_for("dashboard_blueprint.catalog"))
 
@@ -499,29 +534,26 @@ def dataset_detail(dataset_id):
         return redirect(url_for("dashboard_blueprint.tool", tool_id=dataset_id))
 
     if metadata_data:
-        return render_stelar_tempalte(
+        return render_stelar_template(
             "catalog_view.html",
             dataset=metadata_data,
             PARTNER_IMAGE_SRC=get_partner_logo(),
+            AUTHORIZED_ACTIONS=g.authorized_actions,
         )
     else:
         return redirect(url_for("dashboard_blueprint.catalog"))
 
 
 @dashboard_bp.route("/catalog/<dataset_id>/annotate")
+@handle_error(redirect_route="catalog")
 @session_required
 def dataset_annotate(dataset_id):
 
     metadata_data = None
-    try:
-        metadata_data = cutils.get_package(id=dataset_id)
-    except ValueError as e:
-        return redirect(url_for("dashboard_blueprint.catalog"))
-    except Exception as e:
-        return redirect(url_for("dashboard_blueprint.catalog"))
+    metadata_data = cutils.get_package(id=dataset_id)
 
     if metadata_data:
-        return render_stelar_tempalte(
+        return render_stelar_template(
             "annotator.html",
             dataset=metadata_data,
             PARTNER_IMAGE_SRC=get_partner_logo(),
@@ -531,19 +563,14 @@ def dataset_annotate(dataset_id):
 
 
 @dashboard_bp.route("/catalog/<dataset_id>/relationships")
+@handle_error(redirect_route="catalog")
 @session_required
 def dataset_relationships(dataset_id):
 
-    metadata_data = None
-    try:
-        metadata_data = cutils.get_package(id=dataset_id)
-    except ValueError as e:
-        return redirect(url_for("dashboard_blueprint.catalog"))
-    except Exception as e:
-        return redirect(url_for("dashboard_blueprint.catalog"))
+    metadata_data = cutils.get_package(id=dataset_id)
 
     if metadata_data:
-        return render_stelar_tempalte(
+        return render_stelar_template(
             "relationships.html",
             package=metadata_data,
             PARTNER_IMAGE_SRC=get_partner_logo(),
@@ -554,58 +581,56 @@ def dataset_relationships(dataset_id):
 
 @dashboard_bp.route("/catalog/resource/<resource_id>")
 @session_required
+@handle_error(redirect_route="catalog")
 def viewResource(resource_id):
     config = current_app.config["settings"]
     host = config.get("MAIN_EXT_URL")
 
     if resource_id:
+
+        minio_console_url = config.get("S3_CONSOLE_URL").replace("login", "browser/")
+        resource = RESOURCE.get_entity(resource_id)
         try:
-            minio_console_url = config.get("S3_CONSOLE_URL").replace(
-                "login", "browser/"
-            )
-            resource = RESOURCE.get_entity(resource_id)
-            try:
-                package = DATASET.get_entity(resource.get("package_id"))
-            except Exception:
-                try:
-                    package = PROCESS.get_entity(resource.get("package_id"))
-                except Exception:
-                    package = None
-
-            s3_link = None
-
-            url = resource.get("url")
-            if url and url.startswith("s3://"):
-                s3_link = url.replace("s3://", minio_console_url)
-
-            s3_endpoint = (
-                config.get("MINIO_API_SUBDOMAIN") + "." + config.get("KLMS_DOMAIN_NAME")
-            )
-            creds = mutils.get_temp_minio_credentials(kutils.current_token())
-
-            embed_uri = (
-                f"/previewer/?embed=true"
-                f"&access_key={quote(creds['AccessKeyId'])}"
-                f"&secret_key={quote(creds['SecretAccessKey'])}"
-                f"&session_token={quote(creds['SessionToken'])}"
-                f"&s3_endpoint={quote(s3_endpoint)}"
-                f"&s3_path={quote(resource.get('url'))}"
-            )
-            return render_stelar_tempalte(
-                "resource.html",
-                S3_LINK=s3_link,
-                GUI_URL=host + embed_uri,
-                PARTNER_IMAGE_SRC=get_partner_logo(),
-                resource=resource,
-                package=package,
-            )
+            package = DATASET.get_entity(resource.get("package_id"))
         except Exception:
-            return redirect(url_for("dashboard_blueprint.catalog"))
+            try:
+                package = PROCESS.get_entity(resource.get("package_id"))
+            except Exception:
+                package = None
+
+        s3_link = None
+
+        url = resource.get("url")
+        if url and url.startswith("s3://"):
+            s3_link = url.replace("s3://", minio_console_url)
+
+        s3_endpoint = (
+            config.get("MINIO_API_SUBDOMAIN") + "." + config.get("KLMS_DOMAIN_NAME")
+        )
+        creds = mutils.get_temp_minio_credentials(kutils.current_token())
+
+        embed_uri = (
+            f"/previewer/?embed=true"
+            f"&access_key={quote(creds['AccessKeyId'])}"
+            f"&secret_key={quote(creds['SecretAccessKey'])}"
+            f"&session_token={quote(creds['SessionToken'])}"
+            f"&s3_endpoint={quote(s3_endpoint)}"
+            f"&s3_path={quote(resource.get('url'))}"
+        )
+        return render_stelar_template(
+            "resource.html",
+            S3_LINK=s3_link,
+            GUI_URL=host + embed_uri,
+            PARTNER_IMAGE_SRC=get_partner_logo(),
+            resource=resource,
+            package=package,
+        )
     else:
         return redirect(url_for("dashboard_blueprint.catalog"))
 
 
 @dashboard_bp.route("/catalog/visualize/<profile_id>")
+@handle_error(redirect_route="catalog")
 @session_required
 def visualize(profile_id):
     config = current_app.config["settings"]
@@ -634,7 +659,7 @@ def visualize(profile_id):
         f"&s3_path={quote(profile_file)}"
     )
 
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "visualizer.html",
         PARTNER_IMAGE_SRC=get_partner_logo(),
         VIS_URL=host + embed_uri,
@@ -658,7 +683,7 @@ def dataset_compare():
         except Exception as e:
             logging.error(f"Error fetching dataset {dataset_id}: {str(e)}")
 
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "dataset_compare.html",
         PARTNER_IMAGE_SRC=get_partner_logo(),
         datasets=datasets,
@@ -695,7 +720,7 @@ def sde_manager():
         f"&s3_endpoint={quote(s3_endpoint)}"
         f"&bucket=klms-bucket"
     )
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "sde.html",
         GUI_URL=host + embed_uri,
         PARTNER_IMAGE_SRC=get_partner_logo(),
@@ -715,7 +740,7 @@ def tools():
     if registry:
         registry = re.sub(r"^https?://", "", registry)
 
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "tools.html", REGISTRY_URL=registry, PARTNER_IMAGE_SRC=get_partner_logo()
     )
 
@@ -723,7 +748,7 @@ def tools():
 @dashboard_bp.route("/tool/<tool_id>", methods=["GET"])
 @dashboard_bp.doc(False)
 @session_required
-@handle_error(redirect="tools")
+@handle_error(redirect_route="tools")
 @require_permissions(
     entity_loader=TOOL.get_entity,
     id_arg="tool_id",
@@ -752,7 +777,7 @@ def tool(tool_id):
             logger.debug("Image repo: %s", image_repo)
             tool["repository"] = image_repo
 
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "tool.html",
         tool=tool,
         PARTNER_IMAGE_SRC=get_partner_logo(),
@@ -768,7 +793,7 @@ def tool(tool_id):
 @dashboard_bp.route("/organizations")
 @session_required
 def organizations():
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "organizations.html", PARTNER_IMAGE_SRC=get_partner_logo()
     )
 
@@ -787,7 +812,7 @@ def organizations():
 def organization(organization_id):
     org = ORGANIZATION.get_entity(organization_id)
 
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "organization.html",
         PARTNER_IMAGE_SRC=get_partner_logo(),
         organization=org,
@@ -804,7 +829,7 @@ def organization(organization_id):
 @session_required
 @admin_required
 def adminSettings():
-    return render_stelar_tempalte("cluster.html", PARTNER_IMAGE_SRC=get_partner_logo())
+    return render_stelar_template("cluster.html", PARTNER_IMAGE_SRC=get_partner_logo())
 
 
 # Settings Route
@@ -820,7 +845,7 @@ def settings():
             TWO_FACTOR_AUTH["created_at"] = created_at.strftime("%d-%m-%Y %H:%M:%S")
     except Exception:
         pass
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "settings.html",
         PARTNER_IMAGE_SRC=get_partner_logo(),
         REGISTRY_EXT_URL=current_app.config["settings"].get("REGISTRY_EXT_URL"),
@@ -997,7 +1022,7 @@ def walkthroughs():
                     except Exception as e:
                         logger.error(f"Error loading spec for {filename}: {e}")
 
-    return render_stelar_tempalte(
+    return render_stelar_template(
         "walkthroughs.html",
         walkthroughs=walkthroughs,
         PARTNER_IMAGE_SRC=get_partner_logo(),
@@ -1059,7 +1084,7 @@ def walkthrough(walkthrough_name):
                 )
                 return redirect(url_for("dashboard_blueprint.walkthroughs"))
 
-            return render_stelar_tempalte(
+            return render_stelar_template(
                 "walkthrough.html",
                 walkthrough=spec,
                 PARTNER_IMAGE_SRC=get_partner_logo(),
