@@ -50,6 +50,11 @@
                                 Register New Tool
                             </a>
                         </div>
+                        <p class="mt-3 text-sm text-secondary">
+                            STELAR KLMS offers a variety of data analysis and management tools that can be executed within the context
+                            of workflow processes, effectively curating data assets residing within the lake. These tools range from 
+                            remote sensing LAI pipelines, precision farming data analysi and timeseries forecasters, to advanced entity linking and discovery tools.
+                          </p>
                     </div>
                 </div>
             </div>
@@ -431,16 +436,23 @@
 
 
         function fetchTools() {
+
+            search_q = {
+                "q": "",
+                "limit": 100,
+                "offset": 0,
+                "sort": "name asc",
+            }
             $.ajax({
-                url: '{{ url_for("rest_workflows_blueprint.api_fetch_tools") }}',
-                method: 'GET',
+                url: '{{ url_for("rest_workflows_blueprint.api_search_tools") }}',
+                method: 'POST',
                 dataType: 'json',
                 success: function (data) {
-                    if (data.result.length > 0) {
+                    if (data.result.results.length > 0) {
                         // Clear the placeholder cards
                         $('#tool-card-row').empty();
 
-                        createToolCards(data.result);
+                        createToolCards(data.result.results);
                     } else {
                         setTimeout(() => {
                             // Clear the placeholder cards
