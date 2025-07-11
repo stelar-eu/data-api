@@ -40,6 +40,30 @@ BEGIN
 END
 $$;
 
+
+---------------------------------------------
+--     RESOURCE & PACKAGE FK CONSTRAINT
+---------------------------------------------
+DO $$
+BEGIN
+   -- only add it if there’s no constraint by that name already
+   IF NOT EXISTS (
+     SELECT 1 FROM pg_constraint
+     WHERE conname = 'resource_package_id_fkey'
+       AND conrelid = 'public.resource'::regclass
+   ) THEN
+     EXECUTE '
+       ALTER TABLE public.resource
+       ADD CONSTRAINT resource_package_id_fkey
+         FOREIGN KEY (package_id)
+         REFERENCES public.package(id)
+         ON DELETE CASCADE
+         ON UPDATE CASCADE
+     ';
+   END IF;
+END
+$$;
+
 ---------------------------------------------
 --             LAYOUT & POLICIES
 ---------------------------------------------

@@ -304,6 +304,7 @@
         function createOrganization() {
 
             toggleLoader($("#new-org-modal-footer"), true);
+            $("#new-org-modal-footer .alert").remove();
             $("#create-org-btn").prop('disabled', true);
             const titleInput = $('input[name="organization-name-input"]');
             const descriptionInput = $('textarea[name="organization-description"]');
@@ -341,12 +342,14 @@
                     
                     clearModal();
                     toggleLoader($("#new-org-modal-footer"), false);
+                    $("#new-org-modal-footer .alert").remove();
                     $("#new-org-modal-footer").prepend(createAlertElement("success", "Organization created successfully"));
 
                     
                 },
                 error: function (xhr, status, error) {
                     toggleLoader($("#new-org-modal-footer"), false);
+                    $("#new-org-modal-footer .alert").remove();
                     $("#new-org-modal-footer").prepend(createAlertElement("danger", "Error while creating organization"));
                 }
             });

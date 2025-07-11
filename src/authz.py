@@ -94,10 +94,6 @@ def authorize(resource, entity, action):
         AuthorizationError if authorization fails.
     """
 
-    if os.getenv("AUTHZ_DISABLED", False):
-        # Authorization is disabled, so we return without checking
-        return
-
     from authz_module import (
         Resource,
         authorization,
@@ -110,10 +106,9 @@ def authorize(resource, entity, action):
 
     # Check for admin
     cu = current_user()
-    # TODO: Check if user is admin via user attributes!!
     is_admin = cu.get("is_admin", None)
     if is_admin is not None and is_admin:
-        return
+        return True
 
     # Call authz_module.authorization(...)
     if action not in ACTIONS:
@@ -142,3 +137,6 @@ def authorize(resource, entity, action):
             "action": action,
         }
         raise AuthorizationError(message="Authorization failed", detail=detail)
+
+    # If we reach here, the authorization was successful
+    return True

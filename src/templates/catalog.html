@@ -81,8 +81,9 @@
                 </svg>
               </span>
               <div class="input-group">
-                <input type="text" value="{{ search_q.keywords if search_q.keywords else '' }}" class="form-control query-param mb-0 h3" placeholder="Search for a keyword"
-                  id="catalog-search-box" aria-label="Catalog Search" style="height:3.5rem;" autocomplete="off">
+                <input type="text" value="{{ search_q.keywords if search_q.keywords else '' }}"
+                  class="form-control query-param mb-0 h3" placeholder="Search for a keyword" id="catalog-search-box"
+                  aria-label="Catalog Search" style="height:3.5rem;" autocomplete="off">
                 <button class="btn query-param" type="button" onclick="performKeywordSearch()">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -164,7 +165,7 @@
               </div>
               <hr>
               <div class="form-label h3">Owner Organization</div>
-              <div class="mb-1 p-1" style="max-height: 16.5rem; overflow: auto;" id="facet-organization">
+              <div class="mb-1 p-1" style="max-height: 18rem; overflow: auto;" id="facet-organization">
                 <div class="placeholder-glow">
                   {% for i in range(0, 7) %}
                   <label class="form-check tag-item">
@@ -302,7 +303,8 @@
 
               </div>
               <div class="modal-footer" id="spatial-search-modal-footer">
-                <a class="btn btn-outline-primary ms-auto disabled" onclick="addSpatialFilter()" id="add-spatial-filter-btn">
+                <a class="btn btn-outline-primary ms-auto disabled" onclick="addSpatialFilter()"
+                  id="add-spatial-filter-btn">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                     class="icon icon-tabler icons-tabler-outline icon-tabler-plus">
@@ -410,8 +412,8 @@
                     <div class="row">
                       <div class="col-lg-6">
                         <label class="form-label"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round"
                             class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-building-bank">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                             <path d="M3 21l18 0" />
@@ -434,7 +436,16 @@
                         </small>
                       </div>
                       <div class="col-lg-6">
-                        <label class="form-label"><svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-license"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 21h-9a3 3 0 0 1 -3 -3v-1h10v2a2 2 0 0 0 4 0v-14a2 2 0 1 1 2 2h-2m2 -4h-11a3 3 0 0 0 -3 3v11" /><path d="M9 7l4 0" /><path d="M9 11l4 0" /></svg>License</label>
+                        <label class="form-label"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round"
+                            class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-license">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path
+                              d="M15 21h-9a3 3 0 0 1 -3 -3v-1h10v2a2 2 0 0 0 4 0v-14a2 2 0 1 1 2 2h-2m2 -4h-11a3 3 0 0 0 -3 3v11" />
+                            <path d="M9 7l4 0" />
+                            <path d="M9 11l4 0" />
+                          </svg>License</label>
                         <select class="form-select" id="license-id" name="license_id">
                         </select>
                         <small class="form-hint">
@@ -695,21 +706,21 @@
       "q": "{{ search_q.keywords if search_q.keywords else '' }}",
       "sort": "{{ search_q.sort }}",
       "fl": [
-      "id",
-      "title",
-      "notes",
-      "author",
-      "organization",
-      "tags",
-      "metadata_modified",
-      "capacity",
-      "type",
-      "license_id",
+        "id",
+        "title",
+        "notes",
+        "author",
+        "organization",
+        "tags",
+        "metadata_modified",
+        "capacity",
+        "type",
+        "license_id",
       ],
       "fq": [{% for filter in search_q.fq %}"{{ filter }}"{% if not loop.last %}, {% endif %} {% endfor %}],
       "limit": 10,
-      "offset": 0,
-      {% if search_q.bbox %}
+        "offset": 0,
+          {% if search_q.bbox %}
       "bbox": {{ search_q.bbox }},
       {% endif %}
       "facet": {
@@ -717,7 +728,9 @@
           "tags",
           "author",
           "organization",
-          "res_format"
+          "res_format",
+          "capacity",
+          "license_id"
         ]
       }
     };
@@ -727,22 +740,22 @@
     function updateQueryFilters() {
       var urlParams = new URLSearchParams(window.location.search);
       var filters = [];
-      ["tags", "res_format", "org", "author"].forEach(function(field) {
-      var param = urlParams.get(field);
-      if (param) {
-        var values = param.split(",").map(function(v) { return v.trim(); }).filter(function(v) { return v !== ""; });
-        if (values.length > 0) {
-        var actualField = (field === "org") ? "organization" : field;
-        var filterStr = (actualField === "tags")
-          ? actualField + ':("' + values.join('" OR "') + '")'
-          : actualField + ":(" + values.join(" OR ") + ")";
-        filters.push(filterStr);
+      ["tags", "res_format", "org", "author"].forEach(function (field) {
+        var param = urlParams.get(field);
+        if (param) {
+          var values = param.split(",").map(function (v) { return v.trim(); }).filter(function (v) { return v !== ""; });
+          if (values.length > 0) {
+            var actualField = (field === "org") ? "organization" : field;
+            var filterStr = (actualField === "tags")
+              ? actualField + ':("' + values.join('" OR "') + '")'
+              : actualField + ":(" + values.join(" OR ") + ")";
+            filters.push(filterStr);
+          }
         }
-      }
       });
       var bboxParam = urlParams.get("bbox");
       if (bboxParam) {
-        query.bbox = bboxParam.split(",").map(function(coord) {
+        query.bbox = bboxParam.split(",").map(function (coord) {
           return parseFloat(coord.trim());
         });
       } else {
@@ -756,14 +769,14 @@
     }
 
 
-    function performFrontendSearch(){
+    function performFrontendSearch() {
       maskWithPlaceholders();
       updateQueryFilters();
     }
 
-    function performKeywordSearch(){
+    function performKeywordSearch() {
       appendFilterToLocation("keywords", $("#catalog-search-box").val());
-      updateQueryFilters(); 
+      updateQueryFilters();
     }
 
 
@@ -771,6 +784,7 @@
       // We need the backend rendered filters here to append filter badges 
       filters = {{ search_q | tojson }};
     
+
       var filterContainer = $('#filter-badges');
       filterContainer.empty();
 
@@ -820,7 +834,7 @@
             console.error("Search failed:", response.message);
           }
         },
-        error: function (xhr, status, error) {  
+        error: function (xhr, status, error) {
           appendErrorMessage();
           unlockQueryParams();
           console.error("AJAX request failed:", error);
@@ -829,12 +843,12 @@
     }
 
 
-    function fetchDefaultFacets(){
+    function fetchDefaultFacets() {
       fquery = {
         "q": "",
         "sort": "{{ search_q.sort }}",
         "fl": [
-        "id"
+          "id"
         ],
         "facet": {
           "fields": [
@@ -865,7 +879,7 @@
       });
     }
 
-    function appendErrorMessage(){
+    function appendErrorMessage() {
       $("#package-list").html("");
       $('#pagination-control').html("");
       const searchError = `<div class="col-lg-12 my-6">
@@ -891,13 +905,44 @@
         paginationHtml += '<li class="page-item disabled"><span class="page-link"> prev </span></li>';
       }
 
+      // Calculate start and end page numbers to display
+      var startPage = Math.max(1, currentPage - 5);
+      var endPage = Math.min(totalPages, currentPage + 5);
+      
+      // Adjust start/end to always show 10 pages if possible
+      if (endPage - startPage < 10 && totalPages > 10) {
+        if (currentPage < totalPages / 2) {
+          // If closer to start, show more pages to the right
+          endPage = Math.min(totalPages, startPage + 9);
+        } else {
+          // If closer to end, show more pages to the left
+          startPage = Math.max(1, endPage - 9);
+        }
+      }
+
+      // First page + ellipsis
+      if (startPage > 1) {
+        paginationHtml += '<li class="page-item"><a class="page-link pagination-link" href="#" data-page="1">1</a></li>';
+        if (startPage > 2) {
+          paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+      }
+
       // Page numbers
-      for (var i = 1; i <= totalPages; i++) {
+      for (var i = startPage; i <= endPage; i++) {
         if (i === currentPage) {
           paginationHtml += '<li class="page-item active"><span class="page-link">' + i + '</span></li>';
         } else {
           paginationHtml += '<li class="page-item"><a class="page-link pagination-link" href="#" data-page="' + i + '">' + i + '</a></li>';
         }
+      }
+
+      // Ellipsis + last page
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+          paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+        paginationHtml += '<li class="page-item"><a class="page-link pagination-link" href="#" data-page="' + totalPages + '">' + totalPages + '</a></li>';
       }
 
       // Next button
@@ -909,6 +954,14 @@
 
       $('#pagination-control').html('<ul class="pagination mb-0">' + paginationHtml + '</ul>');
 
+      // Add Go To input field
+      var goToHtml = '<div class="ms-3 mt-4 d-flex align-items-center">' +
+                     '<span class="me-2 ms-auto">Go To:</span>' +
+                     '<input type="number" min="1" max="' + totalPages + '" class="form-control form-control-sm page-goto-input" style="width: 70px; height:30px;">' +
+                     '</div>';
+      
+      $('#pagination-control').append(goToHtml);
+
       // Update pagination info e.g., "Showing 1 to 10 of 53 results"
       var startResult = query.offset + 1;
       var endResult = Math.min(query.offset + query.limit, total);
@@ -916,11 +969,25 @@
 
       // Add click listeners for pagination links
       $('.pagination-link').off('click').on('click', function (e) {
-
+        e.preventDefault();
         var page = parseInt($(this).data('page'));
         query.offset = (page - 1) * query.limit;
         maskWithPlaceholders();
         performSearch(query, false);
+      });
+
+      // Add event listener for Go To input
+      $('.page-goto-input').off('keypress').on('keypress', function (e) {
+        if (e.which === 13) { // Enter key
+          e.preventDefault();
+          var page = parseInt($(this).val());
+          if (isNaN(page) || page < 1 || page > totalPages) {
+            page = 1; // Default to first page if invalid
+          }
+          query.offset = (page - 1) * query.limit;
+          maskWithPlaceholders();
+          performSearch(query, false);
+        }
       });
     }
 
@@ -1002,34 +1069,34 @@
       var url = new URL(window.location);
       var param;
       if (type === "tags") {
-        param = "tags";
+      param = "tags";
       } else if (type === "res_format") {
-        param = "res_format";
+      param = "res_format";
       } else if (type === "organization") {
-        param = "org";
+      param = "org";
       } else if (type === "author") {
-        param = "author";
+      param = "author";
       } else if (type === "bbox") {
-        // For bbox, remove the entire param
-        url.searchParams.delete("bbox");
-        window.history.pushState({}, "", url.toString());
-        return;
+      // For bbox, remove the entire param
+      url.searchParams.delete("bbox");
+      window.history.pushState({}, "", url.toString());
+      return;
       } else {
-        param = type;
+      param = type;
       }
 
       var current = url.searchParams.get(param);
       if (current) {
-        var filters = current.split(",");
-        var index = filters.indexOf(filter);
-        if (index !== -1) {
-          filters.splice(index, 1);
-          if (filters.length) {
-            url.searchParams.set(param, filters.join(","));
-          } else {
-            url.searchParams.delete(param);
-          }
+      var filters = current.split(",");
+      var index = filters.indexOf(String(filter)); // Ensure filter is converted to string before comparison
+      if (index !== -1) {
+        filters.splice(index, 1);
+        if (filters.length) {
+        url.searchParams.set(param, filters.join(","));
+        } else {
+        url.searchParams.delete(param);
         }
+      }
       }
       window.history.pushState({}, "", url.toString());
       updateQueryFilters();
@@ -1060,7 +1127,7 @@
         param = "org";
       } else if (type === "author") {
         param = "author";
-      } else if (type === "keywords"){
+      } else if (type === "keywords") {
         param = "keywords";
         url.searchParams.set(type, filter);
         window.history.pushState({}, "", url.toString());
@@ -1109,7 +1176,7 @@
         displayText = type.charAt(0).toUpperCase() + type.slice(1) + ": " + filter;
       }
       var idValue = (type === "bbox") ? "filter-bbox" : "filter-" + type + "-" + filter;
-      var filterHtml = `<span class="badge badge-lg ${badgeClass} me-1" data-category=${type} data-value=${filter} id="${idValue.replace(/\s+/g, '_')}">
+      var filterHtml = `<span class="badge badge-lg ${badgeClass} me-1" data-category=${type} data-value=${filter} id="${sanitizeFilter(idValue)}">
       ${displayText}
       <button type="button" class="btn-close btn-close-sm remove-filter" data-type="${type}" data-filter="${filter}" aria-label="Close"></button>
       </span>`;
@@ -1124,7 +1191,7 @@
       if (type !== 'bbox') {
         $(`input[type="checkbox"][value="${filter}"]`).prop('checked', false);
       }
-     
+
       removeFilterBadge(type, filter);
       removeFilterFromLocation(type, filter);
       performFrontendSearch();
@@ -1134,7 +1201,7 @@
       if (type === 'bbox') {
         $('#filter-bbox').remove();
       } else {
-        $(`#filter-${type}-${filter.replace(/\s+/g, '_')}`).remove();
+        $(`#filter-${type}-${sanitizeFilter(filter)}`).remove();
       }
     }
 
@@ -1190,7 +1257,7 @@
               <div class="row">
                 <div class="col-md-11">
                   <h3 class="mb-0">
-                    <a href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}${pkg.id}">${pkg.title || 'Untitled Package'}</a>
+                    <a class="me-3" href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}${pkg.id}">${pkg.title || 'Untitled Package'}</a>
                     ${pkg.type === 'workflow'
           ? '<span class="badge bg-purple-lt ms-2">WORKFLOW</span>'
           : pkg.type === 'dataset'
@@ -1198,11 +1265,11 @@
             : pkg.type === 'process'
               ? '<span class="badge bg-yellow-lt ms-2">PROCESS</span>'
               : ''}
-                    <span class = "text-secondary h4 ms-2">
+                    <span class = "text-secondary h4">
                        ${pkg.capacity ? pkg.capacity.charAt(0).toUpperCase() + pkg.capacity.slice(1) : ''}
                     </span>
                   </h3>
-                  <p class="text-secondary mt-1">${pkg.notes || 'No description specified'}</p>
+                    <p class="text-secondary mt-1">${pkg.notes ? (pkg.notes.length > 250 ? pkg.notes.substring(0, 250) + '...' : pkg.notes) : 'No description specified'}</p>
                 </div>
                 <div class="col-md-1 d-flex justify-content-end">
                   <button class="btn btn-pill btn-outline-success m-3 me-1 p-1 text-center comparator-btn align-self-center"
@@ -1268,26 +1335,35 @@
                       </svg>
                       ${pkg.author || 'Not specified'}
                     </div>
+
+                    ${pkg.license_id ? `
                     <div class="list-inline-item">
-                        <span class="text-secondary h4 ms-2" title="Licensed under: ${pkg.license_id && window.availableLicenses && window.availableLicenses.find(license => license.key === pkg.license_id) 
-                        ? window.availableLicenses.find(license => license.key === pkg.license_id).title 
+                      <span class="text-secondary h4 ms-2" title="Licensed under: ${window.availableLicenses && window.availableLicenses.find(license => license.key === pkg.license_id)
+                        ? window.availableLicenses.find(license => license.key === pkg.license_id).title
                         : ''}">
-                        ${pkg.license_id && window.availableLicenses && window.availableLicenses.find(license => license.key === pkg.license_id) 
+                      ${window.availableLicenses && window.availableLicenses.find(license => license.key === pkg.license_id)
                         ? `<a href="${window.availableLicenses.find(license => license.key === pkg.license_id).url || '#'}" target="_blank">
-                          ${window.availableLicenses.find(license => license.key === pkg.license_id).image_url 
-                            ? `<img src="${window.availableLicenses.find(license => license.key === pkg.license_id).image_url}" style="max-height: 25px;" alt="${window.availableLicenses.find(license => license.key === pkg.license_id).title}" />`
-                            : window.availableLicenses.find(license => license.key === pkg.license_id).title}
+                          ${window.availableLicenses.find(license => license.key === pkg.license_id).image_url
+                        ? `<img src="${window.availableLicenses.find(license => license.key === pkg.license_id).image_url}" style="max-height: 25px;" alt="${window.availableLicenses.find(license => license.key === pkg.license_id).title}" />`
+                        : window.availableLicenses.find(license => license.key === pkg.license_id).title}
                           </a>`
                         : ''}
-                        </span>
-                    </div>
+                      </span>
+                    </div>` : ''}
                   </div>
                 </div>
               </div>
-              <div class="row d-flex">
+              <div class="row d-flex mt-2">
                 <div class="col-md-auto ms-auto">
                   <div class="badges">
-                    ${pkg.tags && pkg.tags.length ? pkg.tags.map(tag => `<a class="card-link text-black tag m-1 mb-0" href="{{ url_for('dashboard_blueprint.catalog') }}?sort=metadata_modified+desc&tags=${encodeURIComponent(tag)}">${tag}</a>`).join('') : ''}
+                    ${pkg.tags && pkg.tags.length ? 
+                      (pkg.tags.length > 5 ? 
+                        pkg.tags.slice(0, 5).map(tag => `<a class="card-link text-black tag m-1 mb-0" href="{{ url_for('dashboard_blueprint.catalog') }}?sort=metadata_modified+desc&tags=${encodeURIComponent(tag)}">${tag}</a>`).join('') + 
+                        `<p class="text-secondary d-inline-block m-1 mb-0" title="${pkg.tags.slice(5).join(', ')}">+ ${pkg.tags.length - 5} more...</p>` 
+                        : 
+                        pkg.tags.map(tag => `<a class="card-link text-black tag m-1 mb-0" href="{{ url_for('dashboard_blueprint.catalog') }}?sort=metadata_modified+desc&tags=${encodeURIComponent(tag)}">${tag}</a>`).join('')
+                      ) 
+                      : ''}
                   </div>
                 </div>                 
               </div>
@@ -1360,6 +1436,11 @@
       removeAllFiltersFromLocation();
     }
 
+    function sanitizeFilter(filter) {
+      // Convert filter to String and remove any special characters except hyphens to create a valid HTML ID
+      return String(filter).replace(/[^a-zA-Z0-9-]/g, '_');
+    }
+
     function buildFacets(facets) {
       if (facets) {
         // The facets are stored in the global variable
@@ -1370,9 +1451,10 @@
             const entries = Object.entries(value);
             $("#facet-tags").html("");
             let i = 0;
-            for (const [tag, count] of entries) {
+            for (let [tag, count] of entries) {
               // If the current tag is included in badges-list then create it as checked
-              if ($('#filter-tags-' + tag).length > 0) {
+              // Remove any / from the tag to avoid issues with HTML IDs
+              if ($('#filter-tags-' + sanitizeFilter(tag)).length > 0) {
                 var checked = true;
               } else {
                 var checked = false;
@@ -1454,9 +1536,10 @@
             const entries = Object.entries(value);
             $("#facet-format").html("");
             let i = 0;
-            for (const [format, count] of entries) {
+            for (let [format, count] of entries) {
               // If the current format is included in badges-list then create it as checked
-              if ($('#filter-res_format-' + format).length > 0) {
+              format_curated = format.replace(/[^a-zA-Z0-9]/g, '_');
+              if ($('#filter-res_format-' + format_curated).length > 0) {
                 var checked = true;
               } else {
                 var checked = false;
@@ -1504,7 +1587,7 @@
       } else {
         // Remove any existing spatial filter
         removeFilterFromLocation("bbox", null);
-        removeFilterBadge("bbox", null);      
+        removeFilterBadge("bbox", null);
         spatialCoverage = null;
       }
     }
@@ -1558,7 +1641,7 @@
     }
 
 
-    function fetchAvailableLicenses(callback){
+    function fetchAvailableLicenses(callback) {
       $.ajax({
         url: "{{url_for('catalog_blueprint.api_fetch_licenses')}}",
         method: "GET",
@@ -1580,7 +1663,7 @@
               }
               licenseSelect.append(option);
             });
-         
+
           } else {
             console.error("Failed to fetch available licenses:", response.message);
           }
@@ -1589,7 +1672,7 @@
           console.error("AJAX request for available licenses failed:", error);
         }
       });
-      if(typeof callback === "function") {
+      if (typeof callback === "function") {
         callback();
       }
     }
@@ -2003,9 +2086,9 @@
         notes: notes,
         tags: tags,
         'owner_org': ownerOrg,
-        private: private, 
+        private: private,
       };
-      
+
       if (licenseId) {
         payload.license_id = licenseId;
       }

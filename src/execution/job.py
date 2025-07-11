@@ -142,7 +142,7 @@ class JobSpec:
         value = re.sub(r"[^a-z0-9\-]", "", value)
         # Remove leading/trailing non-alphanumeric chars
         value = re.sub(r"^[^a-z0-9]+|[^a-z0-9]+$", "", value)
-        return value
+        return value[0:63]  # Limit to 63 characters
 
     def m_args(self, engine: K8sExecEngine) -> list[str]:
         """
@@ -201,21 +201,16 @@ class JobSpec:
             engine.image_spec(self.image) if self.tool_name is not None else self.image
         )
 
-    def m_labels(self, engine: K8sExecEngine) -> dict:
-        """
-        Returns the labels to be applied to the job.
-        """
-        return {
+    def m_labels(self, engine):
+        raw = {
             "stelar.metadata.class": "task-execution",
             "stelar.task-id": self.task_info["id"],
-            "stelar.tool-name": (
-                self.sanitize_label(str(self.tool_name))
-                if self.tool_name
-                else "external-image"
-            ),
+            "stelar.tool-name": self.tool_name or "external-image",
             "stelar.creator": self.task_info["creator"],
             "stelar.process-id": self.task_info["process_id"],
         }
+        # sanitize/truncate every label value
+        return {k: self.sanitize_label(str(v)) for k, v in raw.items()}
 
     def m_resources(self, engine: K8sExecEngine) -> V1ResourceRequirements | None:
         cpu_request = chain("cpu_request", self.profile, engine.default_profile)
@@ -255,6 +250,10 @@ class JobSpec:
         # Try to generate a name from the tool name, and check if it is valid, fall back to a safe one.
         conv_name = self.tool_name.replace("_", "-") if self.tool_name else ""
         jobname = f"task-{self.task_info['id']}-{conv_name}"
+
+        # Check if the name exceeds 63 characters
+        if len(jobname) > 63:
+            jobname = f"task-{self.task_info['id']}"
 
         # Check if the name is valid
         if KUBERNETES_NAME_PATTERN.fullmatch(jobname):
@@ -298,7 +297,7 @@ class JobSpec:
                                 if self.tool_name
                                 else "external-image"
                             ),
-                            "stelar/image": str(self.image),
+                            "stelar/image": self.sanitize_label(str(self.image)),
                             "stelar/api_url": engine.api_url,
                         },
                         labels=self.m_labels(engine),

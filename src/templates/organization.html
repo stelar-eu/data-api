@@ -16,6 +16,8 @@
     <script src="{{ url_for('static', filename='utils.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='stelar.css') }}">
     <link rel="icon" href="{{ url_for('static', filename='favico.png') }}" type="image/png">
+    <script src="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone-min.js"></script>
+    <link href="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body>
@@ -43,6 +45,22 @@
                                 </ol>
                             </h3>
                         </div>
+                        {% if AUTHORIZED_ACTIONS.get("can_update") %}
+                        <div class="col-auto ms-auto d-print-none">
+                            <a href="#" class="btn" onclick="editOrganization()">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    class="icon icon-tabler icons-tabler-outline icon-tabler-settings">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path
+                                        d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" />
+                                    <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+                                </svg>
+                                Settings
+                            </a>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -263,7 +281,7 @@
                                             <small class="text-secondary">People with access to organization
                                                 resources</small>
                                         </div>
-                                        {% if admin %}
+                                        {% if AUTHORIZED_ACTIONS.get("add_member") or AUTHORIZED_ACTIONS.get("remove_members") %}
                                         <div class="ms-auto">
                                             <a class="cursor-pointer" data-bs-toggle="modal"
                                                 data-bs-target="#org-users-modal">
@@ -324,7 +342,7 @@
                                             <a class="cursor-pointer text-link"
                                                 href="{{ url_for('dashboard_blueprint.processes') }}?q={{ organization.title | urlencode }}"
                                                 target="_blank">
-                                                Browse All Processes
+                                                Browse Processes
                                             </a>
                                         </div>
 
@@ -393,7 +411,91 @@
                 </div>
             </div>
 
-            {% if admin %}
+            {% if AUTHORIZED_ACTIONS.get("can_update") %}
+            <div class="modal modal-blur fade" id="modal-edit-org" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Edit Organization</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-lg-12">
+                                    <div class="mb-0">
+                                        <label class="form-label">Title</label>
+                                        <div class="row g-2">
+                                            <div class="col">
+                                                <input type="text" class="form-control"
+                                                    name="organization-name-input" placeholder="Organization Title"
+                                                    required>
+                                            </div>
+                                            <small class="form-hint">
+                                                <p>
+                                                    Modifying the title of the organization will not change the
+                                                    organization name identifier in the URL.
+                                                </p>
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-12">
+                                    <div class="mb-0">
+                                        <label class="form-label">Organization Image</label>
+                                        <div class="row g-2">
+                                            <form class="dropzone dropzone-clickable text-secondary"
+                                                id="avatar-dropzone"
+                                                action="{{ url_for('pub_blueprint.transact_image', image_id='__IMAGE_ID__') }}"
+                                                data-upload-url="{{ url_for('pub_blueprint.transact_image', image_id='__IMAGE_ID__') }}"
+                                                method="POST"
+                                                style="border: var(--tblr-border-width) dashed var(--tblr-border-color)">
+                                                <div class="dz-message dz-default">
+                                                    <h3 class="dropzone-msg-title">Drop or select your image</h3>
+                                                    <span class="dropzone-msg-desc">
+                                                        Maximum size is 2MB. Files types: png, jpeg only
+                                                    </span>
+                                                </div>
+                                                <div class="fallback">
+                                                    <input name="avatar" type="file" accept="image/png, image/jpeg">
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-lg-12">
+                                    <div class="mb-3">
+                                        <label class="form-label">Description</label>
+                                        <textarea name="organization-description" class="form-control" rows="3"
+                                            required placeholder="A nice informative description"></textarea>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                        <div class="modal-footer" id="edit-org-modal-footer">
+                            <button class="cursor-pointer btn btn-primary ms-auto" id="create-org-btn"
+                                onclick="updateOrganization()">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24"
+                                    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M12 5l0 14" />
+                                    <path d="M5 12l14 0" />
+                                </svg>
+                                Update Organization
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if AUTHORIZED_ACTIONS.get("add_member") or AUTHORIZED_ACTIONS.get("remove_members") %}
             <div class="modal modal-blur fade" id="org-users-modal" tabindex="-1" style="display: none;"
                 aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
@@ -459,13 +561,19 @@
             return `
             <div class="col-sm-6 col-lg-6">
                 <a class="card card-link" href="{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}${dataset.id}" target="_blank">
-                    <div class="card-body">
+                    <div class="card-body pt-4">
                         <div>
-                            <h3 class="m-0">${dataset.title}</h3>
+                            <h5 class="m-0 mb-2">${dataset.title} <span class="badge bg-blue-lt ms-1">DATASET</span></h5> 
+                            <small class="text-secondary">${dataset.author} | ${formatIsoDate(dataset.metadata_modified)}</small>
                             <div class="d-flex">
-                                <small class="text-secondary">${dataset.author}</small>
-                                <div class="ms-auto d-flex justify-content-end flex-wrap mt-4 badges">
-                                    ${dataset.tags && dataset.tags.length ? dataset.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') : ''}
+                                <div class="ms-auto d-flex justify-content-end flex-wrap mt-4 badges h5">
+                                    ${dataset.tags && dataset.tags.length ?
+                    (dataset.tags.length > 3 ?
+                        dataset.tags.slice(0, 3).map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') +
+                        `<p class="text-secondary m-1 mb-0" title="${dataset.tags.slice(3).join(', ')}">+${dataset.tags.length - 3} more...</p>`
+                        :
+                        dataset.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join(''))
+                    : ''}
                                 </div>
                             </div>
                         </div>
@@ -574,11 +682,17 @@
                                         <a class="card card-link" href="{{url_for('dashboard_blueprint.process', process_id='')}}${process.id}" target="_blank">
                                             <div class="card-body">
                                                 <div>
-                                                    <h3 class="m-0">${process.title}</h3>
+                                                    <h4 class="m-0">${process.title}</h4>
                                                     <div class="d-flex">
                                                         <small class="text-secondary">${process.author}</small>
                                                         <div class="ms-auto mt-3 badges">
-                                                            ${process.tags && process.tags.length ? process.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') : ''}
+                                                            ${process.tags && process.tags.length ?
+                                        (process.tags.length > 3 ?
+                                            process.tags.slice(0, 3).map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join('') +
+                                            `<p class="m-1 mb-0 text-secondary" title="${process.tags.slice(3).join(', ')}">+ ${process.tags.length - 3} more...</p>`
+                                            :
+                                            process.tags.map(tag => `<span class="tag m-1 mb-0">${tag}</span>`).join(''))
+                                        : ''}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -588,6 +702,8 @@
                                 `);
                             });
                         } else {
+                            $('#org-process-count').removeClass('placeholder placeholder-glow');
+                            $('#org-process-count').text('0 Processes');
                             $('#org-processes').html('<p class="text-secondary">No recent processes found for this organization</p>');
                         }
                     }
@@ -641,7 +757,7 @@
                                     ${toolImage.startsWith('<div') ? toolImage : `<img src="${toolImage}" alt="${tool.title}" class="avatar avatar-sm mt-1">`}
                                     <div class="me-auto ms-2 mt-0 text-truncate align-items-center">
                                         <div class="ms-2">
-                                            <h3 class="m-0 text-truncate" title=${tool.title}>${tool.title}</h3>
+                                            <h4 class="m-0 text-truncate" title=${tool.title}>${tool.title}</h4>
                                             <div class="d-flex">
                                                 <small class="text-secondary">${tool.author}</small>
                                             </div>
@@ -751,6 +867,127 @@
             });
         });
     </script>
+
+
+    {% if AUTHORIZED_ACTIONS.get("can_update")%}
+    <script>
+
+
+        function editOrganization(){
+            $('#modal-edit-org').modal('show');
+            
+            $.ajax({
+                url: "{{url_for('catalog_blueprint.api_get_organization', entity_id=organization.id)}}",
+                type: "GET",
+                success: function (response) {
+                    if (response.success) {
+                        const org = response.result;
+                        $('input[name="organization-name-input"]').val(org.title);
+                        $('textarea[name="organization-description"]').val(org.description || '');
+                    } else {
+                        console.error("Failed to fetch organization details:", response.message);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("AJAX Error:", status, error);
+                }
+            })
+        }
+
+        function uploadImage(id, callback) {
+            const avatarDropzone = Dropzone.forElement("#avatar-dropzone");
+            if (avatarDropzone.files.length === 0) {
+                // Return null if no file is in the dropzone
+                callback(null);
+                return;
+            }
+            const uploadUrlRaw = $("#avatar-dropzone").data("upload-url");
+            const file = avatarDropzone.files[0];
+            const uploadUrl = uploadUrlRaw.replace('__IMAGE_ID__', id);
+            const formData = new FormData();
+            formData.append('file', file);
+            $.ajax({
+                url: uploadUrl,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function (response) {
+                    if (response.success) {
+                        if (callback && typeof callback === 'function') {
+                            callback(response.result.url);
+                        }
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.log("An error occurred while uploading the image.");
+                    callback(null);
+                }
+            });
+        }
+
+        function updateOrganization() {
+            const title = $('input[name="organization-name-input"]').val();
+            const description = $('textarea[name="organization-description"]').val();
+            const orgId = "{{ organization.id }}";
+
+            if (!title) {
+                alert("Please enter a title for the organization.");
+                return;
+            }
+
+            $('#create-org-btn').prop('disabled', true);
+            $('#edit-org-modal-footer .stelar-loader').remove();
+            $('#edit-org-modal-footer .alert').remove();
+            $('#edit-org-modal-footer').prepend(createLoaderElement(false, true));
+
+            uploadImage(orgId, function (imageUrl) {
+                // Create the base data object
+                const updateData = {
+                    title: title,
+                    description: description
+                };
+                
+                // Only include image_url if imageUrl is not null
+                if (imageUrl !== null) {
+                    updateData.image_url = imageUrl;
+                }
+                
+                $.ajax({
+                    url: "{{url_for('catalog_blueprint.api_update_organization', entity_id=organization.id)}}",
+                    type: "PUT",
+                    data: JSON.stringify(updateData),
+                    contentType: "application/json",
+                    success: function (response) {
+                        $('#create-org-btn').prop('disabled', false);
+                        $('#edit-org-modal-footer .stelar-loader').remove();
+
+                        if (response.success) {
+                            $('#modal-edit-org').modal('hide');
+                            location.reload();
+                        } else {
+                            alert("Failed to update organization: " + response.error);
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("AJAX Error:", status, error);
+                        $('#create-org-btn').prop('disabled', false);
+                        $('#edit-org-modal-footer .stelar-loader').remove();
+                        $('#edit-org-modal-footer').prepend(createAlertElement("danger", "An error occurred while updating the organization."));
+                        setTimeout(function () {
+                            $('#edit-org-modal-footer .alert').fadeOut(500, function () {
+                                $(this).remove();
+                            });
+                        }, 3000);
+                        $('#')
+                    }
+                });
+            });
+        }
+    </script>
+    {% endif %}
+
+    {% if AUTHORIZED_ACTIONS.get("add_member") or AUTHORIZED_ACTIONS.get("remove_members") %}
     <script>
         function buildNormalUserRow(fullname, username, userId, capacity) {
             return `<tr id="user-${userId}">
@@ -895,7 +1132,7 @@
         }
 
 
-        function saveMember(){
+        function saveMember() {
             const userRow = $('#user-row-edit');
             const selectCapacity = $('#select-capacity');
             const userId = userRow.find('input[name="user-original-id"]').val();
@@ -910,18 +1147,18 @@
             if (newCapacity === originalCapacity) {
                 cancelEditUser();
                 return;
-            }else {
-                deleteMember(userId, function() {
+            } else {
+                deleteMember(userId, function () {
 
                     $('#org-users-footer .stelar-loader').remove();
                     $('#org-users-footer .alert').remove();
                     $('#org-users-footer').prepend(createLoaderElement(false, true));
                     $.ajax({
-                        url: "{{url_for('catalog_blueprint.api_add_user_member_to_organization', entity_id=organization.id, member_id='')}}"+userId,
+                        url: "{{url_for('catalog_blueprint.api_add_user_member_to_organization', entity_id=organization.id, member_id='')}}" + userId,
                         type: "POST",
                         data: JSON.stringify({ capacity: newCapacity }),
                         contentType: "application/json",
-                        success: function(response) {
+                        success: function (response) {
                             $('#org-users-footer .stelar-loader').remove();
                             $('#org-users-footer .alert').remove();
                             if (response.success) {
@@ -937,7 +1174,7 @@
                                         $(this).remove();
                                     });
                                 }, 3000);
-                                fetchSystemUsers(function(usersRep) {
+                                fetchSystemUsers(function (usersRep) {
                                     fetchOrganizationUsers(usersRep);
                                 });
                             } else {
@@ -949,35 +1186,35 @@
                                 }, 3000);
                             }
                         },
-                        error: function(xhr, status, error) {
+                        error: function (xhr, status, error) {
                             console.error("AJAX Error:", status, error);
                             alert("An error occurred while updating the user.");
                         }
                     });
                 });
-            }           
+            }
         }
 
 
-        function deleteMember(userId, callback){
+        function deleteMember(userId, callback) {
             $.ajax({
-                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}"+userId,
+                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}" + userId,
                 type: "DELETE",
-                success: function(response) {
+                success: function (response) {
                     if (response.success) {
                         if (callback && typeof callback === 'function') {
                             callback();
                         }
-                    } 
+                    }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
                     console.error("AJAX Error:", status, error);
                 }
             });
         }
 
 
-        function removeUserFromOrg(userId){
+        function removeUserFromOrg(userId) {
             if (!userId) {
                 console.error("User ID is not defined.");
                 return;
@@ -991,9 +1228,9 @@
             $('#org-users-footer .alert').remove();
             $('#org-users-footer').prepend(createLoaderElement(false, true));
             $.ajax({
-                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}"+userId,
+                url: "{{url_for('catalog_blueprint.api_remove_user_member_from_organization', entity_id=organization.id, member_id='')}}" + userId,
                 type: "DELETE",
-                success: function(response) {
+                success: function (response) {
                     $('#org-users-footer .stelar-loader').remove();
                     $('#org-users-footer .alert').remove();
                     if (response.success) {
@@ -1006,7 +1243,7 @@
                             });
                         }, 3000);
 
-                        fetchSystemUsers(function(usersRep) {
+                        fetchSystemUsers(function (usersRep) {
                             fetchOrganizationUsers(usersRep);
                         });
                     } else {
@@ -1018,7 +1255,7 @@
                         }, 3000);
                     }
                 },
-                error: function(xhr, status, error) {
+                error: function (xhr, status, error) {
 
                     console.error("AJAX Error:", status, error);
                     alert("An error occurred while removing the user.");
@@ -1027,7 +1264,7 @@
         }
 
 
-        function saveNewMember(){
+        function saveNewMember() {
             const selectUser = $('#select-user');
             const selectCapacity = $('#select-capacity');
             const userId = selectUser.val();
@@ -1088,5 +1325,34 @@
         }
 
 
+    </script>
+    {% endif %}
+
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            Dropzone.autoDiscover = false;
+            var avatarDropzone = new Dropzone("#avatar-dropzone", {
+                maxFiles: 1,
+                maxFilesize: 2, // Maximum file size in MB
+                acceptedFiles: 'image/png,image/jpeg',
+                dictRemoveFile: "Delete",
+                dictMaxFilesExceeded: "Only one file allowed.",
+                autoProcessQueue: false,
+                addRemoveLinks: true,
+            });
+
+            // On successful upload, reload the page
+            avatarDropzone.on("success", function (file, response) {
+                if (!response.success) {
+                    alert(response.message);
+                }
+            });
+
+            // Handle error events
+            avatarDropzone.on("error", function (file, errorMessage) {
+                alert(errorMessage);
+            });
+        });
     </script>
 </body>

@@ -1332,7 +1332,7 @@ class PackageSchema(Schema):
     maintainer_email = fields.String(allow_none=True)
     notes = fields.String(validate=validators.Length(0, 10000), allow_none=True)
     # Note: making this a URL would force checks that might fail
-    url = fields.String(validate=validators.Length(0, 200), allow_none=True)
+    url = fields.String(validate=validators.Length(0, 2000), allow_none=True)
     version = fields.String(validate=validators.Length(0, 100), allow_none=True)
 
     # License stuff

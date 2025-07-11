@@ -63,6 +63,7 @@
                                     </svg>
                                     Explore Relationships
                                 </a>
+                                {% if AUTHORIZED_ACTIONS.get("can_update") %}
                                 <div class="dropdown">
                                     <button class="btn" data-bs-toggle="dropdown" aria-label="Open Resource Menu">
                                         Actions
@@ -90,6 +91,7 @@
                                             </svg>
                                             Manage</a>
                                         <div class="dropdown-divider"></div>
+                                        {% if AUTHORIZED_ACTIONS.get("can_delete") %}
                                         <a data-bs-toggle="modal" data-bs-target="#modal-delete-tool"
                                             class="text-danger cursor-pointer dropdown-item del-dataset-btn">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -104,8 +106,10 @@
                                                 <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path>
                                             </svg>
                                             Delete</a>
+                                        {% endif %}
                                     </div>
                                 </div>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="col-lg-12">
@@ -222,6 +226,7 @@
                                     <div class="tab-content">
                                         <div class="tab-pane active show" id="tabs-docs-1" role="tabpanel">
                                             <div class="d-flex p-2 mt-3 me-4 card-body pb-2">
+                                                {% if AUTHORIZED_ACTIONS.get("can_update") %}
                                                 <div class="ms-auto d-flex align-items-center"
                                                     id="documentation-actions">
                                                     {% if tool.git_repo and tool.git_user %}
@@ -261,6 +266,7 @@
                                                     <button class="btn ms-2" onclick="closeMarkdownEditor()"
                                                         id="close-editor-btn" style="display: none;">Close</button>
                                                 </div>
+                                                {% endif %}
                                             </div>
                                             <div class="card-body markdown p-5 pt-0 border-top-0"
                                                 id="documentation-content">
@@ -269,6 +275,7 @@
                                         </div>
                                         <div class="tab-pane" id="tabs-io-1" role="tabpanel">
                                             <div class="card-body p-5">
+                                                {% if AUTHORIZED_ACTIONS.get("can_update") %}
                                                 <div class="d-flex align-items-center mb-4">
                                                     <h2 class="m-0">Inputs</h2>
                                                     <a class="ms-auto cursor-pointer btn btn-outline-primary"
@@ -284,8 +291,9 @@
                                                         Define Input
                                                     </a>
                                                 </div>
+                                                {% endif %}
 
-                                                <table class="table table-bordered m-0">
+                                                <table class="table table-bordered m-0 mb-2">
                                                     <thead>
                                                         <tr>
                                                             <th class="w-25">Input Name</th>
@@ -299,7 +307,7 @@
 
                                                     </tbody>
                                                 </table>
-
+                                                {% if AUTHORIZED_ACTIONS.get("can_update") %}
                                                 <div class="d-flex align-items-center mt-6 mb-4">
                                                     <h2 class="m-0">Outputs</h2>
                                                     <a class="ms-auto cursor-pointer btn btn-outline-primary"
@@ -315,7 +323,8 @@
                                                         Define Output
                                                     </a>
                                                 </div>
-                                                <table class="table table-bordered m-0">
+                                                {% endif %}
+                                                <table class="table table-bordered m-0 mb-2">
                                                     <thead>
                                                         <tr>
                                                             <th class="w-25">Output Name</th>
@@ -328,7 +337,7 @@
 
                                                     </tbody>
                                                 </table>
-
+                                                {% if AUTHORIZED_ACTIONS.get("can_update") %}
                                                 <div class="d-flex align-items-center mt-6 mb-4">
                                                     <h2 class="m-0">Parameters</h2>
                                                     <a class="ms-auto cursor-pointer btn btn-outline-primary"
@@ -344,6 +353,7 @@
                                                         Define Parameter
                                                     </a>
                                                 </div>
+                                                {% endif %}
                                                 <table class="table table-bordered m-0">
                                                     <thead>
                                                         <tr>
@@ -365,6 +375,7 @@
                                                 <div class="d-flex">
                                                     <h2>Execution Profiles</h2>
                                                     <div class="ms-auto">
+                                                        {% if AUTHORIZED_ACTIONS.get("can_update") %}
                                                         <button class="btn btn-outline-primary mb-1" onclick="addProfile()" id="add-profile-btn">
                                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -377,6 +388,7 @@
                                                             </svg>
                                                             Add Profile
                                                         </button>
+                                                        {% endif %}
                                                     </div>
                                                 </div>
                                                 <div class="text-muted mb-3">Execution profiles define the logic and
@@ -539,6 +551,7 @@
                                 <div class="card-body">
                                     <div class="d-flex align-items-center justify-content-between">
                                         <h5 class="card-title mb-0">Tags</h5>
+                                        {% if AUTHORIZED_ACTIONS.get("can_update") %}
                                         <a class="cursor-pointer" title="Update Tags" data-bs-toggle="tooltip"
                                             onclick="updateTags()" data-bs-placement="bottom" id="update-tags-icon">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -553,19 +566,24 @@
                                             </svg>
                                             <span class="text-primary">Update</span>
                                         </a>
+                                        {% endif %}
                                     </div>
                                     <div class="mb-2">
                                         <input type="hidden" name="packageTags" id="hiddenTagsInput"
                                             value="{{ tool.get('tags') | join(',') }}" />
                                         <div class="col-lg-12 mt-3">
                                             <div class="mb-3">
+                                                {% if AUTHORIZED_ACTIONS.get("can_update") %}
                                                 <input type="text" id="tagInput" class="form-control"
                                                     placeholder="Type a tag and press enter" required>
+                                                {% endif %}
                                                 <div class="col tags-list mt-3" id="tagsContainer">
                                                     {% for tag in tool.get('tags') %}
                                                     <span class="tag me-2 mb-2">
                                                         {{ tag }}
+                                                        {% if AUTHORIZED_ACTIONS.get("can_update") %}
                                                         <a class="cursor-pointer btn-close ms-1" data-index="1"></a>
+                                                        {% endif %}
                                                     </span>
                                                     {% endfor %}
                                                 </div>
@@ -641,6 +659,7 @@
                     </div>
                 </div>
             </div>
+            {% if AUTHORIZED_ACTIONS.get("can_update") %}
             <div class="modal modal-blur fade" id="modal-edit-tool" tabindex="-1" role="dialog" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
                     <div class="modal-content">
@@ -778,6 +797,8 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
+            {% if AUTHORIZED_ACTIONS.get("can_delete") %}
             <div class="modal modal-blur fade" id="modal-delete-tool" tabindex="-1" role="dialog" aria-hidden="true">
                 <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
                     <div class="modal-content">
@@ -814,7 +835,9 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
 
+            {% if AUTHORIZED_ACTIONS.get("can_update") %}
             <div class="modal modal-blur fade" id="modal-new-input" tabindex="-1" style="display: none;"
                 aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered" role="document">
@@ -1399,6 +1422,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
         {% include 'footer.html' %}
     </div>
@@ -2063,6 +2087,7 @@
                                 ${name === 'default' ? '<span class="text-orange h5 ms-1">Overrides system\'s default</span>' : ''}
                                 </h3>
                                 <div class="ms-auto">
+                                    {% if AUTHORIZED_ACTIONS.get("can_update") %}
                                     <a class="cursor-pointer text-link text-danger"
                                         onclick="deleteProfile('${name}')">
                                         <svg xmlns="http://www.w3.org/2000/svg"
@@ -2082,6 +2107,7 @@
                                                 d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
                                         </svg>
                                     </a>
+                                    {% endif %}
                                 </div>
                             </div>
                             <div class="card-body">
@@ -2585,9 +2611,11 @@
                 <td class="text-center p-2">
                     ${input.required ? '<span class="badge bg-success-lt">Yes</span>' : '<span class="badge bg-secondary-lt">No</span>'}
                 </td>
+                {% if AUTHORIZED_ACTIONS.get("can_update") %}
                 <td class="text-center p-2">
                     <a class="text-link text-danger cursor-pointer" onclick="removeInput('${inputName}')">Remove</a>
                 </td>
+                {% endif %}
                 </tr>
             `;
                 inputsList.append(inputElement);
@@ -2775,7 +2803,9 @@
                             <span class="text-secondary">${output.format || ''}</span>
                         </td>
                         <td class="text-center p-2">
+                            {% if AUTHORIZED_ACTIONS.get("can_update") %}
                             <a class="text-link text-danger cursor-pointer" onclick="removeOutput('${outputName}')">Remove</a>
+                            {% endif %}
                         </td>
                     </tr>
                 `;
@@ -2994,7 +3024,9 @@
                             ${param.required ? '<span class="badge bg-success-lt">Yes</span>' : '<span class="badge bg-secondary-lt">No</span>'}
                         </td>
                         <td class="text-center p-2">
+                            {% if AUTHORIZED_ACTIONS.get("can_update") %}
                             <a class="text-link text-danger cursor-pointer" onclick="removeParameter('${paramName}')">Remove</a>
+                            {% endif %}
                         </td>
                     </tr>
                 `;
