@@ -42,11 +42,11 @@
             <div class="col-auto me-2 d-print-none">
               <div class="input-group">
 
-                <button type="button" class="btn btn-outline-primary" id="compare-datasets-button"
+                <button type="button" class="btn" id="compare-datasets-button"
                   onclick="window.location.href='{{url_for('dashboard_blueprint.dataset_compare')}}'">Compare Selected
                   <span class="ms-1" id="dataset-compare-number">(0)</span></button>
 
-                <button data-bs-toggle="dropdown" role="button" class="btn btn-outline-primary dropdown-toggle"
+                <button data-bs-toggle="dropdown" role="button" class="btn dropdown-toggle"
                   datas-bs-auto-close="outside"></button>
                 <div class="dropdown-menu dropdown-menu-end" id="compare-dataset-options">
 
@@ -602,8 +602,25 @@
       });
 
       $('#catalog-search-box').on('keydown', function (e) {
+        // Handle Enter key regardless of suggestions
+        if (e.key === "Enter") {
+          e.preventDefault();
+          var items = $('#suggestions-list li');
+          if (items.length > 0 && selectedIndex > -1) {
+            var selectedItem = $(items[selectedIndex]);
+            var name = selectedItem.data('name');
+            window.location.href = `{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}` + encodeURIComponent(name);
+          } else {
+            // If no suggestion is selected or no suggestions available, perform a search
+            performKeywordSearch();
+          }
+          return;
+        }
+        
+        // Handle arrow navigation only if we have suggestions
         var items = $('#suggestions-list li');
         if (items.length === 0) return;
+        
         if (e.key === "ArrowDown") {
           e.preventDefault();
           selectedIndex = (selectedIndex + 1) % items.length;
@@ -614,16 +631,6 @@
           selectedIndex = (selectedIndex - 1 + items.length) % items.length;
           items.removeClass('active');
           $(items[selectedIndex]).addClass('active');
-        } else if (e.key === "Enter") {
-          e.preventDefault();
-          if (selectedIndex > -1) {
-            var selectedItem = $(items[selectedIndex]);
-            var name = selectedItem.data('name');
-            window.location.href = `{{url_for('dashboard_blueprint.dataset_detail', dataset_id='')}}` + encodeURIComponent(name);
-          } else {
-            // If no suggestion is selected, perform a search with the current input
-            performKeywordSearch();
-          }
         }
       });
 
