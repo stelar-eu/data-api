@@ -53,7 +53,7 @@
                         <p class="mt-3 text-sm text-secondary">
                             STELAR KLMS offers a variety of data analysis and management tools that can be executed within the context
                             of workflow processes, effectively curating data assets residing within the lake. These tools range from 
-                            remote sensing LAI pipelines, precision farming data analysi and timeseries forecasters, to advanced entity linking and discovery tools.
+                            remote sensing LAI pipelines, precision farming data analysis and timeseries forecasters, to advanced entity linking and discovery tools.
                           </p>
                     </div>
                 </div>
@@ -440,13 +440,14 @@
             search_q = {
                 "q": "",
                 "limit": 100,
-                "offset": 0,
                 "sort": "name asc",
             }
             $.ajax({
                 url: '{{ url_for("rest_workflows_blueprint.api_search_tools") }}',
                 method: 'POST',
                 dataType: 'json',
+                contentType: 'application/json',
+                data: JSON.stringify(search_q),
                 success: function (data) {
                     if (data.result.results.length > 0) {
                         // Clear the placeholder cards
