@@ -145,8 +145,7 @@
                       <path d="M15 12h7" />
                     </svg>
                     ID: <strong id="resource-id">{{ resource.id }}</strong>
-                                        <button type="button"
-                                            class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
+                    <button type="button" class="btn btn-pill ms-1 px-2 py-0 btn-sm btn-outline-secondary" onclick="
                                                 navigator.clipboard.writeText(document.getElementById('resource-id').innerText);
                                                 var el = document.getElementById('resource-id');
                                                 el.classList.remove('glowing-text');
@@ -184,50 +183,56 @@
             <div class="col-lg-12 justify-content-center">
               <div class="card">
                 <div class="card-body">
-                  <div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                      class="icon icon-tabler icons-tabler-outline icon-tabler-sparkles">
+                  <div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-sparkles">
                       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                       <path
                         d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" />
                     </svg>
                     <strong>AI Enhanced Description</strong>
-                    <h5 class="text-secondary text-sm">The metadata of this tabular resource has been enhanced by TableSage</h5>
+                    <h5 class="text-secondary text-sm">The metadata of this tabular resource has been enhanced by
+                      TableSage</h5>
                   </div>
-                  <div class="mb-3">
-                    <h5>Table Description</h5>
-                    <p>{{ resource.get('enhanced_description', {}).get('table_description', 'No table description
-                      available.') }}</p>
-                  </div>
-                  <div class="mb-3">
-                    <h5>Column Descriptions</h5>
-                    <ul>
-                      {% for column in resource.get('enhanced_description', {}).get('column_descriptions', []) %}
-                      {% for key, value in column.items() %}
-                      <li><code>{{ key }}:</code> {{ value }}</li>
-                      {% endfor %}
-                      {% endfor %}
-                    </ul>
-                  </div>
+                  
+                  {% if resource.get('enhanced_description') is string %}
+                    <div class="mb-3">
+                      <p>{{ resource.get('enhanced_description') }}</p>
+                    </div>
+                  {% else %}
+                    <div class="mb-3">
+                      <h5>Table Description</h5>
+                      <p>{{ resource.get('enhanced_description', {}).get('table_description', 'No table description available.') }}</p>
+                    </div>
+                    <div class="mb-3">
+                      <h5>Column Descriptions</h5>
+                      <ul>
+                        {% for column in resource.get('enhanced_description', {}).get('column_descriptions', []) %}
+                        {% for key, value in column.items() %}
+                        <li><code>{{ key }}:</code> {{ value }}</li>
+                        {% endfor %}
+                        {% endfor %}
+                      </ul>
+                    </div>
 
-                  <div class="mb-3">
-                    <h5>Additional Information</h5>
-                    <ul>
-                      {% for info in resource.get('enhanced_description', {}).get('additional_info', []) %}
-                      <li>{{ info.description }}</li>
-                      {% endfor %}
-                    </ul>
-                  </div>
+                    <div class="mb-3">
+                      <h5>Additional Information</h5>
+                      <ul>
+                        {% for info in resource.get('enhanced_description', {}).get('additional_info', []) %}
+                        <li>{{ info.description }}</li>
+                        {% endfor %}
+                      </ul>
+                    </div>
 
-                 
-                  <div class="mb-3">
-                    <h5>Insights</h5>
-                    <ul>
-                      {% for insight in resource.get('enhanced_description', {}).get('insights', []) %}
-                      <li><strong>{{ insight.correlation_type | capitalize }}:</strong> {{ insight.description }}</li>
-                      {% endfor %}
-                    </ul>
-                  </div>
+                    <div class="mb-3">
+                      <h5>Insights</h5>
+                      <ul>
+                        {% for insight in resource.get('enhanced_description', {}).get('insights', []) %}
+                        <li><strong>{{ insight.correlation_type | capitalize }}:</strong> {{ insight.description }}</li>
+                        {% endfor %}
+                      </ul>
+                    </div>
+                  {% endif %}
                 </div>
               </div>
             </div>
