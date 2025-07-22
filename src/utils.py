@@ -979,66 +979,162 @@ def is_valid_package_dict(obj):
     required_keys = {"name", "owner_org"}
     return isinstance(obj, dict) and required_keys.issubset(obj.keys())
 
-
 def assign_scores(
     response, df_scores, dict_df_facet_scores, facet_specs, profile_attributes
 ):
     """Assign scores to the search results; also include any key-value pairs regarding facet specifications for ranking.
 
     Args:
-        response (Response): The CKAN response to the search query.
+        response: The CKAN response to the search query (dict or Response object).
         df_scores (DataFrame): A data frame containing the aggregated scores per dataset.
-        dict_df_facet_scores (dict) : A dictionary of data frames: each DataFrame holds the partial scores per facet (key).
+        dict_df_facet_scores (dict): A dictionary of data frames: each DataFrame holds the partial scores per facet (key).
         facet_specs (dict): A dictionary of keys (metadata items) and values (user-specified preferences) with the facet specifications for ranking.
         profile_attributes (List): An array with attribute names in Profiling metadata to include their corresponding values in the results.
 
     Returns:
         A JSON with the search results also reporting their ranking scores.
     """
-
-    json_response = response.json()
-    if response.status_code == 200:
-        if json_response["success"]:
-            results = json_response["result"]["results"]
-            for r in results:
-                # Append profile values in metadata attributes involved in the search
-                id = r["id"]
-                r["profile"] = []
-                for attr in profile_attributes:
-                    if (
-                        "value" in dict_df_facet_scores[attr].keys()
-                        and id in dict_df_facet_scores[attr].index
-                    ):
-                        kv_pair = {}
-                        kv_pair["key"] = attr
-                        kv_pair["value"] = dict_df_facet_scores[attr]["value"].loc[id]
+    
+    # Handle both dict and Response object types
+    if hasattr(response, 'json'):
+        json_response = response.json()
+    else:
+        json_response = response
+    
+    # Ensure we have a valid response structure
+    if not isinstance(json_response, dict):
+        logger.error("Invalid response format: %s", type(json_response))
+        return {
+            "count": 0,
+            "facets": {},
+            "results": [],
+            "sort": "score desc, metadata_modified desc",
+        }
+    
+    # Handle missing 'results' key
+    if not json_response.get("results"):
+        logger.warning("No results found in response")
+        json_response["results"] = []
+        
+    results = json_response["results"]
+    logger.debug("Processing %d results", len(results))
+    
+    # Debug facet scores structure
+    logger.debug("dict_df_facet_scores keys: %s", list(dict_df_facet_scores.keys()))
+    for key, df in dict_df_facet_scores.items():
+        if hasattr(df, 'shape') and hasattr(df, 'columns'):
+            logger.debug("Facet '%s' - DataFrame shape: %s, columns: %s", 
+                        key, df.shape, list(df.columns))
+        else:
+            logger.warning("Facet '%s' - Invalid DataFrame: %s", key, type(df))
+    
+    for r in results:
+        try:
+            # Clean up CKAN-specific fields that might cause issues
+            r.pop("validated_data_dict", None)
+            r.pop("data_dict", None)
+            
+            id = r.get("id")
+            if not id:
+                logger.warning("Result missing ID: %s", r)
+                continue
+                
+            logger.debug("Processing result ID: %s", id)
+            
+            # Initialize profile array
+            r["profile"] = []
+            
+            # Add profile values
+            for attr in profile_attributes:
+                try:
+                    if (attr in dict_df_facet_scores and 
+                        hasattr(dict_df_facet_scores[attr], 'columns') and
+                        "value" in dict_df_facet_scores[attr].columns and
+                        hasattr(dict_df_facet_scores[attr], 'index') and
+                        id in dict_df_facet_scores[attr].index):
+                        
+                        kv_pair = {
+                            "key": attr,
+                            "value": dict_df_facet_scores[attr]["value"].loc[id]
+                        }
                         r["profile"].append(kv_pair)
-                # Append partial scores
-                partial_scores = {}
-                if not df_scores.empty:
-                    r["score"] = df_scores.loc[r["id"]]["score"]  # overall score
-                    r["rank"] = (
-                        df_scores.index.get_loc(df_scores.loc[r["id"]].name) + 1
-                    )  # final rank
-                elif "score" in r:  # Keep the score as obtained from SOLR
-                    continue
-                else:  # FIXME: Artificially add a score to each result, since CKAN does NOT return the score from SOLR
-                    r["score"] = random.randint(1, 100) / 100
-                # Also report the partial scores per facet for this result
-                for key in dict_df_facet_scores.keys():
-                    if r["id"] in dict_df_facet_scores[key].index:
-                        partial_scores[key] = dict_df_facet_scores[key].loc[r["id"]][
-                            "score"
-                        ]
+                        logger.debug("Added profile for attr '%s': %s", attr, kv_pair["value"])
                     else:
+                        logger.debug("Skipped attr '%s' - not found or invalid structure", attr)
+                except Exception as e:
+                    logger.error("Error processing profile attribute '%s': %s", attr, str(e))
+                    continue
+            
+            # Handle overall score assignment
+            try:
+                if (hasattr(df_scores, 'empty') and not df_scores.empty and 
+                    hasattr(df_scores, 'index') and id in df_scores.index):
+                    r["score"] = float(df_scores.loc[id]["score"])
+                    r["rank"] = int(df_scores.index.get_loc(id) + 1)
+                    logger.debug("Assigned overall score: %s, rank: %s", r["score"], r["rank"])
+                elif "score" in r:
+                    # Keep existing CKAN/SOLR score
+                    r["score"] = float(r["score"]) if r["score"] is not None else 0.0
+                    logger.debug("Keeping existing score: %s", r["score"])
+                else:
+                    # Assign default score
+                    r["score"] = 0.0
+                    logger.debug("Assigned default score: %s", r["score"])
+            except Exception as e:
+                logger.error("Error assigning overall score for ID '%s': %s", id, str(e))
+                r["score"] = 0.0
+            
+            # Process partial scores per facet
+            partial_scores = {}
+            logger.debug("Processing partial scores for ID: %s", id)
+            
+            for key in dict_df_facet_scores.keys():
+                try:
+                    logger.debug("Checking facet '%s' for ID '%s'", key, id)
+                    
+                    facet_df = dict_df_facet_scores[key]
+                    
+                    # Robust checking for valid DataFrame
+                    if (hasattr(facet_df, 'empty') and not facet_df.empty and
+                        hasattr(facet_df, 'index') and id in facet_df.index):
+                        
+                        # Check if 'score' column exists
+                        if hasattr(facet_df, 'columns') and "score" in facet_df.columns:
+                            score_value = facet_df.loc[id]["score"]
+                            partial_scores[key] = float(score_value) if score_value is not None else 0.0
+                            logger.debug("Found partial score for facet '%s': %s", key, partial_scores[key])
+                        else:
+                            logger.warning("No 'score' column in facet '%s' dataframe. Columns: %s", 
+                                         key, list(facet_df.columns) if hasattr(facet_df, 'columns') else 'N/A')
+                            partial_scores[key] = 0.0
+                    else:
+                        logger.debug("ID '%s' not found in facet '%s' or dataframe is empty", id, key)
                         partial_scores[key] = 0.0
-                r["partial_scores"] = partial_scores
-        # Include the names of facets specified for ranking in the response
-        if facet_specs:
-            json_response["result"]["search_facets"] = facet_specs
-
+                        
+                except Exception as e:
+                    logger.error("Error processing partial score for facet '%s', ID '%s': %s", key, id, str(e))
+                    partial_scores[key] = 0.0
+                    continue
+            
+            logger.debug("Final partial scores for %s: %s", id, partial_scores)
+            r["partial_scores"] = partial_scores
+            
+        except Exception as e:
+            logger.error("Error processing result %s: %s", r.get("id", "unknown"), str(e))
+            # Ensure minimum required fields
+            if "partial_scores" not in r:
+                r["partial_scores"] = {}
+            if "profile" not in r:
+                r["profile"] = []
+            if "score" not in r:
+                r["score"] = 0.0
+            continue
+    
+    # Include facet specifications in response
+    if facet_specs:
+        json_response["search_facets"] = facet_specs
+    
     return json_response
-
 
 def format_sql_filter(ids):
     """Formulate a complementary condition in SQL query based on dataset identifiers.
