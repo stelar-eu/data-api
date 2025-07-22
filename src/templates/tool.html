@@ -376,11 +376,12 @@
                                                     <h2>Execution Profiles</h2>
                                                     <div class="ms-auto">
                                                         {% if AUTHORIZED_ACTIONS.get("can_update") %}
-                                                        <button class="btn btn-outline-primary mb-1" onclick="addProfile()" id="add-profile-btn">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                                viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                                stroke-width="2" stroke-linecap="round"
-                                                                stroke-linejoin="round"
+                                                        <button class="btn btn-outline-primary mb-1"
+                                                            onclick="addProfile()" id="add-profile-btn">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="24"
+                                                                height="24" viewBox="0 0 24 24" fill="none"
+                                                                stroke="currentColor" stroke-width="2"
+                                                                stroke-linecap="round" stroke-linejoin="round"
                                                                 class="icon icon-tabler icons-tabler-outline icon-tabler-plus">
                                                                 <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                                                 <path d="M12 5l0 14"></path>
@@ -396,7 +397,7 @@
                                                     provided inputs, such as tools and images, ensuring appropriate
                                                     behavior and resource allocation for different scenarios.</div>
                                                 <div id="profiles-container" class="row row-cards g-3">
-                                                    
+
                                                 </div>
                                             </div>
                                         </div>
@@ -1028,13 +1029,13 @@
                     </div>
                 </div>
             </div>
-            <div class="modal modal-blur fade" id="new-profile-modal" tabindex="-1" role="dialog" aria-modal="true" style="display: none;">
+            <div class="modal modal-blur fade" id="new-profile-modal" tabindex="-1" role="dialog" aria-modal="true"
+                style="display: none;">
                 <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title">New Execution Profile</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
                             <div class="mb-3">
@@ -1046,17 +1047,11 @@
                                     </div>
                                     <div class="col-lg-5">
                                         <label class="form-label">
-                                            <svg xmlns="http://www.w3.org/2000/svg"
-                                                width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
                                                 class="m-0 icon icon-tabler icons-tabler-outline icon-tabler-brand-docker">
-                                                <path stroke="none"
-                                                    d="M0 0h24v24H0z"
-                                                    fill="none" />
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                                 <path
                                                     d="M22 12.54c-1.804 -.345 -2.701 -1.08 -3.523 -2.94c-.487 .696 -1.102 1.568 -.92 2.4c.028 .238 -.32 1 -.557 1h-14c0 5.208 3.164 7 6.196 7c4.124 .022 7.828 -1.376 9.854 -5c1.146 -.101 2.296 -1.505 2.95 -2.46z" />
                                                 <path d="M5 10h3v3h-3z" />
@@ -1065,8 +1060,7 @@
                                                 <path d="M8 7h3v3h-3z" />
                                                 <path d="M11 7h3v3h-3z" />
                                                 <path d="M11 4h3v3h-3z" />
-                                                <path
-                                                    d="M4.571 18c1.5 0 2.047 -.074 2.958 -.78" />
+                                                <path d="M4.571 18c1.5 0 2.047 -.074 2.958 -.78" />
                                                 <path d="M10 16l0 .01" />
                                             </svg>
                                             Image Tag</label>
@@ -1088,16 +1082,25 @@
 
                             <div class="mb-3">
                                 <label class="form-label">Description</label>
-                                <textarea class="form-control" id="new-profile-description"
-                                    name="description" rows="2" placeholder="A descriptive explanation of the profile" maxlength="300">
+                                <textarea class="form-control" id="new-profile-description" name="description" rows="2"
+                                    placeholder="A descriptive explanation of the profile" maxlength="300">
                                 </textarea>
                             </div>
-                            
+
                             <div class="mb-3">
                                 <div class="row">
                                     <div class="col-lg-6">
                                         <label class="form-label">
-                                            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-cloud-down"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 18.004h-5.343c-2.572 -.004 -4.657 -2.011 -4.657 -4.487c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.38 0 2.573 .813 3.13 1.99" /><path d="M19 16v6" /><path d="M22 19l-3 3l-3 -3" /></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-cloud-down">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path
+                                                    d="M12 18.004h-5.343c-2.572 -.004 -4.657 -2.011 -4.657 -4.487c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.38 0 2.573 .813 3.13 1.99" />
+                                                <path d="M19 16v6" />
+                                                <path d="M22 19l-3 3l-3 -3" />
+                                            </svg>
                                             Image Pull Policy</label>
                                         <select class="form-select" id="new-profile-image-pull-policy"
                                             name="image-pull-policy">
@@ -1109,17 +1112,11 @@
                                     </div>
                                     <div class="col-lg-6">
                                         <label class="form-label">
-                                            <svg xmlns="http://www.w3.org/2000/svg"
-                                                width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
                                                 class="icon icon-tabler icons-tabler-outline icon-tabler-key">
-                                                <path stroke="none"
-                                                    d="M0 0h24v24H0z"
-                                                    fill="none" />
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                                 <path
                                                     d="M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0z" />
                                                 <path d="M15 9h.01" />
@@ -1135,28 +1132,26 @@
                                         The image pull policy determines when the container image should be pulled
                                         from the registry. <strong>Always</strong> will always pull the latest image,
                                         <strong>If Not Present</strong> will only pull if the image is not already
-                                        present, and <strong>Never</strong> will never pull the image. The image pull secret
-                                        is used to authenticate with the container registry if the image is private. In most cases
-                                        this should be set to <code>default</code> unless you have a specific secret applied by your 
+                                        present, and <strong>Never</strong> will never pull the image. The image pull
+                                        secret
+                                        is used to authenticate with the container registry if the image is private. In
+                                        most cases
+                                        this should be set to <code>default</code> unless you have a specific secret
+                                        applied by your
                                         system administrator.
                                     </p>
                                 </small>
                             </div>
-                            
+
                             <div class="mb-4">
                                 <div class="row">
                                     <div class=col-lg-6>
                                         <label class="form-label">
-                                            <svg xmlns="http://www.w3.org/2000/svg"
-                                                width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor"
-                                                stroke-width="1.25"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"
                                                 class="icon icon-tabler icons-tabler-outline icon-tabler-cpu">
-                                                <path stroke="none" d="M0 0h24v24H0z"
-                                                    fill="none" />
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                                 <path
                                                     d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" />
                                                 <path d="M9 9h6v6h-6z" />
@@ -1176,22 +1171,22 @@
                                                 <div class="input-group">
                                                     <select class="form-select" id="new-profile-cpu-request"
                                                         name="task-cpu-request">
-                                                            <option value="">-</option>
-                                                            <option value="100m">0.1 vCPU</option>
-                                                            <option value="200m">0.2 vCPU</option>
-                                                            <option value="300m">0.3 vCPU</option>
-                                                            <option value="400m">0.4 vCPU</option>
-                                                            <option value="500m">0.5 vCPU</option>
-                                                            <option value="600m">0.6 vCPU</option>
-                                                            <option value="700m">0.7 vCPU</option>
-                                                            <option value="800m">0.8 vCPU</option>
-                                                            <option value="900m">0.9 vCPU</option>
-                                                            <option value="1">1 vCPU</option>
-                                                            <option value="2">2 vCPU</option>
-                                                            <option value="4">4 vCPU</option>
-                                                            <option value="8">8 vCPU</option>
-                                                            <option value="16">16 vCPU</option>
-                                                        
+                                                        <option value="">-</option>
+                                                        <option value="100m">0.1 vCPU</option>
+                                                        <option value="200m">0.2 vCPU</option>
+                                                        <option value="300m">0.3 vCPU</option>
+                                                        <option value="400m">0.4 vCPU</option>
+                                                        <option value="500m">0.5 vCPU</option>
+                                                        <option value="600m">0.6 vCPU</option>
+                                                        <option value="700m">0.7 vCPU</option>
+                                                        <option value="800m">0.8 vCPU</option>
+                                                        <option value="900m">0.9 vCPU</option>
+                                                        <option value="1">1 vCPU</option>
+                                                        <option value="2">2 vCPU</option>
+                                                        <option value="4">4 vCPU</option>
+                                                        <option value="8">8 vCPU</option>
+                                                        <option value="16">16 vCPU</option>
+
                                                     </select>
                                                 </div>
 
@@ -1199,43 +1194,39 @@
                                             <div class="col-lg-6">
                                                 <label class="form-label mt-1">Limit</label>
                                                 <select class="form-select" id="new-profile-cpu-limit"
-                                                        name="task-cpu-request">
-                                                            <option value="">-</option>
-                                                            <option value="100m">0.1 vCPU</option>
-                                                            <option value="200m">0.2 vCPU</option>
-                                                            <option value="300m">0.3 vCPU</option>
-                                                            <option value="400m">0.4 vCPU</option>
-                                                            <option value="500m">0.5 vCPU</option>
-                                                            <option value="600m">0.6 vCPU</option>
-                                                            <option value="700m">0.7 vCPU</option>
-                                                            <option value="800m">0.8 vCPU</option>
-                                                            <option value="900m">0.9 vCPU</option>
-                                                            <option value="1">1 vCPU</option>
-                                                            <option value="2">2 vCPU</option>
-                                                            <option value="4">4 vCPU</option>
-                                                            <option value="8">8 vCPU</option>
-                                                            <option value="16">16 vCPU</option>
+                                                    name="task-cpu-request">
+                                                    <option value="">-</option>
+                                                    <option value="100m">0.1 vCPU</option>
+                                                    <option value="200m">0.2 vCPU</option>
+                                                    <option value="300m">0.3 vCPU</option>
+                                                    <option value="400m">0.4 vCPU</option>
+                                                    <option value="500m">0.5 vCPU</option>
+                                                    <option value="600m">0.6 vCPU</option>
+                                                    <option value="700m">0.7 vCPU</option>
+                                                    <option value="800m">0.8 vCPU</option>
+                                                    <option value="900m">0.9 vCPU</option>
+                                                    <option value="1">1 vCPU</option>
+                                                    <option value="2">2 vCPU</option>
+                                                    <option value="4">4 vCPU</option>
+                                                    <option value="8">8 vCPU</option>
+                                                    <option value="16">16 vCPU</option>
                                                 </select>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-lg-6">
+                                    <div class="col-lg-12">
                                         <label class="form-label">
-                                            <svg xmlns="http://www.w3.org/2000/svg"
-                                                            width="24" height="24"
-                                                            viewBox="0 0 24 24" fill="none"
-                                                            stroke="currentColor" stroke-width="2"
-                                                            stroke-linecap="round"
-                                                            stroke-linejoin="round"
-                                                            class="icon icon-tabler icons-tabler-outline icon-tabler-ruler-2">
-                                                            <path stroke="none" d="M0 0h24v24H0z"
-                                                                fill="none" />
-                                                            <path d="M17 3l4 4l-14 14l-4 -4z" />
-                                                            <path d="M16 7l-1.5 -1.5" />
-                                                            <path d="M13 10l-1.5 -1.5" />
-                                                            <path d="M10 13l-1.5 -1.5" />
-                                                            <path d="M7 16l-1.5 -1.5" />
-                                                        </svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-ruler-2">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path d="M17 3l4 4l-14 14l-4 -4z" />
+                                                <path d="M16 7l-1.5 -1.5" />
+                                                <path d="M13 10l-1.5 -1.5" />
+                                                <path d="M10 13l-1.5 -1.5" />
+                                                <path d="M7 16l-1.5 -1.5" />
+                                            </svg>
                                             Memory Resources</label>
                                         <div class="row">
                                             <div class="col-lg-6">
@@ -1280,21 +1271,77 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="mb-4">
+                                <div class="row">
+                                    <div class=col-lg-6>
+                                        <label class="form-label">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-database">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" />
+                                                <path d="M4 6v6a8 3 0 0 0 16 0v-6" />
+                                                <path d="M4 12v6a8 3 0 0 0 16 0v-6" />
+                                            </svg>
+                                            STORAGE Resources</label>
+                                        <div class="row">
+                                            <div class="col-lg-6">
+                                                <label class="form-label mt-1">Request</label>
+                                                <div class="input-group">
+                                                    <select class="form-select" id="new-profile-storage-request"
+                                                        name="task-storage-request">
+                                                        <option value="">-</option>
+                                                        <option value="128Mi">128Mi</option>
+                                                        <option value="256Mi">256Mi</option>
+                                                        <option value="512Mi">512Mi</option>
+                                                        <option value="1Gi">1Gi</option>
+                                                        <option value="2Gi">2Gi</option>
+                                                        <option value="4Gi">4Gi</option>
+                                                        <option value="8Gi">8Gi</option>
+                                                        <option value="16Gi">16Gi</option>
+                                                        <option value="32Gi">32Gi</option>
+                                                        <option value="64Gi">64Gi</option>
+                                                        <option value="128Gi">128Gi</option>
+                                                        <option value="256Gi">256Gi</option>
+                                                        <option value="512Gi">512Gi</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-6">
+                                                <label class="form-label mt-1">Limit</label>
+                                                <select class="form-select" id="new-profile-storage-limit"
+                                                    name="task-storage-limit">
+                                                    <option value="">-</option>
+                                                    <option value="128Mi">128Mi</option>
+                                                    <option value="256Mi">256Mi</option>
+                                                    <option value="512Mi">512Mi</option>
+                                                    <option value="1Gi">1Gi</option>
+                                                    <option value="2Gi">2Gi</option>
+                                                    <option value="4Gi">4Gi</option>
+                                                    <option value="8Gi">8Gi</option>
+                                                    <option value="16Gi">16Gi</option>
+                                                    <option value="32Gi">32Gi</option>
+                                                    <option value="64Gi">64Gi</option>
+                                                    <option value="128Gi">128Gi</option>
+                                                    <option value="256Gi">256Gi</option>
+                                                    <option value="512Gi">512Gi</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             <div>
                                 <div class="row">
                                     <div class="col-lg-4">
                                         <label class="form-label">
-                                            <svg xmlns="http://www.w3.org/2000/svg"
-                                                width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
                                                 class="icon icon-tabler icons-tabler-outline icon-tabler-time-duration-15">
-                                                <path stroke="none" d="M0 0h24v24H0z"
-                                                    fill="none" />
-                                                <path
-                                                    d="M12 15h2a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-2v-3h3" />
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path d="M12 15h2a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-2v-3h3" />
                                                 <path d="M9 9v6" />
                                                 <path d="M3 12v.01" />
                                                 <path d="M12 21v.01" />
@@ -1307,8 +1354,7 @@
                                                 <path d="M21 12a9 9 0 0 0 -9 -9" />
                                             </svg>
                                             TTL (seconds)</label>
-                                        <select class="form-select" id="new-profile-ttl"
-                                            name="task-ttl">
+                                        <select class="form-select" id="new-profile-ttl" name="task-ttl">
                                             <option value="">-</option>
                                             <option value="60">1min</option>
                                             <option value="300">5min</option>
@@ -1323,32 +1369,24 @@
                                         </select>
                                         <small class="form-hint mt-1">
                                             <p>
-                                                The time-to-live (TTL) for tasks created with this profile. This determines how long the
-                                                a task job will remain in the cluster after its completion. 
+                                                The time-to-live (TTL) for tasks created with this profile. This
+                                                determines how long the
+                                                a task job will remain in the cluster after its completion.
                                             </p>
                                         </small>
                                     </div>
                                     <div class="col-lg-4">
                                         <label class="form-label">
-                                            <svg xmlns="http://www.w3.org/2000/svg"
-                                                width="24" height="24"
-                                                viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
                                                 class="icon icon-tabler icons-tabler-outline icon-tabler-repeat">
-                                                <path stroke="none"
-                                                    d="M0 0h24v24H0z"
-                                                    fill="none" />
-                                                <path
-                                                    d="M4 12v-3a3 3 0 0 1 3 -3h13m-3 -3l3 3l-3 3" />
-                                                <path
-                                                    d="M20 12v3a3 3 0 0 1 -3 3h-13m3 3l-3 -3l3 -3" />
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                                <path d="M4 12v-3a3 3 0 0 1 3 -3h13m-3 -3l3 3l-3 3" />
+                                                <path d="M20 12v3a3 3 0 0 1 -3 3h-13m3 3l-3 -3l3 -3" />
                                             </svg>
                                             Retry Policy</label>
-                                        <select class="form-select" id="new-profile-retry-policy"
-                                            name="retry-policy">
+                                        <select class="form-select" id="new-profile-retry-policy" name="retry-policy">
                                             <option value="">-</option>
                                             <option value="Never">Never</option>
                                             <option value="OnFailure">On Failure</option>
@@ -1357,25 +1395,20 @@
                                         <small class="form-hint mt-1">
                                             <p>
                                                 The retry policy determines when the execution profile should be retried
-                                                in case of failure. <strong>Never</strong> will never retry, <strong>On Failure</strong>
-                                                will retry only if the execution fails, and <strong>Always</strong> will always retry.
+                                                in case of failure. <strong>Never</strong> will never retry, <strong>On
+                                                    Failure</strong>
+                                                will retry only if the execution fails, and <strong>Always</strong> will
+                                                always retry.
                                             </p>
                                         </small>
                                     </div>
                                     <div class="col-lg-4">
                                         <label class="form-label">
-                                            <svg xmlns="http://www.w3.org/2000/svg"
-                                                width="24" height="24"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                stroke-width="2"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
                                                 class="icon icon-tabler icons-tabler-outline icon-tabler-repeat-off">
-                                                <path stroke="none"
-                                                    d="M0 0h24v24H0z"
-                                                    fill="none" />
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                                 <path
                                                     d="M4 12v-3c0 -1.336 .873 -2.468 2.08 -2.856m3.92 -.144h10m-3 -3l3 3l-3 3" />
                                                 <path
@@ -1383,15 +1416,14 @@
                                                 <path d="M3 3l18 18" />
                                             </svg>
                                             Retry Limit</label>
-                                            <select class="form-select" id="new-profile-backoff-limit"
-                                                name="backoff-limit">
-                                                <option value="">-</option>
-                                                <option value="1">1</option>
-                                                <option value="2">2</option>
-                                                <option value="3">3</option>
-                                                <option value="4">4</option>
-                                                <option value="5">5</option>
-                                            </select>
+                                        <select class="form-select" id="new-profile-backoff-limit" name="backoff-limit">
+                                            <option value="">-</option>
+                                            <option value="1">1</option>
+                                            <option value="2">2</option>
+                                            <option value="3">3</option>
+                                            <option value="4">4</option>
+                                            <option value="5">5</option>
+                                        </select>
                                         <small class="form-hint mt-1">
                                             <p>
                                                 The retry limit determines how many times the task job should be retried
@@ -1404,8 +1436,8 @@
 
 
                             </div>
-                            
-                        
+
+
                         </div>
                         <div class="modal-footer" id="new-profile-footer">
                             <a class="btn btn-primary btn-5 ms-auto cursor-pointer disabled" id="create-profile-btn"
@@ -1830,64 +1862,64 @@
 
     <script>
         function fetchAvailableLicenses(callback) {
-          $.ajax({
-            url: "{{url_for('catalog_blueprint.api_fetch_licenses')}}",
-            method: "GET",
-            success: function (response) {
-              if (response.success) {
-                window.availableLicenses = response.result;
-                displayLicense();
-                // Populate the license dropdown in the publishing modal
-                var licenseSelect = $('#license-id');
-                licenseSelect.empty();
-    
-                licenseSelect.append($('<option></option>').attr('value', '').text('Select License'));
-    
-                window.availableLicenses.forEach(function (license) {
-                  var option = $('<option></option>')
-                    .attr('value', license.key)
-                    .text(license.title + ' - (' + license.key + ')');
-                  if (license.image_url) {
-                    option.attr('data-image', license.image_url);
-                  }
-                  licenseSelect.append(option);
-                });
-    
-                //If the dataset already has a license, select it
-                currentLicense = "{{ tool.get('license_id') }}";
-                if (currentLicense && currentLicense !== 'None') {
-                  licenseSelect.val(currentLicense);
-                } else {
-                  licenseSelect.val('');
+            $.ajax({
+                url: "{{url_for('catalog_blueprint.api_fetch_licenses')}}",
+                method: "GET",
+                success: function (response) {
+                    if (response.success) {
+                        window.availableLicenses = response.result;
+                        displayLicense();
+                        // Populate the license dropdown in the publishing modal
+                        var licenseSelect = $('#license-id');
+                        licenseSelect.empty();
+
+                        licenseSelect.append($('<option></option>').attr('value', '').text('Select License'));
+
+                        window.availableLicenses.forEach(function (license) {
+                            var option = $('<option></option>')
+                                .attr('value', license.key)
+                                .text(license.title + ' - (' + license.key + ')');
+                            if (license.image_url) {
+                                option.attr('data-image', license.image_url);
+                            }
+                            licenseSelect.append(option);
+                        });
+
+                        //If the dataset already has a license, select it
+                        currentLicense = "{{ tool.get('license_id') }}";
+                        if (currentLicense && currentLicense !== 'None') {
+                            licenseSelect.val(currentLicense);
+                        } else {
+                            licenseSelect.val('');
+                        }
+
+                    } else {
+                        console.error("Failed to fetch available licenses:", response.message);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("AJAX request for available licenses failed:", error);
                 }
-    
-              } else {
-                console.error("Failed to fetch available licenses:", response.message);
-              }
-            },
-            error: function (xhr, status, error) {
-              console.error("AJAX request for available licenses failed:", error);
+            });
+            if (typeof callback === "function") {
+                callback();
             }
-          });
-          if (typeof callback === "function") {
-            callback();
-          }
         }
-    
-        function displayLicense(){
-          licenseSelect = `{{ tool.get('license_id') }}`;
-          if (!licenseSelect || licenseSelect === 'None' || licenseSelect === '') {
-            return;
-          }
-          if (window.availableLicenses && window.availableLicenses.length > 0) {
-            packageLicense = window.availableLicenses.find(license => license.key === licenseSelect);
-            if (packageLicense) {
-              const licenseContent = packageLicense.image_url 
-            ? `<a href="${packageLicense.url || '#'}" target="_blank"><img style="height:25px;" src="${packageLicense.image_url}" alt="${packageLicense.title}" class="license-image"></a>` 
-            : `<a href="${packageLicense.url || '#'}" target="_blank">${packageLicense.title}</a>`;
-              $('#tool-license').html(licenseContent);
+
+        function displayLicense() {
+            licenseSelect = `{{ tool.get('license_id') }}`;
+            if (!licenseSelect || licenseSelect === 'None' || licenseSelect === '') {
+                return;
             }
-          }
+            if (window.availableLicenses && window.availableLicenses.length > 0) {
+                packageLicense = window.availableLicenses.find(license => license.key === licenseSelect);
+                if (packageLicense) {
+                    const licenseContent = packageLicense.image_url
+                        ? `<a href="${packageLicense.url || '#'}" target="_blank"><img style="height:25px;" src="${packageLicense.image_url}" alt="${packageLicense.title}" class="license-image"></a>`
+                        : `<a href="${packageLicense.url || '#'}" target="_blank">${packageLicense.title}</a>`;
+                    $('#tool-license').html(licenseContent);
+                }
+            }
         }
     </script>
     <script>
@@ -1971,11 +2003,11 @@
             });
         }
 
-        function renderImageSelectors(images){
-            if(images.length === 0) {
+        function renderImageSelectors(images) {
+            if (images.length === 0) {
                 $('#add-profile-btn').addClass('disabled');
                 $('#add-profile-btn').attr('title', 'No tool images available to create a profile');
-            }else{
+            } else {
                 $('#add-profile-btn').removeClass('disabled');
                 $('#add-profile-btn').attr('title', 'Create a new execution profile for an selected image');
             }
@@ -2287,6 +2319,28 @@
                                     </div>
                                     <div class="datagrid-item">
                                         <div class="datagrid-title">
+                                            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-database"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg>
+                                            STORAGE Resources
+                                        </div>
+                                        <div class="datagrid-content">
+                                            <div class="row">
+                                                <div class="col-6">
+                                                    Requested: <span
+                                                        class="badge bg-${spec.ephemeral_storage_request ? 'green-lt' : 'secondary-lt'}">
+                                                        ${spec.ephemeral_storage_request || '-'}
+                                                    </span>
+                                                </div>
+                                                <div class="col-6">
+                                                    Limit: <span
+                                                        class="badge bg-${spec.ephemeral_storage_limit ? 'danger-lt' : 'secondary-lt'}">
+                                                        ${spec.ephemeral_storage_limit || '-'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="datagrid-item">
+                                        <div class="datagrid-title">
                                             <svg xmlns="http://www.w3.org/2000/svg"
                                                 width="24" height="24"
                                                 viewBox="0 0 24 24" fill="none"
@@ -2389,7 +2443,7 @@
         }
 
 
-        function deleteProfile(profileName){
+        function deleteProfile(profileName) {
             if (!confirm("Are you sure you want to delete the profile: " + profileName + "?")) {
                 return;
             }
@@ -2425,7 +2479,7 @@
         }
 
 
-        function addProfile(){
+        function addProfile() {
             $("#new-profile-modal").modal("show");
         }
 
@@ -2467,7 +2521,7 @@
             newProfileName.addEventListener("keyup", validateNewProfile);
         });
 
-        function resetNewProfileForm(){
+        function resetNewProfileForm() {
             document.getElementById("new-profile-name").value = '';
             document.getElementById("new-profile-image-pull-secret").value = '';
             document.getElementById("new-profile-image-pull-policy").value = '';
@@ -2476,12 +2530,14 @@
             document.getElementById("new-profile-cpu-limit").value = '';
             document.getElementById("new-profile-memory-request").value = '';
             document.getElementById("new-profile-memory-limit").value = '';
+            document.getElementById("new-profile-memory-request").value = '';
+            document.getElementById("new-profile-memory-limit").value = '';
             document.getElementById("new-profile-ttl").value = '';
             document.getElementById("new-profile-retry-policy").value = '';
             document.getElementById("new-profile-backoff-limit").value = '';
         }
 
-        function createNewProfile(){
+        function createNewProfile() {
 
             $('#new-profile-footer .stelar-loader').remove();
             $('#new-profile-footer .alert').remove();
@@ -2501,11 +2557,11 @@
                     $('#new-profile-footer .alert').remove();
                     $('#new-profile-footer').prepend(createAlertElement("danger", "Error loading tool profiles"));
                 }
-            });            
+            });
         }
 
 
-        function addProfileToTool(currentProfiles)  {
+        function addProfileToTool(currentProfiles) {
             const newProfileName = document.getElementById("new-profile-name").value.trim();
             if (newProfileName === "") {
                 return;
@@ -2518,6 +2574,8 @@
                 ...(document.getElementById("new-profile-description").value.trim() && { description: document.getElementById("new-profile-description").value.trim() }),
                 ...(document.getElementById("new-profile-cpu-request").value.trim() && { cpu_request: document.getElementById("new-profile-cpu-request").value.trim() }),
                 ...(document.getElementById("new-profile-cpu-limit").value.trim() && { cpu_limit: document.getElementById("new-profile-cpu-limit").value.trim() }),
+                ...(document.getElementById("new-profile-storage-request").value.trim() && { ephemeral_storage_request: document.getElementById("new-profile-storage-request").value.trim() }),
+                ...(document.getElementById("new-profile-storage-limit").value.trim() && { ephemeral_storage_limit: document.getElementById("new-profile-storage-limit").value.trim() }),
                 ...(document.getElementById("new-profile-memory-request").value.trim() && { memory_request: document.getElementById("new-profile-memory-request").value.trim() }),
                 ...(document.getElementById("new-profile-memory-limit").value.trim() && { memory_limit: document.getElementById("new-profile-memory-limit").value.trim() }),
                 ...(document.getElementById("new-profile-ttl").value.trim() && { ttl_seconds_after_finished: document.getElementById("new-profile-ttl").value.trim() }),
@@ -2577,7 +2635,7 @@
                     validateNewProfile();
                 }
             });
-            
+
         }
     </script>
     <script>

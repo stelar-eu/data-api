@@ -61,14 +61,36 @@ class JobProfileSchema(Schema):
         allow_none=True,
         validate=validators.Length(min=0),
     )
+    
+    # CPU resources
     cpu_request = fields.String(
         required=False,
         allow_none=True,
         validate=Quantity(),
     )
     cpu_limit = fields.String(required=False, allow_none=True, validate=Quantity())
+    
+    # Memory resources
     memory_request = fields.String(required=False, allow_none=True, validate=Quantity())
     memory_limit = fields.String(required=False, allow_none=True, validate=Quantity())
+    
+    # Ephemeral storage resources
+    ephemeral_storage_request = fields.String(
+        required=False, 
+        allow_none=True, 
+        validate=Quantity(),
+        metadata={
+            "description": "Minimum ephemeral storage request (e.g., '5Gi', '1000Mi')"
+        }
+    )
+    ephemeral_storage_limit = fields.String(
+        required=False, 
+        allow_none=True, 
+        validate=Quantity(),
+        metadata={
+            "description": "Maximum ephemeral storage limit (e.g., '20Gi', '5000Mi')"
+        }
+    )
 
     backoff_limit = fields.Integer(
         required=False,
@@ -213,22 +235,44 @@ class JobSpec:
         return {k: self.sanitize_label(str(v)) for k, v in raw.items()}
 
     def m_resources(self, engine: K8sExecEngine) -> V1ResourceRequirements | None:
+        """
+        Creates resource requirements including CPU, memory, and ephemeral storage.
+        
+        Returns:
+            V1ResourceRequirements: Kubernetes resource requirements object with 
+                                   requests and limits for CPU, memory, and ephemeral storage.
+        """
+        # Get CPU resources
         cpu_request = chain("cpu_request", self.profile, engine.default_profile)
         cpu_limit = chain("cpu_limit", self.profile, engine.default_profile)
+        
+        # Get memory resources
         memory_request = chain("memory_request", self.profile, engine.default_profile)
         memory_limit = chain("memory_limit", self.profile, engine.default_profile)
+        
+        # Get ephemeral storage resources
+        ephemeral_storage_request = chain("ephemeral_storage_request", self.profile, engine.default_profile)
+        ephemeral_storage_limit = chain("ephemeral_storage_limit", self.profile, engine.default_profile)
 
+        # Build requests dictionary
         req = {}
         if cpu_request is not None:
             req["cpu"] = cpu_request
         if memory_request is not None:
             req["memory"] = memory_request
+        if ephemeral_storage_request is not None:
+            req["ephemeral-storage"] = ephemeral_storage_request
+            
+        # Build limits dictionary
         limits = {}
         if cpu_limit is not None:
             limits["cpu"] = cpu_limit
         if memory_limit is not None:
             limits["memory"] = memory_limit
+        if ephemeral_storage_limit is not None:
+            limits["ephemeral-storage"] = ephemeral_storage_limit
 
+        # Build final resource requirements
         res = {}
         if req:
             res["requests"] = req
@@ -236,6 +280,7 @@ class JobSpec:
             res["limits"] = limits
 
         if res:
+            logger.debug("Resource requirements: %s", res)
             return V1ResourceRequirements(**res)
         else:
             return None
