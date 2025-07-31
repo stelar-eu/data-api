@@ -646,7 +646,7 @@ class ResourceEntity(CKANEntity):
         # Start a generic process for running the profiling task
         u = kutils.current_user().get("preferred_username", "anonymous")
 
-        if u is "anonymous":
+        if u == "anonymous":
             raise InvalidError(
                 "Data profiling requires a valid user session. Please log in to continue."
             )
