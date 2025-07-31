@@ -10,6 +10,7 @@ from apiflask import Schema, fields, validators
 from marshmallow import EXCLUDE, INCLUDE, post_dump
 from processes import PROCESS
 from typing import List, Dict
+from datetime import datetime
 
 import schema
 import uuid
@@ -558,32 +559,80 @@ class ResourceEntity(CKANEntity):
         Returns:
             dict: A dictionary containing the profiling results.
         """
-        delimiter = profile_spec.get("delimiter", None)
-        header = profile_spec.get("header", 0)
-        light_mode = profile_spec.get("light_mode", False)
-        num_categorical_perc_threshold = profile_spec.get(
-            "num_categorical_perc_threshold", 0.5
-        )
-        max_freq_distr = profile_spec.get("max_freq_distr", 10)
-        is_timeseries = profile_spec.get("is_timeseries", False)
-        timeseries_date_column = profile_spec.get("timeseries_date_column", None)
-
-        crs = profile_spec.get("crs", "EPSG:4326")
-        eps_distance = profile_spec.get("eps_distance", 1000)
-
-        if is_timeseries and not timeseries_date_column:
-            raise InvalidError(
-                "When is_timeseries is True, timeseries_date_column must be provided."
-            )
-
         # Fetch the resource to evaluate authorization access
         r = self.get_entity(id)
 
-        if not r.get("url").startswith("s3://") or not r.get("url").endswith(
-            (".csv", ".xlsx", ".xls")
+        if not r.get("url").startswith("s3://") or not r.get("url").lower().endswith(
+            (
+                ".csv",
+                ".xlsx",
+                ".xls",
+                ".txt",
+                ".tif",
+                ".tiff",
+                ".img",
+                ".vrt",
+                ".nc",
+                ".grd",
+                ".asc",
+                ".jp2",
+                ".hdf",
+                ".hdr",
+                ".bil",
+                ".png",
+            )
         ):
             raise InvalidError(
-                "Only S3 object URLs for tabular artifacts are supported for profiling."
+                "Only S3 object URLs for tabular artifacts, image artifacts or text artifacts are supported for profiling."
+            )
+
+        # Decide the profile_type based on resource format and parameters
+        resource_format = r.get("url").split(".")[-1].lower()
+
+        if resource_format in ("csv", "xlsx", "xls"):
+            profile_type = "tabular"
+
+            delimiter = profile_spec.get("delimiter", None)
+            header = profile_spec.get("header", 0)
+            light_mode = profile_spec.get("light_mode", False)
+            num_categorical_perc_threshold = profile_spec.get(
+                "num_categorical_perc_threshold", 0.5
+            )
+            max_freq_distr = profile_spec.get("max_freq_distr", 10)
+            is_timeseries = profile_spec.get("is_timeseries", False)
+            timeseries_date_column = profile_spec.get("timeseries_date_column", None)
+
+            crs = profile_spec.get("crs", "EPSG:4326")
+            eps_distance = profile_spec.get("eps_distance", 1000)
+
+            if is_timeseries and not timeseries_date_column:
+                raise InvalidError(
+                    "When is_timeseries is True, timeseries_date_column must be provided."
+                )
+            if is_timeseries:
+                profile_type = "timeseries"
+
+        elif resource_format in (
+            "tif",
+            "tiff",
+            "img",
+            "vrt",
+            "nc",
+            "grd",
+            "asc",
+            "jp2",
+            "hdf",
+            "hdr",
+            "bil",
+            "png",
+        ):
+            profile_type = "raster"
+        elif resource_format in ("txt"):
+            profile_type = "textual"
+        else:
+            raise InvalidError(
+                "Unsupported resource format for profiling. Supported formats are: "
+                "CSV, XLSX, XLS, TIF, TIFF, IMG, VRT, NC, GRD, ASC, JP2, HDF, HDR, BIL, PNG."
             )
 
         # Verify the data profiler tool is available in the KLMS
@@ -617,16 +666,23 @@ class ResourceEntity(CKANEntity):
         except Exception as e:
             raise InternalException("Failed to create a profiling process.") from e
 
+        # If the user has specified a destination package ID, use this.
+        dest_package_id = r.get("package_id")
+        if profile_spec.get("package_id", None):
+            dest_package_id = profile_spec["package_id"]
+
+        timestamp_str = datetime.now().strftime("%Y%m%d%H%M%S")
+
         # Build the task spec
         task_spec = {
             "process_id": proc.get("id"),
             "name": f"Data Profiling Task on {r.get('name', r.get('url').split('/')[-1])}",
             "tool": "data-profiler",
             "inputs": {"data": [r.get("id")]},
-            "datasets": {"d0": r.get("package_id")},
+            "datasets": {"d0": str(dest_package_id)},
             "outputs": {
                 "profile": {
-                    "url": "s3://klms-bucket/profiles/profile_" + r.get("id") + ".json",
+                    "url": f"s3://klms-bucket/profiles/profile_{timestamp_str}_{r.get('id')}.json",
                     "resource": {
                         "name": f"Profile for {r.get('name', r.get('url').split('/')[-1])}",
                         "format": "json",
@@ -636,17 +692,25 @@ class ResourceEntity(CKANEntity):
                 }
             },
             "parameters": {
-                "sep": delimiter,
-                "header": header,
-                "light_mode": light_mode,
-                "num_cat_perc_threshold": num_categorical_perc_threshold,
-                "max_freq_distr": max_freq_distr,
-                "ts_mode": is_timeseries,
-                "time_column": timeseries_date_column,
-                "crs": crs,
-                "eps_distance": eps_distance,
+                "profile_type": profile_type,
             },
         }
+
+        if profile_type == "tabular" or profile_type == "timeseries":
+            task_spec["parameters"].update(
+                {
+                    "sep": delimiter,
+                    "header": header,
+                    "light_mode": light_mode,
+                    "num_cat_perc_threshold": num_categorical_perc_threshold,
+                    "max_freq_distr": max_freq_distr,
+                    "ts_mode": is_timeseries,
+                    "time_column": timeseries_date_column,
+                    "crs": crs,
+                    "eps_distance": eps_distance,
+                }
+            )
+
         try:
             # Create the profiling task
             task = TASK.create_entity(task_spec)

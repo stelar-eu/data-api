@@ -230,6 +230,16 @@ def validate_header(value):
 
 class ResourceProfilingSchema(Schema):
 
+    # destination package
+    package_id = String(
+        required=False,
+        allow_none=False,
+        metadata={
+            "description": "The ID of the package to which the profile will be stored.",
+            "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+        },
+    )
+
     # sep for profiler image
     delimiter = String(
         required=False,
