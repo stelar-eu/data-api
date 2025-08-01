@@ -51,15 +51,81 @@
                             </a>
                         </div>
                         <p class="mt-3 text-sm text-secondary">
-                            STELAR KLMS offers a variety of data analysis and management tools that can be executed within the context
-                            of workflow processes, effectively curating data assets residing within the lake. These tools range from 
-                            remote sensing LAI pipelines, precision farming data analysis and timeseries forecasters, to advanced entity linking and discovery tools.
-                          </p>
+                            STELAR KLMS offers a variety of data analysis and management tools that can be executed
+                            within the context
+                            of workflow processes, effectively curating data assets residing within the lake. These
+                            tools range from
+                            remote sensing LAI pipelines, precision farming data analysis and timeseries forecasters, to
+                            advanced entity linking and discovery tools.
+                        </p>
                     </div>
                 </div>
             </div>
             <div class="page-body">
                 <div class="container-xl">
+                    <div class="row mb-5">
+                        <div class="col-lg-4">
+                            <div class="card card-sm card-link cursor-pointer" id="interlinking-card"
+                                onclick="toggleFilteredSearch('interlinking')">
+                                <div class=" card-body">
+                                    <div class="row align-items-center">
+                                        <div class="col-auto">
+                                            <span class="bg-green text-white avatar">
+                                                <img src="{{ url_for('static', filename='logos/tools/linking.png') }}"
+                                                    alt="Interlinking Icon" class="rounded">
+                                            </span>
+                                        </div>
+                                        <div class="col">
+                                            <div class="strong">Interlinking</div>
+                                            <div class="text-secondary">Used to link data entities and semantically
+                                                enrich data descriptions</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card card-sm card-link cursor-pointer" id="annotation-card"
+                                onclick="toggleFilteredSearch('annotation')">
+                                <div class=" card-body">
+                                    <div class="row align-items-center">
+                                        <div class="col-auto">
+                                            <span class="bg-green text-white avatar">
+                                                <img src="{{ url_for('static', filename='logos/tools/annotation.png') }}"
+                                                    alt="Annotation Icon" class="rounded">
+                                            </span>
+                                        </div>
+                                        <div class="col">
+                                            <div class="strong">Annotation</div>
+                                            <div class="text-secondary">Increase automation and reliability of data
+                                                annotation by enriching with metadata
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card card-sm card-link cursor-pointer" id="discovery-card"
+                                onclick="toggleFilteredSearch('discovery')">
+                                <div class=" card-body">
+                                    <div class="row align-items-center">
+                                        <div class="col-auto">
+                                            <span class="bg-green text-white avatar">
+                                                <img src="{{ url_for('static', filename='logos/tools/discovery.png') }}"
+                                                    alt="Discovery Icon" class="rounded">
+                                            </span>
+                                        </div>
+                                        <div class="col">
+                                            <div class="strong">Discovery</div>
+                                            <div class="text-secondary">Timely discover the right data for user needs
+                                                by enhancing data annotations and metadata</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="col-md-12">
                         <div class="row row-cards" id="tool-card-row">
 
@@ -211,12 +277,14 @@
                                     <div class="col-lg-8">
                                         <div class="mb-3">
                                             <label class="form-label">Name</label>
-                                            <input type="text" class="form-control" name="name" placeholder="the-new-tool"
-                                                id="tool-name-input">
+                                            <input type="text" class="form-control" name="name"
+                                                placeholder="the-new-tool" id="tool-name-input">
                                             <small class="form-hint">
                                                 <p>
-                                                    Please use a name in the format <code>the-new-tool</code> (use hyphens
-                                                    instead of spaces). This name will be used to generate both the tool's URL
+                                                    Please use a name in the format <code>the-new-tool</code> (use
+                                                    hyphens
+                                                    instead of spaces). This name will be used to generate both the
+                                                    tool's URL
                                                     and its image repository name.
                                                 </p>
                                             </small>
@@ -225,8 +293,7 @@
                                     <div class="col-lg-4">
                                         <div class="mb-3">
                                             <label class="form-label">Tool Category</label>
-                                            <select class="form-select" id="tool-category"
-                                                name="tool-category">
+                                            <select class="form-select" id="tool-category" name="tool-category">
                                                 <option value="discovery">Discovery</option>
                                                 <option value="interlinking">Interlinking</option>
                                                 <option value="annotation">Annotation</option>
@@ -281,53 +348,62 @@
                                     </small>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label"><svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-license"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 21h-9a3 3 0 0 1 -3 -3v-1h10v2a2 2 0 0 0 4 0v-14a2 2 0 1 1 2 2h-2m2 -4h-11a3 3 0 0 0 -3 3v11" /><path d="M9 7l4 0" /><path d="M9 11l4 0" /></svg>License</label>
+                                    <label class="form-label"><svg xmlns="http://www.w3.org/2000/svg" width="24"
+                                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-license">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                            <path
+                                                d="M15 21h-9a3 3 0 0 1 -3 -3v-1h10v2a2 2 0 0 0 4 0v-14a2 2 0 1 1 2 2h-2m2 -4h-11a3 3 0 0 0 -3 3v11" />
+                                            <path d="M9 7l4 0" />
+                                            <path d="M9 11l4 0" />
+                                        </svg>License</label>
                                     <select class="form-select" id="license-id" name="license_id">
                                     </select>
                                     <small class="form-hint">
-                                      <p>
-                                        Selecting the appropriate license for your dataset is important
-                                        to ensure that users understand how they can use the data.
-                                      </p>
+                                        <p>
+                                            Selecting the appropriate license for your dataset is important
+                                            to ensure that users understand how they can use the data.
+                                        </p>
                                     </small>
                                 </div>
 
                                 <div class="mb-4">
                                     <label class="form-label">Visibility</label>
                                     <div class="form-selectgroup-boxes row mb-1">
-                                      <div class="col-lg-6 text-success">
-                                        <label class="form-selectgroup-item">
-                                          <input type="radio" name="package-visibility" value="public" class="form-selectgroup-input"
-                                            checked="">
-                                          <span class="form-selectgroup-label d-flex align-items-center p-3">
-                                            <span class="me-3">
-                                              <span class="form-selectgroup-check"></span>
-                                            </span>
-                                            <span class="form-selectgroup-label-content">
-                                              <span class="form-selectgroup-title strong mb-1">Public</span>
-                                              <span class="d-block text-secondary">Accessible to all users
-                                                registered in the KLMS</span>
-                                            </span>
-                                          </span>
-                                        </label>
-                                      </div>
-                                      <div class="col-lg-6 text-danger">
-                                        <label class="form-selectgroup-item">
-                                          <input type="radio" name="package-visibility" value="private"
-                                            class="form-selectgroup-input">
-                                          <span class="form-selectgroup-label d-flex align-items-center p-3">
-                                            <span class="me-3">
-                                              <span class="form-selectgroup-check"></span>
-                                            </span>
-                                            <span class="form-selectgroup-label-content">
-                                              <span class="form-selectgroup-title strong mb-1">Private</span>
-                                              <span class="d-block text-secondary">Accessible only to members
-                                                of the organization that
-                                                owns the package</span>
-                                            </span>
-                                          </span>
-                                        </label>
-                                      </div>
+                                        <div class="col-lg-6 text-success">
+                                            <label class="form-selectgroup-item">
+                                                <input type="radio" name="package-visibility" value="public"
+                                                    class="form-selectgroup-input" checked="">
+                                                <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                                    <span class="me-3">
+                                                        <span class="form-selectgroup-check"></span>
+                                                    </span>
+                                                    <span class="form-selectgroup-label-content">
+                                                        <span class="form-selectgroup-title strong mb-1">Public</span>
+                                                        <span class="d-block text-secondary">Accessible to all users
+                                                            registered in the KLMS</span>
+                                                    </span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                        <div class="col-lg-6 text-danger">
+                                            <label class="form-selectgroup-item">
+                                                <input type="radio" name="package-visibility" value="private"
+                                                    class="form-selectgroup-input">
+                                                <span class="form-selectgroup-label d-flex align-items-center p-3">
+                                                    <span class="me-3">
+                                                        <span class="form-selectgroup-check"></span>
+                                                    </span>
+                                                    <span class="form-selectgroup-label-content">
+                                                        <span class="form-selectgroup-title strong mb-1">Private</span>
+                                                        <span class="d-block text-secondary">Accessible only to members
+                                                            of the organization that
+                                                            owns the package</span>
+                                                    </span>
+                                                </span>
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="row">
@@ -392,6 +468,15 @@
 
     <script>
 
+        function sanitizeExtra(result) {
+            for (const key in result) {
+                const value = result[key];
+                if (typeof value === 'string') {
+                    result[key] = value.replace(/^"(.*)"$/, '$1');
+                }
+            }
+        }
+
 
         function createToolCards(tools) {
             iconInterlinking = "{{ url_for('static', filename='logos/tools/linking.png') }}";
@@ -401,23 +486,24 @@
             // Loop through the tools and create cards
             for (var i = 0; i < tools.length; i++) {
                 var tool = tools[i];
+                sanitizeExtra(tool);
                 var card = `
                     <div class="col-lg-3">
                         <a class="card card-link cursor-pointer" href="{{ url_for('dashboard_blueprint.tool', tool_id='')}}${tool.id}">
                             <div class="card-body p-4 py-5 text-center">
                                 <span class="avatar avatar-xl mb-2 rounded">
                                     ${(() => {
-                                        if (tool.category === 'interlinking') {
-                                            return `<img src="${iconInterlinking}" alt="Interlinking Icon" class="rounded">`;
-                                        } else if (tool.category === 'discovery') {
-                                            return `<img src="${iconDiscovery}" alt="Discovery Icon" class="rounded">`;
-                                        } else if (tool.category === 'annotation') {
-                                            return `<img src="${iconAnnotation}" alt="Annotation Icon" class="rounded">`;
-                                        } else {
-                                            const parts = tool.name.split(/[-_]/);
-                                            return (parts[0].charAt(0) + (parts[1] ? parts[1].charAt(0) : '')).toUpperCase();
-                                        }
-                                    })()}
+                        if (tool.category === 'interlinking') {
+                            return `<img src="${iconInterlinking}" alt="Interlinking Icon" class="rounded">`;
+                        } else if (tool.category === 'discovery') {
+                            return `<img src="${iconDiscovery}" alt="Discovery Icon" class="rounded">`;
+                        } else if (tool.category === 'annotation') {
+                            return `<img src="${iconAnnotation}" alt="Annotation Icon" class="rounded">`;
+                        } else {
+                            const parts = tool.name.split(/[-_]/);
+                            return (parts[0].charAt(0) + (parts[1] ? parts[1].charAt(0) : '')).toUpperCase();
+                        }
+                    })()}
                                 </span>
                                 <h3 class="mb-0">${tool.name}</h3>
                                 <span class="text-secondary mb-0">${tool.category ? tool.category.charAt(0).toUpperCase() + tool.category.slice(1) : 'Not Specified'}</span>
@@ -434,14 +520,88 @@
             }
         }
 
+        function toggleFilteredSearch(category) {
 
-        function fetchTools() {
+            // Find the card clicked
+            categoryCard = $(`#${category}-card`);
 
-            search_q = {
-                "q": "",
+            // Prepare the search query for the selected category
+            // in case we want to fetch tools for that category
+            categorySearchQ = {
+                "fl": [
+                    "name",
+                    "id",
+                    "extras_programming_language",
+                    "git_repository:url",
+                    "extras_category",
+                    "metadata_modified"
+                ],
+                "fq": ["extras_category:" + category],
                 "limit": 100,
+                "offset": 0,
                 "sort": "name asc",
+                "q": ""
             }
+
+            if (categoryCard.hasClass('card-active')) {
+                categoryCard.removeClass('card-active');
+                $('.card.card-link').removeClass('card-active');
+                // Toggle back to the default search
+                maskWithPlaceholders();
+                fetchTools();
+            } else {
+                $('.card.card-link').removeClass('card-active');
+                categoryCard.addClass('card-active');
+                // Fetch tools for the selected category
+                maskWithPlaceholders();
+                fetchTools(categorySearchQ);
+            }
+        }
+
+        function maskWithPlaceholders() {
+            $('#tool-card-row').empty();
+            placeholder = `<div class="col-lg-3">
+                                <div class="card placeholder-glow">
+                                    <div class="card-body py-5 text-center">
+                                        <div>
+                                            <div class="avatar avatar-xl placeholder mb-4"></div>
+                                        </div>
+                                        <div class="mt w-75 mx-auto">
+                                            <div class="placeholder mt-2 col-9 mb-4"></div>
+                                            <div class="placeholder placeholder-xs col-10 mb-2"></div>
+                                            <div class="placeholder col-9 mb-2"></div>
+                                            <div class="placeholder placeholder-xs mt-2 mb-2 col-10"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>`;
+
+            for (var i = 0; i < 8; i++) {
+                $('#tool-card-row').append(placeholder);
+            }
+        }
+
+
+        function fetchTools(search_q = null) {
+
+            if (search_q === null) {
+                // If no search query is provided, use the default search query
+                search_q = {
+                    "fl": [
+                        "name",
+                        "id",
+                        "extras_programming_language",
+                        "git_repository:url",
+                        "extras_category",
+                        "metadata_modified"
+                    ],
+                    "limit": 100,
+                    "offset": 0,
+                    "sort": "name asc",
+                    "q": ""
+                };
+            }
+
             $.ajax({
                 url: '{{ url_for("rest_workflows_blueprint.api_search_tools") }}',
                 method: 'POST',
@@ -505,40 +665,40 @@
             })
         }
 
-   
+
         function fetchAvailableLicenses(callback) {
             $.ajax({
-            url: "{{url_for('catalog_blueprint.api_fetch_licenses')}}",
-            method: "GET",
-            success: function (response) {
-                if (response.success) {
-                window.availableLicenses = response.result;
-                // Populate the license dropdown in the publishing modal
-                var licenseSelect = $('#license-id');
-                licenseSelect.empty();
-    
-                licenseSelect.append($('<option></option>').attr('value', '').text('Select License'));
-    
-                window.availableLicenses.forEach(function (license) {
-                    var option = $('<option></option>')
-                    .attr('value', license.key)
-                    .text(license.title + ' - (' + license.key + ')');
-                    if (license.image_url) {
-                    option.attr('data-image', license.image_url);
+                url: "{{url_for('catalog_blueprint.api_fetch_licenses')}}",
+                method: "GET",
+                success: function (response) {
+                    if (response.success) {
+                        window.availableLicenses = response.result;
+                        // Populate the license dropdown in the publishing modal
+                        var licenseSelect = $('#license-id');
+                        licenseSelect.empty();
+
+                        licenseSelect.append($('<option></option>').attr('value', '').text('Select License'));
+
+                        window.availableLicenses.forEach(function (license) {
+                            var option = $('<option></option>')
+                                .attr('value', license.key)
+                                .text(license.title + ' - (' + license.key + ')');
+                            if (license.image_url) {
+                                option.attr('data-image', license.image_url);
+                            }
+                            licenseSelect.append(option);
+                        });
+
+                    } else {
+                        console.error("Failed to fetch available licenses:", response.message);
                     }
-                    licenseSelect.append(option);
-                });        
-    
-                } else {
-                    console.error("Failed to fetch available licenses:", response.message);
+                },
+                error: function (xhr, status, error) {
+                    console.error("AJAX request for available licenses failed:", error);
                 }
-            },
-            error: function (xhr, status, error) {
-                console.error("AJAX request for available licenses failed:", error);
-            }
             });
             if (typeof callback === "function") {
-            callback();
+                callback();
             }
         }
 
