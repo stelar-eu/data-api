@@ -1,37 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
 
 # Check if the first argument is 'start-server'
 if [ "$1" = 'start-server' ]; then
-    # Create MinIO alias
-    echo "Configuring MinIO client alias 'myminio'..."
-    
-    # Validate that the necessary environment variables are set
-    if [ -z "$MINIO_DOMAIN" ] || [ -z "$MINIO_ROOT_USER" ] || [ -z "$MINIO_ROOT_PASSWORD" ]; then
-        echo "Error: One or more required environment variables (MINIO_DOMAIN, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD) are not set."
-        exit 1
-    fi
 
-    # Check if the MC_INSECURE environment variable is set to True
-    if [ "${MC_INSECURE,,}" = "true" ]; then
-        echo "Entering insecure mode for mc"
-    elif [ "${MC_INSECURE,,}" = "false" ]; then
-        echo "Operating in secure mode for mc"
-    else
-        echo "Invalid value for MC_INSECURE. Please set it to true or false."
-        exit 1
-    fi
-    
-    
-    mc alias set myminio $MINIO_DOMAIN $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD  
-
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to configure MinIO client alias."
-        exit 1
-    else
-        echo "MinIO client alias 'myminio' configured successfully."
-    fi
-    
     echo "Starting the server with Gunicorn..."
     gunicorn -w 4 -b 0.0.0.0:80 'data_api:create_app()'
 # Check if the first argument is 'setup-db'
@@ -46,7 +18,8 @@ elif [ "$1" = 'setup-db' ]; then
     -d '{
         "name": "stelar-klms",
         "title": "STELAR KLMS",
-        "description": "Organization for STELAR KLMS",
+        "description": "Default Organization for STELAR KLMS",
+        "image_url": "/stelar/static/stelar.png",
         "state": "active"
     }'
 

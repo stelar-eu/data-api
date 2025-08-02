@@ -6,8 +6,10 @@ docker==7.0.0
 PyYAML==6.0.1
 pandas==2.0.3
 kubernetes==29.0.0
-gunicorn==21.1.0
+gunicorn==23.0.0
 python-jose
+pyjwt==2.10.1
+gevent==25.5.1
 cryptography
 datetime
 minio
@@ -17,7 +19,6 @@ email-validator
 pyotp==2.9.0
 qrcode==8.0
 Pillow==11.0.0
-pyjwt==2.10.1
 redis==5.2.1
 flask-session==0.8.0
 markdown==3.7
