@@ -217,6 +217,111 @@ class ResourceUpdateRequest(ResourceCreationRequest):
         unknown = INCLUDE
 
 
+def validate_header(value):
+    if (
+        value is None
+        or value == []
+        or isinstance(value, bool)
+        or isinstance(value, int)
+    ):
+        return value
+    raise ValidationError("Must be an integer, boolean, None, or empty list")
+
+
+class ResourceProfilingSchema(Schema):
+
+    # destination package
+    package_id = String(
+        required=False,
+        allow_none=False,
+        metadata={
+            "description": "The ID of the package to which the profile will be stored.",
+            "example": "6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+        },
+    )
+
+    # sep for profiler image
+    delimiter = String(
+        required=False,
+        allow_none=False,
+        load_default=",",
+        validate=OneOf(["|", ";", ",", " ", "\t", ":", "^", "~", "#", "/", "||"]),
+    )
+
+    # header for profiler image
+    header = fields.Raw(
+        required=False,
+        allow_none=True,
+        validate=validate_header,
+        load_default=0,
+        metadata={
+            "description": "Tabular Header configuration - can be an integer, boolean, None, or empty list",
+            "example": 0,
+        },
+    )
+
+    # light_mode for profiler image
+    light_mode = Boolean(
+        required=False,
+        allow_none=True,
+        load_default=False,
+        metadata={
+            "description": "Light mode for profiler image - if True, the profiler will not perform heavy computations and will return a lighter version of the profile."
+        },
+    )
+
+    # num_cat_perc_threshold for profiler image
+    num_categorical_perc_threshold = Float(
+        required=False,
+        allow_none=True,
+        load_default=0.5,
+        validate=Range(min=0, max=1),
+        metadata={
+            "description": "Threshold for categorical percentage in profiler image. If the percentage of unique values in a column is above this threshold, it will be considered categorical.",
+            "example": 0.5,
+        },
+    )
+
+    # max_freq_distr for profiler image
+    max_freq_distr = Integer(
+        required=False,
+        allow_none=True,
+        load_default=10,
+        validate=Range(min=1),
+        metadata={
+            "description": "Maximum number of frequency distributions to show in profiler image.",
+            "example": 10,
+        },
+    )
+
+    # ts_mode for profiler image
+    is_timeseries = Boolean(required=False, allow_none=True, load_default=False)
+    # time_column for profiler image
+    timeseries_date_column = String(required=False, allow_none=True, load_default=None)
+
+    # crs for profiler image
+    crs = String(
+        required=False,
+        allow_none=False,
+        load_default="EPSG:4326",
+        metadata={
+            "description": "Coordinate Reference System for the profiler image. Default is EPSG:4326.",
+            "example": "EPSG:4326",
+        },
+    )
+    # eps_distance for profiler image
+    eps_distance = Integer(
+        required=False,
+        allow_none=False,
+        load_default=1000,
+        validate=Range(min=1),
+        metadata={
+            "description": "Distance tolerance for geometry heatmap calculations.",
+            "example": 1000,
+        },
+    )
+
+
 class VocabularyCreationRequest(EntityCreationRequest):
     name = NameID()
     tags = List(String, required=True)

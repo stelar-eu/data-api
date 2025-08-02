@@ -24,11 +24,6 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install the MinIO client
-RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc \
-&& chmod +x mc \
-&& mv mc /usr/local/bin/
-
 ENV PYTHONPATH=/app/src
 
 # Set the entrypoint to the entrypoint.sh script

@@ -42,8 +42,7 @@
               <h3 class="page-title">
                 <ol class="breadcrumb breadcrumb-arrows">
                   <li class="breadcrumb-item">
-                    <a class="text-secondary"
-                      href="{{ url_for('dashboard_blueprint.catalog')}}">
+                    <a class="text-secondary" href="{{ url_for('dashboard_blueprint.catalog')}}">
                       Data Catalog
                     </a>
                   </li>
@@ -426,8 +425,8 @@
                             <thead>
                               <tr>
                                 <th class="text-center" style="width: 10%;">Relation</th>
-                                <th style="width: 40%;">Resource</th>
-                                <th style="width: 40%;">URL</th>
+                                <th style="width: 30%;">Resource</th>
+                                <th style="width: 50%;">URL</th>
                                 <th class="text-center" style="width: 10%">Format</th>
                                 <th class="w-1"></th>
                               </tr>
@@ -447,19 +446,22 @@
                                 </td>
                                 <td class="text-sm">
                                   <a href="{{ url_for('dashboard_blueprint.viewResource', resource_id=resource['id']) }}"
-                                    class="text-sm text-black">
-                                    {{ resource['name'] }}
+                                    class="text-sm text-black text-wrap"
+                                    style="word-break: break-all; white-space: normal;"></a>
+                                  {{ resource['name'] }}
                                   </a>
                                 </td>
                                 <td class="text-sm">
                                   {% if resource['url'].startswith('s3://') %}
                                   <a href="{{ S3_CONSOLE_URL.replace('/login', '/browser/') }}{{ resource['url'][5:] }}"
-                                    target="_blank">
+                                    target="_blank" class="text-wrap"
+                                    style="word-break: break-all; white-space: normal;">
                                     <small>{{ resource['url'] }}</small>
                                   </a>
                                   {% else %}
-                                  <a href="{{ resource['url'] }}" target="_blank">
-                                    <small>{{ resource['url'] }}</small>
+                                  <a href="{{ resource['url'] }}" class="text-wrap" target="_blank"
+                                    style="word-break: break-all; white-space: normal;"></a>
+                                  <small>{{ resource['url'] }}</small>
                                   </a>
                                   {% endif %}
                                 </td>
@@ -490,7 +492,7 @@
                                             d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" />
                                           <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
                                         </svg>
-                                        View - Edit</a>
+                                        Edit Metadata</a>
 
                                       {% if resource['relation'] == 'profile' %}
                                       <a class="dropdown-item view-resource-btn cursor-pointer"
@@ -506,6 +508,30 @@
                                         </svg>
                                         Visualize</a>
                                       {% endif %}
+                                      {% if resource['url'].startswith('s3://') and
+                                      resource['url'].lower().endswith(('.csv', '.xlsx', '.xls', '.txt', '.tif',
+                                      '.tiff', '.img', '.vrt', '.nc', '.grd', '.asc', '.jp2', '.hdf', '.hdr', '.bil',
+                                      '.png')) %}
+                                      <div class="dropdown-divider"></div>
+
+                                      <a class="dropdown-item cursor-pointer"
+                                        onclick="runProfilerOnResource('{{ resource['id'] }}')">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                          stroke-linecap="round" stroke-linejoin="round"
+                                          class="me-2 icon icon-tabler icons-tabler-outline icon-tabler-photo-sensor">
+                                          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                          <path d="M17 5h2a2 2 0 0 1 2 2v2" />
+                                          <path d="M21 15v2a2 2 0 0 1 -2 2h-2" />
+                                          <path d="M7 19h-2a2 2 0 0 1 -2 -2v-2" />
+                                          <path d="M3 9v-2a2 2 0 0 1 2 -2h2" />
+                                          <path
+                                            d="M7 9m0 1a1 1 0 0 1 1 -1h8a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-8a1 1 0 0 1 -1 -1z" />
+                                        </svg>
+                                        Profile Resource
+                                      </a>
+                                      {% endif %}
+                                      <div class="dropdown-divider"></div>
                                       <a class="dropdown-item cursor-pointer"
                                         onclick="trackLineage('{{ resource['id'] }}')">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -528,7 +554,7 @@
                                           <path d="M17 16l4 -4l-4 -4" />
                                           <path d="M12 3a9 9 0 1 0 0 18" />
                                         </svg>
-                                        Track Forward Lineage</a>
+                                        Track Usage</a>
                                       <div class="dropdown-divider"></div>
                                       <a del-resource-id="{{ resource['id'] }}"
                                         class="text-danger cursor-pointer dropdown-item del-resource-btn">
@@ -877,7 +903,7 @@
             <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
               <div class="modal-content">
                 <div class="modal-header">
-                  <h5 class="modal-title">Manage Resource · <span id="view-resource-id-header"></span></h5>
+                  <h5 class="modal-title">Manage Resource | <span id="view-resource-id-header"></span></h5>
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -934,7 +960,7 @@
                     placeholder="Resource-ID" readonly>
                 </div>
                 <div class="modal-footer" id="update-modal-footer">
-                  <button type="button" class="btn btn-primary"
+                  <button type="button" class="btn btn-outline-primary"
                     onclick="copyText('resource-id-input', 'update-modal-footer')">
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copy" width="44"
                       height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#ffffff" fill="none"
@@ -947,7 +973,7 @@
                     </svg>
                     Copy ID</button>
                   {% if AUTHORIZED_ACTIONS.get('can_update') %}
-                  <button class="btn btn-success" id="update-resource-btn">Update Resource</button>
+                  <button class="btn btn-primary" id="update-resource-btn">Update Resource</button>
                   {% endif %}
                 </div>
               </div>
@@ -1068,7 +1094,7 @@
           </div>
           {% endif %}
 
-        
+
 
           <div class="modal modal-blur fade" id="spatial-modal" tabindex="-1" role="dialog" aria-hidden="true">
             <div class="modal-dialog mt-2 modal-lg modal-dialog-centered" role="document">
@@ -1105,7 +1131,7 @@
                   <a class="btn btn-primary ms-auto" onclick="updateSpatialCoverage()" id="update-spatial-btn">
                     Update Spatial Coverage
                   </a>
-                  
+
                 </div>
                 {% endif %}
               </div>
@@ -1202,6 +1228,156 @@
                     Close
                   </a>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal modal-blur fade" id="modal-tabular-profile" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Tabular Profile | Parameters</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="mb-3 row">
+
+                    <div class="col-lg-4">
+                      <label class="form-label">Delimeter</label>
+                      <input type="text" class="form-control" id="prof-tabular-delimeter"
+                        placeholder="Default: , (comma)" value=",">
+                      <small class="form-hint">
+                        <p>
+                          The delimeter used to separate values in the tabular data. Default is a comma (,).
+                          If you are using a different delimeter, please specify it here.
+                        </p>
+                      </small>
+                    </div>
+
+                    <div class="col-lg-5">
+                      <label class="form-label">Header</label>
+                      <input type="text" class="form-control" id="prof-tabular-header" placeholder="Default: true"
+                        value="0">
+                      <small class="form-hint">
+                        <p>
+                          The row number that contains the header of the tabular data. Default is 0,
+                        </p>
+                      </small>
+
+                    </div>
+                    <div class="col-lg-3">
+                      <label class="form-label">Light Mode</label>
+                      <label class="form-check">
+                        <input class="form-check-input" type="checkbox" id="prof-tabular-light-mode">
+                        <span class="form-check-label">Enable</span>
+                      </label>
+                      <small class="form-hint">
+                        <p>
+                          If enabled, the profiling will be done in a light mode, which is faster but less accurate.
+                        </p>
+                      </small>
+                    </div>
+                  </div>
+
+                  <div class="mb-3 row">
+                    <div class="col-lg-6">
+                      <label class="form-label">Categorical Threshold</label>
+                      <input type="number" name="input-mask" class="form-control" data-mask="0.00"
+                        data-mask-visible="true" placeholder="0.55" value="0.5" autocomplete="off" max="1" min="0"
+                        id="prof-tabular-categorical-threshold">
+                      <small class="form-hint">
+                        <p>
+                          The threshold for a column to be considered categorical. If the percentage of unique values
+                          in
+                          a
+                          column is less than this value, the column will be considered categorical.
+                          Default is 0.5 (50%).
+                        </p>
+                      </small>
+                    </div>
+                    <div class="col-lg-6">
+                      <label class="form-label">Maximum Number of Bins</label>
+                      <input type="number" class="form-control" id="prof-tabular-max-freq-distr"
+                        placeholder="Default: 10" value="10" min="1">
+                      <small class="form-hint">
+                        <p>Maximum number of bins for frequency distribution visualizations
+                        </p>
+                      </small>
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Data Type</label>
+                    <div class="form-selectgroup-boxes row mb-1">
+                      <div class="col-lg-6 mb-2">
+                        <label class="form-selectgroup-item">
+                          <input type="radio" name="prof-table-type" value="tabular" class="form-selectgroup-input"
+                            checked>
+                          <span class="form-selectgroup-label d-flex align-items-center p-3">
+                            <span class="me-3">
+                              <span class="form-selectgroup-check"></span>
+                            </span>
+                            <span class="form-selectgroup-label-content">
+                              <span class="form-selectgroup-title strong mb-1">Tabular Data</span>
+                              <span class="d-block text-secondary">Plain table data with rows and columns</span>
+                            </span>
+                          </span>
+                        </label>
+                      </div>
+                      <div class="col-lg-6 mb-2">
+                        <label class="form-selectgroup-item">
+                          <input type="radio" name="prof-table-type" value="timeseries" class="form-selectgroup-input">
+                          <span class="form-selectgroup-label d-flex align-items-center p-3">
+                            <span class="me-3">
+                              <span class="form-selectgroup-check"></span>
+                            </span>
+                            <span class="form-selectgroup-label-content">
+                              <span class="form-selectgroup-title strong mb-1">Timeseries</span>
+                              <span class="d-block text-secondary">Records of data captured over time</span>
+                            </span>
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="fine-grained-profile-options" class="mb-3">
+
+
+                  </div>
+                </div>
+                <div class=" modal-footer" id="manage-package-footer">
+                  <button class="btn btn-primary" id="update-package-btn"
+                    onclick="sendTabularProfilingRequest()">Profile
+                    Resource</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            <div class="toast fade hide" role="alert" id="toast-message-info" aria-live="assertive" aria-atomic="true"
+              data-bs-autohide="false">
+              <div class="toast-header">
+                <strong class="me-auto">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"
+                    class="me-2 text-primary icon icon-tabler icons-tabler-filled icon-tabler-bulb">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M4 11a1 1 0 0 1 .117 1.993l-.117 .007h-1a1 1 0 0 1 -.117 -1.993l.117 -.007h1z" />
+                    <path
+                      d="M12 2a1 1 0 0 1 .993 .883l.007 .117v1a1 1 0 0 1 -1.993 .117l-.007 -.117v-1a1 1 0 0 1 1 -1z" />
+                    <path d="M21 11a1 1 0 0 1 .117 1.993l-.117 .007h-1a1 1 0 0 1 -.117 -1.993l.117 -.007h1z" />
+                    <path
+                      d="M4.893 4.893a1 1 0 0 1 1.32 -.083l.094 .083l.7 .7a1 1 0 0 1 -1.32 1.497l-.094 -.083l-.7 -.7a1 1 0 0 1 0 -1.414z" />
+                    <path
+                      d="M17.693 4.893a1 1 0 0 1 1.497 1.32l-.083 .094l-.7 .7a1 1 0 0 1 -1.497 -1.32l.083 -.094l.7 -.7z" />
+                    <path d="M14 18a1 1 0 0 1 1 1a3 3 0 0 1 -6 0a1 1 0 0 1 .883 -.993l.117 -.007h4z" />
+                    <path
+                      d="M12 6a6 6 0 0 1 3.6 10.8a1 1 0 0 1 -.471 .192l-.129 .008h-6a1 1 0 0 1 -.6 -.2a6 6 0 0 1 3.6 -10.8z" />
+                  </svg>System Info</strong>
+                <small>Just now</small>
+                <button type="button" class="ms-2 btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+              </div>
+              <div class="toast-body" id="toast-info-body">
+                Message not available
               </div>
             </div>
           </div>
@@ -2722,7 +2898,7 @@
 
           $('#modal-track-lineage').on('shown.bs.modal', function () {
             layout.run();
-          
+
             layout.on('layoutstop', () => {
               cy.resize();
               cy.fit(cy.elements(), { padding: 50 });
@@ -2969,6 +3145,168 @@
         }
       })
     }
+  </script>
+
+  <script>
+    function runProfilerOnResource(id) {
+      // Find the resource and evaluate the ability to run the profiler on 
+      $.ajax({
+        url: `{{ url_for('catalog_blueprint.api_get_resource', entity_id='__RID__')}}`.replace('__RID__', id),
+        type: 'GET',
+        success: function (response) {
+          const resource = response.result;
+          if (resource.url && resource.url.startsWith('s3://')) {
+
+            //Decide the resource type and check if parameterization is required
+            const urlLower = resource.url.toLowerCase();
+
+            if (urlLower.endsWith('.csv') || urlLower.endsWith('.xlsx') || urlLower.endsWith('.xls')) {
+
+              toggleTabularProfileModal(resource.id);
+
+
+            } else if (urlLower.endsWith('.txt')) {
+              sendProfilingRequest(resource.id);
+            } else if (
+              urlLower.endsWith('.tif') ||
+              urlLower.endsWith('.tiff') ||
+              urlLower.endsWith('.img') ||
+              urlLower.endsWith('.vrt') ||
+              urlLower.endsWith('.nc') ||
+              urlLower.endsWith('.grd') ||
+              urlLower.endsWith('.asc') ||
+              urlLower.endsWith('.jp2') ||
+              urlLower.endsWith('.hdf') ||
+              urlLower.endsWith('.hdr') ||
+              urlLower.endsWith('.bil') ||
+              urlLower.endsWith('.png')
+            ) {
+              sendProfilingRequest(resource.id);
+            } else {
+              alert('Profiler is not available for this resource type. Supported formats are: CSV, XLSX, TXT, TIF, TIFF, IMG, VRT, NC, GRD, ASC, JP2, HDF, HDR, BIL, PNG.');
+              return;
+            }
+          }
+        },
+        error: function (error) {
+          console.error('Error fetching resource:', error);
+        }
+      });
+    }
+
+    function toggleTabularProfileModal(resourceId) {
+      $('#modal-tabular-profile').modal('toggle');
+      $('#modal-tabular-profile').data('resource-id', resourceId);
+    }
+
+    function sendTabularProfilingRequest() {
+
+      // Collect parameters only if they are not null or empty
+      const delimiter = $('#prof-tabular-delimiter').val();
+      const header = $('#prof-tabular-header').val();
+      const lightMode = $('#prof-tabular-light-mode').is(':checked');
+      const categoricalThreshold = $('#prof-tabular-categorical-threshold').val();
+      const maxFreqDistr = $('#prof-tabular-max-freq-distr').val();
+      const dataType = $('input[name="prof-table-type"]:checked').val();
+
+      // Timeseries-specific options
+      let timestampCol = null, crs = null, epsDistance = null;
+      if (dataType === 'timeseries') {
+        timestampCol = $('#prof-timeseries-timestamp-col').val();
+        crs = $('#prof-timeseries-crs').val();
+        epsDistance = $('#prof-timeseries-eps-distance').val();
+      }
+
+      const params = {};
+      if (delimiter) params.delimiter = delimiter;
+      if (header !== null && header !== '') {
+        // Try to convert header to integer if possible
+        const headerInt = parseInt(header, 10);
+        params.header = isNaN(headerInt) ? header : headerInt;
+      }
+      if (lightMode !== null) params.light_mode = lightMode;
+      if (categoricalThreshold) params.num_categorical_perc_threshold = Number(categoricalThreshold);
+      if (maxFreqDistr) params.max_freq_distr = Number(maxFreqDistr);
+      if (dataType) params.is_timeseries = (dataType === 'timeseries');
+      if (timestampCol) params.timeseries_date_column = timestampCol;
+      if (crs) params.crs = crs;
+      if (epsDistance) params.eps_distance = Number(epsDistance);
+
+      // Get the resource ID from the modal conte xt
+      const resourceId = $('#modal-tabular-profile').data('resource-id') || $('#modal-tabular-profile').attr('data-resource-id');
+      sendProfilingRequest(resourceId, params);
+      $('#modal-tabular-profile').modal('hide');
+    }
+
+
+    function sendProfilingRequest(resourceId, parameters = {}) {
+      $('#toast-message-info').removeClass('show').addClass('hide').removeClass('fade');
+      $.ajax({
+        url: "{{ url_for('catalog_blueprint.api_run_resource_profile', entity_id='__RID__') }}".replace('__RID__', resourceId),
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify(parameters),
+        success: function (response) {
+          proc = response.result.process_id;
+          task = response.result.task_id;
+          $('#toast-message-info').removeClass('hide').addClass('show').addClass('fade');
+          msg = "A profiling task has been submitted. Monitor it <a href='{{ url_for('dashboard_blueprint.task', process_id='__PROC__', task_id='__TASK__') }}'>here</a>.";
+          msg = msg.replace('__PROC__', proc).replace('__TASK__', task);
+          $('#toast-info-body').html(msg);
+        },
+        error: function (error) {
+          $('#toast-message-info').removeClass('hide').addClass('show').addClass('fade');
+          $('#toast-info-body').html("An error occured while submitting the profiling task. Verify you have the required permissions or try again later.");
+        }
+      });
+    }
+
+
+    $(document).ready(function () {
+      const $timeseriesRadio = $('input[name="prof-table-type"][value="timeseries"]');
+      const $tabularRadio = $('input[name="prof-table-type"][value="tabular"]');
+      const $fineGrainedOptions = $('#fine-grained-profile-options');
+
+      function updateFineGrainedOptions() {
+        if ($timeseriesRadio.is(':checked')) {
+          $fineGrainedOptions.html(`
+
+            <div class="row mb-2">
+              <div class="col-lg-4">
+                <label class="form-label">Timestamp Column</label>
+                <input type="text" class="form-control" id="prof-timeseries-timestamp-col" value="DATE" placeholder="Column name for timestamps">
+                <small class="form-hint">
+                  <p>Column name containing timestamps for time series data</p>
+                </small>
+              </div>
+              <div class="col-lg-4">
+                <label class="form-label">Coordinate Reference System</label>
+                <input type="text" class="form-control" id="prof-timeseries-crs" value="EPSG:4326" placeholder="Coordinate Reference System (e.g., EPSG:4326)">
+                 <small class="form-hint">
+                  <p>Coordinate Reference System used for interpreting geospatial data</p>
+                </small>
+              </div>
+              <div class="col-lg-4">
+                <label class="form-label">EPS Distance</label>
+                <input type="text" class="form-control" id="prof-timeseries-eps-distance" value="1000" placeholder="EPS distance for spatial operations">
+                <small class="form-hint">
+                  <p>Distance tolerance for spatial clustering in geometry heatmaps</p>
+                </small>
+              </div>
+            </div>
+
+          `);
+        } else {
+          $fineGrainedOptions.html('');
+        }
+      }
+
+      $timeseriesRadio.on('change', updateFineGrainedOptions);
+      $tabularRadio.on('change', updateFineGrainedOptions);
+
+      updateFineGrainedOptions();
+    });
+
   </script>
 
 </body>

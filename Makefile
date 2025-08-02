@@ -1,6 +1,6 @@
 
 DOCKER=docker
-IMGTAG=nbakats/stelar-tuc:data-api-prod
+IMGTAG=petroud/stelar-api:prod
 IMGPATH=.
 DOCKERFILE=$(IMGPATH)/Dockerfile.dev
 .PHONY: all build push

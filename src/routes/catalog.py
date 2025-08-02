@@ -118,6 +118,25 @@ def api_get_resource_lineage(entity_id, query_data):
     return RESOURCE.track_lineage(entity_id, query_data.get("depth"))
 
 
+@catalog_bp.route("/resource/<entity_id>/profile", methods=["POST"])
+@catalog_bp.input(schema.ResourceProfilingSchema, location="json")
+@catalog_bp.output(schema.APIResponse, status_code=200)
+@catalog_bp.doc(
+    summary="Run data profiler on a resource",
+    description="""\
+This endpoint runs a data profiler on a resource to analyze its content and structure. Upon parametrization, the endpoints initiates
+a profile task of which the id is returned to the user. The task is accessible via any task accessing interface. UI or API. """,
+    tags=["RESTful Publishing Operations"],
+    security=security_doc,
+    responses=error_responses([400, 401, 403, 500, 502]),
+)
+@token_active
+@render_api_output(logger)
+def api_run_resource_profile(entity_id, json_data):
+
+    return RESOURCE.profile(entity_id, json_data)
+
+
 #
 # Relationship endpoints
 #
