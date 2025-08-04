@@ -89,7 +89,7 @@
                             Workflows
                           </div>
                           <div class="text-secondary">
-                            Manage Workflows Processes Executed in the KLMS
+                            Manage Workflows Processes in the KLMS
                           </div>
                         </div>
                       </div>
@@ -128,7 +128,7 @@
                   </a>
                 </div>
                 <div class="col-sm-6 col-lg-4">
-                  <a class="card card-sm card-link" href="{{ url_for('dashboard_blueprint.catalog') }}">
+                  <a class="card card-sm card-link" href="{{ url_for('dashboard_blueprint.llm_search') }}">
                     <div class="card-body">
                       <div class="row align-items-center">
                         <div class="col-auto">
@@ -145,10 +145,10 @@
                         </div>
                         <div class="col">
                           <div class="font-weight-medium">
-                            Search
+                            AI Search
                           </div>
                           <div class="text-secondary">
-                            Perform Search Queries on the KLMS
+                            Perform Natural Language Queries on the KLMS
                           </div>
                         </div>
                       </div>
@@ -162,13 +162,12 @@
                         <div class="col-auto">
                           <span class="bg-primary text-white avatar">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    class="icon icon-tabler icons-tabler-outline icon-tabler-tool">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                                    <path
-                                        d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" />
-                                </svg>
+                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                              stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-tool">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path
+                                d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5" />
+                            </svg>
                           </span>
                         </div>
                         <div class="col">
@@ -189,7 +188,15 @@
                       <div class="row align-items-center">
                         <div class="col-auto">
                           <span class="bg-primary text-white avatar">
-                            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-database"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                              stroke-linejoin="round"
+                              class="icon icon-tabler icons-tabler-outline icon-tabler-database">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" />
+                              <path d="M4 6v6a8 3 0 0 0 16 0v-6" />
+                              <path d="M4 12v6a8 3 0 0 0 16 0v-6" />
+                            </svg>
                           </span>
                         </div>
                         <div class="col">
@@ -210,21 +217,20 @@
                       <div class="row align-items-center">
                         <div class="col-auto">
                           <span class="bg-primary text-white avatar">
-                            <svg xmlns="http://www.w3.org/2000/svg"
-                            class="icon icon-tabler icon-tabler-building-bank" width="44" height="44"
-                            viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M3 21l18 0" />
-                            <path d="M3 10l18 0" />
-                            <path d="M5 6l7 -3l7 3" />
-                            <path d="M4 10l0 11" />
-                            <path d="M20 10l0 11" />
-                            <path d="M8 14l0 3" />
-                            <path d="M12 14l0 3" />
-                            <path d="M16 14l0 3" />
-                        </svg>                          
-                      </span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-building-bank"
+                              width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+                              fill="none" stroke-linecap="round" stroke-linejoin="round">
+                              <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                              <path d="M3 21l18 0" />
+                              <path d="M3 10l18 0" />
+                              <path d="M5 6l7 -3l7 3" />
+                              <path d="M4 10l0 11" />
+                              <path d="M20 10l0 11" />
+                              <path d="M8 14l0 3" />
+                              <path d="M12 14l0 3" />
+                              <path d="M16 14l0 3" />
+                            </svg>
+                          </span>
                         </div>
                         <div class="col">
                           <div class="font-weight-medium">

@@ -611,9 +611,8 @@ def viewResource(resource_id):
         if url and url.startswith("s3://"):
             s3_link = url.replace("s3://", minio_console_url)
 
-        s3_endpoint = (
-            config.get("MINIO_API_SUBDOMAIN") + "." + config.get("KLMS_DOMAIN_NAME")
-        )
+        # Internal MinIO endpoint for embedding, for faster access
+        s3_endpoint = "http://minio:9000"
         creds = mutils.get_temp_minio_credentials(kutils.current_token())
 
         embed_uri = (

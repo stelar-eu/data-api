@@ -78,10 +78,10 @@
                                                 <div class="ms-auto w-50">
                                                     <div class="input-icon">
                                                         <span class="input-icon-addon">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24"
-                                                                height="24" viewBox="0 0 24 24" stroke-width="2"
-                                                                stroke="currentColor" fill="none" stroke-linecap="round"
-                                                                stroke-linejoin="round">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon"
+                                                                width="24" height="24" viewBox="0 0 24 24"
+                                                                stroke-width="2" stroke="currentColor" fill="none"
+                                                                stroke-linecap="round" stroke-linejoin="round">
                                                                 <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                                                 <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
                                                                 <path d="M21 21l-6 -6" />
@@ -89,14 +89,15 @@
                                                         </span>
                                                         <input type="text" value="" class="form-control"
                                                             placeholder="Search Processes by Keyword"
-                                                            id="processes-search-box" aria-label="Process Filtered Search">
+                                                            id="processes-search-box"
+                                                            aria-label="Process Filtered Search">
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="row mt-2">
                                             <div class="col" id="processes-search-filters">
-                                                
+
                                             </div>
                                         </div>
                                     </div>
@@ -115,7 +116,7 @@
                                                 </tr>
                                             </thead>
                                             <tbody id="processes-body">
-                                                
+
                                             </tbody>
                                         </table>
                                     </div>
@@ -252,7 +253,7 @@
 <script>
     var currentPage = 1;
 
-    function showPlaceholderProcesses(){
+    function showPlaceholderProcesses() {
         const placeholdersHTML = `
             <tr class="placeholder-glow">
                 <td style="width: 40%;"><span class="placeholder col-6"></span></td>
@@ -269,11 +270,13 @@
         }
     }
 
-    function buildProcessLine(process){
+    function buildProcessLine(process) {
         var processLine = `<tr id="wf-${process.id}" data-bs-toggle="tooltip" data-bs-placement="top" title="ID: ${process.id ? process.id : 'Not Associated'}">
             <td class="d-none" id="proc-id-${process.id}">${process.id}</td>
             <td id="proc-pkg-title-${process.id}">
+                <a href="{{ url_for('dashboard_blueprint.process', process_id='') }}${process.id}" class="text-link text-black">
                 ${process.title ? process.title : `<span class="text-secondary">${process.id} - <strong>Not Associated</strong></span>`}
+                </a>
                 <span class="badge ms-2 ${process.private ? 'bg-gray' : 'bg-success-lt'}">
                     ${process.private ? 'PRIVATE' : 'PUBLIC'}
                 </span>
@@ -296,7 +299,7 @@
         return processLine;
     }
 
-    function buildFillerLine(){
+    function buildFillerLine() {
         return `<tr style="height: 45px;">
             <td colspan="6" class="text-center text-secondary"></td>
         </tr>`;
@@ -329,19 +332,19 @@
             const selectedPage = parseInt($(this).attr('data-page'));
             searchProcesses(selectedPage, currentQuery); // Pass the current query
         });
-        $('#prev-page').off('click').on('click', function(){
-            if(page > 1){
+        $('#prev-page').off('click').on('click', function () {
+            if (page > 1) {
                 let newPage = page - 1;
                 $('.pagination li').removeClass('active');
-                $('a[data-page="'+newPage+'"]').parent().addClass('active');
+                $('a[data-page="' + newPage + '"]').parent().addClass('active');
                 searchProcesses(newPage, currentQuery); // Pass the current query
             }
         });
-        $('#next-page').off('click').on('click', function(){
-            if(page < totalPages){
+        $('#next-page').off('click').on('click', function () {
+            if (page < totalPages) {
                 let newPage = page + 1;
                 $('.pagination li').removeClass('active');
-                $('a[data-page="'+newPage+'"]').parent().addClass('active');
+                $('a[data-page="' + newPage + '"]').parent().addClass('active');
                 searchProcesses(newPage, currentQuery); // Pass the current query
             }
         });
@@ -392,7 +395,7 @@
 </script>
 
 <script>
-    
+
     // Update or remove the search badge below the search box
     function updateSearchBadge(query) {
         const badgeContainer = $('#search-badge-container');
@@ -405,7 +408,7 @@
             url.searchParams.set('q', query);
             window.history.pushState({}, '', url.toString());
             $('#processes-search-filters').html('<span class="badge badge-lg bg-blue-lt" style="cursor:pointer;">' + query + ' &times;</span>');
-            $('#processes-search-filters span').on('click', function() {
+            $('#processes-search-filters span').on('click', function () {
                 $('#processes-search-box').val('');
                 $('#processes-search-filters').empty();
                 searchProcesses(1, '');
@@ -420,7 +423,7 @@
     }
 
     // When pressing the Enter key in the search box, perform a filtered search
-    $('#processes-search-box').on('keydown', function(e) {
+    $('#processes-search-box').on('keydown', function (e) {
         if (e.key === 'Enter') {
             e.preventDefault();
             const query = $(this).val().trim();
@@ -430,7 +433,7 @@
     });
 
     // Reset filters button triggers an unfiltered search
-    $('#clear-process-search-btn').on('click', function() {
+    $('#clear-process-search-btn').on('click', function () {
         $('#processes-search-box').val('');
         updateSearchBadge('');
         searchProcesses(1, '');
@@ -441,7 +444,7 @@
 <script>
 
     var organizationDict;
-    
+
     function fetchOrganizations(callback) {
         $.ajax({
             url: '{{ url_for("catalog_blueprint.api_fetch_organizations") }}',
@@ -549,14 +552,15 @@
 
 </script>
 <script>
-    function renderCharts(){
+    function renderCharts() {
         list = {{ organization_counts | list | safe }};
+    
 
         org_list = list.map(function (item) {
             return organizationDict[item] || item;
         });
-        
-        
+
+
         window.ApexCharts && (new ApexCharts(document.getElementById('chart-org-pie'), {
             chart: {
                 type: "donut",
@@ -574,34 +578,34 @@
             },
             series: [
                 {% for org in organization_counts %}
-                    {{ organization_counts[org].count }},
-                {% endfor %}
-            ],
+                        {{ organization_counts[org].count }},
+            {% endfor %}
+                ],
             labels: org_list,
             colors: [tabler.getColor("purple"), tabler.getColor("blue"), tabler.getColor("orange"), tabler.getColor("red"), tabler.getColor("green"), tabler.getColor("yellow")],
             tooltip: {
-                theme: 'dark'
-            },
+            theme: 'dark'
+        },
             grid: {
-                strokeDashArray: 4,
-            },
+            strokeDashArray: 4,
+        },
             legend: {
-                show: true,
-                position: 'bottom',
-                offsetY: 10,
-                markers: {
-                    width: 10,
-                    height: 10,
-                    radius: 100,
-                },
-                itemMargin: {
-                    horizontal: 6,
-                    vertical: 3
-                },
+            show: true,
+            position: 'bottom',
+            offsetY: 10,
+            markers: {
+                width: 10,
+                height: 10,
+                radius: 100,
             },
+            itemMargin: {
+                horizontal: 6,
+                vertical: 3
+            },
+        },
             tooltip: {
-                fillSeriesColor: false
-            },
+            fillSeriesColor: false
+        },
         })).render();
 
         // Workflows Per Month Bar Chart
@@ -632,7 +636,7 @@
             series: [{
                 name: "Processes",
                 data: {{ monthly_counts.values() | list | safe }}
-                }],
+                    }],
             xaxis: {
             categories: {{ monthly_counts.keys() | list | safe }},
             labels: {
@@ -644,7 +648,7 @@
             axisBorder: {
             show: false,
         },
-                },
+                    },
             yaxis: {
             labels: {
                 padding: 4

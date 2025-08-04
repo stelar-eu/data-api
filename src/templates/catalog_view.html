@@ -425,8 +425,8 @@
                             <thead>
                               <tr>
                                 <th class="text-center" style="width: 10%;">Relation</th>
-                                <th style="width: 30%;">Resource</th>
-                                <th style="width: 50%;">URL</th>
+                                <th style="width: 40%;">Resource</th>
+                                <th style="width: 45%;">URL</th>
                                 <th class="text-center" style="width: 10%">Format</th>
                                 <th class="w-1"></th>
                               </tr>
@@ -963,7 +963,7 @@
                   <button type="button" class="btn btn-outline-primary"
                     onclick="copyText('resource-id-input', 'update-modal-footer')">
                     <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copy" width="44"
-                      height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#ffffff" fill="none"
+                      height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#3e1e4b" fill="none"
                       stroke-linecap="round" stroke-linejoin="round">
                       <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                       <path
@@ -1243,13 +1243,13 @@
                   <div class="mb-3 row">
 
                     <div class="col-lg-4">
-                      <label class="form-label">Delimeter</label>
-                      <input type="text" class="form-control" id="prof-tabular-delimeter"
+                      <label class="form-label">Delimiter</label>
+                      <input type="text" class="form-control" id="prof-tabular-delimiter"
                         placeholder="Default: , (comma)" value=",">
                       <small class="form-hint">
                         <p>
-                          The delimeter used to separate values in the tabular data. Default is a comma (,).
-                          If you are using a different delimeter, please specify it here.
+                          The delimiter used to separate values in the tabular data. Default is a comma (,).
+                          If you are using a different delimiter, please specify it here.
                         </p>
                       </small>
                     </div>
@@ -1278,7 +1278,6 @@
                       </small>
                     </div>
                   </div>
-
                   <div class="mb-3 row">
                     <div class="col-lg-6">
                       <label class="form-label">Categorical Threshold</label>
@@ -1296,11 +1295,11 @@
                       </small>
                     </div>
                     <div class="col-lg-6">
-                      <label class="form-label">Maximum Number of Bins</label>
+                      <label class="form-label">Top-K Frequent Values Limit</label>
                       <input type="number" class="form-control" id="prof-tabular-max-freq-distr"
                         placeholder="Default: 10" value="10" min="1">
                       <small class="form-hint">
-                        <p>Maximum number of bins for frequency distribution visualizations
+                        <p>Top-K most frequent values to be displayed in the frequency distribution.
                         </p>
                       </small>
                     </div>
@@ -3213,6 +3212,7 @@
       let timestampCol = null, crs = null, epsDistance = null;
       if (dataType === 'timeseries') {
         timestampCol = $('#prof-timeseries-timestamp-col').val();
+      } else if (dataType === 'tabular') {
         crs = $('#prof-timeseries-crs').val();
         epsDistance = $('#prof-timeseries-eps-distance').val();
       }
@@ -3270,32 +3270,37 @@
       function updateFineGrainedOptions() {
         if ($timeseriesRadio.is(':checked')) {
           $fineGrainedOptions.html(`
-
-            <div class="row mb-2">
-              <div class="col-lg-4">
+            <div class="row">
+              <div class="col-lg-12">
                 <label class="form-label">Timestamp Column</label>
                 <input type="text" class="form-control" id="prof-timeseries-timestamp-col" value="DATE" placeholder="Column name for timestamps">
                 <small class="form-hint">
                   <p>Column name containing timestamps for time series data</p>
                 </small>
               </div>
-              <div class="col-lg-4">
-                <label class="form-label">Coordinate Reference System</label>
-                <input type="text" class="form-control" id="prof-timeseries-crs" value="EPSG:4326" placeholder="Coordinate Reference System (e.g., EPSG:4326)">
-                 <small class="form-hint">
-                  <p>Coordinate Reference System used for interpreting geospatial data</p>
-                </small>
-              </div>
-              <div class="col-lg-4">
-                <label class="form-label">EPS Distance</label>
-                <input type="text" class="form-control" id="prof-timeseries-eps-distance" value="1000" placeholder="EPS distance for spatial operations">
-                <small class="form-hint">
-                  <p>Distance tolerance for spatial clustering in geometry heatmaps</p>
-                </small>
-              </div>
             </div>
-
           `);
+
+        } else if ($tabularRadio.is(':checked')) {
+          $fineGrainedOptions.html(`
+          <div class="row">
+               <div class="col-lg-6">
+                      <label class="form-label">Coordinate Reference System</label>
+                      <input type="text" class="form-control" id="prof-timeseries-crs" value="EPSG:4326"
+                        placeholder="Coordinate Reference System (e.g., EPSG:4326)">
+                      <small class="form-hint">
+                        <p>Coordinate Reference System used for interpreting geospatial data</p>
+                      </small>
+                    </div>
+                    <div class="col-lg-6">
+                      <label class="form-label">EPS Distance</label>
+                      <input type="text" class="form-control" id="prof-timeseries-eps-distance" value="1000"
+                        placeholder="EPS distance for spatial operations">
+                      <small class="form-hint">
+                        <p>Distance tolerance for spatial clustering in geometry heatmaps</p>
+                      </small>
+                    </div>
+                  </div>`);
         } else {
           $fineGrainedOptions.html('');
         }
