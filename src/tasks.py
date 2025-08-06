@@ -1250,6 +1250,7 @@ class Task(Entity):
             # If credentials were generated, propagate them to the
             # task input spec to allow the tool to access the data layer.
             task_input_spec["minio"] = {
+                "internal_url": "http://minio:9000",
                 "endpoint_url": config["MINIO_API_EXT_URL"],
                 "id": credentials["AccessKeyId"],
                 "key": credentials["SecretAccessKey"],

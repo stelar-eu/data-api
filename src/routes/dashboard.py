@@ -312,9 +312,13 @@ def processes():
             organization_counts[org_key]["count"] += 1
 
             # Count process per month for bar chart
-            start_date = datetime.strptime(
-                proc["metadata_created"], "%Y-%m-%dT%H:%M:%S.%fZ"
-            )
+            metadata_created = proc.get("metadata_created")
+            try:
+                start_date = datetime.strptime(
+                    metadata_created, "%Y-%m-%dT%H:%M:%S.%fZ"
+                )
+            except ValueError:
+                start_date = datetime.strptime(metadata_created, "%Y-%m-%dT%H:%M:%SZ")
             month_year = start_date.strftime("%Y-%m")
             monthly_counts[month_year] = monthly_counts.get(month_year, 0) + 1
 
