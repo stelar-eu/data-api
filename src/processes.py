@@ -5,6 +5,7 @@ from datetime import datetime
 from apiflask import Schema, fields, validators
 import cutils
 import kutils
+import utils
 import sql_utils
 from backend.ckan import ckan_request
 from psycopg2 import sql
@@ -493,6 +494,17 @@ class ProcessEntity(PackageEntity):
             new_process = self.load_from_ckan(new_package)
 
         return new_process
+
+    def get_task_statuses(self, id):
+
+        if type(id) is str:
+            return sql_utils.workflow_execution_read_task_states(id)
+        elif type(id) is list:
+            states = {}
+            for p in id:
+                if utils.is_valid_uuid(p):
+                    states[p] = sql_utils.workflow_execution_read_task_states(p)
+        return states
 
     def delete(self, id, purge=False):
         if purge:

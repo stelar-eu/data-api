@@ -7,6 +7,7 @@ from entity import PackageCKANSchema, PackageEntity, PackageSchema
 from execution.job import JobProfileSchema
 from qutils import REGISTRY
 from schema import NameID
+from apiflask.validators import Length, OneOf, Range, Regexp
 
 
 class ToolCKANSchema(PackageCKANSchema):
@@ -46,6 +47,7 @@ class ToolSchema(PackageSchema):
     programming_language = fields.String(allow_none=True)
     git_repository = fields.String(allow_none=True)
     type = fields.String(validate=validators.Equal("tool"))
+    notes = fields.String(required=False, validate=Length(0, 20000), allow_none=True)
 
     inputs = fields.Dict(keys=fields.String, values=fields.Raw, dump_default={})
     outputs = fields.Dict(keys=fields.String, values=fields.Raw, dump_default={})

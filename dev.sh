@@ -1,36 +1,14 @@
 #!/bin/bash
 
 # Check if the first argument is 'start-server'
-if [ "$1" = 'start-server' ]; then
-    # Create MinIO alias
-    echo "Configuring MinIO client alias 'myminio'..."
+if [ "$1" = 'start-server' ]; then    
+    echo "Starting the server with Flask in Debug Mode..."
+    # Start Flask application
+    flask run
+# Check if the first argument is 'setup-db'
+elif [ "$1" = 'setup-db' ]; then
     
-    # Validate that the necessary environment variables are set
-    if [ -z "$MINIO_DOMAIN" ] || [ -z "$MINIO_ROOT_USER" ] || [ -z "$MINIO_ROOT_PASSWORD" ]; then
-        echo "Error: One or more required environment variables (MINIO_DOMAIN, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD) are not set."
-        exit 1
-    fi
-
-    # Check if the MC_INSECURE environment variable is set to True
-    if [ "${MC_INSECURE,,}" = "true" ]; then
-        echo "Entering insecure mode for mc"
-    elif [ "${MC_INSECURE,,}" = "false" ]; then
-        echo "Operating in secure mode for mc"
-    else
-        echo "Invalid value for MC_INSECURE. Please set it to true or false."
-        exit 1
-    fi
-
-    mc alias set myminio $MINIO_DOMAIN $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD  
-
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to configure MinIO client alias."
-        exit 1
-    else
-        echo "MinIO client alias 'myminio' configured successfully."
-    fi
-
-    echo "Creating Organization (If Not Already Exists) in CKAN..."
+    echo "Creating Organization in CKAN..."
 
     # Create an organization in CKAN
     curl -X POST http://ckan:5000/api/3/action/organization_create \
@@ -39,19 +17,13 @@ if [ "$1" = 'start-server' ]; then
     -d '{
         "name": "stelar-klms",
         "title": "STELAR KLMS",
-        "description": "Organization for STELAR KLMS",
+        "description": "Default Organization for STELAR KLMS",
+        "image_url": "/stelar/static/stelar.png",
         "state": "active"
     }'
-    
-    echo "Starting the server with Flask in Debug Mode..."
-    # Start Flask application
-    flask run
-    # sleep 10d
-
-# Check if the first argument is 'setup-db'
-elif [ "$1" = 'setup-db' ]; then
 
     echo "Setting up the database..."
+
     # Construct the PostgreSQL URL
     psql='/usr/bin/psql'  # psql executable
     URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}/${POSTGRES_DB}"  # Constructing the db URI

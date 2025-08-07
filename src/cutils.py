@@ -246,14 +246,107 @@ class DatasetCKANSchema(PackageCKANSchema):
         extra_attributes_raw = ["spatial"]
 
 
-DATASET = PackageEntity(
-    "dataset",
-    "datasets",
-    creation_schema=DatasetSchema(),
-    update_schema=DatasetSchema(partial=True),
-    package_type="dataset",
-    ckan_schema=DatasetCKANSchema(),
-)
+class DatasetEntity(PackageEntity):
+    def __init__(self):
+        super().__init__(
+            "dataset",
+            "datasets",
+            creation_schema=DatasetSchema(),
+            update_schema=DatasetSchema(partial=True),
+            package_type="dataset",
+            ckan_schema=DatasetCKANSchema(),
+        )
+
+    def create(self, init_data):
+        """Create a new dataset.
+
+        This method is used to create a new dataset and try
+        to index it in the LLM search service.
+
+        Args:
+            init_data: The data to initialize the entity with.
+        Returns:
+            The created entity object.
+        """
+        obj = super().create(init_data)
+        try:
+            from backend.llmsearch import LLMSEARCH
+
+            LLMSEARCH().index(obj["id"])
+        except Exception as e:
+            logger.error(f"Failed to index dataset {obj['id']} in LLM search: {e}")
+            # We do not raise an error here, as the dataset is created successfully
+            # but indexing might fail due to various reasons (e.g., LLM service down).
+
+        return obj
+
+    def update(self, eid, entity_data):
+        """Update an existing dataset.
+
+        This method is used to patch an existing dataset and try
+        to index it in the LLM search service.
+
+        Args:
+            eid: The ID of the dataset to update.
+            entity_data: The data to update the entity with.
+        Returns:
+            The updated entity object.
+        """
+        obj = super().update(eid, entity_data)
+        try:
+            from backend.llmsearch import LLMSEARCH
+
+            LLMSEARCH().update(obj["id"])
+        except Exception as e:
+            logger.error(f"Failed to index dataset {obj['id']} in LLM search: {e}")
+
+        return obj
+
+    def patch(self, eid, patch_data):
+        """Patch an existing dataset.
+
+        This method is used to patch an existing dataset and try
+        to index it in the LLM search service.
+
+        Args:
+            eid: The ID of the dataset to patch.
+            patch_data: The data to patch the entity with.
+        Returns:
+            The patched entity object.
+        """
+        obj = super().patch(eid, patch_data)
+        try:
+            from backend.llmsearch import LLMSEARCH
+
+            LLMSEARCH().update(obj["id"])
+        except Exception as e:
+            logger.error(f"Failed to index dataset {obj['id']} in LLM search: {e}")
+
+        return obj
+
+    def delete(self, eid: str, purge=False):
+        """Delete a dataset.
+
+        This method is used to delete a dataset and unindex it
+        from the LLM search service.s
+
+        Args:
+            eid: The ID of the dataset to delete.
+            purge: If True, the dataset will be permanently deleted.
+        Returns:
+            The response from the CKAN API.
+        """
+        try:
+            from backend.llmsearch import LLMSEARCH
+
+            LLMSEARCH().delete(eid)
+        except Exception as e:
+            logger.error(f"Failed to delete dataset {eid} from LLM search: {e}")
+
+        return super().delete(eid, purge=purge)
+
+
+DATASET = DatasetEntity()
 
 
 class ResourceSchema(Schema):

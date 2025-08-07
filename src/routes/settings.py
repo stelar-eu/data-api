@@ -2,16 +2,18 @@ import random
 import re
 import smtplib
 import ssl
+import logging
 
 from apiflask import APIBlueprint
 from email_validator import EmailNotValidError, validate_email
 from flask import current_app, jsonify, request, session, make_response, url_for
 from keycloak.exceptions import KeycloakAuthenticationError
-from exceptions import InternalException
+from exceptions import InternalException, InvalidError
 from routes.generic import render_api_output
 import schema
 import kutils
 from routes.dashboard import session_required
+from mailing import send_otp_email
 from PIL import Image
 from io import BytesIO
 import os
@@ -24,6 +26,8 @@ import os
 
 # The tasks operations blueprint for all operations related to the lifecycle of `tasks
 settings_bp = APIBlueprint("settings_blueprint", __name__, enable_openapi=False)
+
+logger = logging.getLogger(__name__)
 
 
 # Function to validate password strength
@@ -52,264 +56,86 @@ def validate_password_strength(password):
 
 # Change password route (POST-only)
 @settings_bp.route("/change-password", methods=["POST"])
+@settings_bp.input(schema.ChangePassword, location="form")
 @session_required
-def change_password():
+@render_api_output(logger)
+def change_password(form_data):
     """
     POST-only route to change the user's password.
     Looks for oldPassword, newPassword, newPasswordRepeat in the request form.
     """
-
-    # Fetch Keycloak configuration from Flask app config
-    config = current_app.config["settings"]
-
-    # Initialize KeycloakOpenID client
-    keycloak_openid = kutils.initialize_keycloak_openid()
-
-    # Initialize KeycloakAdmin client
-
-    keycloak_admin = kutils.init_admin_client_with_credentials()
-
-    # Check if the user is logged in
-    if "ACTIVE" not in session or not session["ACTIVE"]:
-        return (
-            jsonify(
-                {"success": False, "message": "User not logged in", "error_code": 401}
-            ),
-            401,
-        )
-
-    # Get the form data
-    old_password = request.form.get("oldPassword")
-    new_password = request.form.get("newPassword")
-    new_password_repeat = request.form.get("repeatNewPassword")
-
-    # Ensure none of the fields are empty
-    if not old_password or not new_password or not new_password_repeat:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": "All fields are required",
-                    "error_code": 400,
-                }
-            ),
-            400,
-        )
+    # Get the form data from validated form_data
+    old_password = form_data.get("oldPassword")
+    new_password = form_data.get("newPassword")
+    new_password_repeat = form_data.get("repeatNewPassword")
 
     # Check if new password matches its repeated version
     if new_password != new_password_repeat:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": "New password and repeat password do not match",
-                    "error_code": 2,
-                }
-            ),
-            400,
-        )
+        raise InvalidError("New password and its confirmation do not match.")
 
     # Validate the new password strength
     valid, message = validate_password_strength(new_password)
     if not valid:
-        return jsonify({"success": False, "message": message, "error_code": 3}), 400
+        raise InvalidError(f"Password does not meet minimum requirements. {message}")
 
-    # Perform the password change via Keycloak
-    try:
-        token = session.get("access_token")
+    token = session.get("access_token")
 
-        # Authenticate the user using the old password to ensure it's correct
-        user_info = keycloak_openid.userinfo(token)
-        email = user_info.get("email")
+    # Authenticate the user using the old password to ensure it's correct
+    user_info = kutils.get_user_by_token(token)
+    email = user_info.get("email")
 
-        # Verify the old password by requesting a token
-        keycloak_openid.token(
-            email, old_password
-        )  # If this fails, old password is wrong
+    # Verify the old password by requesting a token
+    kutils.get_token(email, old_password)  # If this fails, old password is wrong
 
-        # Perform the password update using the admin API
-        keycloak_admin.set_user_password(
-            user_id=session["KEYCLOAK_ID_USER"],
-            password=new_password,
-            temporary=False,  # Indicating this is a permanent password change
-        )
+    # Perform the password update using the admin API
+    kutils.set_user_password(
+        user_id=session.get("KEYCLOAK_ID_USER"),
+        password=new_password,
+        temporary=False,  # Set to False to make it a permanent password
+    )
 
-        return jsonify(
-            {
-                "success": True,
-                "message": "Password changed successfully",
-                "error_code": 0,
-            }
-        )
-
-    except KeycloakAuthenticationError:
-        return (
-            jsonify(
-                {"success": False, "message": "Wrong old password", "error_code": 1}
-            ),
-            401,
-        )
-
-    except Exception as e:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": "An error occurred during the password change process",
-                    "error_code": 500,
-                }
-            ),
-            500,
-        )
-
-
-def send_otp_email(to_email):
-    """
-    Sends the OTP to the specified email address with a subject and sender name.
-    SMTP settings are fetched from Flask's app config.
-    """
-    config = current_app.config["settings"]  # Fetch SMTP settings from app config
-
-    smtp_server = config["SMTP_SERVER"]
-    smtp_port = config["SMTP_PORT"]
-    sender_email = config["SMTP_EMAIL"]
-    sender_password = config["SMTP_PASSWORD"]
-
-    # Generate the OTP
-    otp = random.randint(100000, 999999)
-
-    # Email subject and sender name
-    subject = "Verify Your New Email Address"
-    sender_name = "STELAR KLMS"
-
-    # Ensure USER_NAME exists in session
-    user_name = session.get("USER_USERNAME", "User")
-
-    # Plain text message without headers (headers will be handled separately)
-    plain_message = f"""\
-Dear {user_name},
-
-Your OTP to verify your email change is: {otp}.
-
-If you did not request this change, please contact our support team.
-
-Kind Regards,
-STELAR KLMS
-"""
-    # Create the full email message with subject, sender, and receiver
-    full_message = f"Subject: {subject}\nFrom: {sender_name} <{sender_email}>\nTo: {to_email}\n\n{plain_message}"
-
-    context = ssl.create_default_context()
-
-    try:
-        with smtplib.SMTP_SSL(smtp_server, int(smtp_port), context=context) as server:
-            server.login(sender_email, sender_password)
-            server.sendmail(sender_email, to_email, full_message)
-        return otp
-
-    except Exception as e:
-        # Log the error
-        raise Exception(f"Error sending OTP email: {str(e)}")
+    if session.get("REMEMBER_ME", False):
+        # If the user has opted for "Remember Me", update the session with the new password
+        session["USER_PASSWORD"] = new_password
 
 
 @settings_bp.route("/request-email-change", methods=["POST"])
+@settings_bp.input(schema.NewEmail, location="form")
+@render_api_output(logger)
 @session_required
-def request_email_change():
+def request_email_change(form_data):
     """
     Send an OTP to the user's new email address for verification.
     Also checks if the email is already associated with another account.
     """
-
-    # Fetch Keycloak configuration from Flask app config
-
     # Get the new email from the form data
-    new_email = request.form.get("newEmail")
-
-    if not new_email:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": "Email cannot be empty",
-                    "error_code": 400,
-                }
-            ),
-            400,
-        )
+    new_email = form_data.get("newEmail")
 
     try:
         # Validate and normalize the email
         valid = validate_email(new_email)
-        new_email = valid.email  # Normalized form of the eamil
+        new_email = valid.email  # Normalized form of the email
     except EmailNotValidError as e:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": "Please provide a valid email",
-                    "error_code": 400,
-                }
-            ),
-            400,
-        )
+        raise InvalidError(f"Invalid email address: {str(e)}")
 
-    # Initialize KeycloakAdmin client
-    keycloak_admin = kutils.init_admin_client_with_credentials()
-
-    # Check if the email is already in use by another user
-    try:
-        existing_users = keycloak_admin.get_users({"email": new_email})
-
-        # If a user with this email already exists, return an error
-        if existing_users:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "message": "This email is already associated with another account.",
-                        "error_code": 409,
-                    }
-                ),
-                409,
-            )
-
-    except Exception as e:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": f"Error checking email: {str(e)}",
-                    "error_code": 500,
-                }
-            ),
-            500,
-        )
+    # This will throw a ConflictError if the email is not unique
+    kutils.email_unique(new_email)
 
     # Store the new email in the session (for simplicity, also no database is needed)
     session["new_email"] = new_email
-
     try:
         otp = send_otp_email(new_email)  # Send the OTP email
         session["email_change_otp"] = otp
-        return jsonify(
-            {"success": True, "message": "OTP sent to your new email address."}
-        )
+        return {"message": "OTP sent to your new email address."}
     except Exception as e:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": f"Failed to send email: {str(e)}",
-                    "error_code": 500,
-                }
-            ),
-            500,
-        )
+        raise InternalException(f"Failed to send OTP email: {str(e)}") from e
 
 
 @settings_bp.route("/verify-email-otp", methods=["POST"])
+@settings_bp.input(schema.OTPVerification, location="form")
+@render_api_output(logger)
 @session_required
-def verify_email_otp():
+def verify_email_otp(form_data):
     """
     Verify the OTP entered by the user. If valid, update the user's email in Keycloak.
     """
@@ -319,53 +145,25 @@ def verify_email_otp():
     new_email = session.get("new_email")
 
     # Get the OTP entered by the user
-    user_otp = request.form.get("otp")
+    user_otp = form_data.get("otp")
 
     if not user_otp or not new_email or not stored_otp:
-        return (
-            jsonify(
-                {"success": False, "message": "Invalid request", "error_code": 400}
-            ),
-            400,
-        )
+        raise InvalidError("Invalid State. No OTP verification in progress")
 
     # Check if the OTP matches
     if int(user_otp) != stored_otp:
-        return (
-            jsonify({"success": False, "message": "Invalid OTP", "error_code": 401}),
-            401,
-        )
+        raise InvalidError("Invalid OTP. Please try again.")
 
-    try:
-        # Initialize KeycloakAdmin client
-        config = current_app.config["settings"]
-        keycloak_admin = kutils.init_admin_client_with_credentials()
+    # If the OTP is valid, update the user's email in Keycloak
+    kutils.update_user(email=new_email, user_id=user_id, email_verified=True)
 
-        # Update the user's email using Keycloak Admin API
-        keycloak_admin.update_user(
-            user_id=user_id, payload={"email": new_email, "emailVerified": True}
-        )
+    # Update the session with the new email
+    session["USER_EMAIL"] = new_email
+    # Clear the OTP and new email from the session
+    session.pop("email_change_otp")
+    session.pop("new_email")
 
-        # Update the session with the new email
-        session["USER_EMAIL"] = new_email
-
-        # Clear the OTP and new email from the session
-        session.pop("email_change_otp", None)
-        session.pop("new_email", None)
-
-        return jsonify({"success": True, "message": "Email updated successfully."})
-
-    except Exception as e:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": f"An error occurred: {str(e)}",
-                    "error_code": 500,
-                }
-            ),
-            500,
-        )
+    return {"message": "Email updated successfully."}
 
 
 @settings_bp.route("/generate-2fa", methods=["GET"])

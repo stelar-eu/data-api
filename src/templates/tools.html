@@ -65,6 +65,26 @@
                 <div class="container-xl">
                     <div class="row mb-5">
                         <div class="col-lg-4">
+                            <div class="card card-sm card-link cursor-pointer" id="discovery-card"
+                                onclick="toggleFilteredSearch('discovery')">
+                                <div class=" card-body">
+                                    <div class="row align-items-center">
+                                        <div class="col-auto">
+                                            <span class="bg-green text-white avatar">
+                                                <img src="{{ url_for('static', filename='logos/tools/discovery.png') }}"
+                                                    alt="Discovery Icon" class="rounded">
+                                            </span>
+                                        </div>
+                                        <div class="col">
+                                            <div class="strong">Discovery</div>
+                                            <div class="text-secondary">Timely discover the right data for user needs
+                                                by enhancing data annotations and metadata</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
                             <div class="card card-sm card-link cursor-pointer" id="interlinking-card"
                                 onclick="toggleFilteredSearch('interlinking')">
                                 <div class=" card-body">
@@ -100,26 +120,6 @@
                                             <div class="text-secondary">Increase automation and reliability of data
                                                 annotation by enriching with metadata
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-4">
-                            <div class="card card-sm card-link cursor-pointer" id="discovery-card"
-                                onclick="toggleFilteredSearch('discovery')">
-                                <div class=" card-body">
-                                    <div class="row align-items-center">
-                                        <div class="col-auto">
-                                            <span class="bg-green text-white avatar">
-                                                <img src="{{ url_for('static', filename='logos/tools/discovery.png') }}"
-                                                    alt="Discovery Icon" class="rounded">
-                                            </span>
-                                        </div>
-                                        <div class="col">
-                                            <div class="strong">Discovery</div>
-                                            <div class="text-secondary">Timely discover the right data for user needs
-                                                by enhancing data annotations and metadata</div>
                                         </div>
                                     </div>
                                 </div>

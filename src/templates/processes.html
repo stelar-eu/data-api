@@ -72,16 +72,16 @@
                                         <div class="row">
                                             <div class="d-flex">
                                                 <div class="d-inline-block">
-                                                    <button class="btn btn-outline-secondary"
+                                                    <button class="btn"
                                                         id="clear-process-search-btn">Reset Filters</button>
                                                 </div>
                                                 <div class="ms-auto w-50">
                                                     <div class="input-icon">
                                                         <span class="input-icon-addon">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24"
-                                                                height="24" viewBox="0 0 24 24" stroke-width="2"
-                                                                stroke="currentColor" fill="none" stroke-linecap="round"
-                                                                stroke-linejoin="round">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon"
+                                                                width="24" height="24" viewBox="0 0 24 24"
+                                                                stroke-width="2" stroke="currentColor" fill="none"
+                                                                stroke-linecap="round" stroke-linejoin="round">
                                                                 <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                                                                 <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
                                                                 <path d="M21 21l-6 -6" />
@@ -89,14 +89,90 @@
                                                         </span>
                                                         <input type="text" value="" class="form-control"
                                                             placeholder="Search Processes by Keyword"
-                                                            id="processes-search-box" aria-label="Process Filtered Search">
+                                                            id="processes-search-box"
+                                                            aria-label="Process Filtered Search">
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="row mt-2">
                                             <div class="col" id="processes-search-filters">
-                                                
+
+                                            </div>
+                                        </div>
+                                        <div class="row mt-2 d-flex align-items-center g-2">
+                                            <div class="col-md-4">
+                                                <div class="dropdown">
+                                                    <button class="btn dropdown-toggle w-100" type="button" 
+                                                            id="organization-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <span id="org-filter-text">Organization</span>
+                                                    </button>
+                                                    <div class="dropdown-menu w-100 p-3" aria-labelledby="organization-dropdown" id="organization-filter-menu">
+                                                        <div class="mb-2">
+                                                            <input type="text" class="form-control form-control-sm" 
+                                                                   placeholder="Search organizations..." id="org-search-input">
+                                                        </div>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input org-filter-all" type="checkbox" value="" id="org-all" checked>
+                                                            <label class="form-check-label" for="org-all">All Organizations</label>
+                                                        </div>
+                                                        <hr class="my-2">
+                                                        <div id="org-filter-options" style="max-height: 200px; overflow-y: auto;">
+                                                            <!-- Dynamic options will be inserted here -->
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <small class="form-hint">Filter by Organization</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="dropdown">
+                                                    <button class="btn dropdown-toggle w-100" type="button" 
+                                                            id="creator-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <span id="creator-filter-text">Creator</span>
+                                                    </button>
+                                                    <div class="dropdown-menu w-100 p-3" aria-labelledby="creator-dropdown" id="creator-filter-menu">
+                                                        <div class="mb-2">
+                                                            <input type="text" class="form-control form-control-sm" 
+                                                                   placeholder="Search creators..." id="creator-search-input">
+                                                        </div>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input creator-filter-all" type="checkbox" value="" id="creator-all" checked>
+                                                            <label class="form-check-label" for="creator-all">All Creators</label>
+                                                        </div>
+                                                        <hr class="my-2">
+                                                        <div id="creator-filter-options" style="max-height: 200px; overflow-y: auto;">
+                                                            <!-- Dynamic options will be inserted here -->
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <small class="form-hint">Filter by Creator</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="dropdown">
+                                                    <button class="btn dropdown-toggle w-100" type="button" 
+                                                            id="sort-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <span id="sort-text">Sort by Latest</span>
+                                                    </button>
+                                                    <div class="dropdown-menu" aria-labelledby="sort-dropdown">
+                                                        <a class="dropdown-item sort-option" href="#" data-sort="metadata_created desc">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-sm me-2" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><polyline points="6,9 12,15 18,9"/></svg>
+                                                            Latest
+                                                        </a>
+                                                        <a class="dropdown-item sort-option" href="#" data-sort="metadata_created asc">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-sm me-2" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><polyline points="6,15 12,9 18,15"/></svg>
+                                                            Oldest
+                                                        </a>
+                                                        <a class="dropdown-item sort-option" href="#" data-sort="title asc">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-sm me-2" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7l6 6l6 -6"/></svg>
+                                                            Name (A-Z)
+                                                        </a>
+                                                        <a class="dropdown-item sort-option" href="#" data-sort="score desc">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-sm me-2" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                                                            Most Relevant
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <small class="form-hint">Sort Options</small>
                                             </div>
                                         </div>
                                     </div>
@@ -109,13 +185,13 @@
                                                     <th style="width: 40%;">Title</th>
                                                     <th style="width: 15%;">Started At</th>
                                                     <th style="width: 10%;">Creator</th>
-                                                    <th style="width: 25%;">Organization</th>
-                                                    <th style="width: 10%;">Status</th>
+                                                    <th style="width: 20%;">Organization</th>
+                                                    <th style="width: 30%;">Task States</th>
                                                     <th style="width: 5%;">Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="processes-body">
-                                                
+
                                             </tbody>
                                         </table>
                                     </div>
@@ -248,18 +324,21 @@
     </div>
 </body>
 
-
 <script>
     var currentPage = 1;
+    var currentSort = "metadata_created desc";
+    var currentFilters = {
+        organizations: [],
+        creators: []
+    };
 
-    function showPlaceholderProcesses(){
+    function showPlaceholderProcesses() {
         const placeholdersHTML = `
             <tr class="placeholder-glow">
                 <td style="width: 40%;"><span class="placeholder col-6"></span></td>
                 <td style="width: 15%;"><span class="placeholder col-5"></span></td>
-                <td style="width: 10%;"><span class="placeholder col-4"></span></td>
+                <td style="width: 15%;"><span class="placeholder col-4"></span></td>
                 <td style="width: 25%;"><span class="placeholder col-8"></span></td>
-                <td style="width: 10%;"><span class="placeholder col-4"></span></td>
                 <td style="width: 5%;"><span class="placeholder col-2"></span></td>
             </tr>
         `;
@@ -269,11 +348,13 @@
         }
     }
 
-    function buildProcessLine(process){
+    function buildProcessLine(process) {
         var processLine = `<tr id="wf-${process.id}" data-bs-toggle="tooltip" data-bs-placement="top" title="ID: ${process.id ? process.id : 'Not Associated'}">
             <td class="d-none" id="proc-id-${process.id}">${process.id}</td>
             <td id="proc-pkg-title-${process.id}">
+                <a href="{{ url_for('dashboard_blueprint.process', process_id='') }}${process.id}" class="text-link text-black">
                 ${process.title ? process.title : `<span class="text-secondary">${process.id} - <strong>Not Associated</strong></span>`}
+                </a>
                 <span class="badge ms-2 ${process.private ? 'bg-gray' : 'bg-success-lt'}">
                     ${process.private ? 'PRIVATE' : 'PUBLIC'}
                 </span>
@@ -282,23 +363,23 @@
             <td id="proc-creator-id-${process.id}">
                 ${process.creator ? process.creator : '<span class="text-secondary">Not Available</span>'}
             </td>
+           
             <td>
                 ${process.organization ? `<a href="{{ url_for('dashboard_blueprint.organization', organization_id='')}}${process.organization.id}" target="_blank">${process.organization.title}</a>` : '<span class="text-secondary">Not Available</span>'}
             </td>
-            <td id="proc-status-id-${process.id}">
-                ${process.exec_state.charAt(0).toUpperCase() + process.exec_state.slice(1).toLowerCase()}
-                ${process.exec_state == 'succeeded' ? '<span class="badge bg-success"></span>' : ''}
-                ${process.exec_state == 'failed' ? '<span class="badge bg-danger"></span>' : ''}
-                ${process.exec_state == 'running' ? '<span class="badge bg-warning"></span>' : ''}
+            <td id="proc-task-states-${process.id}" style="width: 30%;>
+                <div class="placeholder-glow">
+                    <span class="placeholder col-8"></span>
+                </div>
             </td>
             <td><a href="{{url_for('dashboard_blueprint.process', process_id='')}}${process.id}">View</a></td>
         </tr>`;
         return processLine;
     }
 
-    function buildFillerLine(){
+    function buildFillerLine() {
         return `<tr style="height: 45px;">
-            <td colspan="6" class="text-center text-secondary"></td>
+            <td colspan="5" class="text-center text-secondary"></td>
         </tr>`;
     }
 
@@ -327,44 +408,83 @@
             $('.pagination li').removeClass('active');
             $(this).parent().addClass('active');
             const selectedPage = parseInt($(this).attr('data-page'));
-            searchProcesses(selectedPage, currentQuery); // Pass the current query
+            searchProcesses(selectedPage, currentQuery, currentFilters, currentSort);
         });
-        $('#prev-page').off('click').on('click', function(){
-            if(page > 1){
+        $('#prev-page').off('click').on('click', function () {
+            if (page > 1) {
                 let newPage = page - 1;
                 $('.pagination li').removeClass('active');
-                $('a[data-page="'+newPage+'"]').parent().addClass('active');
-                searchProcesses(newPage, currentQuery); // Pass the current query
+                $('a[data-page="' + newPage + '"]').parent().addClass('active');
+                searchProcesses(newPage, currentQuery, currentFilters, currentSort);
             }
         });
-        $('#next-page').off('click').on('click', function(){
-            if(page < totalPages){
+        $('#next-page').off('click').on('click', function () {
+            if (page < totalPages) {
                 let newPage = page + 1;
                 $('.pagination li').removeClass('active');
-                $('a[data-page="'+newPage+'"]').parent().addClass('active');
-                searchProcesses(newPage, currentQuery); // Pass the current query
+                $('a[data-page="' + newPage + '"]').parent().addClass('active');
+                searchProcesses(newPage, currentQuery, currentFilters, currentSort);
             }
         });
     }
 
-    function searchProcesses(page = 1, query = '') {
-        currentQuery = query; // Update the global query variable
+    function searchProcesses(page = 1, query = '', filters = {}, sort = currentSort) {
+        currentQuery = query;
+        currentFilters = filters;
+        currentSort = sort;
         var offset = (page - 1) * 8;
         showPlaceholderProcesses();
+        
+        let requestData = {
+            limit: 8,
+            offset: offset,
+            sort: currentSort,
+            facet: {
+                fields: ["organization", "author"]
+            }
+        };
+        
+        // Add query if present
+        if (currentQuery && currentQuery.trim()) {
+            requestData.q = currentQuery.trim();
+        } else {
+            requestData.q = "";
+        }
+        
+        // Build fq (filter query) array
+        let fq = [];
+        
+        if (filters.organizations && filters.organizations.length > 0) {
+            const orgFilter = filters.organizations.length === 1 
+                ? `organization:${filters.organizations[0]}`
+                : `organization:(${filters.organizations.join(' OR ')})`;
+            fq.push(orgFilter);
+        }
+        
+        if (filters.creators && filters.creators.length > 0) {
+            const creatorFilter = filters.creators.length === 1
+                ? `author:${filters.creators[0]}`
+                : `author:(${filters.creators.join(' OR ')})`;
+            fq.push(creatorFilter);
+        }
+        
+        // Only add fq if we have filters
+        if (fq.length > 0) {
+            requestData.fq = fq;
+        }
+        
         $.ajax({
             url: `{{ url_for('rest_workflows_blueprint.api_search_processes') }}`,
             method: 'POST',
             dataType: 'json',
             contentType: 'application/json',
-            data: JSON.stringify({
-                limit: 8,
-                offset: offset,
-                ...(currentQuery ? { q: currentQuery } : {})
-            }),
+            data: JSON.stringify(requestData),
             success: function (response) {
                 $('#processes-body').empty();
+                identifiers = [];
                 if (response.result.results.length > 0) {
                     response.result.results.forEach(function (process) {
+                        identifiers.push(process.id);
                         $('#processes-body').append(buildProcessLine(process));
                     });
                     const fillerCount = 8 - response.result.results.length;
@@ -372,6 +492,13 @@
                         $('#processes-body').append(buildFillerLine());
                     }
                 }
+                
+                // Update facet dropdowns with available values from search results
+                updateFacetDropdowns(response.result.search_facets || response.result.facets);
+
+                // Update the task states for each process
+                fetchTaskStatesOfProcesses(identifiers);
+
                 const total = response.result.count;
                 const totalPages = Math.ceil(total / 8);
                 const start = total === 0 ? 0 : offset + 1;
@@ -389,59 +516,367 @@
         });
     }
 
-</script>
-
-<script>
-    
-    // Update or remove the search badge below the search box
-    function updateSearchBadge(query) {
-        const badgeContainer = $('#search-badge-container');
-        if (!badgeContainer.length) {
-            $('#processes-search-box').after('<div id="search-badge-container" style="margin-top:5px;"></div>');
-        }
-        if (query) {
-            //Update the q in the URL 
-            const url = new URL(window.location.href);
-            url.searchParams.set('q', query);
-            window.history.pushState({}, '', url.toString());
-            $('#processes-search-filters').html('<span class="badge badge-lg bg-blue-lt" style="cursor:pointer;">' + query + ' &times;</span>');
-            $('#processes-search-filters span').on('click', function() {
-                $('#processes-search-box').val('');
-                $('#processes-search-filters').empty();
-                searchProcesses(1, '');
+    // Update facet dropdowns based on search results
+    function updateFacetDropdowns(facets) {
+        if (!facets) return;
+                
+        // Update organization filter
+        if (facets.organization && facets.organization.items) {
+            const selectedOrgs = getSelectedCheckboxValues('.org-filter');
+            $('#org-filter-options').empty();
+            
+            facets.organization.items.forEach(function(item) {
+                const orgTitle = organizationDict[item.name] || item.display_name || item.name;
+                const isChecked = selectedOrgs.includes(item.name) ? 'checked' : '';
+                $('#org-filter-options').append(`
+                    <div class="form-check org-option" data-name="${orgTitle.toLowerCase()}">
+                        <input class="form-check-input org-filter" type="checkbox" value="${item.name}" 
+                               id="org-${item.name}" ${isChecked}>
+                        <label class="form-check-label" for="org-${item.name}">
+                            ${orgTitle} <span class="text-muted">(${item.count})</span>
+                        </label>
+                    </div>
+                `);
             });
-        } else {
-            // If query is empty, remove the badge and reset the URL
-            const url = new URL(window.location.href);
-            url.searchParams.delete('q');
-            window.history.pushState({}, '', url.toString());
-            $('#processes-search-filters').empty();
+            
+            updateDropdownText('org', selectedOrgs);
+            filterDropdownOptions('org', ''); // Initialize with no filter
+        }
+        
+        // Update creator filter (using 'author' from API response)
+        if (facets.author && facets.author.items) {
+            const selectedCreators = getSelectedCheckboxValues('.creator-filter');
+            $('#creator-filter-options').empty();
+            
+            facets.author.items.forEach(function(item) {
+                const isChecked = selectedCreators.includes(item.name) ? 'checked' : '';
+                const displayName = item.display_name || item.name;
+                $('#creator-filter-options').append(`
+                    <div class="form-check creator-option" data-name="${displayName.toLowerCase()}">
+                        <input class="form-check-input creator-filter" type="checkbox" value="${item.name}" 
+                               id="creator-${item.name}" ${isChecked}>
+                        <label class="form-check-label" for="creator-${item.name}">
+                            ${displayName} <span class="text-muted">(${item.count})</span>
+                        </label>
+                    </div>
+                `);
+            });
+            
+            updateDropdownText('creator', selectedCreators);
+            filterDropdownOptions('creator', ''); // Initialize with no filter
         }
     }
 
+    // Filter dropdown options based on search input
+    function filterDropdownOptions(type, searchTerm) {
+        const selector = type === 'org' ? '.org-option' : '.creator-option';
+        const searchTermLower = searchTerm.toLowerCase();
+                
+        $(selector).each(function() {
+            const name = $(this).data('name');
+            
+            // Check if name exists and is a string, then perform the search
+            if (!searchTerm) {
+                // Show all if no search term
+                $(this).show();
+            } else if (name && typeof name === 'string' && name.includes(searchTermLower)) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
+    }
+
+    // Helper function to get selected checkbox values
+    function getSelectedCheckboxValues(selector) {
+        return $(selector + ':checked').map(function() {
+            return $(this).val();
+        }).get();
+    }
+
+    // Helper function to update dropdown button text
+    function updateDropdownText(type, selectedValues) {
+        let buttonText = '';
+        let textElement = '';
+        
+        if (type === 'org') {
+            textElement = '#org-filter-text';
+            buttonText = selectedValues.length === 0 ? 'Organization' : 
+                        selectedValues.length === 1 ? (organizationDict[selectedValues[0]] || selectedValues[0]) :
+                        `${selectedValues.length} Organizations`;
+        } else if (type === 'creator') {
+            textElement = '#creator-filter-text';
+            buttonText = selectedValues.length === 0 ? 'Creator' :
+                        selectedValues.length === 1 ? selectedValues[0] :
+                        `${selectedValues.length} Creators`;
+        }
+        
+        $(textElement).text(buttonText);
+    }
+</script>
+
+<script>
+    // Update search badges and URL with current filters
+    function updateSearchBadgeAndUrl(query, filters) {
+        updateSearchBadges(query, filters);
+        updateUrlParams(query, filters);
+    }
+
+    // Update search badges
+    function updateSearchBadges(query, filters) {
+        let badgesHtml = '';
+        
+        if (query) {
+            badgesHtml += `<span class="badge badge-lg bg-blue-lt me-2 filter-badge" style="cursor:pointer;" data-type="query">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-sm me-1" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="10" cy="10" r="7"/><path d="l21 21l-6 -6"/></svg>
+                ${query} &times;
+            </span>`;
+        }
+        
+        if (filters.organizations && filters.organizations.length > 0) {
+            filters.organizations.forEach(org => {
+                const orgTitle = organizationDict[org] || org;
+                badgesHtml += `<span class="badge badge-lg bg-green-lt me-2 filter-badge" style="cursor:pointer;" data-type="organization" data-value="${org}">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-sm me-1" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><line x1="3" y1="21" x2="21" y2="21"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="5,6 12,3 19,6"/><line x1="4" y1="10" x2="4" y2="21"/><line x1="20" y1="10" x2="20" y2="21"/><line x1="8" y1="14" x2="8" y2="17"/><line x1="12" y1="14" x2="12" y2="17"/><line x1="16" y1="14" x2="16" y2="17"/></svg>
+                    ${orgTitle} &times;
+                </span>`;
+            });
+        }
+        
+        if (filters.creators && filters.creators.length > 0) {
+            filters.creators.forEach(creator => {
+                badgesHtml += `<span class="badge badge-lg bg-orange-lt me-2 filter-badge" style="cursor:pointer;" data-type="creator" data-value="${creator}">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-sm me-1" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/></svg>
+                    ${creator} &times;
+                </span>`;
+            });
+        }
+        
+        $('#processes-search-filters').html(badgesHtml);
+        
+        // Attach click handlers to remove individual filters
+        $('.filter-badge').on('click', function() {
+            const type = $(this).data('type');
+            const value = $(this).data('value');
+            
+            if (type === 'query') {
+                $('#processes-search-box').val('');
+                currentQuery = '';
+            } else if (type === 'organization') {
+                $(`.org-filter[value="${value}"]`).prop('checked', false);
+                currentFilters.organizations = currentFilters.organizations.filter(org => org !== value);
+                updateDropdownText('org', currentFilters.organizations);
+            } else if (type === 'creator') {
+                $(`.creator-filter[value="${value}"]`).prop('checked', false);
+                currentFilters.creators = currentFilters.creators.filter(creator => creator !== value);
+                updateDropdownText('creator', currentFilters.creators);
+            }
+            
+            searchProcesses(1, currentQuery, currentFilters);
+            updateSearchBadgeAndUrl(currentQuery, currentFilters);
+        });
+    }
+
+    // Update URL parameters
+    function updateUrlParams(query, filters, sort = currentSort) {
+        const url = new URL(window.location.href);
+        
+        // Clear existing params
+        url.searchParams.delete('q');
+        url.searchParams.delete('organization');
+        url.searchParams.delete('author');
+        url.searchParams.delete('sort');
+        
+        if (query) {
+            url.searchParams.set('q', query);
+        }
+        
+        if (filters.organizations && filters.organizations.length > 0) {
+            url.searchParams.set('organization', filters.organizations.join(','));
+        }
+        
+        if (filters.creators && filters.creators.length > 0) {
+            url.searchParams.set('author', filters.creators.join(','));
+        }
+        
+        if (sort !== 'metadata_created desc') {
+            url.searchParams.set('sort', sort);
+        }
+        
+        window.history.pushState({}, '', url.toString());
+    }
+
+    // Parse URL parameters on page load
+    function parseUrlParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        currentQuery = urlParams.get('q') || '';
+        $('#processes-search-box').val(currentQuery);
+        
+        const orgParam = urlParams.get('organization');
+        if (orgParam) {
+            currentFilters.organizations = orgParam.split(',');
+        }
+        
+        const creatorParam = urlParams.get('author');
+        if (creatorParam) {
+            currentFilters.creators = creatorParam.split(',');
+        }
+        
+        const sortParam = urlParams.get('sort');
+        if (sortParam) {
+            currentSort = sortParam;
+            updateSortDisplay(sortParam);
+        }
+    }
+
+    // Update sort display text
+    function updateSortDisplay(sortValue) {
+        const sortOptions = {
+            'metadata_created desc': 'Latest',
+            'metadata_created asc': 'Oldest',
+            'title asc': 'Name (A-Z)',
+            'score desc': 'Most Relevant'
+        };
+        $('#sort-text').text('Sort by ' + (sortOptions[sortValue] || 'Latest'));
+    }
+
+    function fetchTaskStatesOfProcesses(identifiers){
+        $.ajax({
+            url: '{{ url_for("rest_workflows_blueprint.api_post_process_task_statuses") }}',
+            method: 'POST',
+            dataType: 'json',
+            contentType: 'application/json',
+            data: JSON.stringify({ identifiers: identifiers }),
+            success: function (response) {
+                if (response.result && Object.keys(response.result).length > 0) {
+                    Object.entries(response.result).forEach(function ([processId, states]) {
+                        let running = states.running || 0;
+                        let succeeded = states.succeeded || 0;
+                        let failed = states.failed || 0;
+                        let html = '';
+                        html += `<span class="badge bg-yellow-lt me-1" title="Running">${running}</span>`;
+                        html += ` / <span class="badge bg-green-lt me-1" title="Succeeded">${succeeded}</span>`;
+                        html += ` / <span class="badge bg-red-lt me-1" title="Failed">${failed}</span>`;
+                        if (!html) {
+                            html = `<span class="text-secondary">No Tasks</span>`;
+                        }
+                        $(`#proc-task-states-${processId}`).html(html);
+                    });
+                }
+            }
+        });
+    }
+
+    // Search input handlers for dropdown filtering
+    $(document).on('input', '#org-search-input', function() {
+        const searchTerm = $(this).val();
+        filterDropdownOptions('org', searchTerm);
+    });
+
+    $(document).on('input', '#creator-search-input', function() {
+        const searchTerm = $(this).val();
+        filterDropdownOptions('creator', searchTerm);
+    });
+
+    // Sort option handler
+    $(document).on('click', '.sort-option', function(e) {
+        e.preventDefault();
+        const sortValue = $(this).data('sort');
+        const sortText = $(this).text().trim();
+        
+        $('#sort-text').text('Sort by ' + sortText);
+        currentSort = sortValue;
+        
+        searchProcesses(1, currentQuery, currentFilters, currentSort);
+        updateUrlParams(currentQuery, currentFilters, currentSort);
+    });
+
     // When pressing the Enter key in the search box, perform a filtered search
-    $('#processes-search-box').on('keydown', function(e) {
+    $('#processes-search-box').on('keydown', function (e) {
         if (e.key === 'Enter') {
             e.preventDefault();
             const query = $(this).val().trim();
-            updateSearchBadge(query);
-            searchProcesses(1, query);
+            currentQuery = query;
+            searchProcesses(1, currentQuery, currentFilters);
+            updateSearchBadgeAndUrl(currentQuery, currentFilters);
         }
     });
 
+    // Filter change handlers for checkbox dropdowns
+    $(document).on('change', '.org-filter-all', function() {
+        if ($(this).is(':checked')) {
+            $('.org-filter').prop('checked', false);
+            currentFilters.organizations = [];
+            updateDropdownText('org', []);
+            searchProcesses(1, currentQuery, currentFilters);
+            updateSearchBadgeAndUrl(currentQuery, currentFilters);
+        }
+    });
+
+    $(document).on('change', '.org-filter', function() {
+        $('.org-filter-all').prop('checked', false);
+        currentFilters.organizations = getSelectedCheckboxValues('.org-filter');
+        updateDropdownText('org', currentFilters.organizations);
+        searchProcesses(1, currentQuery, currentFilters);
+        updateSearchBadgeAndUrl(currentQuery, currentFilters);
+    });
+
+    // Prevent dropdown from closing when clicking inside
+    $(document).on('click', '.dropdown-menu', function(e) {
+        e.stopPropagation();
+    });
+
+    $(document).on('change', '.creator-filter-all', function() {
+        if ($(this).is(':checked')) {
+            $('.creator-filter').prop('checked', false);
+            currentFilters.creators = [];
+            updateDropdownText('creator', []);
+            searchProcesses(1, currentQuery, currentFilters);
+            updateSearchBadgeAndUrl(currentQuery, currentFilters);
+        }
+    });
+
+    $(document).on('change', '.creator-filter', function() {
+        $('.creator-filter-all').prop('checked', false);
+        currentFilters.creators = getSelectedCheckboxValues('.creator-filter');
+        updateDropdownText('creator', currentFilters.creators);
+        searchProcesses(1, currentQuery, currentFilters, currentSort);
+        updateSearchBadgeAndUrl(currentQuery, currentFilters);
+    });
+
     // Reset filters button triggers an unfiltered search
-    $('#clear-process-search-btn').on('click', function() {
+    $('#clear-process-search-btn').on('click', function () {
         $('#processes-search-box').val('');
-        updateSearchBadge('');
-        searchProcesses(1, '');
+        $('#org-search-input').val('');
+        $('#creator-search-input').val('');
+        
+        // Reset all checkboxes
+        $('.org-filter-all, .creator-filter-all').prop('checked', true);
+        $('.org-filter, .creator-filter').prop('checked', false);
+        
+        // Update button texts
+        updateDropdownText('org', []);
+        updateDropdownText('creator', []);
+        
+        // Clear search filters in dropdowns
+        filterDropdownOptions('org', '');
+        filterDropdownOptions('creator', '');
+        
+        currentQuery = '';
+        currentFilters = {
+            organizations: [],
+            creators: []
+        };
+        
+        searchProcesses(1, currentQuery, currentFilters, currentSort);
+        updateSearchBadgeAndUrl(currentQuery, currentFilters);
     });
 </script>
 
-
 <script>
-
     var organizationDict;
-    
+
     function fetchOrganizations(callback) {
         $.ajax({
             url: '{{ url_for("catalog_blueprint.api_fetch_organizations") }}',
@@ -463,6 +898,11 @@
                         var org = data.result[i];
                         $('#owner-org').append(`<option value="${org.name}">${org.title}  |  ${org.name}</option>`);
                     }
+                    
+                    // Initial search will populate the filter dropdowns via facets
+                    parseUrlParams();
+                    searchProcesses(1, currentQuery, currentFilters, currentSort);
+                    updateSearchBadgeAndUrl(currentQuery, currentFilters);
                 }
             },
             error: function (xhr, status, error) {
@@ -491,7 +931,6 @@
     }
 
     $('#process-name-input').on('input', validateProcessName);
-
 
     function createProcess() {
         var processName = $('#process-name-input').val();
@@ -540,23 +979,21 @@
     }
 
     $(document).ready(function () {
+        showPlaceholderProcesses();
         fetchOrganizations(function () {
             renderCharts();
         });
-        searchProcesses(1, currentQuery);
-        updateSearchBadge(currentQuery);
     });
-
 </script>
+
 <script>
-    function renderCharts(){
+    function renderCharts() {
         list = {{ organization_counts | list | safe }};
 
         org_list = list.map(function (item) {
             return organizationDict[item] || item;
         });
-        
-        
+
         window.ApexCharts && (new ApexCharts(document.getElementById('chart-org-pie'), {
             chart: {
                 type: "donut",
@@ -574,34 +1011,34 @@
             },
             series: [
                 {% for org in organization_counts %}
-                    {{ organization_counts[org].count }},
-                {% endfor %}
-            ],
+                        {{ organization_counts[org].count }},
+            {% endfor %}
+                ],
             labels: org_list,
             colors: [tabler.getColor("purple"), tabler.getColor("blue"), tabler.getColor("orange"), tabler.getColor("red"), tabler.getColor("green"), tabler.getColor("yellow")],
             tooltip: {
-                theme: 'dark'
-            },
+            theme: 'dark'
+        },
             grid: {
-                strokeDashArray: 4,
-            },
+            strokeDashArray: 4,
+        },
             legend: {
-                show: true,
-                position: 'bottom',
-                offsetY: 10,
-                markers: {
-                    width: 10,
-                    height: 10,
-                    radius: 100,
-                },
-                itemMargin: {
-                    horizontal: 6,
-                    vertical: 3
-                },
+            show: true,
+            position: 'bottom',
+            offsetY: 10,
+            markers: {
+                width: 10,
+                height: 10,
+                radius: 100,
             },
+            itemMargin: {
+                horizontal: 6,
+                vertical: 3
+            },
+        },
             tooltip: {
-                fillSeriesColor: false
-            },
+            fillSeriesColor: false
+        },
         })).render();
 
         // Workflows Per Month Bar Chart
@@ -632,7 +1069,7 @@
             series: [{
                 name: "Processes",
                 data: {{ monthly_counts.values() | list | safe }}
-                }],
+                    }],
             xaxis: {
             categories: {{ monthly_counts.keys() | list | safe }},
             labels: {
@@ -644,7 +1081,7 @@
             axisBorder: {
             show: false,
         },
-                },
+                    },
             yaxis: {
             labels: {
                 padding: 4

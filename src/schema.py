@@ -445,6 +445,20 @@ class Identifier(Schema):
     )
 
 
+class IdentifierList(Schema):
+    identifiers = List(
+        String,
+        required=True,
+        validate=Length(min=1),
+        metadata={
+            "example": [
+                "6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+                "7dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+            ]
+        },
+    )
+
+
 class RolesInput(Schema):
     roles = List(String, required=True)
 
@@ -480,6 +494,20 @@ class UserRole(Schema):
 class NewToken(Schema):
     username = String(required=True, validate=Length(0, 50))
     password = String(required=True, validate=Length(0, 50))
+
+
+class ChangePassword(Schema):
+    oldPassword = String(required=True, allow_none=False)
+    newPassword = String(required=True, allow_none=False, validate=Length(8, 40))
+    repeatNewPassword = String(required=True, allow_none=False, validate=Length(8, 40))
+
+
+class NewEmail(Schema):
+    newEmail = String(required=True, allow_none=False, validate=Length(0, 150))
+
+
+class OTPVerification(Schema):
+    otp = String(required=True, allow_none=False, validate=Length(6, 6))
 
 
 class ImpersonateToken(Schema):
