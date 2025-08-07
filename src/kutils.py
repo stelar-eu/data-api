@@ -846,6 +846,27 @@ def sync_users():
 
 
 @raise_keycloak_error
+def set_user_password(user_id, password, temporary=False):
+    """
+    Sets the password for a user in Keycloak.
+    :param user_id: The UUID of the user whose password is to be set.
+    :param password: The new password to set for the user.
+    :param temporary: If True, the password is set as temporary.
+    :return: True if the password was set successfully, otherwise raises an exception.
+    """
+    try:
+        KEYCLOAK_ADMIN_CLIENT().set_user_password(
+            user_id=user_id,
+            password=password,
+            temporary=temporary,
+        )
+        return True
+    except Exception as e:
+        logger.error("Error while setting user password: %s", str(e), exc_info=True)
+        raise InternalException("Error while setting user password") from e
+
+
+@raise_keycloak_error
 def get_user(user_id):
     """
     Retrieve a user from Keycloak by user ID.
@@ -906,6 +927,16 @@ def delete_user(user_id):
         user_id = KEYCLOAK_ADMIN_CLIENT().get_user(id)["id"]
 
     KEYCLOAK_ADMIN_CLIENT().delete_user(user_id)
+
+    try:
+        sync_users()
+    except Exception as e:
+        logger.error(
+            "Error while syncing users after deletion of user %s: %s",
+            user_id,
+            str(e),
+            exc_info=True,
+        )
     return {"id": user_id}
 
 

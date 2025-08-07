@@ -29,6 +29,7 @@ from flask import (
     g,
 )
 from utils import is_valid_uuid
+from mailing import send_verification_email
 import cutils
 import kutils
 from entity import PackageEntity
@@ -1366,51 +1367,3 @@ def logout():
     # Clear local session and redirect to the login page
     session.clear()
     return redirect(url_for("dashboard_blueprint.login"))
-
-
-##################################
-# this should be moved to another location....
-##################################
-
-
-def send_verification_email(to_email, vftoken, id, fullname):
-    """
-    Sends the email verification to the specified email address with a subject and sender name.
-    SMTP settings are fetched from Flask's app config.
-    """
-    config = current_app.config["settings"]  # Fetch SMTP settings from app config
-
-    smtp_server = config["SMTP_SERVER"]
-    smtp_port = config["SMTP_PORT"]
-    sender_email = config["SMTP_EMAIL"]
-    sender_password = config["SMTP_PASSWORD"]
-
-    # Email subject and sender name
-    subject = "Verify Your Email Address"
-    sender_name = "STELAR KLMS"
-
-    # Plain text message without headers (headers will be handled separately)
-    plain_message = f"""\
-Dear {fullname},
-
-Follow this link to verify your email: 
-
-{config['MAIN_EXT_URL']}{url_for('dashboard_blueprint.verify_email')}?id={id}&vftoken={vftoken}
-
-If you received this email by accident, please ignore it.
-
-Kind Regards,
-STELAR KLMS
-"""
-    # Create the full email message with subject, sender, and receiver
-    full_message = f"Subject: {subject}\nFrom: {sender_name} <{sender_email}>\nTo: {to_email}\n\n{plain_message}"
-
-    context = ssl.create_default_context()
-
-    try:
-        with smtplib.SMTP_SSL(smtp_server, int(smtp_port), context=context) as server:
-            server.login(sender_email, sender_password)
-            server.sendmail(sender_email, to_email, full_message)
-    except Exception as e:
-        # Log the error
-        raise Exception(f"Error sending verification email: {str(e)}")

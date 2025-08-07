@@ -482,6 +482,20 @@ class NewToken(Schema):
     password = String(required=True, validate=Length(0, 50))
 
 
+class ChangePassword(Schema):
+    oldPassword = String(required=True, allow_none=False)
+    newPassword = String(required=True, allow_none=False, validate=Length(8, 40))
+    repeatNewPassword = String(required=True, allow_none=False, validate=Length(8, 40))
+
+
+class NewEmail(Schema):
+    newEmail = String(required=True, allow_none=False, validate=Length(0, 150))
+
+
+class OTPVerification(Schema):
+    otp = String(required=True, allow_none=False, validate=Length(6, 6))
+
+
 class ImpersonateToken(Schema):
     username = String(required=True, validate=Length(0, 50))
 

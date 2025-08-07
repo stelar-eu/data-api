@@ -1074,7 +1074,7 @@
 
                 // Send request for OTP
                 $.ajax({
-                    url: 'settings/request-email-change',
+                    url: `{{url_for('settings_blueprint.request_email_change')}}`,
                     type: 'POST',
                     data: { newEmail: newEmail },
                     success: function (data) {
@@ -1146,13 +1146,13 @@
 
                 // Submit OTP for verification
                 $.ajax({
-                    url: 'settings/verify-email-otp',
+                    url: `{{ url_for('settings_blueprint.verify_email_otp') }}`,
                     type: 'POST',
                     data: { otp: otp },
                     success: function (data) {
                         if (data.success) {
                             // Display success message in the modal
-                            const successAlert = $('<div class="alert alert-success mt-2">Email updated successfully!</div>');
+                            const successAlert = createAlertElement('success', 'Email changed successfully!');
                             $otpModal.find('.modal-body').append(successAlert);
                             $otpError.hide(); // Hide any previous error messages
 
