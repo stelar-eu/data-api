@@ -937,14 +937,12 @@
                 $modal.find('.alert').remove();
 
                 $.ajax({
-                    url: 'settings/change-password',
+                    url: `{{url_for('settings_blueprint.change_password')}}`,
                     type: 'POST',
                     data: formData,
                     success: function (data) {
                         if (data.success) {
-                            const successAlert = $('<div class="alert alert-success" id="alert-password"></div>').text(data.message);
-                            $modal.find('.modal-body').append(successAlert);
-
+                            $modal.find('.modal-body').append(createAlertElement('success', 'Password changed successfully!'));
                             // Reset form and fields
                             $form[0].reset();
                             $newPasswordField.removeClass('is-valid is-invalid');
@@ -966,18 +964,27 @@
                         try {
                             response = JSON.parse(jqXHR.responseText);
                         } catch (e) {
-                            response = { message: "An unexpected error occurred. Please try again." };
+                            response = { error: { message: "An unexpected error occurred. Please try again." } };
                         }
 
-                        const errorAlert = $('<div class="alert alert-danger" id="alert-password"></div>').text(response.message);
+                        // Extract error message from nested structure if present
+                        let errorMsg = "An unexpected error occurred. Please try again.";
+                        if (response && response.error) {
+                            if (response.error.detail && response.error.detail.message) {
+                                errorMsg = response.error.detail.message;
+                            } else if (response.error.message) {
+                                errorMsg = response.error.message;
+                            }
+                        } else if (response && response.message) {
+                            errorMsg = response.message;
+                        }
+
+                        const errorAlert = $(createAlertElement('danger', errorMsg));
                         $modal.find('.modal-body').append(errorAlert);
 
-                        // Apply invalid classes based on error code in response
-                        if (response.error_code === 1) {
+                        // Apply invalid class to old password field for authentication errors
+                        if (response && response.error && response.error.status_code === 401) {
                             $oldPasswordField.addClass('is-invalid');
-                        } else if (response.error_code === 2 || response.error_code === 3) {
-                            $newPasswordField.addClass('is-invalid');
-                            $repeatPasswordField.addClass('is-invalid');
                         }
                     }
                 });

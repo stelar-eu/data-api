@@ -2,12 +2,13 @@ import random
 import re
 import smtplib
 import ssl
+import logging
 
 from apiflask import APIBlueprint
 from email_validator import EmailNotValidError, validate_email
 from flask import current_app, jsonify, request, session, make_response, url_for
 from keycloak.exceptions import KeycloakAuthenticationError
-from exceptions import InternalException
+from exceptions import InternalException, InvalidError
 from routes.generic import render_api_output
 import schema
 import kutils
@@ -24,6 +25,8 @@ import os
 
 # The tasks operations blueprint for all operations related to the lifecycle of `tasks
 settings_bp = APIBlueprint("settings_blueprint", __name__, enable_openapi=False)
+
+logger = logging.getLogger(__name__)
 
 
 # Function to validate password strength
@@ -53,31 +56,12 @@ def validate_password_strength(password):
 # Change password route (POST-only)
 @settings_bp.route("/change-password", methods=["POST"])
 @session_required
+@render_api_output(logger)
 def change_password():
     """
     POST-only route to change the user's password.
     Looks for oldPassword, newPassword, newPasswordRepeat in the request form.
     """
-
-    # Fetch Keycloak configuration from Flask app config
-    config = current_app.config["settings"]
-
-    # Initialize KeycloakOpenID client
-    keycloak_openid = kutils.initialize_keycloak_openid()
-
-    # Initialize KeycloakAdmin client
-
-    keycloak_admin = kutils.init_admin_client_with_credentials()
-
-    # Check if the user is logged in
-    if "ACTIVE" not in session or not session["ACTIVE"]:
-        return (
-            jsonify(
-                {"success": False, "message": "User not logged in", "error_code": 401}
-            ),
-            401,
-        )
-
     # Get the form data
     old_password = request.form.get("oldPassword")
     new_password = request.form.get("newPassword")
@@ -85,82 +69,36 @@ def change_password():
 
     # Ensure none of the fields are empty
     if not old_password or not new_password or not new_password_repeat:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": "All fields are required",
-                    "error_code": 400,
-                }
-            ),
-            400,
-        )
+        raise InvalidError("All fields are required.")
 
     # Check if new password matches its repeated version
     if new_password != new_password_repeat:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": "New password and repeat password do not match",
-                    "error_code": 2,
-                }
-            ),
-            400,
-        )
+        raise InvalidError("New password and its confirmation do not match.")
 
     # Validate the new password strength
     valid, message = validate_password_strength(new_password)
     if not valid:
-        return jsonify({"success": False, "message": message, "error_code": 3}), 400
+        raise InvalidError(f"Password does not meet minimum requirements. {message}")
 
-    # Perform the password change via Keycloak
-    try:
-        token = session.get("access_token")
+    token = session.get("access_token")
 
-        # Authenticate the user using the old password to ensure it's correct
-        user_info = keycloak_openid.userinfo(token)
-        email = user_info.get("email")
+    # Authenticate the user using the old password to ensure it's correct
+    user_info = kutils.get_user_by_token(token)
+    email = user_info.get("email")
 
-        # Verify the old password by requesting a token
-        keycloak_openid.token(
-            email, old_password
-        )  # If this fails, old password is wrong
+    # Verify the old password by requesting a token
+    kutils.get_token(email, old_password)  # If this fails, old password is wrong
 
-        # Perform the password update using the admin API
-        keycloak_admin.set_user_password(
-            user_id=session["KEYCLOAK_ID_USER"],
-            password=new_password,
-            temporary=False,  # Indicating this is a permanent password change
-        )
+    # Perform the password update using the admin API
+    kutils.set_user_password(
+        user_id=session.get("KEYCLOAK_ID_USER"),
+        password=new_password,
+        temporary=False,  # Set to False to make it a permanent password
+    )
 
-        return jsonify(
-            {
-                "success": True,
-                "message": "Password changed successfully",
-                "error_code": 0,
-            }
-        )
-
-    except KeycloakAuthenticationError:
-        return (
-            jsonify(
-                {"success": False, "message": "Wrong old password", "error_code": 1}
-            ),
-            401,
-        )
-
-    except Exception as e:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "message": "An error occurred during the password change process",
-                    "error_code": 500,
-                }
-            ),
-            500,
-        )
+    if session.get("REMEMBER_ME", False):
+        # If the user has opted for "Remember Me", update the session with the new password
+        session["USER_PASSWORD"] = new_password
 
 
 def send_otp_email(to_email):
