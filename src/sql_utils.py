@@ -699,6 +699,36 @@ def workflow_execution_read(workflow_exec_id):
         return None
 
 
+def workflow_execution_read_task_states(workflow_exec_id):
+    """Returns the states of all tasks associated with the given workflow execution.
+
+    Args:
+        workflow_exec_id: UUID of the workflow execution.
+
+    Returns:
+        A dict with the states of the tasks and their counts.
+    """
+
+    # Compose the SQL command using the template for reading task states
+    sql = utils.sql_workflow_execution_templates["workflow_task_statuses_template"]
+
+    # Execute the SQL command in the database
+    resp = pgsql.execSql(sql, (workflow_exec_id,))
+
+    # Define all possible states
+    possible_states = ["running", "succeeded", "failed"]
+    state_counts = {state: 0 for state in possible_states}
+
+    if resp and len(resp) > 0:
+        for row in resp:
+            state = row["exec_state"]
+            count = row["count"]
+            if state in state_counts:
+                state_counts[state] = count
+
+    return state_counts
+
+
 def workflow_execution_context_read(workflow_exec_id):
     """Returns the ID of the contextual package corresponding to the working during its creation.
        If not specified returns null

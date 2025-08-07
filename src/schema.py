@@ -445,6 +445,20 @@ class Identifier(Schema):
     )
 
 
+class IdentifierList(Schema):
+    identifiers = List(
+        String,
+        required=True,
+        validate=Length(min=1),
+        metadata={
+            "example": [
+                "6dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+                "7dc36257-abb6-45b5-b3bb-5f94160fc2ee",
+            ]
+        },
+    )
+
+
 class RolesInput(Schema):
     roles = List(String, required=True)
 

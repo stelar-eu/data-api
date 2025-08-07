@@ -48,6 +48,26 @@ def api_get_process_graph(entity_id):
     return processes.PROCESS.build_process_graph(entity_id)
 
 
+@workflows_bp.route("/tasks/status", methods=["POST"])
+@workflows_bp.doc(tags=["RESTful Search Operations"])
+@workflows_bp.input(schema.IdentifierList, location="json")
+@workflows_bp.output(schema.APIResponse, status_code=200)
+@render_api_output(logger)
+@token_active
+def api_post_process_task_statuses(json_data):
+    """Returns the task statuses of the Processes.
+    Args:
+        identifiers: A list of Process identifiers.
+    Returns:
+        A JSON with the task statuses.
+    Responses:
+        - 200: Process task statuses successfully returned.
+        - 404: Process is not found
+        - 500: An unknown error occurred
+    """
+    return processes.PROCESS.get_task_statuses(json_data["identifiers"])
+
+
 # --------------------------------------------------------
 # ----------------------- REGISTRY -----------------------
 # --------------------------------------------------------
