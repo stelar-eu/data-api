@@ -137,8 +137,10 @@ class WorkflowProcessSchema(Schema):
 
 
 class ProcessCKANSchema(PackageCKANSchema):
-    pass
-    # Nothing to add here yet...
+    class Meta(PackageCKANSchema.Meta):
+        extra_attributes = ["exec_state"]
+
+    exec_state = fields.String(allow_none=True, metadata={"ckan_extras": True})
 
 
 class ProcessEntity(PackageEntity):
@@ -258,6 +260,15 @@ class ProcessEntity(PackageEntity):
                 # Add the attribute to the package creation request
                 package_creation_req[pattr] = attributes[pattr]
 
+        exec_state = "running"
+
+        # Here we add the exec_state as an extra to the CKAN package, so it can be indexed by Solr
+        # and eventually be searchable
+        extras_dict = {"exec_state": exec_state}
+        if "extras" in attributes and isinstance(attributes["extras"], dict):
+            extras_dict.update(attributes["extras"])
+        package_creation_req["extras"] = extras_dict
+
         # This will raise on failure
         package_creation_req = self.create_to_ckan(package_creation_req)
         package = ckan_request(
@@ -266,7 +277,6 @@ class ProcessEntity(PackageEntity):
 
         package_id = package["id"]
         start_date = datetime.now()
-        exec_state = "running"
 
         # Now, try to create the process in the database
         try:
@@ -388,7 +398,11 @@ class ProcessEntity(PackageEntity):
         return package
 
     def _filter_fields_from_ckan(self, package):
-        return {k: v for k, v in package.items() if k in self.GET_KEEP_FIELDS}
+        filtered = {k: v for k, v in package.items() if k in self.GET_KEEP_FIELDS}
+        # Remove exec_state from extras if present
+        if "extras" in filtered and isinstance(filtered["extras"], dict):
+            filtered["extras"].pop("exec_state", None)
+        return filtered
 
     def load_from_ckan(self, raw_obj):
         obj = super().load_from_ckan(raw_obj)
@@ -450,6 +464,7 @@ class ProcessEntity(PackageEntity):
                         "succeeded",
                     ]:
                         db_patch["exec_state"] = new_value
+                        ckan_patch["exec_state"] = new_value
                     else:
                         raise ConflictError(
                             "Exec state can only change from running to failed or succeeded."
@@ -476,6 +491,8 @@ class ProcessEntity(PackageEntity):
                     )
 
         ckan_patch = self.update_to_ckan(ckan_patch, id)
+
+        logger.error(ckan_patch)
 
         new_package = ckan_request(
             "package_patch", json=ckan_patch, context={"entity": "process"}, id=id
