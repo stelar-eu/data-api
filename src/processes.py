@@ -492,8 +492,6 @@ class ProcessEntity(PackageEntity):
 
         ckan_patch = self.update_to_ckan(ckan_patch, id)
 
-        logger.error(ckan_patch)
-
         new_package = ckan_request(
             "package_patch", json=ckan_patch, context={"entity": "process"}, id=id
         )
