@@ -101,7 +101,7 @@
                                             </div>
                                         </div>
                                         <div class="row mt-2 d-flex align-items-center g-2">
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
                                                 <div class="dropdown">
                                                     <button class="btn dropdown-toggle w-100" type="button" 
                                                             id="organization-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -124,7 +124,7 @@
                                                 </div>
                                                 <small class="form-hint">Filter by Organization</small>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
                                                 <div class="dropdown">
                                                     <button class="btn dropdown-toggle w-100" type="button" 
                                                             id="creator-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -147,7 +147,26 @@
                                                 </div>
                                                 <small class="form-hint">Filter by Creator</small>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
+                                                <div class="dropdown">
+                                                    <button class="btn dropdown-toggle w-100" type="button" 
+                                                            id="state-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <span id="state-filter-text">State</span>
+                                                    </button>
+                                                    <div class="dropdown-menu w-100 p-3" aria-labelledby="state-dropdown" id="state-filter-menu">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input state-filter-all" type="checkbox" value="" id="state-all" checked>
+                                                            <label class="form-check-label" for="state-all">All States</label>
+                                                        </div>
+                                                        <hr class="my-2">
+                                                        <div id="state-filter-options" style="max-height: 200px; overflow-y: auto;">
+                                                            <!-- Dynamic options will be inserted here -->
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <small class="form-hint">Filter by State</small>
+                                            </div>
+                                            <div class="col-md-2 ms-auto mb-3">
                                                 <div class="dropdown">
                                                     <button class="btn dropdown-toggle w-100" type="button" 
                                                             id="sort-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -172,7 +191,6 @@
                                                         </a>
                                                     </div>
                                                 </div>
-                                                <small class="form-hint">Sort Options</small>
                                             </div>
                                         </div>
                                     </div>
@@ -352,6 +370,9 @@
         var processLine = `<tr id="wf-${process.id}" data-bs-toggle="tooltip" data-bs-placement="top" title="ID: ${process.id ? process.id : 'Not Associated'}">
             <td class="d-none" id="proc-id-${process.id}">${process.id}</td>
             <td id="proc-pkg-title-${process.id}">
+                ${process.exec_state == 'succeeded' ? '<span class="badge bg-success me-1" title="Succeeded"></span>' : ''}
+                ${process.exec_state == 'failed' ? '<span class="badge bg-danger me-1" title="Failed"></span>' : ''}
+                ${process.exec_state == 'running' ? '<span class="badge bg-warning me-1" title="Running"></span>' : ''}
                 <a href="{{ url_for('dashboard_blueprint.process', process_id='') }}${process.id}" class="text-link text-black">
                 ${process.title ? process.title : `<span class="text-secondary">${process.id} - <strong>Not Associated</strong></span>`}
                 </a>
@@ -440,7 +461,7 @@
             offset: offset,
             sort: currentSort,
             facet: {
-                fields: ["organization", "author"]
+                fields: ["organization", "author", "extras_exec_state"]
             }
         };
         
@@ -466,6 +487,13 @@
                 ? `author:${filters.creators[0]}`
                 : `author:(${filters.creators.join(' OR ')})`;
             fq.push(creatorFilter);
+        }
+
+        if (filters.states && filters.states.length > 0) {
+            const stateFilter = filters.states.length === 1
+                ? `extras_exec_state:${filters.states[0]}`
+                : `extras_exec_state:(${filters.states.join(' OR ')})`;
+            fq.push(stateFilter);
         }
         
         // Only add fq if we have filters
@@ -565,6 +593,39 @@
             updateDropdownText('creator', selectedCreators);
             filterDropdownOptions('creator', ''); // Initialize with no filter
         }
+
+        if (facets.extras_exec_state && facets.extras_exec_state.items) {
+            const selectedStates = getSelectedCheckboxValues('.state-filter');
+            $('#state-filter-options').empty();
+            
+            // Map backend states to display names
+            const stateDisplayNames = {
+                'run': 'Running',
+                'fail': 'Failed', 
+                'succeed': 'Succeeded'
+            };
+            
+            facets.extras_exec_state.items.forEach(function(item) {
+                const isChecked = selectedStates.includes(item.name) ? 'checked' : '';
+                const displayName = stateDisplayNames[item.name] || item.display_name || item.name;
+                const stateColor = item.name === 'succeed' ? 'text-success' : 
+                                 item.name === 'fail' ? 'text-danger' : 
+                                 'text-warning';
+                
+                $('#state-filter-options').append(`
+                    <div class="form-check state-option" data-name="${displayName.toLowerCase()}">
+                        <input class="form-check-input state-filter" type="checkbox" value="${item.name}" 
+                               id="state-${item.name}" ${isChecked}>
+                        <label class="form-check-label ${stateColor}" for="state-${item.name}">
+                            ${displayName} <span class="text-muted">(${item.count})</span>
+                        </label>
+                    </div>
+                `);
+            });
+            
+            updateDropdownText('state', selectedStates);
+            filterDropdownOptions('state', ''); // Initialize with no filter
+        }
     }
 
     // Filter dropdown options based on search input
@@ -651,6 +712,24 @@
                 </span>`;
             });
         }
+
+        if (filters.states && filters.states.length > 0) {
+            filters.states.forEach(state => {
+                const stateDisplayNames = {
+                    'run': 'Running',
+                    'fail': 'Failed', 
+                    'succeed': 'Succeeded'
+                };
+                const displayName = stateDisplayNames[state] || state;
+                const stateColor = state === 'succeed' ? 'bg-success-lt' : 
+                                 state === 'fail' ? 'bg-danger-lt' : 
+                                 'bg-warning-lt';
+                badgesHtml += `<span class="badge badge-lg ${stateColor} me-2 filter-badge" style="cursor:pointer;" data-type="state" data-value="${state}">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-sm me-1" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 12l2 2l4 -4"/><path d="M21 12c0 4.97 -4.03 9 -9 9s-9 -4.03 -9 -9s4.03 -9 9 -9s9 4.03 9 9z"/></svg>
+                    ${displayName} &times;
+                </span>`;
+            });
+        }
         
         $('#processes-search-filters').html(badgesHtml);
         
@@ -670,6 +749,10 @@
                 $(`.creator-filter[value="${value}"]`).prop('checked', false);
                 currentFilters.creators = currentFilters.creators.filter(creator => creator !== value);
                 updateDropdownText('creator', currentFilters.creators);
+            }  else if (type === 'state') {
+                $(`.state-filter[value="${value}"]`).prop('checked', false);
+                currentFilters.states = currentFilters.states.filter(state => state !== value);
+                updateDropdownText('state', currentFilters.states);
             }
             
             searchProcesses(1, currentQuery, currentFilters);
@@ -685,6 +768,7 @@
         url.searchParams.delete('q');
         url.searchParams.delete('organization');
         url.searchParams.delete('author');
+        url.searchParams.delete('extras_exec_state');
         url.searchParams.delete('sort');
         
         if (query) {
@@ -697,6 +781,10 @@
         
         if (filters.creators && filters.creators.length > 0) {
             url.searchParams.set('author', filters.creators.join(','));
+        }
+        
+        if (filters.states && filters.states.length > 0) {
+            url.searchParams.set('extras_exec_state', filters.states.join(','));
         }
         
         if (sort !== 'metadata_created desc') {
@@ -721,6 +809,11 @@
         const creatorParam = urlParams.get('author');
         if (creatorParam) {
             currentFilters.creators = creatorParam.split(',');
+        }
+
+        const stateParam = urlParams.get('extras_exec_state');
+        if (stateParam) {
+            currentFilters.states = stateParam.split(',');
         }
         
         const sortParam = urlParams.get('sort');
@@ -777,6 +870,11 @@
     $(document).on('input', '#creator-search-input', function() {
         const searchTerm = $(this).val();
         filterDropdownOptions('creator', searchTerm);
+    });
+
+     $(document).on('input', '#state-search-input', function() {
+        const searchTerm = $(this).val();
+        filterDropdownOptions('state', searchTerm);
     });
 
     // Sort option handler
@@ -845,28 +943,50 @@
         updateSearchBadgeAndUrl(currentQuery, currentFilters);
     });
 
+    $(document).on('change', '.state-filter-all', function() {
+        if ($(this).is(':checked')) {
+            $('.state-filter').prop('checked', false);
+            currentFilters.states = [];
+            updateDropdownText('state', []);
+            searchProcesses(1, currentQuery, currentFilters);
+            updateSearchBadgeAndUrl(currentQuery, currentFilters);
+        }
+    });
+
+    $(document).on('change', '.state-filter', function() {
+        $('.state-filter-all').prop('checked', false);
+        currentFilters.states = getSelectedCheckboxValues('.state-filter');
+        updateDropdownText('state', currentFilters.states);
+        searchProcesses(1, currentQuery, currentFilters, currentSort);
+        updateSearchBadgeAndUrl(currentQuery, currentFilters);
+    });
+
     // Reset filters button triggers an unfiltered search
     $('#clear-process-search-btn').on('click', function () {
         $('#processes-search-box').val('');
         $('#org-search-input').val('');
         $('#creator-search-input').val('');
+        $('#state-search-input').val('');
         
         // Reset all checkboxes
-        $('.org-filter-all, .creator-filter-all').prop('checked', true);
-        $('.org-filter, .creator-filter').prop('checked', false);
+        $('.org-filter-all, .creator-filter-all, .state-filter-all').prop('checked', true);
+        $('.org-filter, .creator-filter, .state-filter').prop('checked', false);
         
         // Update button texts
         updateDropdownText('org', []);
         updateDropdownText('creator', []);
+        updateDropdownText('state', []);
         
         // Clear search filters in dropdowns
         filterDropdownOptions('org', '');
         filterDropdownOptions('creator', '');
+        filterDropdownOptions('state', '');
         
         currentQuery = '';
         currentFilters = {
             organizations: [],
-            creators: []
+            creators: [],
+            states: []
         };
         
         searchProcesses(1, currentQuery, currentFilters, currentSort);

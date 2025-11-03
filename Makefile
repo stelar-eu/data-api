@@ -2,7 +2,7 @@
 DOCKER=docker
 IMGTAG=petroud/stelar-api:prod
 IMGPATH=.
-DOCKERFILE=$(IMGPATH)/Dockerfile.dev
+DOCKERFILE=$(IMGPATH)/Dockerfile.k8s
 .PHONY: all build push
 
 

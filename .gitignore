@@ -10,6 +10,12 @@ __pycache__/
 *.so
 
 .idea/
+.vscode/
+
+._*
+
+# Walkthroughs
+/src/templates/walkthroughs/*
 
 # Distribution / packaging
 .Python
@@ -19,7 +25,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/

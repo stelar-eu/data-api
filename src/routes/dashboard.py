@@ -717,19 +717,21 @@ def sde_manager():
     )
     creds = mutils.get_temp_minio_credentials(kutils.current_token())
 
+    tkns = kutils.refresh_access_token(session.get("refresh_token"))
+
     embed_uri = (
         f"/sde/?embed=true"
         f"&api={quote(host + '/stelar')}"
         f"&username={quote(session.get('USER_USERNAME', ''))}"
-        f"&access_token={quote(session.get('access_token', ''))}"
-        f"&refresh_token={quote(session.get('refresh_token', ''))}"
-        f"&expires_in={int(session.get('expires_in', 0))}"
-        f"&refresh_expires_in={int(session.get('refresh_expires_in', 0))}"
+        f"&access_token={quote(tkns.get('access_token', ''))}"
+        f"&refresh_token={quote(tkns.get('refresh_token', ''))}"
+        f"&expires_in={int(tkns.get('expires_in', 0))}"
+        f"&refresh_expires_in={int(tkns.get('refresh_expires_in', 0))}"
         f"&access_key={quote(creds['AccessKeyId'])}"
         f"&secret_key={quote(creds['SecretAccessKey'])}"
         f"&session_token={quote(creds['SessionToken'])}"
         f"&s3_endpoint={quote(s3_endpoint)}"
-        f"&bucket=klms-bucket"
+        f"&bucket=sde-bucket"
     )
     return render_stelar_template(
         "sde.html",

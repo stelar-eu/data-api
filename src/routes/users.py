@@ -61,6 +61,20 @@ def get_users(query_data):
     return kutils.get_users_from_keycloak(offset=offset, limit=limit)
 
 
+@users_bp.route("/me", methods=["GET"])
+@users_bp.doc(tags=["User Management"], security=security_doc)
+@render_api_output(logger)
+@token_active
+def api_get_current_user():
+    """
+    Get information about the current STELAR KLMS User based on the provided token.
+
+    Returns:
+    - dict(): The JSON containing the user information
+    """
+    return kutils.current_user()
+
+
 @users_bp.route("/list", methods=["GET"])
 @users_bp.doc(tags=["User Management"], security=security_doc)
 @users_bp.input(schema.PaginationParameters, location="query")
