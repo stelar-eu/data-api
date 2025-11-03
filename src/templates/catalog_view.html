@@ -3220,9 +3220,17 @@
       const params = {};
       if (delimiter) params.delimiter = delimiter;
       if (header !== null && header !== '') {
-        // Try to convert header to integer if possible
+        // Try to convert header to integer, boolean, or keep as string
         const headerInt = parseInt(header, 10);
-        params.header = isNaN(headerInt) ? header : headerInt;
+        const headerLower = header.toString().toLowerCase();
+        
+        if (!isNaN(headerInt)) {
+          params.header = headerInt;
+        } else if (headerLower === 'true' || headerLower === 'false') {
+          params.header = headerLower === 'true';
+        } else {
+          params.header = header;
+        }
       }
       if (lightMode !== null) params.light_mode = lightMode;
       if (categoricalThreshold) params.num_categorical_perc_threshold = Number(categoricalThreshold);
