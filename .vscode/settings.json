@@ -15,4 +15,5 @@
         "black"
     ],
     "makefile.configureOnOpen": false,
+    "djlint.showInstallError": false,
 }
