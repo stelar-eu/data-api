@@ -474,8 +474,7 @@ def catalog():
     org = request.args.get("org")
     author = request.args.get("author")
     spatial = request.args.get("bbox")
-    temporal_end = request.args.get("temporal_end")
-    temporal_start = request.args.get("temporal_start")
+    temporal = request.args.get("temporal")
 
     search_q = {}
     # Sort the results according to the user's latest option
@@ -488,15 +487,9 @@ def catalog():
     search_q["organization"] = org if org else None
     search_q["author"] = author if author else None
     search_q["bbox"] = [float(num) for num in spatial.split(",")] if spatial else None
-    search_q["temporal_end"] = (
-        datetime.strptime(temporal_end, "%Y-%m-%d") if temporal_end else None
-    )
-    search_q["temporal_start"] = (
-        datetime.strptime(temporal_start, "%Y-%m-%d") if temporal_start else None
-    )
 
     fq_filters = []
-    # For fields except spatial, temporal_start, and temporal_end
+    # For fields except spatial and temporal
     for field in ["tags", "res_format", "organization", "author"]:
         value = search_q.get(field)
         if value:
@@ -510,6 +503,49 @@ def catalog():
                 fq_filters.append(f"{field}: (" + " OR ".join(values) + ")")
             else:
                 fq_filters.append(f"{field}:(" + " OR ".join(values) + ")")
+
+    # Temporal handling: expected format "start|end" where start or end can be "*"
+    # Examples:
+    #  "2020-12-31T17:31|2022-01-01T15:31"
+    #  "2020-01-01T15:38|*"
+    #  "*|2020-02-01T15:38"
+    if temporal:
+        try:
+            parts = temporal.split("|", 1)
+            start_raw = parts[0] if len(parts) > 0 and parts[0] != "" else "*"
+            end_raw = parts[1] if len(parts) > 1 and parts[1] != "" else "*"
+
+            def _normalize_time(t):
+                if not t or t == "*":
+                    return "*"
+                t = t.strip()
+                # If already has timezone Z or an explicit offset after date, return as-is
+                if t.endswith("Z") or ("+" in t[10:]) or ("-" in t[10:]):
+                    return t
+                # If contains time part
+                if "T" in t:
+                    date, time_part = t.split("T", 1)
+                    # time_part with only HH:MM
+                    if time_part.count(":") == 1:
+                        return f"{date}T{time_part}:00Z"
+                    # time_part with HH:MM:SS (no timezone)
+                    elif time_part.count(":") >= 2:
+                        return t + "Z"
+                    else:
+                        return f"{date}T00:00:00Z"
+                else:
+                    # date only -> midnight UTC
+                    return t + "T00:00:00Z"
+
+            start = _normalize_time(start_raw)
+            end = _normalize_time(end_raw)
+
+            # Build the range string depending on presence of start/end
+            range_str = f"[{start} TO {end}]"
+            fq_filters.append(f"extras_temporal_start:{range_str}")
+            fq_filters.append(f"extras_temporal_end:{range_str}")
+        except Exception as e:
+            logger.error(f"Error parsing temporal filter: {str(e)}")
 
     search_q["fq"] = fq_filters
 
